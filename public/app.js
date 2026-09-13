@@ -427,7 +427,85 @@ async function switchAccountByToken(token) {
 // =============================================================================
 // 4. TOAST NOTIFICATIONS & RPG HELPERS
 // =============================================================================
-function showToast(message, type = 'info') {
+// ponytail: single in-flight confirm modal; upgrade to queue if concurrent dialogs needed
+let activeConfirmResolve = null;
+
+function confirmAction({
+  title = 'Xác Nhận',
+  message = 'Bạn có chắc chắn muốn thực hiện hành động này?',
+  detail = '',
+  confirmText = 'Xác Nhận',
+  cancelText = 'Hủy',
+  icon = '❓',
+  btnColor = 'amber'
+} = {}) {
+  return new Promise((resolve) => {
+    if (activeConfirmResolve) {
+      activeConfirmResolve(false);
+      activeConfirmResolve = null;
+    }
+
+    const modal = document.getElementById('modal-confirm');
+    if (!modal) {
+      return resolve(window.confirm(`${title}\n${message}`));
+    }
+
+    activeConfirmResolve = resolve;
+
+    const iconEl = document.getElementById('confirm-modal-icon');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const descEl = document.getElementById('confirm-modal-desc');
+    const detailEl = document.getElementById('confirm-modal-detail');
+    const cancelBtn = document.getElementById('btn-confirm-cancel');
+    const okBtn = document.getElementById('btn-confirm-ok');
+
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.textContent = title;
+    if (descEl) descEl.textContent = message;
+
+    if (detailEl) {
+      if (detail) {
+        detailEl.textContent = detail;
+        detailEl.classList.remove('hidden');
+      } else {
+        detailEl.textContent = '';
+        detailEl.classList.add('hidden');
+      }
+    }
+
+    if (cancelBtn) cancelBtn.textContent = cancelText;
+
+    if (okBtn) {
+      okBtn.textContent = confirmText;
+      okBtn.className = 'flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-md active:scale-95 text-slate-950';
+      if (btnColor === 'emerald') {
+        okBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-500', 'text-white', 'shadow-emerald-600/20');
+      } else if (btnColor === 'rose') {
+        okBtn.classList.add('bg-rose-600', 'hover:bg-rose-500', 'text-white', 'shadow-rose-600/20');
+      } else if (btnColor === 'cyan') {
+        okBtn.classList.add('bg-cyan-600', 'hover:bg-cyan-500', 'text-white', 'shadow-cyan-600/20');
+      } else {
+        okBtn.classList.add('bg-amber-500', 'hover:bg-amber-400', 'text-slate-950', 'shadow-amber-500/20');
+      }
+    }
+
+    modal.classList.remove('hidden');
+    sfx.playClick();
+  });
+}
+
+function closeConfirmDialog(result = false) {
+  const modal = document.getElementById('modal-confirm');
+  if (modal) modal.classList.add('hidden');
+  if (activeConfirmResolve) {
+    const cb = activeConfirmResolve;
+    activeConfirmResolve = null;
+    cb(result);
+  }
+}
+
+// ponytail: single action button per toast; upgrade to list if multiple concurrent actions needed
+function showToast(message, type = 'info', action = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
 
@@ -446,8 +524,26 @@ function showToast(message, type = 'info') {
     info: '📜'
   };
 
-  toast.className = `p-3 rounded-xl border shadow-xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-md pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
-  toast.innerHTML = `<span>${icons[type] || '📜'}</span><span>${message}</span>`;
+  toast.className = `p-3 rounded-xl border shadow-xl flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+
+  const content = document.createElement('div');
+  content.className = 'flex items-center gap-2.5 min-w-0';
+  content.innerHTML = `<span>${icons[type] || '📜'}</span><span class="break-words">${escapeHtml(message)}</span>`;
+  toast.appendChild(content);
+
+  if (action && typeof action.onClick === 'function') {
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95 flex items-center gap-1';
+    actionBtn.innerHTML = `<span>↩️</span><span>${escapeHtml(action.label || 'Hoàn tác')}</span>`;
+    actionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toast.remove();
+      action.onClick();
+    });
+    toast.appendChild(actionBtn);
+  }
+
   container.appendChild(toast);
 
   // Trigger anim
@@ -455,10 +551,11 @@ function showToast(message, type = 'info') {
     toast.classList.remove('translate-y-2', 'opacity-0');
   }, 10);
 
+  const duration = action ? 6500 : 3500;
   setTimeout(() => {
     toast.classList.add('opacity-0', 'translate-y-2');
     setTimeout(() => toast.remove(), 300);
-  }, 3500);
+  }, duration);
 }
 
 function calculateRank(coins) {
@@ -472,10 +569,13 @@ function calculateRank(coins) {
 
 function addEXP(amount) {
   appState.profile.exp += amount;
-  const expNeeded = appState.profile.level * 100;
-  if (appState.profile.exp >= expNeeded) {
-    appState.profile.exp -= expNeeded;
+  let leveledUp = false;
+  while (appState.profile.exp >= appState.profile.level * 100) {
+    appState.profile.exp -= appState.profile.level * 100;
     appState.profile.level += 1;
+    leveledUp = true;
+  }
+  if (leveledUp) {
     sfx.playFanfare();
     showToast(`🎉 CHÚC MỪNG! BẠN ĐÃ LÊN CẤP ${appState.profile.level}!`, 'gold');
     updateTitleByLevel();
@@ -498,6 +598,7 @@ function updateTitleByLevel() {
 const TIMER_STORAGE_KEY = 'levelup_focus_timer';
 
 let activeFocusQuest = null;
+let activeRewardItem = null;
 let focusTimerInterval = null;
 let focusRemainingSeconds = 0;
 let focusTotalSeconds = 0;
@@ -507,6 +608,24 @@ let lastTickTime = Date.now();
 let wakeLock = null;
 let lastFormattedTitle = '';
 let actualFocusedSeconds = 0;
+
+function extractRewardDuration(item) {
+  if (item.targetMinutes && item.targetMinutes > 0) return item.targetMinutes;
+  const text = `${item.name || ''} ${item.description || ''}`.toLowerCase();
+  const hourMatch = text.match(/(\d+)\s*(tiếng|giờ|hour|h)\b/i);
+  if (hourMatch) {
+    return parseInt(hourMatch[1], 10) * 60;
+  }
+  const minMatch = text.match(/(\d+)\s*(phút|min|p)\b/i);
+  if (minMatch) {
+    return parseInt(minMatch[1], 10);
+  }
+  if (item.tier === 'common') return 15;
+  if (item.tier === 'rare') return 30;
+  if (item.tier === 'epic') return 60;
+  if (item.tier === 'legendary') return 90;
+  return 25;
+}
 
 // Screen Wake Lock API
 async function requestWakeLock() {
@@ -550,7 +669,7 @@ function sendFocusNotification(title, body) {
 
 // LocalStorage State Persistence
 function saveFocusTimerState() {
-  if (!activeFocusQuest && !isBreakMode) {
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
     localStorage.removeItem(TIMER_STORAGE_KEY);
     return;
   }
@@ -560,6 +679,10 @@ function saveFocusTimerState() {
     questRank: activeFocusQuest ? activeFocusQuest.rank : null,
     rewardCoins: activeFocusQuest ? activeFocusQuest.rewardCoins : 0,
     targetMinutes: activeFocusQuest ? activeFocusQuest.targetMinutes : 0,
+    rewardItemId: activeRewardItem ? activeRewardItem.id : null,
+    rewardItemName: activeRewardItem ? activeRewardItem.name : null,
+    rewardItemIcon: activeRewardItem ? activeRewardItem.icon : null,
+    isRewardMode: Boolean(activeRewardItem),
     remainingSeconds: focusRemainingSeconds,
     totalSeconds: focusTotalSeconds,
     actualFocusedSeconds: actualFocusedSeconds,
@@ -580,6 +703,16 @@ function restoreFocusTimer() {
     if (state.isBreakMode) {
       isBreakMode = true;
       activeFocusQuest = null;
+      activeRewardItem = null;
+    } else if (state.isRewardMode && state.rewardItemId) {
+      const invItem = appState.inventory?.find(i => i.id === state.rewardItemId);
+      if (!invItem) {
+        localStorage.removeItem(TIMER_STORAGE_KEY);
+        return;
+      }
+      activeRewardItem = invItem;
+      activeFocusQuest = null;
+      isBreakMode = false;
     } else if (state.questId) {
       const quest = appState.quests?.find(q => q.id === state.questId);
       if (!quest || quest.status === 'completed') {
@@ -587,13 +720,14 @@ function restoreFocusTimer() {
         return;
       }
       activeFocusQuest = quest;
+      activeRewardItem = null;
       isBreakMode = false;
     } else {
       localStorage.removeItem(TIMER_STORAGE_KEY);
       return;
     }
 
-    focusTotalSeconds = state.totalSeconds || (activeFocusQuest?.targetMinutes || 25) * 60;
+    focusTotalSeconds = state.totalSeconds || (activeFocusQuest?.targetMinutes || (activeRewardItem ? extractRewardDuration(activeRewardItem) : 25)) * 60;
     actualFocusedSeconds = state.actualFocusedSeconds || 0;
     isFocusRunning = !!state.isRunning;
 
@@ -608,6 +742,8 @@ function restoreFocusTimer() {
         updateTimerDisplay();
         if (isBreakMode) {
           breakTimerFinished();
+        } else if (activeRewardItem) {
+          rewardTimerFinished();
         } else {
           focusTimerFinished();
         }
@@ -651,6 +787,8 @@ function tickFocusTimer() {
       releaseWakeLock();
       if (isBreakMode) {
         breakTimerFinished();
+      } else if (activeRewardItem) {
+        rewardTimerFinished();
       } else {
         focusTimerFinished();
       }
@@ -671,7 +809,7 @@ function updateTimerDisplay() {
   if (display) display.textContent = timeStr;
   if (zenDisplay) zenDisplay.textContent = timeStr;
   if (statusIcon) {
-    statusIcon.textContent = isBreakMode ? 'BREAK' : (isFocusRunning ? 'RUN' : 'PAUSE');
+    statusIcon.textContent = isBreakMode ? 'BREAK' : (activeRewardItem ? 'REWARD' : (isFocusRunning ? 'RUN' : 'PAUSE'));
   }
 
   // Circular progress ring (r=20, circumference = 2 * PI * 20 ≈ 125.66)
@@ -679,11 +817,12 @@ function updateTimerDisplay() {
   const ring = document.getElementById('focus-progress-ring');
   if (ring) {
     ring.style.strokeDashoffset = String(125.66 * (1 - ratio));
+    ring.classList.remove('text-amber-500', 'text-emerald-500', 'text-purple-500');
     if (isBreakMode) {
-      ring.classList.remove('text-amber-500');
       ring.classList.add('text-emerald-500');
+    } else if (activeRewardItem) {
+      ring.classList.add('text-purple-500');
     } else {
-      ring.classList.remove('text-emerald-500');
       ring.classList.add('text-amber-500');
     }
   }
@@ -692,13 +831,13 @@ function updateTimerDisplay() {
   const zenRing = document.getElementById('zen-progress-ring');
   if (zenRing) {
     zenRing.style.strokeDashoffset = String(659.73 * (1 - ratio));
-    zenRing.setAttribute('stroke', isBreakMode ? '#10b981' : '#f59e0b');
+    zenRing.setAttribute('stroke', isBreakMode ? '#10b981' : (activeRewardItem ? '#a855f7' : '#f59e0b'));
   }
 
   // Dynamic Browser Tab Title
-  const titlePrefix = isBreakMode ? '☕' : (isFocusRunning ? '▶' : '⏸');
-  const questName = activeFocusQuest ? activeFocusQuest.title : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung');
-  const newTitle = `${titlePrefix} (${timeStr}) ${questName} | LevelUp`;
+  const titlePrefix = isBreakMode ? '☕' : (activeRewardItem ? '🎉' : (isFocusRunning ? '▶' : '⏸'));
+  const sessionName = activeFocusQuest ? activeFocusQuest.title : (activeRewardItem ? activeRewardItem.name : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung'));
+  const newTitle = `${titlePrefix} (${timeStr}) ${sessionName} | LevelUp`;
   if (newTitle !== lastFormattedTitle) {
     lastFormattedTitle = newTitle;
     document.title = newTitle;
@@ -709,7 +848,7 @@ function renderFocusStationUI() {
   const station = document.getElementById('active-focus-banner');
   if (!station) return;
 
-  if (!activeFocusQuest && !isBreakMode) {
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
     station.classList.add('hidden');
     return;
   }
@@ -733,6 +872,15 @@ function renderFocusStationUI() {
     if (modeLabel) modeLabel.textContent = 'ĐANG NGHỈ GIẢI LAO';
     if (coinsEl) coinsEl.textContent = '+0';
     if (expEl) expEl.textContent = '+0';
+  } else if (activeRewardItem) {
+    if (titleEl) titleEl.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
+    if (rankEl) {
+      rankEl.textContent = (activeRewardItem.tier || 'REWARD').toUpperCase();
+      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30';
+    }
+    if (modeLabel) modeLabel.textContent = 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎉';
+    if (coinsEl) coinsEl.textContent = `🪙 -${activeRewardItem.price}`;
+    if (expEl) expEl.textContent = '🎉 Thư giãn';
   } else if (activeFocusQuest) {
     if (titleEl) titleEl.textContent = activeFocusQuest.title;
     if (rankEl) {
@@ -749,11 +897,85 @@ function renderFocusStationUI() {
   if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
 }
 
-function startFocusTimer(quest) {
-  if (activeFocusQuest && activeFocusQuest.id !== quest.id) {
-    if (!confirm('Bạn đang có một nhiệm vụ tập trung khác đang chạy. Bạn có muốn hủy nó để bắt đầu nhiệm vụ này?')) {
+async function startFocusTimer(quest) {
+  if (!quest) return;
+
+  // Edge case 1: Nhiệm vụ đã hoàn thành từ trước
+  if (quest.status === 'completed') {
+    showToast('Nhiệm vụ này đã được hoàn thành!', 'info');
+    return;
+  }
+
+  // Edge case 2: Nhấn "Bắt đầu" vào chính nhiệm vụ đang được bấm giờ
+  if (activeFocusQuest && activeFocusQuest.id === quest.id) {
+    if (isFocusRunning) {
+      showToast(`Nhiệm vụ "${quest.title}" đang được bấm giờ (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại)!`, 'info');
+      document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    } else {
+      const ok = await confirmAction({
+        title: 'Tiếp Tục Bấm Giờ?',
+        message: `Nhiệm vụ "${quest.title}" đang tạm dừng với ${Math.ceil(focusRemainingSeconds / 60)} phút còn lại. Bạn có muốn tiếp tục đếm giờ?`,
+        confirmText: 'Tiếp Tục ⏱️',
+        cancelText: 'Hủy',
+        icon: '⏱️',
+        btnColor: 'cyan'
+      });
+      if (ok) {
+        toggleFocusTimer();
+      }
       return;
     }
+  }
+
+  // Edge case 2b: Đang trong phiên tận hưởng phần thưởng
+  if (activeRewardItem) {
+    const ok = await confirmAction({
+      title: 'Đang Dùng Phần Thưởng',
+      message: `Bạn đang tận hưởng phần thưởng "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng để bắt đầu nhiệm vụ "${quest.title}" ngay?`,
+      confirmText: 'Bắt Đầu Nhiệm Vụ ⚔️',
+      cancelText: 'Tiếp Tục Dùng Quà 🎁',
+      icon: '⚔️',
+      btnColor: 'cyan'
+    });
+    if (!ok) return;
+  }
+
+  // Edge case 3: Đang trong phiên nghỉ giải lao
+  if (isBreakMode) {
+    const ok = await confirmAction({
+      title: 'Kết Thúc Giờ Nghỉ?',
+      message: `Bạn đang trong giờ nghỉ giải lao (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn kết thúc nghỉ ngơi để bắt đầu nhiệm vụ "${quest.title}" ngay?`,
+      confirmText: 'Bắt Đầu Ngay ⏱️',
+      cancelText: 'Nghỉ Tiếp ☕',
+      icon: '☕',
+      btnColor: 'cyan'
+    });
+    if (!ok) return;
+  } else if (activeFocusQuest && activeFocusQuest.id !== quest.id) {
+    // Edge case 4: Đang có một nhiệm vụ khác đang chạy
+    const ok = await confirmAction({
+      title: 'Đổi Nhiệm Vụ Tập Trung?',
+      message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có chắc muốn dừng để chuyển sang "${quest.title}"?`,
+      detail: '⚠️ Thời gian tập trung của nhiệm vụ cũ sẽ không được tính.',
+      confirmText: 'Đổi Nhiệm Vụ ⏱️',
+      cancelText: 'Giữ Nhiệm Vụ Cũ',
+      icon: '⏱️',
+      btnColor: 'amber'
+    });
+    if (!ok) return;
+  } else if (!activeRewardItem) {
+    // Xác nhận trước khi bắt đầu phiên tập trung
+    const ok = await confirmAction({
+      title: 'Bắt Đầu Tập Trung?',
+      message: `Bắt đầu phiên tập trung ${quest.targetMinutes || 25} phút cho nhiệm vụ "${quest.title}"?`,
+      detail: '🎯 Hãy bật chế độ Không làm phiền và tập trung hoàn toàn trong suốt phiên.',
+      confirmText: 'Bắt Đầu ⏱️',
+      cancelText: 'Để Sau',
+      icon: '⏱️',
+      btnColor: 'cyan'
+    });
+    if (!ok) return;
   }
 
   if ('Notification' in window && Notification.permission === 'default') {
@@ -761,8 +983,9 @@ function startFocusTimer(quest) {
   }
 
   activeFocusQuest = quest;
+  activeRewardItem = null;
   isBreakMode = false;
-  focusTotalSeconds = (quest.targetMinutes || 25) * 60;
+  focusTotalSeconds = Math.max(1, (quest.targetMinutes || 25)) * 60;
   focusRemainingSeconds = focusTotalSeconds;
   actualFocusedSeconds = 0;
   isFocusRunning = true;
@@ -772,17 +995,20 @@ function startFocusTimer(quest) {
   updateTimerDisplay();
   saveFocusTimerState();
   requestWakeLock();
+  renderQuests();
+  renderInventory();
 
   clearInterval(focusTimerInterval);
   focusTimerInterval = setInterval(tickFocusTimer, 500);
 
   sfx.playGong();
-  showToast(`Bắt đầu đồng hồ tập trung: ${quest.targetMinutes} phút! Chúc bạn tập trung cao độ.`, 'info');
+  showToast(`Bắt đầu đồng hồ tập trung: ${quest.targetMinutes || 25} phút! Chúc bạn tập trung cao độ.`, 'info');
 }
 
 function startBreakTimer(breakMinutes = 5) {
   isBreakMode = true;
   activeFocusQuest = null;
+  activeRewardItem = null;
   focusTotalSeconds = breakMinutes * 60;
   focusRemainingSeconds = focusTotalSeconds;
   isFocusRunning = true;
@@ -792,6 +1018,8 @@ function startBreakTimer(breakMinutes = 5) {
   updateTimerDisplay();
   saveFocusTimerState();
   requestWakeLock();
+  renderQuests();
+  renderInventory();
 
   clearInterval(focusTimerInterval);
   focusTimerInterval = setInterval(tickFocusTimer, 500);
@@ -801,6 +1029,11 @@ function startBreakTimer(breakMinutes = 5) {
 }
 
 function toggleFocusTimer() {
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
+    showToast('Chưa có phiên nào đang chạy!', 'info');
+    return;
+  }
+
   isFocusRunning = !isFocusRunning;
   lastTickTime = Date.now();
 
@@ -823,15 +1056,34 @@ function toggleFocusTimer() {
 
   updateTimerDisplay();
   saveFocusTimerState();
+  renderQuests();
+  renderInventory();
 }
 
-function resetFocusTimer() {
+async function resetFocusTimer() {
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
+
   const msg = isBreakMode
     ? 'Bạn có chắc muốn kết thúc sớm giờ nghỉ giải lao?'
-    : 'Bạn có chắc muốn dừng phiên tập trung này? Thời gian đã đếm sẽ không được tính.';
-  if (confirm(msg)) {
+    : activeRewardItem
+    ? `Bạn có chắc muốn kết thúc sớm thời gian tận hưởng phần thưởng "${activeRewardItem.name}"?`
+    : `Bạn có chắc muốn dừng phiên tập trung cho "${activeFocusQuest?.title || 'nhiệm vụ'}"? Thời gian đã đếm sẽ không được tính.`;
+
+  const ok = await confirmAction({
+    title: isBreakMode ? 'Dừng Giờ Nghỉ?' : (activeRewardItem ? 'Dừng Tận Hưởng Quà?' : 'Dừng Phiên Tập Trung?'),
+    message: msg,
+    detail: activeRewardItem ? 'Phần thưởng đã dùng vẫn được ghi nhận trong kho quà.' : (isBreakMode ? '' : '⚠️ Phiên tập trung sẽ bị hủy và bạn sẽ không nhận được Vàng.'),
+    confirmText: 'Dừng Ngay',
+    cancelText: 'Tiếp Tục',
+    icon: activeRewardItem ? '🎁' : (isBreakMode ? '☕' : '⏹️'),
+    btnColor: 'rose'
+  });
+
+  if (ok) {
     clearFocusTimerSession();
-    showToast('Đã dừng phiên tập trung.', 'info');
+    renderQuests();
+    renderInventory();
+    showToast(activeRewardItem ? 'Đã kết thúc phiên dùng quà.' : 'Đã dừng phiên tập trung.', 'info');
   }
 }
 
@@ -840,6 +1092,7 @@ function clearFocusTimerSession() {
   focusTimerInterval = null;
   releaseWakeLock();
   activeFocusQuest = null;
+  activeRewardItem = null;
   isFocusRunning = false;
   isBreakMode = false;
   focusRemainingSeconds = 0;
@@ -853,10 +1106,13 @@ function clearFocusTimerSession() {
 
   const zenOverlay = document.getElementById('focus-zen-overlay');
   if (zenOverlay) zenOverlay.classList.add('hidden');
+
+  renderQuests();
+  renderInventory();
 }
 
 function adjustTimer(deltaSec) {
-  if (!activeFocusQuest && !isBreakMode) return;
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
 
   // Anti-Cheat: Chặn mọi hành vi giảm thời gian
   if (deltaSec < 0) {
@@ -876,7 +1132,7 @@ function adjustTimer(deltaSec) {
 }
 
 function openEditTimerModal() {
-  if (!activeFocusQuest && !isBreakMode) return;
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
   const minInput = document.getElementById('input-edit-minutes');
   const secInput = document.getElementById('input-edit-seconds');
   if (minInput && secInput) {
@@ -927,6 +1183,13 @@ function toggleZenMode(show) {
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
       }
       if (zenProtocol) zenProtocol.textContent = 'RELAX PROTOCOL';
+    } else if (activeRewardItem) {
+      if (zenTitle) zenTitle.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
+      if (zenRank) {
+        zenRank.textContent = (activeRewardItem.tier || 'REWARD').toUpperCase();
+        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30';
+      }
+      if (zenProtocol) zenProtocol.textContent = 'REWARD PROTOCOL';
     } else if (activeFocusQuest) {
       if (zenTitle) zenTitle.textContent = activeFocusQuest.title;
       if (zenRank) {
@@ -954,7 +1217,7 @@ function focusTimerFinished() {
       return;
     }
 
-    completeQuest(quest.id);
+    completeQuest(quest.id, true);
     sfx.playFanfare();
     sfx.playGong();
 
@@ -977,6 +1240,20 @@ function breakTimerFinished() {
   showToast('Hết giờ giải lao! Chúc bạn tràn đầy năng lượng cho nhiệm vụ mới.', 'success');
 }
 
+function rewardTimerFinished() {
+  const item = activeRewardItem;
+  clearFocusTimerSession();
+  sfx.playFanfare();
+  sfx.playGong();
+
+  sendFocusNotification(
+    '🎉 HẾT THỜI GIAN PHẦN THƯỞNG!',
+    item ? `Đã hết thời gian tận hưởng phần thưởng: "${item.name}". Hãy sẵn sàng cho các nhiệm vụ mới!` : 'Đã hết thời gian phần thưởng.'
+  );
+
+  showToast(`🎉 Đã hoàn thành thời gian tận hưởng phần thưởng "${item?.name || ''}"! Chúc bạn nạp đầy năng lượng.`, 'purple');
+}
+
 function openFocusCompleteModal(quest) {
   const descEl = document.getElementById('focus-complete-desc');
   const coinsEl = document.getElementById('focus-complete-coins');
@@ -990,46 +1267,185 @@ function openFocusCompleteModal(quest) {
 }
 
 // =============================================================================
-// 6. QUEST INTERACTIONS (Complete, Add, Delete)
+// 6. QUEST INTERACTIONS (Complete, Undo, Add, Delete)
 // =============================================================================
-function completeQuest(questId) {
+// ponytail: lock set prevents fast double-taps on complete button; bounds to current session
+const completingQuestIds = new Set();
+
+async function completeQuest(questId, skipConfirm = false) {
   const quest = appState.quests.find(q => q.id === questId);
-  if (!quest || quest.status === 'completed') return;
+  if (!quest || quest.status === 'completed' || completingQuestIds.has(questId)) return;
 
-  quest.status = 'completed';
-  quest.completedAt = Date.now();
+  if (!skipConfirm) {
+    const ok = await confirmAction({
+      title: 'Xác Nhận Hoàn Thành?',
+      message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
+      detail: `🪙 Phần thưởng: +${quest.rewardCoins} Vàng | ⚡ Kinh nghiệm: +${quest.rewardCoins * 3} EXP`,
+      confirmText: 'Hoàn Thành ✓',
+      cancelText: 'Chưa Xong',
+      icon: '🎉',
+      btnColor: 'emerald'
+    });
+    if (!ok) return;
+  }
 
-  appState.profile.coins += quest.rewardCoins;
-  appState.profile.totalCoinsEarned += quest.rewardCoins;
-  addEXP(quest.rewardCoins * 3);
+  completingQuestIds.add(questId);
+  try {
+    if (quest.status === 'completed') return;
+
+    if (activeFocusQuest && activeFocusQuest.id === questId) {
+      clearFocusTimerSession();
+    }
+
+    quest.status = 'completed';
+    quest.completedAt = Date.now();
+
+    appState.profile.coins += quest.rewardCoins;
+    appState.profile.totalCoinsEarned += quest.rewardCoins;
+    addEXP(quest.rewardCoins * 3);
+
+    appState.ledger.unshift({
+      id: 'led_' + Date.now(),
+      type: 'earn',
+      amount: quest.rewardCoins,
+      description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}`,
+      timestamp: Date.now()
+    });
+
+    sfx.playCoin();
+    showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành: "${quest.title}"`, 'gold', {
+      label: 'Hoàn tác',
+      onClick: () => undoCompleteQuest(quest.id)
+    });
+    triggerSave(true);
+    renderHeader();
+    renderQuests();
+    renderLedger();
+  } finally {
+    completingQuestIds.delete(questId);
+  }
+}
+
+async function undoCompleteQuest(questId) {
+  const quest = appState.quests.find(q => q.id === questId);
+  if (!quest || quest.status !== 'completed') return;
+
+  const ok = await confirmAction({
+    title: 'Hoàn Tác Nhiệm Vụ?',
+    message: `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
+    detail: `🪙 Sẽ trừ lại: -${quest.rewardCoins} Vàng | ⚡ Sẽ trừ lại: -${quest.rewardCoins * 3} EXP`,
+    confirmText: 'Hoàn Tác ↩️',
+    cancelText: 'Giữ Nguyên',
+    icon: '↩️',
+    btnColor: 'amber'
+  });
+  if (!ok) return;
+
+  quest.status = 'active';
+  delete quest.completedAt;
+
+  appState.profile.coins = Math.max(0, appState.profile.coins - quest.rewardCoins);
+  appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - quest.rewardCoins);
+  appState.profile.exp = Math.max(0, appState.profile.exp - quest.rewardCoins * 3);
 
   appState.ledger.unshift({
     id: 'led_' + Date.now(),
-    type: 'earn',
+    type: 'spend',
     amount: quest.rewardCoins,
-    description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}`,
+    description: `Hoàn tác hoàn thành: ${quest.title}`,
     timestamp: Date.now()
   });
 
-  sfx.playCoin();
-  showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành xuất sắc: "${quest.title}"`, 'gold');
+  sfx.playClick();
   triggerSave(true);
+  renderHeader();
+  renderQuests();
+  renderLedger();
+  showToast(`Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`, 'info');
 }
 
-function deleteQuest(questId) {
-  if (!confirm('Bạn có chắc muốn xóa nhiệm vụ này?')) return;
+async function deleteQuest(questId) {
+  const quest = appState.quests.find(q => q.id === questId);
+  if (!quest) return;
+
+  const ok = await confirmAction({
+    title: 'Xóa Nhiệm Vụ?',
+    message: `Bạn có chắc muốn xóa nhiệm vụ "${quest.title}"?`,
+    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
+    confirmText: 'Xóa 🗑️',
+    cancelText: 'Giữ Lại',
+    icon: '🗑️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
   if (activeFocusQuest && activeFocusQuest.id === questId) {
     clearFocusTimerSession();
   }
+
+  const questIndex = appState.quests.findIndex(q => q.id === questId);
+  const deletedQuest = { ...quest };
   appState.quests = appState.quests.filter(q => q.id !== questId);
   triggerSave(true);
-  showToast('Đã xóa nhiệm vụ.', 'info');
+  renderQuests();
+
+  showToast(`Đã xóa nhiệm vụ "${deletedQuest.title}".`, 'info', {
+    label: 'Hoàn tác',
+    onClick: () => {
+      if (questIndex >= 0 && questIndex <= appState.quests.length) {
+        appState.quests.splice(questIndex, 0, deletedQuest);
+      } else {
+        appState.quests.unshift(deletedQuest);
+      }
+      triggerSave(true);
+      renderQuests();
+      sfx.playCoin();
+      showToast(`Đã khôi phục nhiệm vụ "${deletedQuest.title}".`, 'success');
+    }
+  });
 }
 
 // =============================================================================
-// 7. SHOP & INVENTORY INTERACTIONS
+// 7. SHOP & INVENTORY INTERACTIONS (Buy, Refund, Use, Undo, Delete)
 // =============================================================================
-function buyShopItem(itemId) {
+async function deleteShopItem(itemId) {
+  const item = appState.shopItems.find(i => i.id === itemId);
+  if (!item) return;
+
+  const ok = await confirmAction({
+    title: 'Xóa Phần Thưởng?',
+    message: `Bạn có chắc muốn xóa phần thưởng "${item.name}" khỏi Cửa Hàng?`,
+    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
+    confirmText: 'Xóa 🗑️',
+    cancelText: 'Giữ Lại',
+    icon: '🗑️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  const itemIndex = appState.shopItems.findIndex(i => i.id === itemId);
+  const deletedItem = { ...item };
+  appState.shopItems = appState.shopItems.filter(i => i.id !== itemId);
+  triggerSave(true);
+  renderShop();
+
+  showToast(`Đã xóa phần thưởng "${deletedItem.name}".`, 'info', {
+    label: 'Hoàn tác',
+    onClick: () => {
+      if (itemIndex >= 0 && itemIndex <= appState.shopItems.length) {
+        appState.shopItems.splice(itemIndex, 0, deletedItem);
+      } else {
+        appState.shopItems.unshift(deletedItem);
+      }
+      triggerSave(true);
+      renderShop();
+      sfx.playFanfare();
+      showToast(`Đã khôi phục phần thưởng "${deletedItem.name}".`, 'success');
+    }
+  });
+}
+
+async function buyShopItem(itemId) {
   const item = appState.shopItems.find(i => i.id === itemId);
   if (!item) return;
 
@@ -1038,11 +1454,20 @@ function buyShopItem(itemId) {
     return;
   }
 
-  if (!confirm(`Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`)) return;
+  const ok = await confirmAction({
+    title: 'Đổi Phần Thưởng?',
+    message: `Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`,
+    detail: `🪙 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${appState.profile.coins - item.price}`,
+    confirmText: 'Đổi Quà 🎁',
+    cancelText: 'Để Sau',
+    icon: '🎁',
+    btnColor: 'amber'
+  });
+  if (!ok) return;
 
   appState.profile.coins -= item.price;
 
-  appState.inventory.unshift({
+  const newInvItem = {
     id: 'inv_' + Date.now(),
     shopItemId: item.id,
     name: item.name,
@@ -1051,7 +1476,9 @@ function buyShopItem(itemId) {
     icon: item.icon,
     purchasedAt: Date.now(),
     isUsed: false
-  });
+  };
+
+  appState.inventory.unshift(newInvItem);
 
   appState.ledger.unshift({
     id: 'led_' + Date.now(),
@@ -1062,22 +1489,242 @@ function buyShopItem(itemId) {
   });
 
   sfx.playFanfare();
-  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà.`, 'success');
+  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà.`, 'success', {
+    label: 'Hoàn tác',
+    onClick: () => refundInventoryItem(newInvItem.id, true)
+  });
   triggerSave(true);
+  renderHeader();
+  renderShop();
+  renderInventory();
+  renderLedger();
   switchRewardSubtab('inventory');
 }
 
-function useInventoryItem(invId) {
+async function refundInventoryItem(invId, skipConfirm = false) {
   const item = appState.inventory.find(i => i.id === invId);
   if (!item || item.isUsed) return;
 
-  if (confirm(`Bạn muốn sử dụng phần thưởng "${item.name}" bây giờ? Hãy tự thưởng cho bản thân thật vui vẻ nhé!`)) {
-    item.isUsed = true;
-    item.usedAt = Date.now();
-    sfx.playClick();
-    showToast(`Đã dùng phần thưởng "${item.name}". Chúc bạn có thời gian thư giãn tuyệt vời!`, 'success');
-    triggerSave(true);
+  if (!skipConfirm) {
+    const ok = await confirmAction({
+      title: 'Hoàn Trả Phần Thưởng?',
+      message: `Bạn muốn hoàn trả "${item.name}" và nhận lại ${item.price} Vàng?`,
+      detail: '🪙 Số Vàng sẽ được hoàn lại đầy đủ vào tài khoản của bạn.',
+      confirmText: 'Hoàn Trả ↩️',
+      cancelText: 'Giữ Lại',
+      icon: '🪙',
+      btnColor: 'amber'
+    });
+    if (!ok) return;
   }
+
+  if (activeRewardItem && activeRewardItem.id === invId) {
+    clearFocusTimerSession();
+  }
+
+  appState.profile.coins += item.price;
+  appState.inventory = appState.inventory.filter(i => i.id !== invId);
+
+  appState.ledger.unshift({
+    id: 'led_' + Date.now(),
+    type: 'earn',
+    amount: item.price,
+    description: `Hoàn trả quà: ${item.name}`,
+    timestamp: Date.now()
+  });
+
+  sfx.playCoin();
+  triggerSave(true);
+  renderHeader();
+  renderInventory();
+  renderLedger();
+  showToast(`Đã hoàn trả "${item.name}" (+${item.price} Vàng).`, 'gold');
+}
+
+async function useInventoryItem(invId) {
+  const item = appState.inventory.find(i => i.id === invId);
+  if (!item) return;
+
+  // Case 1: Quà này đang được đếm giờ
+  if (activeRewardItem && activeRewardItem.id === invId) {
+    if (isFocusRunning) {
+      showToast(`Phần thưởng "${item.name}" đang được đếm giờ (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại)!`, 'info');
+      document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    } else {
+      const ok = await confirmAction({
+        title: 'Tiếp Tục Đếm Giờ Quà?',
+        message: `Phần thưởng "${item.name}" đang tạm dừng với ${Math.ceil(focusRemainingSeconds / 60)} phút còn lại. Bạn có muốn tiếp tục đếm giờ?`,
+        confirmText: 'Tiếp Tục ⏱️',
+        cancelText: 'Hủy',
+        icon: item.icon || '🎁',
+        btnColor: 'purple'
+      });
+      if (ok) {
+        toggleFocusTimer();
+      }
+      return;
+    }
+  }
+
+  // Case 2: Đã sử dụng và không chạy timer
+  if (item.isUsed) {
+    showToast('Phần thưởng này đã được sử dụng!', 'info');
+    return;
+  }
+
+  // Case 3: Xung đột với phiên tập trung nhiệm vụ
+  if (activeFocusQuest) {
+    const ok = await confirmAction({
+      title: 'Đang Trong Nhiệm Vụ Tập Trung',
+      message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng nhiệm vụ để dùng phần thưởng "${item.name}"?`,
+      detail: '⚠️ Thời gian tập trung của nhiệm vụ sẽ không được tính.',
+      confirmText: 'Dừng & Dùng Quà 🎁',
+      cancelText: 'Tiếp Tục Nhiệm Vụ ⚔️',
+      icon: '🎁',
+      btnColor: 'purple'
+    });
+    if (!ok) return;
+  } else if (isBreakMode) {
+    // Case 4: Xung đột với giờ nghỉ giải lao
+    const ok = await confirmAction({
+      title: 'Kết Thúc Giờ Nghỉ?',
+      message: `Bạn đang trong giờ nghỉ giải lao (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn kết thúc nghỉ ngơi để bắt đầu dùng phần thưởng "${item.name}" ngay?`,
+      confirmText: 'Dùng Quà Ngay 🎁',
+      cancelText: 'Nghỉ Tiếp ☕',
+      icon: '☕',
+      btnColor: 'purple'
+    });
+    if (!ok) return;
+  } else if (activeRewardItem && activeRewardItem.id !== invId) {
+    // Case 5: Đang có một phần thưởng khác đang đếm giờ
+    const ok = await confirmAction({
+      title: 'Đổi Phần Thưởng Đang Dùng?',
+      message: `Bạn đang trong phiên dùng quà "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
+      confirmText: 'Đổi Quà 🎁',
+      cancelText: 'Giữ Quà Hiện Tại',
+      icon: '🎁',
+      btnColor: 'purple'
+    });
+    if (!ok) return;
+  } else {
+    // Xác nhận sử dụng quà kèm thời lượng đếm ngược
+    const durationMinutes = extractRewardDuration(item);
+    const ok = await confirmAction({
+      title: 'Sử Dụng Phần Thưởng & Bắt Đầu Đếm Giờ?',
+      message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
+      detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
+      confirmText: `Dùng & Bấm Giờ (${durationMinutes}p) ⏱️`,
+      cancelText: 'Để Sau',
+      icon: item.icon || '🎁',
+      btnColor: 'purple'
+    });
+    if (!ok) return;
+  }
+
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  const durationMinutes = extractRewardDuration(item);
+  item.isUsed = true;
+  item.usedAt = Date.now();
+
+  activeRewardItem = item;
+  activeFocusQuest = null;
+  isBreakMode = false;
+  focusTotalSeconds = Math.max(1, durationMinutes) * 60;
+  focusRemainingSeconds = focusTotalSeconds;
+  actualFocusedSeconds = 0;
+  isFocusRunning = true;
+  lastTickTime = Date.now();
+
+  renderFocusStationUI();
+  updateTimerDisplay();
+  saveFocusTimerState();
+  requestWakeLock();
+  renderQuests();
+  renderInventory();
+
+  clearInterval(focusTimerInterval);
+  focusTimerInterval = setInterval(tickFocusTimer, 500);
+
+  sfx.playFanfare();
+  showToast(`Bắt đầu tận hưởng: "${item.name}" (${durationMinutes} phút)! Chúc bạn thư giãn tuyệt vời.`, 'purple', {
+    label: 'Hoàn tác',
+    onClick: () => undoUseInventoryItem(invId, true)
+  });
+  triggerSave(true);
+}
+
+async function undoUseInventoryItem(invId, skipConfirm = false) {
+  const item = appState.inventory.find(i => i.id === invId);
+  if (!item || !item.isUsed) return;
+
+  if (!skipConfirm) {
+    const ok = await confirmAction({
+      title: 'Hoàn Tác Sử Dụng?',
+      message: `Đưa phần thưởng "${item.name}" về trạng thái Chưa Dùng?`,
+      detail: activeRewardItem && activeRewardItem.id === invId ? '⚠️ Bộ đếm thời gian của phần thưởng này sẽ được dừng.' : '',
+      confirmText: 'Hoàn Tác ↩️',
+      cancelText: 'Giữ Nguyên',
+      icon: '↩️',
+      btnColor: 'amber'
+    });
+    if (!ok) return;
+  }
+
+  if (activeRewardItem && activeRewardItem.id === invId) {
+    clearFocusTimerSession();
+  }
+
+  item.isUsed = false;
+  delete item.usedAt;
+  sfx.playClick();
+  triggerSave(true);
+  renderInventory();
+  showToast(`Đã đưa "${item.name}" về trạng thái Chưa Dùng.`, 'info');
+}
+
+async function deleteInventoryItem(invId) {
+  const item = appState.inventory.find(i => i.id === invId);
+  if (!item) return;
+
+  const ok = await confirmAction({
+    title: 'Xóa Khỏi Kho Quà?',
+    message: `Bạn có chắc muốn xóa lịch sử phần thưởng "${item.name}"?`,
+    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
+    confirmText: 'Xóa 🗑️',
+    cancelText: 'Giữ Lại',
+    icon: '🗑️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  if (activeRewardItem && activeRewardItem.id === invId) {
+    clearFocusTimerSession();
+  }
+
+  const itemIndex = appState.inventory.findIndex(i => i.id === invId);
+  const deletedItem = { ...item };
+  appState.inventory = appState.inventory.filter(i => i.id !== invId);
+  triggerSave(true);
+  renderInventory();
+
+  showToast(`Đã xóa "${deletedItem.name}" khỏi Kho Quà.`, 'info', {
+    label: 'Hoàn tác',
+    onClick: () => {
+      if (itemIndex >= 0 && itemIndex <= appState.inventory.length) {
+        appState.inventory.splice(itemIndex, 0, deletedItem);
+      } else {
+        appState.inventory.unshift(deletedItem);
+      }
+      triggerSave(true);
+      renderInventory();
+      sfx.playClick();
+      showToast(`Đã khôi phục "${deletedItem.name}" vào Kho Quà.`, 'success');
+    }
+  });
 }
 
 // =============================================================================
@@ -1602,7 +2249,16 @@ async function fetchLeaderboard() {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const target = btn.dataset.nick;
-          if (!confirm(`Bạn có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng Xếp Hạng?`)) return;
+          const ok = await confirmAction({
+            title: 'Xóa Tài Khoản Leaderboard',
+            message: `Bạn có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng Xếp Hạng?`,
+            detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
+            confirmText: 'Xóa Vĩnh Viễn',
+            cancelText: 'Giữ Lại',
+            icon: '🗑️',
+            btnColor: 'rose'
+          });
+          if (!ok) return;
           try {
             const token = getOrCreateUserToken();
             const res = await fetch('/api/sync?action=admin_remove', {
@@ -1697,8 +2353,9 @@ function renderQuests() {
 
   filtered.forEach(q => {
     const isCompleted = q.status === 'completed';
+    const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between ${isCompleted ? 'opacity-60 bg-slate-100/50 dark:bg-slate-950/30' : ''}`;
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between ${isCompleted ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : ''}`;
 
     card.innerHTML = `
       <div>
@@ -1706,7 +2363,7 @@ function renderQuests() {
           <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
           <div class="flex items-center gap-1.5">
             <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono">🪙 +${q.rewardCoins}</span>
-            <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition" title="Xóa nhiệm vụ">&times;</button>
+            <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa nhiệm vụ">&times;</button>
           </div>
         </div>
 
@@ -1720,13 +2377,19 @@ function renderQuests() {
         </span>
 
         ${isCompleted ? `
-          <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-            <span>✓</span> Hoàn thành
-          </span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <span>✓</span> Hoàn thành
+            </span>
+            <button class="btn-undo-quest text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Hoàn tác trạng thái hoàn thành">
+              <span>↩️</span>
+              <span>Hoàn tác</span>
+            </button>
+          </div>
         ` : q.type === 'focus' ? `
-          <button class="btn-start-focus px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition flex items-center gap-1.5 shadow-md shadow-cyan-600/20 active:scale-95">
+          <button class="btn-start-focus px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95 ${isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20' : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/20'}">
             <span>⏱️</span>
-            <span>Bắt Đầu</span>
+            <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
           </button>
         ` : `
           <button class="btn-complete-bounty px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
@@ -1741,6 +2404,14 @@ function renderQuests() {
       e.stopPropagation();
       deleteQuest(q.id);
     });
+
+    const undoBtn = card.querySelector('.btn-undo-quest');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        undoCompleteQuest(q.id);
+      });
+    }
 
     const startBtn = card.querySelector('.btn-start-focus');
     if (startBtn) {
@@ -1801,9 +2472,12 @@ function renderShop() {
           <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-sm">
             ${item.icon || '🎁'}
           </div>
-          <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold border ${tierColors[item.tier] || tierColors.rare}">
-            ${item.tier || 'RARE'}
-          </span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold border ${tierColors[item.tier] || tierColors.rare}">
+              ${item.tier || 'RARE'}
+            </span>
+            <button class="btn-del-shop-item text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa phần thưởng khỏi Cửa Hàng">&times;</button>
+          </div>
         </div>
 
         <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 mb-1 leading-snug">${escapeHtml(item.name)}</h3>
@@ -1817,6 +2491,11 @@ function renderShop() {
         </button>
       </div>
     `;
+
+    card.querySelector('.btn-del-shop-item').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteShopItem(item.id);
+    });
 
     card.querySelector('.btn-buy-item').addEventListener('click', () => {
       buyShopItem(item.id);
@@ -1844,31 +2523,88 @@ function renderInventory() {
   grid.innerHTML = '';
 
   appState.inventory.forEach(item => {
+    const isThisActiveReward = Boolean(activeRewardItem && activeRewardItem.id === item.id);
+    const durationMins = extractRewardDuration(item);
     const card = document.createElement('div');
-    card.className = `rpg-panel rounded-2xl p-4 flex flex-col justify-between ${item.isUsed ? 'bg-slate-100/50 dark:bg-slate-950/30 opacity-60' : ''}`;
+    card.className = `rpg-panel rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 ${
+      isThisActiveReward
+        ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20 bg-purple-50/5 dark:bg-purple-950/20'
+        : (item.isUsed ? 'bg-slate-100/50 dark:bg-slate-950/30 opacity-70' : '')
+    }`;
 
     card.innerHTML = `
       <div>
-        <div class="flex items-center gap-3 mb-2">
-          <span class="text-3xl">${item.icon || '🎁'}</span>
-          <div>
-            <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100 ${item.isUsed ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
-            <span class="text-[10px] text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</span>
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">${item.icon || '🎁'}</span>
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100 ${item.isUsed && !isThisActiveReward ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">⏳ ${durationMins}p</span>
+                ${isThisActiveReward ? '<span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-purple-500 text-white animate-pulse">ĐANG DÙNG</span>' : ''}
+              </div>
+              <span class="text-[10px] text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</span>
+            </div>
           </div>
+          <button class="btn-del-inv text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa khỏi Kho Quà">&times;</button>
         </div>
       </div>
 
-      <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
+      <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
         <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">🪙 ${item.price} Vàng</span>
         ${item.isUsed ? `
-          <span class="text-xs font-semibold text-slate-500">Đã sử dụng</span>
+          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+            ${isThisActiveReward ? `
+              <button class="btn-scroll-timer text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1 shadow-sm shadow-purple-500/20 active:scale-95" title="Xem bộ đếm thời gian">
+                <span>${isFocusRunning ? '⏱️ Đang Đếm Giờ' : '⏸️ Tạm Dừng'}</span>
+              </button>
+            ` : `
+              <span class="text-xs font-semibold text-slate-500">Đã sử dụng</span>
+            `}
+            <button class="btn-undo-inv text-[11px] font-semibold px-2 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Đánh dấu chưa sử dụng">↩️ Hoàn tác</button>
+          </div>
         ` : `
-          <button class="btn-use-inv px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 transition shadow-md shadow-emerald-500/20 active:scale-95">
-            Dùng Quà Ngay 🎉
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button class="btn-refund-inv text-[11px] font-semibold px-2.5 py-1.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Hoàn trả và nhận lại Vàng">↩️ Trả quà</button>
+            <button class="btn-use-inv px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white transition shadow-md shadow-purple-500/20 active:scale-95 flex items-center gap-1">
+              <span>⏱️ Dùng Quà (${durationMins}p)</span>
+            </button>
+          </div>
         `}
       </div>
     `;
+
+    const scrollTimerBtn = card.querySelector('.btn-scroll-timer');
+    if (scrollTimerBtn) {
+      scrollTimerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
+
+    const delInvBtn = card.querySelector('.btn-del-inv');
+    if (delInvBtn) {
+      delInvBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteInventoryItem(item.id);
+      });
+    }
+
+    const refundBtn = card.querySelector('.btn-refund-inv');
+    if (refundBtn) {
+      refundBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        refundInventoryItem(item.id);
+      });
+    }
+
+    const undoInvBtn = card.querySelector('.btn-undo-inv');
+    if (undoInvBtn) {
+      undoInvBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        undoUseInventoryItem(item.id);
+      });
+    }
 
     const useBtn = card.querySelector('.btn-use-inv');
     if (useBtn) {
@@ -2564,6 +3300,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Confirmation Dialog controls
+  const btnConfirmOk = document.getElementById('btn-confirm-ok');
+  if (btnConfirmOk) {
+    btnConfirmOk.addEventListener('click', () => {
+      sfx.playClick();
+      closeConfirmDialog(true);
+    });
+  }
+
+  const btnConfirmCancel = document.getElementById('btn-confirm-cancel');
+  if (btnConfirmCancel) {
+    btnConfirmCancel.addEventListener('click', () => {
+      sfx.playClick();
+      closeConfirmDialog(false);
+    });
+  }
+
   // Global Close Modal on backdrop or close button
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -2575,6 +3328,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.fixed').forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
+        if (modal.id === 'modal-confirm') {
+          closeConfirmDialog(false);
+          return;
+        }
         if (modal.id === 'modal-welcome') {
           // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
           showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'info');
@@ -2590,9 +3347,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu
+  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu; đóng modal-confirm an toàn
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const confirmModal = document.getElementById('modal-confirm');
+      if (confirmModal && !confirmModal.classList.contains('hidden')) {
+        e.preventDefault();
+        closeConfirmDialog(false);
+        return;
+      }
       const welcome = document.getElementById('modal-welcome');
       const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile.hasOnboarded && appState.profile.nickname);
       if (!isOnboarded && welcome && !welcome.classList.contains('hidden')) {

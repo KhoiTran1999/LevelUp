@@ -952,6 +952,30 @@
     </div>
   </div>
 
+  <!-- MODAL: CONFIRMATION DIALOG (Chung cho các thao tác Bắt đầu, Hoàn thành, Xóa, Hoàn tác, Đổi quà, Dừng timer) -->
+  <div id="modal-confirm" class="fixed inset-0 z-[120] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="rpg-panel rounded-2xl w-full max-w-sm border border-amber-500/30 overflow-hidden modal-fade shadow-2xl flex flex-col p-5 sm:p-6 text-center">
+      <div id="confirm-modal-icon" class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl shadow-sm">
+        ❓
+      </div>
+      <h3 id="confirm-modal-title" class="font-rpg-title font-extrabold text-base text-slate-900 dark:text-slate-100 mb-1.5 leading-snug">
+        Xác Nhận Hành Động
+      </h3>
+      <p id="confirm-modal-desc" class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+        Bạn có chắc chắn muốn thực hiện hành động này?
+      </p>
+      <div id="confirm-modal-detail" class="hidden mb-4 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300"></div>
+      <div class="flex items-center justify-center gap-2.5 pt-1">
+        <button id="btn-confirm-cancel" type="button" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95">
+          Hủy
+        </button>
+        <button id="btn-confirm-ok" type="button" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
+          Xác Nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container (Positioned above mobile bottom bar) -->
   <div id="toast-container" class="fixed bottom-20 md:bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-50 flex flex-col gap-2 pointer-events-none"></div>
 
