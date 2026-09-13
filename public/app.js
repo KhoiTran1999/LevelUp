@@ -302,7 +302,10 @@ function deriveLegitimateBalance(state) {
     const reward = Math.max(1, parseInt(q.rewardCoins, 10) || 10);
     const count = q.isRepeatable
       ? Math.max(0, parseInt(q.completedCount, 10) || 0)
-      : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+      : Math.max(
+          parseInt(q.completedCount, 10) || 0,
+          (q.status === 'completed' || q.completed === true) ? 1 : 0
+        );
     questEarned += reward * count;
   }
 
@@ -446,6 +449,13 @@ async function syncWithCloud(isManual = false) {
 }
 
 function triggerSave(needsCloud = true) {
+  // Self-heal corrupted bounty targetMinutes if 0 was coerced to 25
+  for (const q of (appState.quests || [])) {
+    if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
+      q.targetMinutes = 0;
+    }
+  }
+
   // Anti-cheat check: Ngăn chặn sửa đổi biến global qua DevTools Console
   const check = deriveLegitimateBalance(appState);
   if (check.tampered) {
@@ -1510,8 +1520,8 @@ async function completeQuest(questId, skipConfirm = false) {
       clearFocusTimerSession();
     }
 
+    quest.completedCount = (quest.completedCount || 0) + 1;
     if (quest.isRepeatable) {
-      quest.completedCount = (quest.completedCount || 0) + 1;
       quest.lastCompletedAt = Date.now();
     } else {
       quest.status = 'completed';
@@ -1561,8 +1571,9 @@ async function undoCompleteQuest(questId) {
   });
   if (!ok) return;
 
+  quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
   if (quest.isRepeatable) {
-    quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
+    // Keep repeatable quest active
   } else {
     quest.status = 'active';
     delete quest.completedAt;
@@ -2035,7 +2046,7 @@ async function submitQuestToAI() {
       modificationReason: data.modificationReason || (isModified ? 'AI đã điều chỉnh lại tên và khối lượng công việc để đảm bảo tính khả thi và hiệu quả tập trung.' : ''),
       type: data.type || 'focus',
       rewardCoins: data.rewardCoins || 10,
-      targetMinutes: data.targetMinutes || 25,
+      targetMinutes: data.targetMinutes !== undefined ? Number(data.targetMinutes) : (data.type === 'bounty' ? 0 : 25),
       signature: data.signature || '',
       rank: data.rank || calculateRank(data.rewardCoins || 10),
       verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
@@ -2148,7 +2159,7 @@ function acceptVerdictAndCreateQuest() {
     type: currentPendingVerdict.type,
     rank: currentPendingVerdict.rank || calculateRank(currentPendingVerdict.rewardCoins),
     rewardCoins: currentPendingVerdict.rewardCoins,
-    targetMinutes: currentPendingVerdict.targetMinutes || 0,
+    targetMinutes: currentPendingVerdict.targetMinutes !== undefined ? Number(currentPendingVerdict.targetMinutes) : 0,
     signature: currentPendingVerdict.signature || '',
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
@@ -3783,7 +3794,8 @@ function startInteractiveTour(force = false) {
   }
 
   // Đóng các modal khác nếu đang mở trước khi bắt đầu tour
-  document.querySelectorAll('.fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
+  const openModals = Array.from(document.querySelectorAll('.fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)'));
+  for (const m of openModals) m.classList.add('hidden');
 
   const overlay = document.getElementById('tour-overlay');
   if (!overlay) return;

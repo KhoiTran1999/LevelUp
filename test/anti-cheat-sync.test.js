@@ -346,4 +346,183 @@ const timeDeviceB_fresh = baseTime + 2000;
   console.log('✓ Test 8: Thu hồi session token khi đăng xuất hoạt động an toàn và triệt để.');
 }
 
-console.log('\n🎉 TẤT CẢ 8/8 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');
+// Test 9: Bounty Quest (targetMinutes: 0) xác thực chữ ký chính xác, không bị coi là gian lận
+{
+  const bountySig = signQuest('Rửa Bát & Dọn Bếp', 'bounty', 0, 5);
+  const bountyQuest = {
+    id: 'q_bounty_clean',
+    title: 'Rửa Bát & Dọn Bếp',
+    type: 'bounty',
+    targetMinutes: 0,
+    rewardCoins: 5,
+    status: 'completed',
+    completedCount: 1,
+    signature: bountySig
+  };
+
+  const legitBountyState = {
+    profile: {
+      coins: 25,
+      totalCoinsEarned: 25,
+      level: 1
+    },
+    quests: [bountyQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const result = deriveLegitimateBalance(legitBountyState);
+  assert.strictEqual(result.tampered, false, 'Nhiệm vụ bounty với targetMinutes = 0 phải hợp lệ, không bị bắt gian lận');
+  assert.strictEqual(result.coins, 25, 'Số Vàng phải được giữ nguyên 25');
+  console.log('✓ Test 9: Nhiệm vụ Bounty (0 phút) xác thực chữ ký hoàn hảo, loại bỏ false-positive gian lận.');
+}
+
+// Test 10: Tự động sửa lỗi (Self-healing) cho nhiệm vụ Bounty từng bị ép 25 phút do lỗi 0 || 25
+{
+  const genuineBountySig = signQuest('Đổ Rác & Lau Bàn', 'bounty', 0, 8);
+  // Nhiệm vụ bị client cũ lưu nhầm targetMinutes = 25
+  const corruptedBountyQuest = {
+    id: 'q_bounty_corrupted',
+    title: 'Đổ Rác & Lau Bàn',
+    type: 'bounty',
+    targetMinutes: 25, // Bị lỗi 0 || 25
+    rewardCoins: 8,
+    status: 'completed',
+    completedCount: 1,
+    signature: genuineBountySig
+  };
+
+  const stateWithCorruptedQuest = {
+    profile: {
+      coins: 28,
+      totalCoinsEarned: 28,
+      level: 1
+    },
+    quests: [corruptedBountyQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const result = deriveLegitimateBalance(stateWithCorruptedQuest);
+  assert.strictEqual(result.tampered, false, 'Cơ chế Self-healing phải nhận diện chữ ký gốc và không phạt gian lận');
+  assert.strictEqual(corruptedBountyQuest.targetMinutes, 0, 'targetMinutes phải được tự động sửa về 0 phút');
+  assert.strictEqual(result.coins, 28, 'Số Vàng 28 phải được bảo toàn');
+  console.log('✓ Test 10: Tự động sửa lỗi (Self-healing) phục hồi targetMinutes về 0 và bảo vệ số Vàng của người dùng.');
+}
+
+// Test 11: Làm lại nhiệm vụ 1 lần ("Làm lại") bảo toàn completedCount, không làm mất Vàng đã kiếm
+{
+  const oneTimeSig = signQuest('Quét Sân', 'bounty', 0, 5);
+  const oneTimeQuest = {
+    id: 'q_onetime_sweep',
+    title: 'Quét Sân',
+    type: 'bounty',
+    targetMinutes: 0,
+    rewardCoins: 5,
+    isRepeatable: false,
+    status: 'active', // Người dùng vừa bấm "Làm lại", đưa về active
+    completedCount: 1, // Đã hoàn thành 1 lần trước đó
+    signature: oneTimeSig
+  };
+
+  const stateAfterRestart = {
+    profile: {
+      coins: 25,
+      totalCoinsEarned: 25,
+      level: 1
+    },
+    quests: [oneTimeQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const result = deriveLegitimateBalance(stateAfterRestart);
+  assert.strictEqual(result.tampered, false, 'Bấm "Làm lại" không được làm mất Vàng đã kiếm hay kích hoạt anti-cheat');
+  assert.strictEqual(result.totalCoinsEarned, 25);
+  assert.strictEqual(result.coins, 25);
+  console.log('✓ Test 11: Nút "Làm lại" bảo toàn lịch sử hoàn thành nhiệm vụ, chống sụt giảm trần Vàng.');
+}
+
+// Test 12: shop_seed_3 hỗ trợ cả giá 90 và 120 Vàng
+{
+  const item120 = { id: 'shop_seed_3', name: 'Đi Xem Phim Rạp Cuối Tuần', price: 120, tier: 'epic' };
+  const item90 = { id: 'shop_seed_3', name: 'Đi Xem Phim Rạp Cuối Tuần', price: 90, tier: 'epic' };
+  const { verifyRewardSignature } = await import('../api/sync.js');
+  assert.strictEqual(verifyRewardSignature(item120), true, 'shop_seed_3 giá 120 phải hợp lệ');
+  assert.strictEqual(verifyRewardSignature(item90), true, 'shop_seed_3 giá 90 phải hợp lệ');
+  console.log('✓ Test 12: shop_seed_3 đồng bộ tương thích giá 120 và 90 Vàng, không phạt sai khi mua.');
+}
+
+// Test 13: Tự động xóa cờ gian lận (Auto-Pardon) cho tài khoản từng bị phạt oan do bug bounty
+{
+  const userSub = 'google_innocent_victim_1';
+  await mockRedis.set(`levelup:session:innocent_session_token`, JSON.stringify({ sub: userSub, email: 'innocent@gmail.com', name: 'Hiệp Sĩ Oan' }), 'EX', 3600);
+
+  // Giả lập trạng thái trước đó bị lưu cờ gian lận trong Redis do bug 0 || 25
+  const victimOldState = {
+    profile: {
+      nickname: 'HiepSiOan',
+      googleId: userSub,
+      coins: 0,
+      totalCoinsEarned: 20,
+      title: 'Kẻ Gian Lận ⚠️',
+      isCheater: true,
+      cheatStrikes: 1
+    },
+    quests: [],
+    inventory: [],
+    ledger: []
+  };
+  await mockRedis.set(`levelup:user:google:${userSub}`, JSON.stringify(victimOldState));
+  await mockRedis.zadd('levelup:cheaters', Date.now(), userSub);
+
+  // Người dùng gửi lên dữ liệu có quest bounty tự động sửa lỗi
+  const genuineSig = signQuest('Tập Thể Dục Buổi Sáng', 'bounty', 0, 10);
+  const healingQuest = {
+    id: 'q_bounty_victim',
+    title: 'Tập Thể Dục Buổi Sáng',
+    type: 'bounty',
+    targetMinutes: 25, // Bị bug 0 || 25
+    rewardCoins: 10,
+    status: 'completed',
+    completedCount: 1,
+    signature: genuineSig
+  };
+
+  const syncState = {
+    profile: {
+      nickname: 'HiepSiOan',
+      googleId: userSub,
+      coins: 30,
+      totalCoinsEarned: 30,
+      title: 'Kẻ Gian Lận ⚠️'
+    },
+    quests: [healingQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const req = createMockReq({
+    method: 'POST',
+    headers: { Authorization: 'Bearer innocent_session_token' },
+    body: {
+      nickname: 'HiepSiOan',
+      token: 'innocent_session_token',
+      state: syncState
+    }
+  });
+  const res = createMockRes();
+  await handler(req, res);
+
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(res.body.tampered, false);
+  assert.strictEqual(res.body.isCheater, false, 'Phải tự động xóa án gian lận cho người dùng bị bắt oan');
+  assert.notStrictEqual(res.body.title, 'Kẻ Gian Lận ⚠️', 'Phải phục hồi danh hiệu hiệp sĩ');
+
+  // Kiểm tra đã xóa khỏi Sổ Đen trong Redis chưa
+  const inCheaterList = mockRedis.sortedSets.get('levelup:cheaters')?.has(userSub);
+  assert.strictEqual(inCheaterList, false, 'Phải xóa khỏi danh sách sổ đen levelup:cheaters');
+  console.log('✓ Test 13: Tự động phục hồi danh dự (Auto-Pardon) cho người dùng bị phạt oan do lỗi hệ thống.');
+}
+
+console.log('\n🎉 TẤT CẢ 13/13 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');

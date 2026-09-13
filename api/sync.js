@@ -36,7 +36,7 @@ export function deriveTitleForLevel(lvl) {
 }
 
 export function signQuest(title, type, targetMinutes, rewardCoins) {
-  const normTitle = (title || '').trim().toLowerCase();
+  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
   const t = type === 'bounty' ? 'bounty' : 'focus';
   const m = parseInt(targetMinutes, 10) || 0;
   const c = parseInt(rewardCoins, 10) || 0;
@@ -54,11 +54,23 @@ export function verifyQuestSignature(q) {
   }
   if (!q.signature) return false;
   const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins);
-  return q.signature === expected;
+  if (q.signature === expected) return true;
+
+  // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
+  // verify against targetMinutes = 0 and auto-repair
+  if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
+    const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins);
+    if (q.signature === healingExpected) {
+      q.targetMinutes = 0;
+      q._healed = true;
+      return true;
+    }
+  }
+  return false;
 }
 
 export function signReward(name, price, tier) {
-  const normName = (name || '').trim().toLowerCase();
+  const normName = (name || '').normalize('NFC').trim().toLowerCase();
   const p = parseInt(price, 10) || 0;
   const tr = (tier || 'common').toLowerCase();
   const payload = `reward:${normName}:${p}:${tr}`;
@@ -69,7 +81,7 @@ export function verifyRewardSignature(r) {
   if (!r || typeof r !== 'object') return false;
   if (r.id === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
   if (r.id === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';
-  if (r.id === 'shop_seed_3') return (parseInt(r.price, 10) || 0) === 90 && (r.tier || '').toLowerCase() === 'epic';
+  if (r.id === 'shop_seed_3') return [90, 120].includes(parseInt(r.price, 10) || 0) && (r.tier || '').toLowerCase() === 'epic';
   if (!r.signature) return false;
   const expected = signReward(r.name, r.price, r.tier);
   return r.signature === expected;
@@ -103,7 +115,10 @@ export function deriveLegitimateBalance(state, existingState = null) {
     // ponytail: cap repeatable count to 20 between syncs
     const count = q.isRepeatable
       ? Math.min(20, Math.max(0, parseInt(q.completedCount, 10) || 0))
-      : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+      : Math.min(20, Math.max(
+          parseInt(q.completedCount, 10) || 0,
+          (q.status === 'completed' || q.completed === true) ? 1 : 0
+        ));
     questEarned += reward * count;
   }
 
@@ -928,7 +943,10 @@ export default async function handler(req, res) {
         if (verifyQuestSignature(q) && q.type === 'focus' && (parseInt(q.targetMinutes, 10) || 0) >= 25) {
           const count = q.isRepeatable
             ? Math.max(0, parseInt(q.completedCount, 10) || 0)
-            : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+            : Math.max(
+                parseInt(q.completedCount, 10) || 0,
+                (q.status === 'completed' || q.completed === true) ? 1 : 0
+              );
           currentValidFocusSessions += count;
         }
       }
@@ -943,6 +961,28 @@ export default async function handler(req, res) {
           description: `⚠️ ÁN PHẠT ANTI-CHEAT: Trừ sạch ${balanceCheck.fine} Vàng (100%) & tước danh hiệu do phát hiện can thiệp dữ liệu trái phép`,
           timestamp: serverTimestamp
         });
+      }
+
+      // Tự động khôi phục danh dự cho người dùng bị bắt oan do bug 0 || 25 trên nhiệm vụ bounty
+      const hadHealedBounty = Array.isArray(state.quests) && state.quests.some(q => q._healed);
+      if (hadHealedBounty && !balanceCheck.tampered) {
+        if (state.profile) {
+          state.profile.isCheater = false;
+          if (state.profile.title === 'Kẻ Gian Lận ⚠️') {
+            state.profile.title = deriveTitleForLevel(balanceCheck.level);
+          }
+        }
+        if (existingState?.profile) {
+          existingState.profile.isCheater = false;
+          if (existingState.profile.title === 'Kẻ Gian Lận ⚠️') {
+            existingState.profile.title = deriveTitleForLevel(balanceCheck.level);
+          }
+          existingState.profile.cheatStrikes = 0;
+        }
+        await redis.zrem('levelup:cheaters', userSub);
+      }
+      for (const q of (Array.isArray(state.quests) ? state.quests : [])) {
+        delete q._healed;
       }
 
       // Xử lý Thử Thách Chuộc Tội (Redemption Challenge - Hướng A)
