@@ -835,14 +835,14 @@ async function sendDebateArgument() {
   const chatLogs = document.getElementById('debate-chat-logs');
 
   const userBubble = document.createElement('div');
-  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm';
+  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2.5 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm whitespace-pre-wrap leading-relaxed';
   userBubble.textContent = `Bạn: ${argument}`;
   chatLogs.appendChild(userBubble);
   argInput.value = '';
   chatLogs.scrollTop = chatLogs.scrollHeight;
 
   const loadingBubble = document.createElement('div');
-  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
+  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2.5 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
   loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng của bạn...';
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTop = chatLogs.scrollHeight;
@@ -874,8 +874,8 @@ async function sendDebateArgument() {
     loadingBubble.remove();
 
     const aiBubble = document.createElement('div');
-    aiBubble.className = `p-2 rounded-lg text-xs mr-4 sm:mr-6 border ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
-    aiBubble.innerHTML = `<strong>AI Phản Hồi:</strong> ${data.reply}`;
+    aiBubble.className = `p-2.5 rounded-lg text-xs mr-4 sm:mr-6 border leading-relaxed ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
+    aiBubble.innerHTML = `<strong class="font-bold block mb-1">AI Phản Hồi:</strong><div class="leading-relaxed">${renderMarkdown(data.reply)}</div>`;
     chatLogs.appendChild(aiBubble);
     chatLogs.scrollTop = chatLogs.scrollHeight;
 
@@ -1047,14 +1047,14 @@ async function sendRewardDebateArgument() {
   const chatLogs = document.getElementById('reward-debate-chat-logs');
 
   const userBubble = document.createElement('div');
-  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm';
+  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2.5 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm whitespace-pre-wrap leading-relaxed';
   userBubble.textContent = `Bạn: ${argument}`;
   chatLogs.appendChild(userBubble);
   argInput.value = '';
   chatLogs.scrollTop = chatLogs.scrollHeight;
 
   const loadingBubble = document.createElement('div');
-  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
+  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2.5 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
   loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng phần thưởng...';
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTop = chatLogs.scrollHeight;
@@ -1087,8 +1087,8 @@ async function sendRewardDebateArgument() {
     loadingBubble.remove();
 
     const aiBubble = document.createElement('div');
-    aiBubble.className = `p-2 rounded-lg text-xs mr-4 sm:mr-6 border ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
-    aiBubble.innerHTML = `<strong>AI Phản Hồi:</strong> ${data.reply}`;
+    aiBubble.className = `p-2.5 rounded-lg text-xs mr-4 sm:mr-6 border leading-relaxed ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
+    aiBubble.innerHTML = `<strong class="font-bold block mb-1">AI Phản Hồi:</strong><div class="leading-relaxed">${renderMarkdown(data.reply)}</div>`;
     chatLogs.appendChild(aiBubble);
     chatLogs.scrollTop = chatLogs.scrollHeight;
 
@@ -1560,6 +1560,18 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  let safe = escapeHtml(text);
+  safe = safe.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono">$1</code>');
+  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+  safe = safe.replace(/__([^_]+)__/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+  safe = safe.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+  safe = safe.replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1<em>$2</em>');
+  safe = safe.replace(/\r\n|\n/g, '<br>');
+  return safe;
 }
 
 function checkIsOnboarded() {

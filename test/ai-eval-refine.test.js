@@ -302,4 +302,49 @@ assert.strictEqual(sanitizedGameReward.isModified, true);
 assert.strictEqual(sanitizedGameReward.price >= 35, true, 'Addictive game reward must be at least 35 coins');
 assert.ok(sanitizedGameReward.modificationReason.length > 0);
 
-console.log('✓ All AI-only locking, negotiation, bidirectional context, and strictness tests passed successfully.');
+// ==========================================
+// Test 14: Safe Markdown rendering in AI debate responses
+// ==========================================
+function escapeHtml(text) {
+  if (!text) return '';
+  return text.toString()
+    .normalize('NFC')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  let safe = escapeHtml(text);
+  safe = safe.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono">$1</code>');
+  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+  safe = safe.replace(/__([^_]+)__/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+  safe = safe.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+  safe = safe.replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1<em>$2</em>');
+  safe = safe.replace(/\r\n|\n/g, '<br>');
+  return safe;
+}
+
+const userReportedAiReply = `Cảm ơn bạn rất nhiều!
+1. Nếu bạn chạy **20 phút**, mình rất sẵn lòng hỗ trợ nâng thưởng lên **8 Vàng** ngay.
+2. Nếu bạn quyết tâm ráng thêm một chút nữa để chạm mốc **25 phút**, mình sẽ chốt tròn **10 Vàng** cho bạn luôn!
+*Cố lên nhé!*`;
+
+const renderedHtml = renderMarkdown(userReportedAiReply);
+assert.ok(!renderedHtml.includes('**20 phút**'), 'Markdown bold syntax must be converted');
+assert.ok(renderedHtml.includes('<strong class="font-bold text-amber-700 dark:text-amber-400">20 phút</strong>'), 'Bold tag for 20 phút must exist');
+assert.ok(renderedHtml.includes('<strong class="font-bold text-amber-700 dark:text-amber-400">8 Vàng</strong>'), 'Bold tag for 8 Vàng must exist');
+assert.ok(renderedHtml.includes('<em>Cố lên nhé!</em>'), 'Italics tag must exist');
+assert.ok(renderedHtml.includes('<br>'), 'Line breaks must be converted to <br>');
+
+// XSS check
+const xssPayload = '<script>alert("xss")</script> **an toàn**';
+const renderedXss = renderMarkdown(xssPayload);
+assert.ok(!renderedXss.includes('<script>'), 'Raw script tags must be escaped');
+assert.ok(renderedXss.includes('&lt;script&gt;'), 'Script tags must be HTML entity escaped');
+assert.ok(renderedXss.includes('<strong'), 'Bold tags must still work safely');
+
+console.log('✓ All AI-only locking, negotiation, bidirectional context, strictness, and markdown rendering tests passed successfully.');
