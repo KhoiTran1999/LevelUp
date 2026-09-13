@@ -12,6 +12,10 @@ function applyQuestDebateResolution(currentVerdict, aiDebateResult) {
   if (aiDebateResult.newDescription !== undefined) updated.description = aiDebateResult.newDescription;
   if (aiDebateResult.newRewardCoins) updated.rewardCoins = aiDebateResult.newRewardCoins;
   if (aiDebateResult.newTargetMinutes !== undefined) updated.targetMinutes = aiDebateResult.newTargetMinutes;
+  if (aiDebateResult.newType) updated.type = aiDebateResult.newType;
+  else if (aiDebateResult.newTargetMinutes !== undefined) {
+    updated.type = aiDebateResult.newTargetMinutes > 0 ? 'focus' : 'bounty';
+  }
   updated.rank = aiDebateResult.newRank || calculateRank(updated.rewardCoins);
   return updated;
 }
@@ -83,6 +87,35 @@ const questDebateRejected = {
 const lockedQuestAfterRejection = applyQuestDebateResolution(negotiatedQuest, questDebateRejected);
 assert.strictEqual(lockedQuestAfterRejection.title, negotiatedQuest.title);
 assert.strictEqual(lockedQuestAfterRejection.rewardCoins, negotiatedQuest.rewardCoins);
+
+// ==========================================
+// Test 3b: Bounty Quest Debate (Rửa chén: 4 coins -> 5 coins, keeps bounty type and 0 minutes)
+// ==========================================
+const bountyQuest = {
+  title: 'Rửa chén',
+  description: 'Dọn dẹp bồn rửa, vệ sinh sạch sẽ bát đũa xoong chảo',
+  type: 'bounty',
+  targetMinutes: 0,
+  rewardCoins: 4,
+  rank: 'E'
+};
+
+const bountyDebateAccepted = {
+  accepted: true,
+  reply: 'Mình đồng ý nè! Rửa chén bát nhiều dầu mỡ thật sự tốn sức, mình nâng mức thưởng lên 5 Vàng cho bạn nhé.',
+  newTitle: 'Rửa chén',
+  newDescription: 'Dọn dẹp bồn rửa, vệ sinh sạch sẽ bát đũa xoong chảo',
+  newType: 'bounty',
+  newRewardCoins: 5,
+  newTargetMinutes: 0,
+  newRank: 'E'
+};
+
+const resolvedBounty = applyQuestDebateResolution(bountyQuest, bountyDebateAccepted);
+assert.strictEqual(resolvedBounty.type, 'bounty');
+assert.strictEqual(resolvedBounty.targetMinutes, 0);
+assert.strictEqual(resolvedBounty.rewardCoins, 5);
+assert.strictEqual(resolvedBounty.title, 'Rửa chén');
 
 // ==========================================
 // Test 4: AI evaluates and sanitizes harmful/unreasonable reward
@@ -277,9 +310,23 @@ const sanitizedChore = sanitizeEvaluatedQuest(
   'Rửa 3 cái bát sau bữa ăn'
 );
 assert.strictEqual(sanitizedChore.isModified, true);
+assert.strictEqual(sanitizedChore.title, 'Rửa bát');
+assert.ok(!sanitizedChore.title.includes('Chương 1'), 'Chores must not be transformed into Chapter 1');
 assert.strictEqual(sanitizedChore.type, 'bounty');
 assert.strictEqual(sanitizedChore.targetMinutes, 0);
 assert.strictEqual(sanitizedChore.rewardCoins <= 5, true);
+
+// Quick chore alias: "Rửa chén" (Southern dialect) must retain title and become bounty
+const sanitizedRuaChen = sanitizeEvaluatedQuest(
+  { title: 'Rửa chén', description: 'Rửa sạch chén đĩa', type: 'focus', targetMinutes: 30, rewardCoins: 15, isModified: true },
+  'Rửa chén',
+  'Rửa sạch chén đĩa'
+);
+assert.strictEqual(sanitizedRuaChen.title, 'Rửa chén');
+assert.ok(!sanitizedRuaChen.title.includes('Chương 1'), 'Rửa chén must not be transformed into Chapter 1');
+assert.strictEqual(sanitizedRuaChen.type, 'bounty');
+assert.strictEqual(sanitizedRuaChen.targetMinutes, 0);
+assert.strictEqual(sanitizedRuaChen.rewardCoins <= 5, true);
 
 // ==========================================
 // Test 13: Programmatic Arbiter Sanitizer enforces price floor on cheap dopamine rewards

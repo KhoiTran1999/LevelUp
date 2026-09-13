@@ -1153,13 +1153,14 @@ async function submitQuestToAI() {
   }
 }
 
-function renderVerdictStep() {
-  document.getElementById('quest-evaluating-step').classList.add('hidden');
-  document.getElementById('quest-verdict-step').classList.remove('hidden');
+function updateVerdictDisplay() {
+  if (!currentPendingVerdict) return;
 
   const rankBadge = document.getElementById('verdict-rank');
-  rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
-  rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
+  if (rankBadge) {
+    rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
+    rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
+  }
 
   const typeBadge = document.getElementById('verdict-type-badge');
   const timeBox = document.getElementById('verdict-target-time-box');
@@ -1167,21 +1168,24 @@ function renderVerdictStep() {
   const lockedTimeBox = document.getElementById('verdict-locked-time-box');
 
   if (currentPendingVerdict.type === 'focus') {
-    typeBadge.textContent = '⏳ TẬP TRUNG (HẸN GIỜ)';
-    typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30';
+    if (typeBadge) {
+      typeBadge.textContent = '⏳ TẬP TRUNG (HẸN GIỜ)';
+      typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30';
+    }
     if (timeBox) timeBox.classList.remove('hidden');
     if (minutesEl) minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
     if (lockedTimeBox) lockedTimeBox.classList.remove('hidden');
   } else {
-    typeBadge.textContent = '✓ VIỆC HOÀN THÀNH NGAY';
-    typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30';
+    if (typeBadge) {
+      typeBadge.textContent = '✓ VIỆC HOÀN THÀNH NGAY';
+      typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30';
+    }
     if (timeBox) timeBox.classList.add('hidden');
     if (lockedTimeBox) lockedTimeBox.classList.add('hidden');
   }
 
-  document.getElementById('verdict-coins').textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
-  document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
-  document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
+  const verdictCoins = document.getElementById('verdict-coins');
+  if (verdictCoins) verdictCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
 
   // AI-locked display card
   const lockedTitle = document.getElementById('verdict-locked-title');
@@ -1203,6 +1207,16 @@ function renderVerdictStep() {
 
   const lockedMinutes = document.getElementById('verdict-locked-minutes');
   if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+}
+
+function renderVerdictStep() {
+  document.getElementById('quest-evaluating-step').classList.add('hidden');
+  document.getElementById('quest-verdict-step').classList.remove('hidden');
+
+  updateVerdictDisplay();
+
+  document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
+  document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
 
   // AI Modification Notice
   const modNotice = document.getElementById('verdict-modified-notice');
@@ -1303,36 +1317,15 @@ async function sendDebateArgument() {
       if (data.newDescription !== undefined) currentPendingVerdict.description = data.newDescription;
       if (data.newRewardCoins) currentPendingVerdict.rewardCoins = data.newRewardCoins;
       if (data.newTargetMinutes !== undefined) currentPendingVerdict.targetMinutes = data.newTargetMinutes;
+      if (data.newType) {
+        currentPendingVerdict.type = data.newType;
+      } else if (data.newTargetMinutes !== undefined) {
+        currentPendingVerdict.type = data.newTargetMinutes > 0 ? 'focus' : 'bounty';
+      }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
 
-      // Refresh locked specs display card
-      const lockedTitle = document.getElementById('verdict-locked-title');
-      if (lockedTitle) lockedTitle.textContent = currentPendingVerdict.title;
-
-      const lockedDesc = document.getElementById('verdict-locked-desc');
-      const lockedDescContainer = document.getElementById('verdict-locked-desc-container');
-      if (lockedDesc && lockedDescContainer) {
-        if (currentPendingVerdict.description) {
-          lockedDesc.textContent = currentPendingVerdict.description;
-          lockedDescContainer.classList.remove('hidden');
-        } else {
-          lockedDescContainer.classList.add('hidden');
-        }
-      }
-
-      const lockedCoins = document.getElementById('verdict-locked-coins');
-      if (lockedCoins) lockedCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
-
-      const lockedMinutes = document.getElementById('verdict-locked-minutes');
-      if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
-
-      document.getElementById('verdict-coins').textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
-      const rankBadge = document.getElementById('verdict-rank');
-      rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
-      rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
-
-      const minutesEl = document.getElementById('verdict-minutes');
-      if (minutesEl) minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+      // Refresh locked specs display card and badges
+      updateVerdictDisplay();
 
       showToast('Thương lượng thành công! AI đã cập nhật thông số nhiệm vụ.', 'gold');
       sfx.playFanfare();
