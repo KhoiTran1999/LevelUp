@@ -2,7 +2,8 @@ import assert from 'node:assert';
 import {
   signQuest,
   signQuestLegacy,
-  verifyQuestSignature
+  verifyQuestSignature,
+  setGoogleTokenVerifierForTesting
 } from '../api/sync.js';
 import aiHandler, { sanitizeEvaluatedQuest, parseBool } from '../api/ai.js';
 
@@ -134,16 +135,26 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
 
 // Test 5: API /api/ai action verify_proof kiểm tra payload đầu vào
 {
+  setGoogleTokenVerifierForTesting(async (token) => {
+    if (token === 'valid_mock_token') {
+      return { sub: 'test_user_id', email: 'test@example.com', name: 'Tester' };
+    }
+    return null;
+  });
+
   function createMockReqRes(body) {
     let statusCode = 200;
     let jsonResult = null;
     return {
       req: {
         method: 'POST',
-        headers: { 'x-levelup-user': 'test-user-id' },
+        headers: { authorization: 'Bearer valid_mock_token' },
         body
       },
       res: {
+        setHeader() {
+          return this;
+        },
         status(code) {
           statusCode = code;
           return this;

@@ -61,11 +61,14 @@ assert.ok(indexHtml.includes('min-h-[260px] max-h-80 sm:max-h-[380px]'), 'Cả h
 assert.ok(indexHtml.includes('id="modal-reward" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">\n    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg'), 'Modal phần thưởng phải được mở rộng chiều rộng sm:max-w-lg');
 console.log('✓ Test 7: Khung chat được mở rộng không gian và tin nhắn AI tự động dừng tại đầu tin nhắn giúp dễ đọc.');
 
-// 8. Kiểm tra hộp thoại xác nhận trước khi chấp nhận và thêm nhiệm vụ
+// 8. Kiểm tra hộp thoại xác nhận trước khi chấp nhận và thêm nhiệm vụ (bao gồm tần suất và yêu cầu chụp ảnh)
 assert.ok(appJs.includes('async function acceptVerdictAndCreateQuest('), 'Hàm acceptVerdictAndCreateQuest phải là async');
 assert.ok(appJs.includes('const ok = await confirmAction({'), 'Phải gọi confirmAction trước khi thêm nhiệm vụ');
 assert.ok(appJs.includes('if (!ok) return;'), 'Phải dừng lại nếu người dùng không xác nhận');
-console.log('✓ Test 8: Nút chấp nhận nhiệm vụ bắt buộc phải qua bước xác nhận hộp thoại RPG trước khi thêm vào danh sách.');
+assert.ok(appJs.includes('Lặp lại') && appJs.includes('Làm một lần'), 'Hộp thoại xác nhận phải hiển thị tần suất (Lặp lại / Làm một lần)');
+assert.ok(appJs.includes('Cần chụp ảnh') && appJs.includes('Không cần chụp ảnh'), 'Hộp thoại xác nhận phải hiển thị yêu cầu bằng chứng (Cần chụp ảnh / Không cần chụp ảnh)');
+assert.ok(indexHtml.includes('whitespace-pre-line'), 'confirm-modal-detail phải có whitespace-pre-line để hiển thị thông số xuống dòng');
+console.log('✓ Test 8: Hộp thoại xác nhận hiển thị đầy đủ thông số nhiệm vụ (thưởng, thời gian, tần suất lặp lại, yêu cầu chụp ảnh).');
 
 // 9. Kiểm tra chuẩn hóa thuật ngữ phân loại nhiệm vụ (Rõ ràng, không gây nhầm lẫn)
 assert.ok(!appJs.includes('VIỆC HOÀN THÀNH NGAY'), 'app.js không được chứa thuật ngữ gây hiểu lầm "VIỆC HOÀN THÀNH NGAY"');

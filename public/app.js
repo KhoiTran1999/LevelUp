@@ -2400,7 +2400,7 @@ function updateVerdictDisplay() {
 
   const repeatText = document.getElementById('verdict-repeat-text');
   if (repeatText) {
-    repeatText.textContent = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm 1 lần';
+    repeatText.textContent = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm một lần';
   }
 
   const proofBadge = document.getElementById('verdict-proof-badge');
@@ -2422,7 +2422,7 @@ function updateVerdictDisplay() {
     }
   } else {
     if (proofBadge) {
-      proofBadge.textContent = '⚡ Không cần ảnh (1 chạm)';
+      proofBadge.textContent = '⚡ Không cần chụp ảnh';
       proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
     }
     if (proofGuidanceBox) {
@@ -2554,13 +2554,15 @@ async function acceptVerdictAndCreateQuest() {
   const questTitle = currentPendingVerdict.title || 'Nhiệm vụ mới';
   const questCoins = currentPendingVerdict.rewardCoins || 10;
   const questTime = currentPendingVerdict.type === 'focus' ? `${currentPendingVerdict.targetMinutes || 25}p tập trung` : 'Không cần bấm giờ';
+  const repeatText = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm một lần';
+  const proofText = currentPendingVerdict.requiresProof ? '📸 Cần chụp ảnh' : '⚡ Không cần chụp ảnh';
 
   const ok = await confirmAction({
     title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
     message: isEditing
       ? `Bạn có chắc muốn lưu các thay đổi cho nhiệm vụ "${questTitle}"?`
       : `Bạn có chắc chắn muốn nhận nhiệm vụ "${questTitle}" vào danh sách?`,
-    detail: `🪙 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}`,
+    detail: `🪙 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}\n📌 ${repeatText} • ${proofText}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Nhận Nhiệm Vụ',
     cancelText: 'Xem Lại',
     icon: '⚔️',

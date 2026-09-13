@@ -146,7 +146,11 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   const fullMatchText = `${fullMatchRaw} ${stripDiacritics(fullMatchRaw)}`;
 
   // Guard: Intellectual, academic, coding or professional work is NEVER a trivial personal habit
-  const isStudyOrWork = /\b(học|hoc|đọc|doc|sách|sach|chương|chuong|tài\s*liệu|tai\s*lieu|giáo\s*trình|giao\s*trinh|bài\s*tập|bai\s*tap|ôn\s*thi|on\s*thi|nghiên\s*cứu|nghien\s*cuu|lập\s*trình|lap\s*trinh|code|coding|dự\s*án|du\s*an|kinh\s*tế|kinh\s*te|toán|toan|văn|van|sử|su|địa|dia|lý|ly|hóa|hoa|sinh|tiếng\s*(anh|trung|nhật|hàn|pháp)|tieng\s*(anh|trung|nhat|han|phap)|viết\s*(luận|báo\s*cáo|lách|bài)|viet\s*(luan|bao\s*cao|lach|bai)|thuyết\s*trình|thuyet\s*trinh|khoá\s*học|khoa\s*hoc|luận\s*văn|luan\s*van|tiểu\s*luận|tieu\s*luan|đề\s*cương|de\s*cuong|kì\s*thi|ki\s*thi|thi\s*cử|thi\s*cu)\b/i.test(titleMatchText);
+  // ponytail: Unicode character classes on raw text and safe unaccented compounds prevent homograph collisions (e.g. 'sạch sẽ' -> 'sach' colliding with 'sách', 'rửa đĩa' -> 'dia' colliding with 'địa')
+  const isStudyOrWork = (
+    /(^|[^\p{L}\p{N}])(học|đọc|sách|chương|tài\s*liệu|giáo\s*trình|bài\s*tập|ôn\s*thi|nghiên\s*cứu|lập\s*trình|code|coding|dự\s*án|kinh\s*tế|toán|ngữ\s*văn|lịch\s*sử|địa\s*lý|vật\s*lý|hóa\s*học|sinh\s*học|tiếng\s*(anh|trung|nhật|hàn|pháp)|viết\s*(luận|báo\s*cáo|lách|bài)|thuyết\s*trình|khoá\s*học|luận\s*văn|tiểu\s*luận|đề\s*cương|k[ìi]\s*thi|thi\s*cử)($|[^\p{L}\p{N}])/ui.test(titleMatchRaw) ||
+    /\b(hoc|doc\s*sach|chuong|tai\s*lieu|giao\s*trinh|bai\s*tap|on\s*thi|nghien\s*cuu|lap\s*trinh|code|coding|du\s*an|kinh\s*te|toan|dia\s*ly|vat\s*ly|hoa\s*hoc|sinh\s*hoc|tieng\s*(anh|trung|nhat|han|phap)|viet\s*(luan|bao\s*cao|lach|bai)|thuyet\s*trinh|khoa\s*hoc|luan\s*van|tieu\s*luan|de\s*cuong|k[ìi]\s*thi|thi\s*cu)\b/i.test(titleMatchText)
+  );
 
   // Pattern detection for trivial / biological / routine tasks
   // ponytail: strict \b word boundaries and titleMatchText scoping prevent false positives on 'trọng tâm', 'tâm lý', etc.
@@ -172,7 +176,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   }
 
   // Pattern detection for quick household chores (anti-padding)
-  const isQuickChore = !isStudyOrWork && /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa)|lau\s*(ban|nha|bep|kinh|cua)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(titleMatchText);
+  const isQuickChore = !isStudyOrWork && /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa|sàn)|lau\s*(ban|nha|bep|kinh|cua|san)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(fullMatchText);
   if (isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 5);
@@ -359,9 +363,11 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
 
 export default async function handler(req, res) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (typeof res?.setHeader === 'function') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
