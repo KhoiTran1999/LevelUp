@@ -1566,10 +1566,24 @@ function openFocusCompleteModal(quest) {
 // =============================================================================
 // ponytail: lock set prevents fast double-taps on complete button; bounds to current session
 const completingQuestIds = new Set();
+// ponytail: cooldown 10m prevents coin farming by spamming complete on repeatable quests; upgrade to custom intervals if per-quest schedules needed
+const QUEST_REPEAT_COOLDOWN_MS = 10 * 60 * 1000;
+
+function getQuestRepeatCooldownRemaining(quest) {
+  if (!quest?.isRepeatable || !quest?.lastCompletedAt) return 0;
+  return Math.max(0, QUEST_REPEAT_COOLDOWN_MS - (Date.now() - quest.lastCompletedAt));
+}
 
 async function completeQuest(questId, skipConfirm = false) {
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest || (!quest.isRepeatable && quest.status === 'completed') || completingQuestIds.has(questId)) return;
+
+  const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
+  if (cooldownRemaining > 0) {
+    const mins = Math.ceil(cooldownRemaining / 60000);
+    showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
+    return;
+  }
 
   if (!skipConfirm) {
     const ok = await confirmAction({
@@ -1587,6 +1601,7 @@ async function completeQuest(questId, skipConfirm = false) {
   completingQuestIds.add(questId);
   try {
     if (!quest.isRepeatable && quest.status === 'completed') return;
+    if (getQuestRepeatCooldownRemaining(quest) > 0) return;
 
     if (activeFocusQuest && activeFocusQuest.id === questId) {
       clearFocusTimerSession();
@@ -1645,7 +1660,7 @@ async function undoCompleteQuest(questId) {
 
   quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
   if (quest.isRepeatable) {
-    // Keep repeatable quest active
+    if (!quest.completedCount) delete quest.lastCompletedAt;
   } else {
     quest.status = 'active';
     delete quest.completedAt;
@@ -3351,6 +3366,7 @@ function renderQuests() {
   filtered.forEach(q => {
     const isCompleted = q.status === 'completed';
     const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
+    const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
     const card = document.createElement('div');
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative ${
       isCurrentlyFocusing
@@ -3448,9 +3464,9 @@ function renderQuests() {
                 <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
               </button>
             ` : `
-              <button class="btn-complete-bounty flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
+              <button class="btn-complete-bounty flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md ${cooldownRemainingMs > 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300/40 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/20 active:scale-95'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                <span>Hoàn Thành</span>
+                <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
               </button>
             `}
           </div>
