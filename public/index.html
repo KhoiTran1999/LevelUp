@@ -154,10 +154,6 @@
 
       <!-- Desktop Quick Action Buttons -->
       <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-suggest-quests" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition shadow-sm">
-          <span>✨</span>
-          <span>AI Gợi Ý Việc</span>
-        </button>
         <button id="btn-open-add-quest" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition hover:scale-[1.02]">
           <span>+</span>
           <span>Thêm Việc Mới</span>
@@ -169,12 +165,8 @@
   <!-- ======================================================================= -->
   <!-- MOBILE ACTION STRIP (Visible only on phone/tablet top)                  -->
   <!-- ======================================================================= -->
-  <div class="md:hidden max-w-6xl mx-auto px-3 mt-3 flex items-center justify-between gap-2">
-    <button id="btn-suggest-quests-mobile" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition active:scale-95">
-      <span>✨</span>
-      <span>AI Gợi Ý Việc</span>
-    </button>
-    <button id="btn-open-add-quest-mobile" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95">
+  <div class="md:hidden max-w-6xl mx-auto px-3 mt-3">
+    <button id="btn-open-add-quest-mobile" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95">
       <span>+</span>
       <span>Thêm Việc Mới</span>
     </button>
@@ -246,12 +238,9 @@
           📜
         </div>
         <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa có việc nào cần làm!</h3>
-        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy thêm việc bạn cần hoàn thành hôm nay để nhận thưởng Vàng, hoặc nhờ AI gợi ý nhiệm vụ phù hợp.</p>
-        <div class="flex justify-center gap-3">
-          <button onclick="document.getElementById('btn-suggest-quests').click()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm transition">
-            ✨ AI Gợi Ý Việc
-          </button>
-          <button onclick="document.getElementById('btn-open-add-quest').click()" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy thêm việc bạn cần hoàn thành hôm nay để nhận thưởng Vàng.</p>
+        <div class="flex justify-center">
+          <button onclick="document.getElementById('btn-open-add-quest').click()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
             + Thêm Việc Mới
           </button>
         </div>
@@ -401,7 +390,7 @@
 
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mô Tả Chi Tiết (Tùy chọn)</label>
-          <textarea id="input-quest-desc" rows="2" placeholder="Ghi rõ chi tiết công việc để AI gợi ý thời gian và tính thưởng chính xác hơn..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
+          <textarea id="input-quest-desc" rows="2" placeholder="Ghi rõ chi tiết công việc để AI tính toán thời gian và mức thưởng chính xác hơn..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
         </div>
 
         <div>
@@ -433,6 +422,15 @@
       <div id="quest-verdict-step" class="hidden p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <div class="p-3.5 sm:p-4 rounded-xl sub-panel space-y-3">
 
+          <!-- AI Modification Notice (Shown if AI adjusted an unreasonable task) -->
+          <div id="verdict-modified-notice" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
+            <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+              <span>⚡</span>
+              <span>AI đã tối ưu lại nhiệm vụ:</span>
+            </div>
+            <p id="verdict-modified-reason" class="text-[11px] leading-relaxed italic"></p>
+          </div>
+
           <div class="flex items-center justify-between">
             <span id="verdict-rank" class="rank-badge-C text-xs font-mono font-black px-2.5 py-1 rounded-lg">RANK C</span>
             <div class="flex items-center gap-2">
@@ -457,31 +455,73 @@
             <span>💡</span>
             <span id="verdict-advice">Mẹo từ AI</span>
           </div>
+
+          <!-- AI-Locked Quest Specification Card -->
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔒</span>
+                <span>Thông số do AI chốt</span>
+              </span>
+              <span class="text-[10px] text-slate-400 dark:text-slate-500">Chỉ AI có quyền sửa đổi</span>
+            </div>
+
+            <div class="bg-white dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1.5">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tên việc cần làm:</div>
+              <h4 id="verdict-locked-title" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug"></h4>
+              <div id="verdict-locked-desc-container" class="pt-1">
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Chi tiết:</div>
+                <p id="verdict-locked-desc" class="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div id="verdict-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">Thời gian:</span>
+                <span id="verdict-locked-minutes" class="font-bold text-cyan-600 dark:text-cyan-400 font-mono">25 Phút</span>
+              </div>
+              <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">Thưởng:</span>
+                <span id="verdict-locked-coins" class="font-bold text-amber-600 dark:text-amber-400 font-mono">🪙 15 Vàng</span>
+              </div>
+            </div>
+
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1">
+              <span>⚖️</span>
+              <span>Muốn đổi tên, mô tả hay tăng/giảm thưởng? Nhấn "Thương lượng với AI" bên dưới.</span>
+            </p>
+          </div>
         </div>
 
         <!-- Debate Sub-box (Toggleable) -->
-        <div id="debate-container" class="hidden p-3 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+        <div id="debate-container" class="hidden p-3.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
           <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
-            <span>💬 Thương Lượng Mức Thưởng</span>
-            <span class="text-[10px] text-slate-500">Giải thích nếu việc này tốn nhiều công sức hơn</span>
+            <span class="flex items-center gap-1.5">
+              <span>💬</span>
+              <span>Thương Lượng Với AI</span>
+            </span>
+            <span class="text-[10px] text-slate-500">Đưa ra lý do để AI điều chỉnh thông số</span>
           </div>
-          <div id="debate-chat-logs" class="max-h-36 overflow-y-auto space-y-2 text-xs pr-1"></div>
+          <div id="debate-chat-logs" class="max-h-40 overflow-y-auto space-y-2 text-xs pr-1"></div>
           <div class="flex gap-2">
-            <input id="input-debate-arg" type="text" placeholder="Nhập lý do muốn tăng thưởng (VD: Đề thi tiếng Anh rất dài và khó)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
+            <input id="input-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng (VD: Đề tiếng Anh dài, xin đổi tên thành... hoặc xin tăng 30 Vàng)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
             <button id="btn-send-debate" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 dark:bg-slate-700 hover:bg-slate-600 transition shrink-0">Gửi</button>
           </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 pt-2">
-          <button id="btn-open-debate" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold self-start sm:self-auto">
-            💬 Muốn tăng thưởng? Thương lượng với AI
+          <button id="btn-open-debate" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold self-start sm:self-auto flex items-center gap-1">
+            <span>💬</span>
+            <span>Muốn chỉnh sửa? Thương lượng với AI</span>
           </button>
           <div class="flex gap-2 w-full sm:w-auto justify-end">
             <button class="modal-close px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Hủy</button>
             <button id="btn-accept-verdict" class="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
               ✓ Đồng Ý & Thêm Nhiệm Vụ
             </button>
+          </div>
+        </div>
           </div>
         </div>
 
@@ -516,14 +556,76 @@
         </div>
 
         <!-- AI Pricing Result Box (Dynamic) -->
-        <div id="reward-eval-box" class="hidden p-3.5 sm:p-4 rounded-xl sub-panel space-y-2">
-          <div class="flex justify-between items-center">
-            <span id="eval-tier" class="text-xs px-2 py-0.5 rounded font-mono font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30">RARE</span>
-            <span id="eval-price" class="text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">🪙 35 Vàng</span>
+        <div id="reward-eval-box" class="hidden p-3.5 sm:p-4 rounded-xl sub-panel space-y-3">
+          <!-- AI Modification Notice -->
+          <div id="reward-modified-notice" class="hidden p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
+            <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+              <span>⚡</span>
+              <span>AI đã tối ưu lại phần thưởng:</span>
+            </div>
+            <p id="reward-modified-reason" class="text-[11px] leading-relaxed italic"></p>
           </div>
-          <p id="eval-verdict" class="text-xs text-amber-900 dark:text-amber-200/90 italic bg-amber-50/70 dark:bg-slate-950/70 p-2.5 rounded-lg border border-amber-200/60 dark:border-slate-800">
-            "Lời nhận xét từ AI..."
-          </p>
+
+          <!-- AI-Locked Reward Card -->
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔒</span>
+                <span>Thông số do AI chốt</span>
+              </span>
+              <span class="text-[10px] text-slate-400 dark:text-slate-500">Chỉ AI có quyền sửa đổi</span>
+            </div>
+
+            <div class="bg-white dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span id="reward-locked-icon" class="text-xl shrink-0">🎁</span>
+                  <h4 id="reward-locked-name" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate"></h4>
+                </div>
+                <span id="eval-tier" class="shrink-0 text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30">RARE</span>
+              </div>
+              <div id="reward-locked-desc-container" class="pt-1">
+                <p id="reward-locked-desc" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed italic"></p>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
+              <span class="text-xs text-slate-600 dark:text-slate-400 font-medium">Giá Vàng tự thưởng:</span>
+              <span id="eval-price" class="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">🪙 35 Vàng</span>
+            </div>
+
+            <p id="eval-verdict" class="text-xs text-amber-900 dark:text-amber-200/90 italic bg-amber-50/70 dark:bg-slate-950/70 p-2.5 rounded-lg border border-amber-200/60 dark:border-slate-800">
+              "Lời nhận xét từ AI..."
+            </p>
+
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1">
+              <span>⚖️</span>
+              <span>Muốn đổi tên hay điều chỉnh giá Vàng? Nhấn "Thương lượng với AI" bên dưới.</span>
+            </p>
+          </div>
+
+          <!-- Reward Debate Sub-box (Toggleable) -->
+          <div id="reward-debate-container" class="hidden p-3.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <span>💬</span>
+                <span>Thương Lượng Phần Thưởng</span>
+              </span>
+              <span class="text-[10px] text-slate-500">Đưa ra lý do để AI điều chỉnh thông số</span>
+            </div>
+            <div id="reward-debate-chat-logs" class="max-h-36 overflow-y-auto space-y-2 text-xs pr-1"></div>
+            <div class="flex gap-2">
+              <input id="input-reward-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng (VD: Món quà nhỏ hơn, xin giảm xuống 20 Vàng)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
+              <button id="btn-send-reward-debate" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 dark:bg-slate-700 hover:bg-slate-600 transition shrink-0">Gửi</button>
+            </div>
+          </div>
+
+          <div class="pt-1 flex items-center justify-between">
+            <button id="btn-open-reward-debate" type="button" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1">
+              <span>💬</span>
+              <span>Muốn chỉnh sửa? Thương lượng với AI</span>
+            </button>
+          </div>
         </div>
 
         <div class="pt-2 flex justify-end gap-2">
@@ -621,46 +723,6 @@
               Lưu Thay Đổi
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL 4: AI SUGGEST QUESTS -->
-  <div id="modal-suggest" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
-      <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-2">
-          <span class="text-xl">✨</span>
-          <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">GỢI Ý NHIỆM VỤ TỪ AI</h3>
-        </div>
-        <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
-      </div>
-
-      <div class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Chọn Lĩnh Vực Bạn Cần Rèn Luyện</label>
-          <div class="grid grid-cols-2 gap-2" id="suggest-categories">
-            <button data-cat="Học tập chuyên sâu & Ôn thi" class="cat-btn active p-2.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-left transition">📚 Học tập & Ôn thi</button>
-            <button data-cat="Lập trình & Kỹ năng số" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">💻 Lập trình & Kỹ năng số</button>
-            <button data-cat="Rèn luyện thể lực & Sức khỏe" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">🏃 Thể lực & Sức khỏe</button>
-            <button data-cat="Kỷ luật hàng ngày & Dọn dẹp" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">🧹 Kỷ luật & Thói quen sống</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mục Tiêu Riêng Của Bạn (Tùy chọn)</label>
-          <input id="input-suggest-goal" type="text" placeholder="VD: Đang chuẩn bị thi chứng chỉ IELTS / Tuần này cần làm đồ án..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2 text-xs">
-        </div>
-
-        <!-- Generated Quest List -->
-        <div id="suggested-quest-list" class="space-y-2 pt-1"></div>
-
-        <div class="pt-2 flex justify-end gap-2">
-          <button class="modal-close px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Đóng</button>
-          <button id="btn-generate-suggestions" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
-            ✨ Tạo Gợi Ý Mới
-          </button>
         </div>
       </div>
     </div>

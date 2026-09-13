@@ -683,6 +683,12 @@ async function submitQuestToAI() {
   document.getElementById('quest-evaluating-step').classList.remove('hidden');
 
   try {
+    const currentRewards = (appState.shopItems || []).slice(0, 10).map(item => ({
+      name: item.name,
+      price: item.price,
+      tier: item.tier
+    }));
+
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -691,7 +697,9 @@ async function submitQuestToAI() {
         payload: {
           title,
           description: desc,
-          userEstimateCoins: estimate
+          userEstimateCoins: estimate,
+          currentRewards,
+          userCoins: appState.profile?.coins || 0
         }
       })
     });
@@ -702,9 +710,15 @@ async function submitQuestToAI() {
     }
 
     const data = await res.json();
+    const finalTitle = (data.title && typeof data.title === 'string') ? data.title.trim() : title;
+    const finalDesc = (data.description !== undefined && typeof data.description === 'string') ? data.description.trim() : desc;
+    const isModified = Boolean(data.isModified) || (finalTitle.toLowerCase() !== title.trim().toLowerCase());
+
     currentPendingVerdict = {
-      title,
-      description: desc,
+      title: finalTitle,
+      description: finalDesc,
+      isModified,
+      modificationReason: data.modificationReason || (isModified ? 'AI đã điều chỉnh lại tên và khối lượng công việc để đảm bảo tính khả thi và hiệu quả tập trung.' : ''),
       type: data.type || 'focus',
       rewardCoins: data.rewardCoins || 10,
       targetMinutes: data.targetMinutes || 25,
@@ -733,21 +747,57 @@ function renderVerdictStep() {
   const typeBadge = document.getElementById('verdict-type-badge');
   const timeBox = document.getElementById('verdict-target-time-box');
   const minutesEl = document.getElementById('verdict-minutes');
+  const lockedTimeBox = document.getElementById('verdict-locked-time-box');
 
   if (currentPendingVerdict.type === 'focus') {
     typeBadge.textContent = '⏳ TẬP TRUNG (HẸN GIỜ)';
     typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30';
-    timeBox.classList.remove('hidden');
-    minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+    if (timeBox) timeBox.classList.remove('hidden');
+    if (minutesEl) minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+    if (lockedTimeBox) lockedTimeBox.classList.remove('hidden');
   } else {
     typeBadge.textContent = '✓ VIỆC HOÀN THÀNH NGAY';
     typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30';
-    timeBox.classList.add('hidden');
+    if (timeBox) timeBox.classList.add('hidden');
+    if (lockedTimeBox) lockedTimeBox.classList.add('hidden');
   }
 
   document.getElementById('verdict-coins').textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
   document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
   document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
+
+  // AI-locked display card
+  const lockedTitle = document.getElementById('verdict-locked-title');
+  if (lockedTitle) lockedTitle.textContent = currentPendingVerdict.title;
+
+  const lockedDesc = document.getElementById('verdict-locked-desc');
+  const lockedDescContainer = document.getElementById('verdict-locked-desc-container');
+  if (lockedDesc && lockedDescContainer) {
+    if (currentPendingVerdict.description) {
+      lockedDesc.textContent = currentPendingVerdict.description;
+      lockedDescContainer.classList.remove('hidden');
+    } else {
+      lockedDescContainer.classList.add('hidden');
+    }
+  }
+
+  const lockedCoins = document.getElementById('verdict-locked-coins');
+  if (lockedCoins) lockedCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
+
+  const lockedMinutes = document.getElementById('verdict-locked-minutes');
+  if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+
+  // AI Modification Notice
+  const modNotice = document.getElementById('verdict-modified-notice');
+  const modReason = document.getElementById('verdict-modified-reason');
+  if (modNotice && modReason) {
+    if (currentPendingVerdict.isModified && currentPendingVerdict.modificationReason) {
+      modNotice.classList.remove('hidden');
+      modReason.textContent = currentPendingVerdict.modificationReason;
+    } else {
+      modNotice.classList.add('hidden');
+    }
+  }
 
   document.getElementById('debate-container').classList.add('hidden');
   document.getElementById('debate-chat-logs').innerHTML = '';
@@ -759,11 +809,11 @@ function acceptVerdictAndCreateQuest() {
   const newQuest = {
     id: 'q_' + Date.now(),
     title: currentPendingVerdict.title,
-    description: currentPendingVerdict.description,
+    description: currentPendingVerdict.description || '',
     type: currentPendingVerdict.type,
-    rank: currentPendingVerdict.rank,
+    rank: currentPendingVerdict.rank || calculateRank(currentPendingVerdict.rewardCoins),
     rewardCoins: currentPendingVerdict.rewardCoins,
-    targetMinutes: currentPendingVerdict.targetMinutes,
+    targetMinutes: currentPendingVerdict.targetMinutes || 0,
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
     status: 'active',
@@ -798,6 +848,12 @@ async function sendDebateArgument() {
   chatLogs.scrollTop = chatLogs.scrollHeight;
 
   try {
+    const currentRewards = (appState.shopItems || []).slice(0, 10).map(item => ({
+      name: item.name,
+      price: item.price,
+      tier: item.tier
+    }));
+
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -806,7 +862,9 @@ async function sendDebateArgument() {
         payload: {
           quest: currentPendingVerdict,
           argument,
-          history: currentDebateHistory
+          history: currentDebateHistory,
+          currentRewards,
+          userCoins: appState.profile?.coins || 0
         }
       })
     });
@@ -823,16 +881,43 @@ async function sendDebateArgument() {
 
     currentDebateHistory.push({ user: argument, arbiter: data.reply });
 
-    if (data.accepted && data.newRewardCoins) {
-      currentPendingVerdict.rewardCoins = data.newRewardCoins;
-      if (data.newTargetMinutes) currentPendingVerdict.targetMinutes = data.newTargetMinutes;
-      currentPendingVerdict.rank = calculateRank(currentPendingVerdict.rewardCoins);
+    if (data.accepted) {
+      if (data.newTitle) currentPendingVerdict.title = data.newTitle;
+      if (data.newDescription !== undefined) currentPendingVerdict.description = data.newDescription;
+      if (data.newRewardCoins) currentPendingVerdict.rewardCoins = data.newRewardCoins;
+      if (data.newTargetMinutes !== undefined) currentPendingVerdict.targetMinutes = data.newTargetMinutes;
+      currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
+
+      // Refresh locked specs display card
+      const lockedTitle = document.getElementById('verdict-locked-title');
+      if (lockedTitle) lockedTitle.textContent = currentPendingVerdict.title;
+
+      const lockedDesc = document.getElementById('verdict-locked-desc');
+      const lockedDescContainer = document.getElementById('verdict-locked-desc-container');
+      if (lockedDesc && lockedDescContainer) {
+        if (currentPendingVerdict.description) {
+          lockedDesc.textContent = currentPendingVerdict.description;
+          lockedDescContainer.classList.remove('hidden');
+        } else {
+          lockedDescContainer.classList.add('hidden');
+        }
+      }
+
+      const lockedCoins = document.getElementById('verdict-locked-coins');
+      if (lockedCoins) lockedCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
+
+      const lockedMinutes = document.getElementById('verdict-locked-minutes');
+      if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
 
       document.getElementById('verdict-coins').textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
       const rankBadge = document.getElementById('verdict-rank');
       rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
       rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
-      showToast(`Thương lượng thành công! Mức thưởng đã tăng lên ${data.newRewardCoins} Vàng!`, 'gold');
+
+      const minutesEl = document.getElementById('verdict-minutes');
+      if (minutesEl) minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+
+      showToast('Thương lượng thành công! AI đã cập nhật thông số nhiệm vụ.', 'gold');
       sfx.playFanfare();
     }
   } catch (err) {
@@ -844,6 +929,7 @@ async function sendDebateArgument() {
 // 9. AI REWARD APPRAISAL & CREATION
 // =============================================================================
 let currentPendingReward = null;
+let currentRewardDebateHistory = [];
 
 async function evaluateRewardItem() {
   const name = document.getElementById('input-reward-name').value.trim();
@@ -862,32 +948,86 @@ async function evaluateRewardItem() {
   btnEval.disabled = true;
 
   try {
+    const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
+      title: q.title,
+      rewardCoins: q.rewardCoins,
+      type: q.type,
+      targetMinutes: q.targetMinutes
+    }));
+
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'evaluate_reward',
-        payload: { name, description: desc }
+        payload: {
+          name,
+          description: desc,
+          currentQuests,
+          userCoins: appState.profile?.coins || 0
+        }
       })
     });
 
     if (!res.ok) throw new Error('AI Error');
     const data = await res.json();
 
+    const finalName = (data.name && typeof data.name === 'string') ? data.name.trim() : name;
+    const finalDesc = (data.description !== undefined && typeof data.description === 'string') ? data.description.trim() : desc;
+    const isModified = Boolean(data.isModified) || (finalName.toLowerCase() !== name.trim().toLowerCase());
+
     currentPendingReward = {
       id: 'shop_' + Date.now(),
-      name,
-      description: desc,
+      name: finalName,
+      description: finalDesc,
+      isModified,
+      modificationReason: data.modificationReason || (isModified ? 'AI đã điều chỉnh phần thưởng để lành mạnh và duy trì động lực tốt hơn.' : ''),
       price: data.price || 30,
       tier: data.tier || 'rare',
       icon: data.icon || '🎁',
       verdict: data.verdict || 'Phần thưởng đã được định giá phù hợp.'
     };
+    currentRewardDebateHistory = [];
 
     evalBox.classList.remove('hidden');
+
+    // Populate locked reward display card
+    const lockedName = document.getElementById('reward-locked-name');
+    if (lockedName) lockedName.textContent = currentPendingReward.name;
+
+    const lockedDesc = document.getElementById('reward-locked-desc');
+    const lockedDescContainer = document.getElementById('reward-locked-desc-container');
+    if (lockedDesc && lockedDescContainer) {
+      if (currentPendingReward.description) {
+        lockedDesc.textContent = currentPendingReward.description;
+        lockedDescContainer.classList.remove('hidden');
+      } else {
+        lockedDescContainer.classList.add('hidden');
+      }
+    }
+
+    const lockedIcon = document.getElementById('reward-locked-icon');
+    if (lockedIcon) lockedIcon.textContent = currentPendingReward.icon;
+
     document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
     document.getElementById('eval-price').textContent = `🪙 ${currentPendingReward.price} Vàng`;
     document.getElementById('eval-verdict').textContent = `"${currentPendingReward.verdict}"`;
+
+    const rewardModNotice = document.getElementById('reward-modified-notice');
+    const rewardModReason = document.getElementById('reward-modified-reason');
+    if (rewardModNotice && rewardModReason) {
+      if (currentPendingReward.isModified && currentPendingReward.modificationReason) {
+        rewardModNotice.classList.remove('hidden');
+        rewardModReason.textContent = currentPendingReward.modificationReason;
+      } else {
+        rewardModNotice.classList.add('hidden');
+      }
+    }
+
+    const rewardDebateBox = document.getElementById('reward-debate-container');
+    if (rewardDebateBox) rewardDebateBox.classList.add('hidden');
+    const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
+    if (rewardChatLogs) rewardChatLogs.innerHTML = '';
 
     btnEval.classList.add('hidden');
     btnSave.classList.remove('hidden');
@@ -899,103 +1039,110 @@ async function evaluateRewardItem() {
   }
 }
 
+async function sendRewardDebateArgument() {
+  const argInput = document.getElementById('input-reward-debate-arg');
+  const argument = argInput.value.trim();
+  if (!argument || !currentPendingReward) return;
+
+  const chatLogs = document.getElementById('reward-debate-chat-logs');
+
+  const userBubble = document.createElement('div');
+  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm';
+  userBubble.textContent = `Bạn: ${argument}`;
+  chatLogs.appendChild(userBubble);
+  argInput.value = '';
+  chatLogs.scrollTop = chatLogs.scrollHeight;
+
+  const loadingBubble = document.createElement('div');
+  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
+  loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng phần thưởng...';
+  chatLogs.appendChild(loadingBubble);
+  chatLogs.scrollTop = chatLogs.scrollHeight;
+
+  try {
+    const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
+      title: q.title,
+      rewardCoins: q.rewardCoins,
+      type: q.type,
+      targetMinutes: q.targetMinutes
+    }));
+
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'debate_reward',
+        payload: {
+          reward: currentPendingReward,
+          argument,
+          history: currentRewardDebateHistory,
+          currentQuests,
+          userCoins: appState.profile?.coins || 0
+        }
+      })
+    });
+
+    if (!res.ok) throw new Error('AI Error');
+    const data = await res.json();
+    loadingBubble.remove();
+
+    const aiBubble = document.createElement('div');
+    aiBubble.className = `p-2 rounded-lg text-xs mr-4 sm:mr-6 border ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
+    aiBubble.innerHTML = `<strong>AI Phản Hồi:</strong> ${data.reply}`;
+    chatLogs.appendChild(aiBubble);
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+
+    currentRewardDebateHistory.push({ user: argument, arbiter: data.reply });
+
+    if (data.accepted) {
+      if (data.newName) currentPendingReward.name = data.newName;
+      if (data.newDescription !== undefined) currentPendingReward.description = data.newDescription;
+      if (data.newPrice) currentPendingReward.price = data.newPrice;
+      if (data.newTier) currentPendingReward.tier = data.newTier;
+
+      // Update locked reward display card
+      const lockedName = document.getElementById('reward-locked-name');
+      if (lockedName) lockedName.textContent = currentPendingReward.name;
+
+      const lockedDesc = document.getElementById('reward-locked-desc');
+      const lockedDescContainer = document.getElementById('reward-locked-desc-container');
+      if (lockedDesc && lockedDescContainer) {
+        if (currentPendingReward.description) {
+          lockedDesc.textContent = currentPendingReward.description;
+          lockedDescContainer.classList.remove('hidden');
+        } else {
+          lockedDescContainer.classList.add('hidden');
+        }
+      }
+
+      document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
+      document.getElementById('eval-price').textContent = `🪙 ${currentPendingReward.price} Vàng`;
+
+      showToast('Thương lượng thành công! AI đã cập nhật phần thưởng.', 'gold');
+      sfx.playFanfare();
+    }
+  } catch (err) {
+    loadingBubble.textContent = 'Lỗi thương lượng: ' + err.message;
+  }
+}
+
 function savePendingReward() {
   if (!currentPendingReward) return;
-  appState.shopItems.unshift(currentPendingReward);
+
+  const finalItem = {
+    ...currentPendingReward,
+    price: currentPendingReward.price
+  };
+
+  appState.shopItems.unshift(finalItem);
   sfx.playFanfare();
-  showToast(`Đã thêm món "${currentPendingReward.name}" vào Cửa Hàng!`, 'success');
+  showToast(`Đã thêm món "${finalItem.name}" vào Cửa Hàng!`, 'success');
   closeModal('modal-reward');
   triggerSave(true);
 }
 
 // =============================================================================
-// 10. AI QUEST SUGGESTIONS
-// =============================================================================
-let activeCategory = 'Học tập chuyên sâu & Ôn thi';
-
-async function generateQuestSuggestions() {
-  const goal = document.getElementById('input-suggest-goal').value.trim();
-  const listEl = document.getElementById('suggested-quest-list');
-  const btnGen = document.getElementById('btn-generate-suggestions');
-
-  btnGen.disabled = true;
-  btnGen.textContent = 'AI đang suy nghĩ...';
-  listEl.innerHTML = '<div class="text-center py-6 text-xs text-amber-600 dark:text-amber-300 animate-pulse font-medium">✨ AI đang soạn danh sách nhiệm vụ phù hợp với bạn...</div>';
-
-  try {
-    const res = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'suggest_quests',
-        payload: {
-          category: activeCategory,
-          customGoal: goal
-        }
-      })
-    });
-
-    if (!res.ok) throw new Error('AI error');
-    const data = await res.json();
-    const quests = data.quests || [];
-
-    listEl.innerHTML = '';
-    quests.forEach((q, idx) => {
-      const card = document.createElement('div');
-      card.className = 'p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 hover:border-amber-500/40 shadow-sm transition';
-      card.innerHTML = `
-        <div class="flex-1">
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="rank-badge-${q.rank || 'C'} text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">HẠNG ${q.rank || 'C'}</span>
-            <span class="text-xs font-bold text-slate-900 dark:text-slate-200">${escapeHtml(q.title)}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">${escapeHtml(q.description)}</p>
-          <div class="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-medium">
-            <span>${q.type === 'focus' ? `⏳ <span class="font-mono font-bold">${q.targetMinutes}p</span> Tập trung` : '✓ Làm ngay'}</span>
-            <span>•</span>
-            <span class="text-amber-600 dark:text-amber-400 font-bold">🪙 ${q.rewardCoins} Vàng</span>
-          </div>
-        </div>
-        <button class="btn-accept-suggestion px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shrink-0 transition active:scale-95 shadow-sm">
-          Nhận Việc
-        </button>
-      `;
-
-      card.querySelector('.btn-accept-suggestion').addEventListener('click', () => {
-        const newQuest = {
-          id: 'q_' + Date.now() + '_' + idx,
-          title: q.title,
-          description: q.description,
-          type: q.type || 'focus',
-          rank: q.rank || 'C',
-          rewardCoins: q.rewardCoins || 12,
-          targetMinutes: q.targetMinutes || 25,
-          advice: 'Chúc bạn hoàn thành tốt nhiệm vụ này!',
-          verdict: 'Nhiệm vụ được AI gợi ý theo mục tiêu của bạn.',
-          status: 'active',
-          createdAt: Date.now()
-        };
-        appState.quests.unshift(newQuest);
-        sfx.playClick();
-        showToast(`Đã nhận nhiệm vụ: "${q.title}"!`, 'success');
-        closeModal('modal-suggest');
-        triggerSave(true);
-      });
-
-      listEl.appendChild(card);
-    });
-
-    btnGen.textContent = '✨ Gợi Ý Thêm';
-    btnGen.disabled = false;
-  } catch (err) {
-    listEl.innerHTML = `<div class="text-xs text-rose-500 text-center py-4">Lỗi: ${err.message}</div>`;
-    btnGen.textContent = 'Thử lại';
-    btnGen.disabled = false;
-  }
-}
-
-// =============================================================================
-// 11. LEADERBOARD FETCHER
+// 10. LEADERBOARD FETCHER
 // =============================================================================
 async function fetchLeaderboard() {
   const tbody = document.getElementById('leaderboard-tbody');
@@ -1764,6 +1911,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-quest-title').value = '';
     document.getElementById('input-quest-desc').value = '';
     document.getElementById('input-quest-estimate').value = '';
+    const modNotice = document.getElementById('verdict-modified-notice');
+    if (modNotice) modNotice.classList.add('hidden');
     openModal('modal-quest');
   };
   document.getElementById('btn-open-add-quest').addEventListener('click', openQuestHandler);
@@ -1773,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-submit-to-ai').addEventListener('click', submitQuestToAI);
   document.getElementById('btn-accept-verdict').addEventListener('click', acceptVerdictAndCreateQuest);
 
-  // Debate features
+  // Quest Debate features
   document.getElementById('btn-open-debate').addEventListener('click', () => {
     const debateBox = document.getElementById('debate-container');
     debateBox.classList.toggle('hidden');
@@ -1788,6 +1937,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-reward-name').value = '';
     document.getElementById('input-reward-desc').value = '';
     document.getElementById('reward-eval-box').classList.add('hidden');
+    const rewardModNotice = document.getElementById('reward-modified-notice');
+    if (rewardModNotice) rewardModNotice.classList.add('hidden');
+    const rewardDebateBox = document.getElementById('reward-debate-container');
+    if (rewardDebateBox) rewardDebateBox.classList.add('hidden');
+    const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
+    if (rewardChatLogs) rewardChatLogs.innerHTML = '';
+    currentRewardDebateHistory = [];
     document.getElementById('btn-eval-reward').classList.remove('hidden');
     document.getElementById('btn-eval-reward').disabled = false;
     document.getElementById('btn-eval-reward').textContent = '🤖 AI Định Giá Vàng';
@@ -1798,25 +1954,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-eval-reward').addEventListener('click', evaluateRewardItem);
   document.getElementById('btn-save-reward').addEventListener('click', savePendingReward);
 
-  // AI Quest Suggestions Modal (Desktop & Mobile buttons)
-  const openSuggestHandler = () => {
-    openModal('modal-suggest');
-  };
-  document.getElementById('btn-suggest-quests').addEventListener('click', openSuggestHandler);
-  const mobileSuggestBtn = document.getElementById('btn-suggest-quests-mobile');
-  if (mobileSuggestBtn) mobileSuggestBtn.addEventListener('click', openSuggestHandler);
-
-  document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.cat-btn').forEach(b => {
-        b.className = 'cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition';
-      });
-      btn.className = 'cat-btn active p-2.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-left transition';
-      activeCategory = btn.dataset.cat;
+  // Reward Debate features
+  const btnOpenRewardDebate = document.getElementById('btn-open-reward-debate');
+  if (btnOpenRewardDebate) {
+    btnOpenRewardDebate.addEventListener('click', () => {
+      const debateBox = document.getElementById('reward-debate-container');
+      if (debateBox) debateBox.classList.toggle('hidden');
     });
-  });
-
-  document.getElementById('btn-generate-suggestions').addEventListener('click', generateQuestSuggestions);
+  }
+  const btnSendRewardDebate = document.getElementById('btn-send-reward-debate');
+  if (btnSendRewardDebate) {
+    btnSendRewardDebate.addEventListener('click', sendRewardDebateArgument);
+  }
+  const inputRewardDebateArg = document.getElementById('input-reward-debate-arg');
+  if (inputRewardDebateArg) {
+    inputRewardDebateArg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendRewardDebateArgument();
+    });
+  }
 
   // Global Close Modal on backdrop or close button
   document.querySelectorAll('.modal-close').forEach(btn => {
