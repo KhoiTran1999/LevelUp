@@ -358,9 +358,15 @@
 
     <!-- ==================== TAB 4: LEADERBOARD ==================== -->
     <section id="tab-leaderboard" class="tab-pane hidden">
-      <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ và tích lũy được nhiều Vàng nhất (Đồng bộ trực tuyến).</p>
+      <div class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ và tích lũy được nhiều Vàng nhất (Đồng bộ trực tuyến).</p>
+        </div>
+        <button id="btn-admin-pardon" class="hidden text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition shadow-sm items-center gap-1.5">
+          <span>🕊️</span>
+          <span>Ân Xá Tài Khoản</span>
+        </button>
       </div>
 
       <div class="rpg-panel rounded-2xl p-2 sm:p-4 overflow-hidden">

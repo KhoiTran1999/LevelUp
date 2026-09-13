@@ -445,4 +445,136 @@ await mockRedis.set(
   console.log('✓ Test 11: Hệ thống trừng phạt gian lận thi hành thành công: Phạt Vàng, tước danh hiệu, đuổi khỏi Leaderboard, ghi sổ cái.');
 }
 
-console.log('\n🎉 TẤT CẢ 11/11 BẢN VÁ BẢO MẬT & HỆ THỐNG XỬ PHẠT GIAN LẬN ĐÃ HOÀN TẤT XUẤT SẮC!\n');
+// ============================================================
+// 12. Kiểm thử: Hướng A - Thử Thách Chuộc Tội (5 phiên tập trung)
+// ============================================================
+{
+  const focusSig = signQuest('Đọc Sách Lập Trình 25p', 'focus', 25, 10);
+  const validFocusQuest = {
+    id: 'q_redemption_focus',
+    title: 'Đọc Sách Lập Trình 25p',
+    type: 'focus',
+    targetMinutes: 25,
+    rewardCoins: 10,
+    isRepeatable: true,
+    completedCount: 2, // Đã làm 2 phiên
+    signature: focusSig
+  };
+
+  // 12.1 Kẻ gian hoàn thành 2 phiên tập trung -> Tiến trình 2/5, chưa được lên Leaderboard
+  const partialRedemptionState = {
+    profile: {
+      nickname: 'HackerPro',
+      level: 1,
+      totalCoinsEarned: 40,
+      coins: 40
+    },
+    quests: [validFocusQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const { req: req1, res: res1 } = createMockReqRes(
+    'POST',
+    {
+      nickname: 'HackerPro',
+      token: 'valid_session_token_xyz',
+      state: partialRedemptionState
+    },
+    {},
+    { authorization: 'Bearer valid_session_token_xyz' }
+  );
+
+  await syncHandler(req1, res1);
+
+  assert.strictEqual(res1.statusCode, 200);
+  assert.strictEqual(res1.body.title, 'Đang Chuộc Tội (2/5) ⏳', 'Danh hiệu phải thể hiện tiến độ chuộc tội');
+  assert.strictEqual(res1.body.isCheater, true, 'Vẫn còn trong diện cấm');
+  assert.strictEqual(mockRedis.sortedSets.get('levelup:leaderboard')?.has('google_user_sub_101'), false, 'Chưa được lên Leaderboard');
+
+  // 12.2 Kẻ gian hoàn thành thêm 3 phiên nữa (Tổng 5 phiên) -> Chuộc tội thành công!
+  const fullFocusQuest = { ...validFocusQuest, completedCount: 5 };
+  const fullRedemptionState = {
+    ...partialRedemptionState,
+    profile: {
+      ...partialRedemptionState.profile,
+      totalCoinsEarned: 70,
+      coins: 70
+    },
+    quests: [fullFocusQuest]
+  };
+
+  const { req: req2, res: res2 } = createMockReqRes(
+    'POST',
+    {
+      nickname: 'HackerPro',
+      token: 'valid_session_token_xyz',
+      state: fullRedemptionState
+    },
+    {},
+    { authorization: 'Bearer valid_session_token_xyz' }
+  );
+
+  await syncHandler(req2, res2);
+
+  assert.strictEqual(res2.statusCode, 200);
+  assert.strictEqual(res2.body.redeemed, true, 'Phải đánh dấu chuộc tội thành công');
+  assert.strictEqual(res2.body.isCheater, false, 'Cờ isCheater phải được gỡ bỏ');
+  assert.strictEqual(res2.body.title, 'Tân Binh Cấp 1', 'Danh hiệu hiệp sĩ phải được khôi phục');
+  assert.strictEqual(mockRedis.sortedSets.get('levelup:leaderboard')?.has('google_user_sub_101'), true, 'Được đưa trở lại Bảng Xếp Hạng');
+  console.log('✓ Test 12: Thử Thách Chuộc Tội (Hướng A) hoạt động hoàn hảo: Hoàn thành 5 phiên tập trung gỡ cờ gian lận, phục hồi Leaderboard.');
+}
+
+// ============================================================
+// 13. Kiểm thử: Hướng B - Quản Trị Viên Ân Xá (Admin Pardon)
+// ============================================================
+{
+  // 13.1 Giả lập user bị mark kẻ gian lận trở lại
+  const userKey = 'levelup:user:google:google_user_sub_101';
+  const badState = {
+    profile: {
+      nickname: 'HackerPro',
+      level: 3,
+      isCheater: true,
+      cheatStrikes: 2,
+      title: 'Kẻ Gian Lận ⚠️',
+      totalCoinsEarned: 100
+    },
+    ledger: []
+  };
+  await mockRedis.set(userKey, JSON.stringify(badState));
+  await mockRedis.zrem('levelup:leaderboard', 'google_user_sub_101');
+
+  // 13.2 Người dùng thường cố gọi admin_pardon -> Bị chặn 403
+  const { req: nonAdminReq, res: nonAdminRes } = createMockReqRes(
+    'POST',
+    { targetSub: 'google_user_sub_101' },
+    { action: 'admin_pardon' },
+    { authorization: 'Bearer valid_session_token_xyz' }
+  );
+  await syncHandler(nonAdminReq, nonAdminRes);
+  assert.strictEqual(nonAdminRes.statusCode, 403, 'User thường không thể tự ân xá cho mình');
+
+  // 13.3 Quản trị viên (Admin) gọi admin_pardon -> Thành công 200
+  process.env.ADMIN_EMAILS = 'admin_official@gmail.com';
+  const { req: adminReq, res: adminRes } = createMockReqRes(
+    'POST',
+    { targetSub: 'google_user_sub_101' },
+    { action: 'admin_pardon' },
+    { authorization: 'Bearer valid_admin_token' }
+  );
+  await syncHandler(adminReq, adminRes);
+  assert.strictEqual(adminRes.statusCode, 200, 'Admin ân xá thành công');
+  assert.strictEqual(adminRes.body.success, true);
+
+  // Kiểm tra tài khoản sau khi Admin ân xá
+  const pardonedRaw = await mockRedis.get(userKey);
+  const pardonedState = JSON.parse(pardonedRaw);
+  assert.strictEqual(pardonedState.profile.isCheater, false, 'Cờ gian lận đã được Admin xóa');
+  assert.strictEqual(pardonedState.profile.cheatStrikes, 0, 'Điểm vi phạm được xóa về 0');
+  assert.strictEqual(pardonedState.profile.title, 'Học Viên Chăm Chỉ', 'Danh hiệu cấp 3 phục hồi');
+  assert.strictEqual(mockRedis.sortedSets.get('levelup:leaderboard')?.has('google_user_sub_101'), true, 'Đã được Admin đưa lại Leaderboard');
+  console.log('✓ Test 13: Quản Trị Viên Ân Xá (Hướng B) hoạt động chuẩn xác: Phân quyền bảo mật 403, xóa án phạt, phục hồi danh dự ngay lập tức.');
+}
+
+console.log('\n🎉 TẤT CẢ 13/13 BẢN VÁ BẢO MẬT & CƠ CHẾ CHUỘC TỘI/ÂN XÁ ĐÃ HOÀN TẤT XUẤT SẮC!\n');

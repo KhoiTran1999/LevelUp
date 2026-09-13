@@ -654,7 +654,78 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, removed: targetSubToDelete });
       }
 
-      // 3.2 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
+      // 3.2 Admin Action: Ân xá tài khoản gian lận (Khôi phục danh hiệu, xóa cờ vi phạm, đưa lại Leaderboard)
+      if (action === 'admin_pardon') {
+        const target = req.body?.targetSub || req.body?.targetNickname;
+        let callerEmail = '';
+        let isCallerAdmin = false;
+
+        if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
+          isCallerAdmin = true;
+        } else if (token) {
+          const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+          if (caller) {
+            callerEmail = caller.email || '';
+            isCallerAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(callerEmail);
+          }
+        }
+
+        if (!isCallerAdmin) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên (Admin) mới có thẩm quyền thực hiện thao tác này.' });
+        }
+
+        let targetSub = target;
+        if (target) {
+          const sanitizedTarget = sanitizeNickname(target);
+          const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizedTarget}`);
+          if (mappedSub) {
+            targetSub = mappedSub;
+          }
+        }
+
+        if (!targetSub) {
+          return res.status(400).json({ error: 'Thiếu thông tin tài khoản cần ân xá.' });
+        }
+
+        const userKey = `levelup:user:google:${targetSub}`;
+        const rawUserData = await redis.get(userKey);
+        if (!rawUserData) {
+          return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
+        }
+
+        const userData = JSON.parse(rawUserData);
+        if (userData.profile) {
+          userData.profile.isCheater = false;
+          userData.profile.cheatStrikes = 0;
+          userData.profile.title = deriveTitleForLevel(userData.profile.level || 1);
+          delete userData.profile.redemptionBaseline;
+        }
+
+        const pardonRecord = {
+          id: `pardon_${Date.now()}`,
+          type: 'earn',
+          amount: 0,
+          description: '🕊️ ÂN XÁ TỪ QUẢN TRỊ VIÊN: Tài khoản đã được xóa án phạt và khôi phục danh dự hiệp sĩ!',
+          timestamp: Date.now()
+        };
+        userData.ledger = [pardonRecord, ...(Array.isArray(userData.ledger) ? userData.ledger : [])];
+
+        await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+
+        const level = userData.profile?.level || 1;
+        const totalCoins = userData.profile?.totalCoinsEarned || 20;
+        const score = (level * 1000) + totalCoins;
+        await redis.zadd('levelup:leaderboard', score, targetSub);
+
+        return res.status(200).json({
+          success: true,
+          pardoned: targetSub,
+          title: userData.profile.title,
+          message: `Đã ân xá thành công cho tài khoản "${userData.profile.nickname || targetSub}".`
+        });
+      }
+
+      // 3.3 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
       if (action === 'logout') {
         if (token) {
           await redis.del(`levelup:session:${token}`);
@@ -753,6 +824,17 @@ export default async function handler(req, res) {
         return item;
       });
 
+      // ponytail: Đếm số phiên tập trung hợp lệ (Focus >= 25 phút có chữ ký AI chuẩn)
+      let currentValidFocusSessions = 0;
+      for (const q of (Array.isArray(state.quests) ? state.quests : [])) {
+        if (verifyQuestSignature(q) && q.type === 'focus' && (parseInt(q.targetMinutes, 10) || 0) >= 25) {
+          const count = q.isRepeatable
+            ? Math.max(0, parseInt(q.completedCount, 10) || 0)
+            : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+          currentValidFocusSessions += count;
+        }
+      }
+
       // Ghi nhận án phạt vào Ledger nếu phát hiện gian lận
       let updatedLedger = Array.isArray(state.ledger) ? [...state.ledger] : [];
       if (balanceCheck.tampered && balanceCheck.fine > 0) {
@@ -765,6 +847,34 @@ export default async function handler(req, res) {
         });
       }
 
+      // Xử lý Thử Thách Chuộc Tội (Redemption Challenge - Hướng A)
+      let isCheater = Boolean(balanceCheck.tampered || existingState?.profile?.isCheater);
+      let redemptionBaseline = existingState?.profile?.redemptionBaseline ?? currentValidFocusSessions;
+      let title = balanceCheck.title;
+      let redeemedJustNow = false;
+
+      if (balanceCheck.tampered) {
+        isCheater = true;
+        redemptionBaseline = currentValidFocusSessions;
+        title = 'Kẻ Gian Lận ⚠️';
+      } else if (isCheater) {
+        const completedSessions = Math.max(0, currentValidFocusSessions - redemptionBaseline);
+        if (completedSessions >= 5) {
+          isCheater = false;
+          redeemedJustNow = true;
+          title = deriveTitleForLevel(balanceCheck.level);
+          updatedLedger.unshift({
+            id: `redemption_${serverTimestamp}`,
+            type: 'earn',
+            amount: 0,
+            description: '🕊️ HOÀN TẤT CHUỘC TỘI: Đã hoàn thành 5 phiên tập trung kỷ luật, khôi phục danh dự hiệp sĩ và vị trí Bảng Xếp Hạng!',
+            timestamp: serverTimestamp
+          });
+        } else {
+          title = `Đang Chuộc Tội (${completedSessions}/5) ⏳`;
+        }
+      }
+
       const payloadToSave = {
         ...state,
         shopItems: sanitizedShopItems,
@@ -775,9 +885,10 @@ export default async function handler(req, res) {
           ...(state.profile || {}),
           nickname: state.profile?.nickname || rawNick || userName || nickname,
           role: userRole,
-          title: balanceCheck.title,
-          isCheater: Boolean(balanceCheck.tampered || existingState?.profile?.isCheater),
+          title,
+          isCheater,
           cheatStrikes: (existingState?.profile?.cheatStrikes || 0) + (balanceCheck.tampered ? 1 : 0),
+          redemptionBaseline: isCheater ? redemptionBaseline : undefined,
           googleId: userSub,
           googleEmail: userEmail || state.profile?.googleEmail || '',
           googlePicture: userPicture || state.profile?.googlePicture || '',
@@ -791,15 +902,25 @@ export default async function handler(req, res) {
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
 
       // Cập nhật Leaderboard:
-      // Kẻ gian lận: Trục xuất vĩnh viễn khỏi Leaderboard (zrem)!
-      // Người chơi trung thực: Cập nhật điểm số bình thường (zadd)
-      if (balanceCheck.tampered) {
+      // Kẻ gian lận hoặc đang trong thời gian chuộc tội: Bị loại khỏi Leaderboard (zrem)!
+      // Người hoàn lương / trung thực: Cập nhật điểm số bình thường (zadd)
+      if (isCheater) {
         await redis.zrem('levelup:leaderboard', userSub);
       } else {
         const level = balanceCheck.level;
         const totalCoins = balanceCheck.totalCoinsEarned;
         const score = (level * 1000) + totalCoins;
         await redis.zadd('levelup:leaderboard', score, userSub);
+      }
+
+      let penaltyMessage = null;
+      if (balanceCheck.tampered) {
+        penaltyMessage = `⚠️ CẢNH BÁO GIAN LẬN: Phát hiện can thiệp dữ liệu! Bạn bị phạt trừ ${balanceCheck.fine} Vàng, tước danh hiệu ("Kẻ Gian Lận ⚠️") và bị loại khỏi Bảng Xếp Hạng. Hãy hoàn thành 5 phiên tập trung ≥ 25 phút để chuộc tội.`;
+      } else if (redeemedJustNow) {
+        penaltyMessage = `🕊️ Chúc mừng! Bạn đã hoàn thành 5 phiên tập trung kỷ luật, chuộc tội thành công và khôi phục toàn bộ danh dự hiệp sĩ!`;
+      } else if (isCheater) {
+        const currentDone = Math.max(0, currentValidFocusSessions - redemptionBaseline);
+        penaltyMessage = `⏳ THỬ THÁCH CHUỘC TỘI: Bạn đã hoàn thành ${currentDone}/5 phiên tập trung (≥ 25p). Hãy hoàn thành thêm ${5 - currentDone} phiên nữa để khôi phục danh hiệu!`;
       }
 
       return res.status(200).json({
@@ -812,12 +933,12 @@ export default async function handler(req, res) {
         level: balanceCheck.level,
         coins: balanceCheck.coins,
         totalCoinsEarned: balanceCheck.totalCoinsEarned,
-        title: balanceCheck.title,
+        title,
         tampered: balanceCheck.tampered,
         fine: balanceCheck.fine,
-        penalty: balanceCheck.tampered
-          ? `⚠️ CẢNH BÁO GIAN LẬN: Hệ thống phát hiện can thiệp dữ liệu trái phép! Bạn bị phạt trừ ${balanceCheck.fine} Vàng, tước danh hiệu ("Kẻ Gian Lận ⚠️") và bị loại khỏi Bảng Xếp Hạng.`
-          : null
+        isCheater,
+        redeemed: redeemedJustNow,
+        penalty: penaltyMessage
       });
     }
 

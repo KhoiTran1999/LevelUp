@@ -2557,6 +2557,41 @@ async function fetchLeaderboard() {
         });
       });
     }
+
+    const adminPardonBtn = document.getElementById('btn-admin-pardon');
+    if (adminPardonBtn) {
+      if (appState.profile.role === 'admin') {
+        adminPardonBtn.classList.remove('hidden');
+        adminPardonBtn.classList.add('inline-flex');
+        adminPardonBtn.onclick = async () => {
+          const target = prompt('👑 QUYỀN QUẢN TRỊ VIÊN:\nNhập Nickname hoặc Google ID của tài khoản cần ân xá (xóa cờ Kẻ Gian Lận, khôi phục danh hiệu & Leaderboard):');
+          if (!target || !target.trim()) return;
+          try {
+            const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
+            const res = await fetch('/api/sync?action=admin_pardon', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ targetNickname: target.trim() })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast(data.message || 'Ân xá tài khoản thành công!', 'success');
+              fetchLeaderboard();
+            } else {
+              showToast(data.error || 'Không thể ân xá cho tài khoản này', 'error');
+            }
+          } catch (err) {
+            showToast('Lỗi: ' + err.message, 'error');
+          }
+        };
+      } else {
+        adminPardonBtn.classList.add('hidden');
+        adminPardonBtn.classList.remove('inline-flex');
+      }
+    }
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
   }
