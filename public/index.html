@@ -279,11 +279,6 @@
           <button data-filter="active" class="quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Chưa xong</button>
           <button data-filter="completed" class="quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đã xong</button>
         </div>
-
-        <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <span>💡</span>
-          <span>Việc cần tập trung có <strong>đồng hồ bấm giờ</strong> • AI tự động tính mức thưởng Vàng hợp lý</span>
-        </div>
       </div>
 
       <!-- Quests Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) -->
@@ -312,7 +307,6 @@
     <section id="tab-shop" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
         <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">PHẦN THƯỞNG & KHO QUÀ</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Dùng số Vàng bạn kiếm được từ công việc để tự thưởng cho bản thân và tận hưởng thành quả!</p>
       </div>
 
       <!-- Segmented Subtabs: Cửa Hàng Đổi Quà vs Kho Quà Đã Đổi -->
@@ -473,8 +467,8 @@
         <div class="flex items-center gap-2">
           <span class="text-xl">✨</span>
           <div>
-            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng</p>
+            <h3 id="modal-quest-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)</h3>
+            <p id="modal-quest-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng</p>
           </div>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
@@ -664,8 +658,8 @@
         <div class="flex items-center gap-2">
           <span class="text-xl">🎁</span>
           <div>
-            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM PHẦN THƯỞNG MỚI</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực</p>
+            <h3 id="modal-reward-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM PHẦN THƯỞNG MỚI</h3>
+            <p id="modal-reward-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực</p>
           </div>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>

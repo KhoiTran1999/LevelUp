@@ -79,12 +79,14 @@ export function signReward(name, price, tier) {
 
 export function verifyRewardSignature(r) {
   if (!r || typeof r !== 'object') return false;
+  if (r.signature) {
+    const expected = signReward(r.name, r.price, r.tier);
+    if (r.signature === expected) return true;
+  }
   if (r.id === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
   if (r.id === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';
   if (r.id === 'shop_seed_3') return [90, 120].includes(parseInt(r.price, 10) || 0) && (r.tier || '').toLowerCase() === 'epic';
-  if (!r.signature) return false;
-  const expected = signReward(r.name, r.price, r.tier);
-  return r.signature === expected;
+  return false;
 }
 
 /**

@@ -2064,6 +2064,8 @@ async function deleteInventoryItem(invId) {
 // =============================================================================
 let currentPendingVerdict = null;
 let currentDebateHistory = [];
+let currentEditingQuestId = null;
+let currentEditingRewardId = null;
 
 async function submitQuestToAI() {
   const title = document.getElementById('input-quest-title').value.trim();
@@ -2221,8 +2223,100 @@ function renderVerdictStep() {
   document.getElementById('debate-chat-logs').innerHTML = '';
 }
 
+function openQuestRenegotiateModal(questId) {
+  const quest = appState.quests.find(q => q.id === questId);
+  if (!quest) return;
+
+  if (activeFocusQuest && activeFocusQuest.id === quest.id && isFocusRunning) {
+    showToast('Vui lòng tạm dừng phiên tập trung trước khi thương lượng lại nhiệm vụ này.', 'info');
+  }
+
+  currentEditingQuestId = quest.id;
+  currentPendingVerdict = {
+    title: quest.title,
+    description: quest.description || '',
+    type: quest.type || 'focus',
+    rank: quest.rank || calculateRank(quest.rewardCoins || 10),
+    rewardCoins: quest.rewardCoins || 10,
+    targetMinutes: quest.targetMinutes !== undefined ? Number(quest.targetMinutes) : (quest.type === 'bounty' ? 0 : 25),
+    signature: quest.signature || '',
+    advice: quest.advice || 'Tập trung hoàn thành từng bước một.',
+    verdict: quest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
+    isRepeatable: Boolean(quest.isRepeatable)
+  };
+  currentDebateHistory = [];
+
+  const titleEl = document.getElementById('modal-quest-title');
+  const subEl = document.getElementById('modal-quest-subtitle');
+  if (titleEl) titleEl.textContent = 'THƯƠNG LƯỢNG LẠI NHIỆM VỤ';
+  if (subEl) subEl.textContent = 'Trực tiếp trao đổi với AI để điều chỉnh độ khó, thời gian hoặc phần thưởng';
+
+  const acceptBtn = document.getElementById('btn-accept-verdict');
+  if (acceptBtn) acceptBtn.textContent = '✓ Cập Nhật Nhiệm Vụ';
+
+  document.getElementById('quest-form-step').classList.add('hidden');
+  document.getElementById('quest-evaluating-step').classList.add('hidden');
+  document.getElementById('quest-verdict-step').classList.remove('hidden');
+
+  updateVerdictDisplay();
+  document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
+  document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
+
+  const modNotice = document.getElementById('verdict-modified-notice');
+  if (modNotice) modNotice.classList.add('hidden');
+
+  const debateBox = document.getElementById('debate-container');
+  if (debateBox) debateBox.classList.remove('hidden');
+
+  const chatLogs = document.getElementById('debate-chat-logs');
+  if (chatLogs) {
+    chatLogs.innerHTML = `
+      <div class="bg-amber-50 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 text-amber-900 dark:text-amber-200/90 p-2.5 rounded-lg text-xs leading-relaxed">
+        <strong class="font-bold block mb-1">🤖 Trọng Tài AI:</strong>
+        Bạn đang thương lượng lại nhiệm vụ <strong>"${escapeHtml(quest.title)}"</strong> (${quest.rewardCoins} Vàng, ${quest.type === 'focus' ? (quest.targetMinutes || 25) + 'p tập trung' : 'làm xong ngay'}). Hãy cho mình biết bạn muốn điều chỉnh thông số nào và lý do nhé!
+      </div>
+    `;
+  }
+
+  const argInput = document.getElementById('input-debate-arg');
+  if (argInput) argInput.value = '';
+
+  openModal('modal-quest');
+  if (argInput) setTimeout(() => argInput.focus(), 150);
+}
+
 function acceptVerdictAndCreateQuest() {
   if (!currentPendingVerdict) return;
+
+  if (currentEditingQuestId) {
+    const targetQuest = appState.quests.find(q => q.id === currentEditingQuestId);
+    if (targetQuest) {
+      targetQuest.title = currentPendingVerdict.title;
+      targetQuest.description = currentPendingVerdict.description || '';
+      targetQuest.type = currentPendingVerdict.type;
+      targetQuest.rank = currentPendingVerdict.rank || calculateRank(currentPendingVerdict.rewardCoins);
+      targetQuest.rewardCoins = currentPendingVerdict.rewardCoins;
+      targetQuest.targetMinutes = currentPendingVerdict.targetMinutes !== undefined ? Number(currentPendingVerdict.targetMinutes) : 0;
+      targetQuest.signature = currentPendingVerdict.signature || targetQuest.signature || '';
+      targetQuest.advice = currentPendingVerdict.advice;
+      targetQuest.verdict = currentPendingVerdict.verdict;
+      targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
+
+      if (activeFocusQuest && activeFocusQuest.id === targetQuest.id) {
+        activeFocusQuest.title = targetQuest.title;
+        activeFocusQuest.targetMinutes = targetQuest.targetMinutes;
+        activeFocusQuest.rewardCoins = targetQuest.rewardCoins;
+        renderActiveFocusBanner();
+      }
+
+      sfx.playClick();
+      showToast(`Đã cập nhật nhiệm vụ [Hạng ${targetQuest.rank}]: "${targetQuest.title}"!`, 'success');
+      closeModal('modal-quest');
+      currentEditingQuestId = null;
+      triggerSave(true);
+      return;
+    }
+  }
 
   const newQuest = {
     id: 'q_' + Date.now(),
@@ -2529,8 +2623,113 @@ async function sendRewardDebateArgument() {
   }
 }
 
+function openRewardRenegotiateModal(itemId) {
+  const item = appState.shopItems.find(i => i.id === itemId);
+  if (!item) return;
+
+  currentEditingRewardId = item.id;
+  currentPendingReward = {
+    id: item.id,
+    name: item.name,
+    description: item.description || '',
+    price: item.price,
+    tier: item.tier || 'rare',
+    icon: item.icon || '🎁',
+    signature: item.signature || '',
+    verdict: item.verdict || 'Phần thưởng hợp lý.'
+  };
+  currentRewardDebateHistory = [];
+
+  const titleEl = document.getElementById('modal-reward-title');
+  const subEl = document.getElementById('modal-reward-subtitle');
+  if (titleEl) titleEl.textContent = 'THƯƠNG LƯỢNG LẠI PHẦN THƯỞNG';
+  if (subEl) subEl.textContent = 'Thương lượng với AI để điều chỉnh tên, mô tả hoặc mức giá Vàng';
+
+  document.getElementById('input-reward-name').value = item.name;
+  document.getElementById('input-reward-desc').value = item.description || '';
+
+  const rewardEvalBox = document.getElementById('reward-eval-box');
+  if (rewardEvalBox) rewardEvalBox.classList.remove('hidden');
+
+  const lockedName = document.getElementById('reward-locked-name');
+  if (lockedName) lockedName.textContent = item.name;
+
+  const lockedIcon = document.getElementById('reward-locked-icon');
+  if (lockedIcon) lockedIcon.textContent = item.icon || '🎁';
+
+  const lockedDesc = document.getElementById('reward-locked-desc');
+  const lockedDescContainer = document.getElementById('reward-locked-desc-container');
+  if (lockedDesc && lockedDescContainer) {
+    if (item.description) {
+      lockedDesc.textContent = item.description;
+      lockedDescContainer.classList.remove('hidden');
+    } else {
+      lockedDescContainer.classList.add('hidden');
+    }
+  }
+
+  const evalTier = document.getElementById('eval-tier');
+  if (evalTier) evalTier.textContent = (item.tier || 'rare').toUpperCase();
+
+  const evalPrice = document.getElementById('eval-price');
+  if (evalPrice) evalPrice.innerHTML = `${COIN_ICON_HTML} ${item.price} Vàng`;
+
+  const evalVerdict = document.getElementById('eval-verdict');
+  if (evalVerdict) evalVerdict.textContent = `"Bạn đang thương lượng lại phần thưởng '${item.name}' với AI."`;
+
+  const rewardModNotice = document.getElementById('reward-modified-notice');
+  if (rewardModNotice) rewardModNotice.classList.add('hidden');
+
+  const debateBox = document.getElementById('reward-debate-container');
+  if (debateBox) debateBox.classList.remove('hidden');
+
+  const chatLogs = document.getElementById('reward-debate-chat-logs');
+  if (chatLogs) {
+    chatLogs.innerHTML = `
+      <div class="bg-amber-50 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 text-amber-900 dark:text-amber-200/90 p-2.5 rounded-lg text-xs leading-relaxed">
+        <strong class="font-bold block mb-1">🎁 Trợ Lý Cửa Hàng AI:</strong>
+        Bạn đang thương lượng lại phần thưởng <strong>"${escapeHtml(item.name)}"</strong> (Giá hiện tại: ${item.price} Vàng, Hạng: ${(item.tier || 'rare').toUpperCase()}). Bạn muốn đề xuất thay đổi mức giá hoặc quy mô thế nào?
+      </div>
+    `;
+  }
+
+  const btnEval = document.getElementById('btn-eval-reward');
+  if (btnEval) btnEval.classList.add('hidden');
+
+  const btnSave = document.getElementById('btn-save-reward');
+  if (btnSave) {
+    btnSave.classList.remove('hidden');
+    btnSave.textContent = '✓ Cập Nhật Phần Thưởng';
+  }
+
+  const argInput = document.getElementById('input-reward-debate-arg');
+  if (argInput) argInput.value = '';
+
+  openModal('modal-reward');
+  if (argInput) setTimeout(() => argInput.focus(), 150);
+}
+
 function savePendingReward() {
   if (!currentPendingReward) return;
+
+  if (currentEditingRewardId) {
+    const targetItem = appState.shopItems.find(i => i.id === currentEditingRewardId);
+    if (targetItem) {
+      targetItem.name = currentPendingReward.name;
+      targetItem.description = currentPendingReward.description || '';
+      targetItem.price = currentPendingReward.price;
+      targetItem.tier = currentPendingReward.tier || 'rare';
+      if (currentPendingReward.icon) targetItem.icon = currentPendingReward.icon;
+      targetItem.signature = currentPendingReward.signature || targetItem.signature || '';
+
+      sfx.playFanfare();
+      showToast(`Đã cập nhật phần thưởng "${targetItem.name}"!`, 'success');
+      closeModal('modal-reward');
+      currentEditingRewardId = null;
+      triggerSave(true);
+      return;
+    }
+  }
 
   const finalItem = {
     ...currentPendingReward,
@@ -2911,56 +3110,108 @@ function renderQuests() {
     const isCompleted = q.status === 'completed';
     const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between ${isCompleted ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : ''}`;
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative ${
+      isCurrentlyFocusing
+        ? 'ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 bg-amber-500/5 border-amber-500/50'
+        : isCompleted
+          ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30'
+          : ''
+    }`;
 
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between gap-2 mb-2.5">
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
-            <button class="btn-toggle-repeat text-[10px] font-bold px-2 py-0.5 rounded-md border transition flex items-center gap-1 ${q.isRepeatable ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-300 dark:hover:border-slate-700'}" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
-              ${q.isRepeatable ? `🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}` : '🎯 1 lần'}
-            </button>
+        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg tracking-wider shadow-xs">HẠNG ${q.rank}</span>
+            ${isCurrentlyFocusing ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
+                ĐANG LÀM
+              </span>
+            ` : ''}
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1">${COIN_ICON_HTML} +${q.rewardCoins}</span>
-            <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa nhiệm vụ">&times;</button>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+              ${COIN_ICON_HTML} <span>+${q.rewardCoins}</span>
+            </div>
+            <button class="btn-del-quest text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa nhiệm vụ" aria-label="Xóa nhiệm vụ">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
           </div>
         </div>
 
-        <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 mb-1 leading-snug ${isCompleted ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(q.title)}</h3>
-        ${q.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
+        <!-- Zone 2: Body (Title & Readable Context) -->
+        <div class="mb-3">
+          <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
+          ${q.description ? `<p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
+        </div>
       </div>
 
-      <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
-        <span class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
-          ${q.type === 'focus' ? `⏳ <span class="font-mono font-bold">${q.targetMinutes}p</span> Tập trung` : '✓ Làm ngay'}
-        </span>
-
-        ${isCompleted ? `
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <span>✓</span> Hoàn thành
-            </span>
-            <button class="btn-restart-quest text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Làm lại nhiệm vụ này">
-              <span>🔄</span>
-              <span>Làm lại</span>
-            </button>
-            <button class="btn-undo-quest text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Hoàn tác trạng thái hoàn thành">
-              <span>↩️</span>
-              <span>Hoàn tác</span>
-            </button>
+      <div>
+        <!-- Zone 3: Meta & Progress Strip (Operational Status) -->
+        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+            ${q.type === 'focus' ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 font-mono">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                ${q.targetMinutes}p
+              </span>
+              <span>Tập trung</span>
+            ` : `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                Làm ngay
+              </span>
+            `}
           </div>
-        ` : q.type === 'focus' ? `
-          <button class="btn-start-focus px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95 ${isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20' : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/20'}">
-            <span>⏱️</span>
-            <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
+
+          <button class="btn-toggle-repeat text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${q.isRepeatable ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'}" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
+            ${q.isRepeatable ? `
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span>Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
+            ` : `
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+              <span>1 lần</span>
+            `}
           </button>
+        </div>
+
+        <!-- Zone 4: Footer (Action Command Zone) -->
+        ${isCompleted ? `
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
+            <div class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+              <span>Hoàn thành</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button class="btn-restart-quest min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95" title="Làm lại nhiệm vụ này">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Làm lại</span>
+              </button>
+              <button class="btn-undo-quest min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95" title="Hoàn tác trạng thái hoàn thành">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+                <span>Hoàn tác</span>
+              </button>
+            </div>
+          </div>
         ` : `
-          <button class="btn-complete-bounty px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
-            <span>✓</span>
-            <span>Hoàn Thành</span>
-          </button>
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+            <button class="btn-debate-quest flex-1 sm:flex-initial min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95" title="Thương lượng lại nhiệm vụ với AI">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              <span>Thương lượng</span>
+            </button>
+            ${q.type === 'focus' ? `
+              <button class="btn-start-focus flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20'}">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
+              </button>
+            ` : `
+              <button class="btn-complete-bounty flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                <span>Hoàn Thành</span>
+              </button>
+            `}
+          </div>
         `}
       </div>
     `;
@@ -2977,6 +3228,14 @@ function renderQuests() {
       e.stopPropagation();
       deleteQuest(q.id);
     });
+
+    const debateQuestBtn = card.querySelector('.btn-debate-quest');
+    if (debateQuestBtn) {
+      debateQuestBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openQuestRenegotiateModal(q.id);
+      });
+    }
 
     const restartBtn = card.querySelector('.btn-restart-quest');
     if (restartBtn) {
@@ -3037,8 +3296,9 @@ function renderShop() {
 
   appState.shopItems.forEach(item => {
     const canAfford = appState.profile.coins >= item.price;
+    const coinsNeeded = Math.max(0, item.price - appState.profile.coins);
     const card = document.createElement('div');
-    card.className = 'rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between';
+    card.className = 'rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group';
 
     const tierColors = {
       common: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
@@ -3049,27 +3309,58 @@ function renderShop() {
 
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between gap-2 mb-2.5">
-          <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-sm">
-            ${escapeHtml(item.icon || '🎁')}
-          </div>
+        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <span class="text-[10px] font-mono uppercase px-2.5 py-1 rounded-lg font-bold border tracking-wider shadow-xs ${tierColors[item.tier] || tierColors.rare}">
+            ${item.tier || 'RARE'}
+          </span>
           <div class="flex items-center gap-1.5">
-            <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold border ${tierColors[item.tier] || tierColors.rare}">
-              ${item.tier || 'RARE'}
-            </span>
-            <button class="btn-del-shop-item text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa phần thưởng khỏi Cửa Hàng">&times;</button>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+              ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
+            </div>
+            <button class="btn-del-shop-item text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa phần thưởng khỏi Cửa Hàng" aria-label="Xóa phần thưởng khỏi Cửa Hàng">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
           </div>
         </div>
 
-        <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 mb-1 leading-snug">${escapeHtml(item.name)}</h3>
-        ${item.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">${escapeHtml(item.description)}</p>` : ''}
+        <!-- Zone 2: Body (Title & Readable Context) -->
+        <div class="flex items-start gap-3 my-2">
+          <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0">
+            ${escapeHtml(item.icon || '🎁')}
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">${escapeHtml(item.name)}</h3>
+            ${item.description ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(item.description)}</p>` : ''}
+          </div>
+        </div>
       </div>
 
-      <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-        <span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">${COIN_ICON_HTML} ${item.price} Vàng</span>
-        <button class="btn-buy-item px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 active:scale-95 ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}">
-          <span>${canAfford ? 'Đổi Quà' : 'Chưa Đủ Vàng'}</span>
-        </button>
+      <div>
+        <!-- Zone 3: Meta & Progress Strip (Affordability) -->
+        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+          <span class="text-[11px] font-medium ${canAfford ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'} inline-flex items-center gap-1">
+            ${canAfford ? `
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+              <span>Đủ điều kiện đổi</span>
+            ` : `
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" stroke-width="2"/></svg>
+              <span>Còn thiếu ${coinsNeeded} Vàng</span>
+            `}
+          </span>
+        </div>
+
+        <!-- Zone 4: Footer (Action Command Zone) -->
+        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+          <button class="btn-debate-shop-item flex-1 sm:flex-initial min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95" title="Thương lượng lại phần thưởng với AI">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span>Thương lượng</span>
+          </button>
+          <button class="btn-buy-item flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${canAfford ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300/40 dark:border-slate-700/40'}" ${canAfford ? '' : 'disabled'}>
+            ${canAfford ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
+            <span>${canAfford ? 'Đổi Quà' : 'Chưa Đủ Vàng'}</span>
+          </button>
+        </div>
       </div>
     `;
 
@@ -3077,6 +3368,14 @@ function renderShop() {
       e.stopPropagation();
       deleteShopItem(item.id);
     });
+
+    const debateShopBtn = card.querySelector('.btn-debate-shop-item');
+    if (debateShopBtn) {
+      debateShopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openRewardRenegotiateModal(item.id);
+      });
+    }
 
     card.querySelector('.btn-buy-item').addEventListener('click', () => {
       buyShopItem(item.id);
@@ -3107,48 +3406,91 @@ function renderInventory() {
     const isThisActiveReward = Boolean(activeRewardItem && activeRewardItem.id === item.id);
     const durationMins = extractRewardDuration(item);
     const card = document.createElement('div');
-    card.className = `rpg-panel rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 ${
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group ${
       isThisActiveReward
-        ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20 bg-purple-50/5 dark:bg-purple-950/20'
-        : (item.isUsed ? 'bg-slate-100/50 dark:bg-slate-950/30 opacity-70' : '')
+        ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20 bg-purple-500/5 border-purple-500/50'
+        : (item.isUsed ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : '')
     }`;
 
     card.innerHTML = `
       <div>
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <div class="flex items-center gap-3">
-            <span class="text-3xl">${escapeHtml(item.icon || '🎁')}</span>
-            <div>
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100 ${item.isUsed && !isThisActiveReward ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">⏳ ${durationMins}p</span>
-                ${isThisActiveReward ? '<span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-purple-500 text-white animate-pulse">ĐANG DÙNG</span>' : ''}
-              </div>
-              <span class="text-[10px] text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</span>
-            </div>
+        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            ${isThisActiveReward ? `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-purple-500 text-white shadow-xs animate-pulse">
+                ĐANG DÙNG
+              </span>
+            ` : item.isUsed ? `
+              <span class="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/40">
+                ĐÃ DÙNG
+              </span>
+            ` : `
+              <span class="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 tracking-wider">
+                KHO QUÀ
+              </span>
+            `}
           </div>
-          <button class="btn-del-inv text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa khỏi Kho Quà">&times;</button>
+          <div class="flex items-center gap-1.5">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+              ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
+            </div>
+            <button class="btn-del-inv text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa khỏi Kho Quà" aria-label="Xóa khỏi Kho Quà">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Zone 2: Body (Title & Readable Context) -->
+        <div class="flex items-start gap-3 my-2">
+          <div class="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl shadow-xs shrink-0">
+            ${escapeHtml(item.icon || '🎁')}
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${item.isUsed && !isThisActiveReward ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
+            <p class="mt-1 text-xs text-slate-400 dark:text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</p>
+          </div>
         </div>
       </div>
 
-      <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
-        <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold inline-flex items-center gap-1">${COIN_ICON_HTML} ${item.price} Vàng</span>
+      <div>
+        <!-- Zone 3: Meta & Progress Strip (Duration info) -->
+        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+          <span class="text-[11px] font-medium text-purple-700 dark:text-purple-300 font-mono inline-flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+            <span>Hiệu lực: <strong class="font-bold">${durationMins} phút</strong></span>
+          </span>
+          ${item.isUsed && !isThisActiveReward ? '<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Đã kết thúc</span>' : ''}
+        </div>
+
+        <!-- Zone 4: Footer (Action Command Zone) -->
         ${item.isUsed ? `
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
             ${isThisActiveReward ? `
-              <button class="btn-scroll-timer text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1 shadow-sm shadow-purple-500/20 active:scale-95" title="Xem bộ đếm thời gian">
-                <span>${isFocusRunning ? '⏱️ Đang Đếm Giờ' : '⏸️ Tạm Dừng'}</span>
+              <button class="btn-scroll-timer flex-1 min-h-[38px] px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 active:scale-95" title="Xem bộ đếm thời gian">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
               </button>
             ` : `
-              <span class="text-xs font-semibold text-slate-500">Đã sử dụng</span>
+              <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                <span>Đã sử dụng</span>
+              </span>
             `}
-            <button class="btn-undo-inv text-[11px] font-semibold px-2 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Đánh dấu chưa sử dụng">↩️ Hoàn tác</button>
+            <button class="btn-undo-inv min-h-[38px] px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95" title="Đánh dấu chưa sử dụng">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+              <span>Hoàn tác</span>
+            </button>
           </div>
         ` : `
-          <div class="flex items-center gap-1.5">
-            <button class="btn-refund-inv text-[11px] font-semibold px-2.5 py-1.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Hoàn trả và nhận lại Vàng">↩️ Trả quà</button>
-            <button class="btn-use-inv px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white transition shadow-md shadow-purple-500/20 active:scale-95 flex items-center gap-1">
-              <span>⏱️ Dùng Quà (${durationMins}p)</span>
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+            <button class="btn-refund-inv min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 active:scale-95" title="Hoàn trả và nhận lại Vàng">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+              <span>Trả quà</span>
+            </button>
+            <button class="btn-use-inv flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-md shadow-purple-500/20 active:scale-95 flex items-center justify-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Dùng Quà (${durationMins}p)</span>
             </button>
           </div>
         `}
@@ -4386,7 +4728,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Open Quest Modal (Desktop & Mobile buttons)
   const openQuestHandler = () => {
+    currentEditingQuestId = null;
     sfx.playClick();
+    const titleEl = document.getElementById('modal-quest-title');
+    const subEl = document.getElementById('modal-quest-subtitle');
+    if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)';
+    if (subEl) subEl.textContent = 'Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng';
+    const acceptBtn = document.getElementById('btn-accept-verdict');
+    if (acceptBtn) acceptBtn.textContent = '✓ Đồng Ý & Thêm Nhiệm Vụ';
+
     document.getElementById('quest-form-step').classList.remove('hidden');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-verdict-step').classList.add('hidden');
@@ -4399,6 +4749,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modNotice) modNotice.classList.add('hidden');
     openModal('modal-quest');
   };
+  window.openQuestModal = openQuestHandler;
+  window.openQuestRenegotiateModal = openQuestRenegotiateModal;
   const desktopAddQuestBtn = document.getElementById('btn-open-add-quest');
   if (desktopAddQuestBtn) desktopAddQuestBtn.addEventListener('click', openQuestHandler);
   const mobileAddQuestBtn = document.getElementById('btn-open-add-quest-mobile');
@@ -4429,7 +4781,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Open Shop Reward Modal (Desktop, Mobile & Global)
   const openRewardHandler = () => {
+    currentEditingRewardId = null;
     sfx.playClick();
+    const titleEl = document.getElementById('modal-reward-title');
+    const subEl = document.getElementById('modal-reward-subtitle');
+    if (titleEl) titleEl.textContent = 'THÊM PHẦN THƯỞNG MỚI';
+    if (subEl) subEl.textContent = 'AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực';
+
     document.getElementById('input-reward-name').value = '';
     document.getElementById('input-reward-desc').value = '';
     document.getElementById('reward-eval-box').classList.add('hidden');
@@ -4440,13 +4798,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
     if (rewardChatLogs) rewardChatLogs.innerHTML = '';
     currentRewardDebateHistory = [];
-    document.getElementById('btn-eval-reward').classList.remove('hidden');
-    document.getElementById('btn-eval-reward').disabled = false;
-    document.getElementById('btn-eval-reward').textContent = '🤖 AI Định Giá Vàng';
-    document.getElementById('btn-save-reward').classList.add('hidden');
+    const btnEval = document.getElementById('btn-eval-reward');
+    btnEval.classList.remove('hidden');
+    btnEval.disabled = false;
+    btnEval.textContent = '🤖 AI Định Giá Vàng';
+    const btnSave = document.getElementById('btn-save-reward');
+    btnSave.classList.add('hidden');
+    btnSave.textContent = '+ Thêm Vào Cửa Hàng';
     openModal('modal-reward');
   };
   window.openRewardModal = openRewardHandler;
+  window.openRewardRenegotiateModal = openRewardRenegotiateModal;
   const navAddRewardBtn = document.getElementById('btn-open-add-reward-nav');
   if (navAddRewardBtn) navAddRewardBtn.addEventListener('click', openRewardHandler);
   const mobileAddRewardBtn = document.getElementById('btn-open-add-reward-mobile');
