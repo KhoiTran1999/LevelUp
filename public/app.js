@@ -227,6 +227,19 @@ function getOrCreateUserToken() {
   return token;
 }
 
+function normalizeObjectNFC(obj) {
+  if (typeof obj === 'string') return obj.normalize('NFC');
+  if (Array.isArray(obj)) return obj.map(normalizeObjectNFC);
+  if (obj !== null && typeof obj === 'object') {
+    for (const k in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, k)) {
+        obj[k] = normalizeObjectNFC(obj[k]);
+      }
+    }
+  }
+  return obj;
+}
+
 function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -241,6 +254,7 @@ function loadLocalState() {
   } catch (e) {
     console.error('Failed to parse localStorage:', e);
   }
+  appState = normalizeObjectNFC(appState);
   getOrCreateUserToken();
   // Initialize theme
   const initialTheme = appState.profile.theme || 'dark';
@@ -333,7 +347,7 @@ async function loadFromCloud(nickname, tokenOverride = null) {
     }
     const result = await res.json();
     if (result.found && result.isOwner && result.data) {
-      appState = {
+      appState = normalizeObjectNFC({
         ...DEFAULT_STATE,
         ...result.data,
         profile: {
@@ -341,7 +355,7 @@ async function loadFromCloud(nickname, tokenOverride = null) {
           ...(result.data.profile || {}),
           token // retain device token
         }
-      };
+      });
       saveLocalState();
       applyTheme(appState.profile.theme || 'dark');
       renderAll();
@@ -377,7 +391,7 @@ async function switchAccountByToken(token) {
 
     // Cập nhật toàn bộ dữ liệu người dùng (giữ nguyên tên hiển thị gốc nếu có)
     const displayNickname = resData.data?.profile?.nickname || resData.nickname;
-    appState = {
+    appState = normalizeObjectNFC({
       ...DEFAULT_STATE,
       ...resData.data,
       profile: {
@@ -388,7 +402,7 @@ async function switchAccountByToken(token) {
         token: cleanToken,
         hasOnboarded: true
       }
-    };
+    });
     localStorage.setItem('levelup_onboarded', 'true');
     saveLocalState();
     applyTheme(appState.profile.theme || 'dark');
@@ -936,8 +950,8 @@ async function generateQuestSuggestions() {
             <span class="text-xs font-bold text-slate-900 dark:text-slate-200">${escapeHtml(q.title)}</span>
           </div>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">${escapeHtml(q.description)}</p>
-          <div class="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-mono">
-            <span>${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Tập trung` : '✓ Làm ngay'}</span>
+          <div class="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-medium">
+            <span>${q.type === 'focus' ? `⏳ <span class="font-mono font-bold">${q.targetMinutes}p</span> Tập trung` : '✓ Làm ngay'}</span>
             <span>•</span>
             <span class="text-amber-600 dark:text-amber-400 font-bold">🪙 ${q.rewardCoins} Vàng</span>
           </div>
@@ -1143,15 +1157,15 @@ function renderQuests() {
         ${q.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
 
         ${q.verdict ? `
-          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic font-serif">
+          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic">
             "${escapeHtml(q.verdict)}"
           </div>
         ` : ''}
       </div>
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
-        <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
-          ${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Tập trung` : '✓ Làm ngay'}
+        <span class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
+          ${q.type === 'focus' ? `⏳ <span class="font-mono font-bold">${q.targetMinutes}p</span> Tập trung` : '✓ Làm ngay'}
         </span>
 
         ${isCompleted ? `
@@ -1224,7 +1238,7 @@ function renderShop() {
         ${item.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">${escapeHtml(item.description)}</p>` : ''}
 
         ${item.verdict ? `
-          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic font-serif">
+          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic">
             "${escapeHtml(item.verdict)}"
           </div>
         ` : ''}
@@ -1393,6 +1407,7 @@ function closeModal(id) {
 function escapeHtml(text) {
   if (!text) return '';
   return text.toString()
+    .normalize('NFC')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

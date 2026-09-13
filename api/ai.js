@@ -44,13 +44,28 @@ async function callAI(systemPrompt, userPrompt, temperature = 0.3) {
     cleaned = cleaned.replace(/^```\s*/i, '').replace(/```\s*$/, '');
   }
 
+  // Normalize strings recursively to Unicode NFC (precomposed)
+  function normalizeNFC(val) {
+    if (typeof val === 'string') return val.normalize('NFC');
+    if (Array.isArray(val)) return val.map(normalizeNFC);
+    if (val !== null && typeof val === 'object') {
+      const res = {};
+      for (const [k, v] of Object.entries(val)) {
+        res[k] = normalizeNFC(v);
+      }
+      return res;
+    }
+    return val;
+  }
+
   try {
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+    return normalizeNFC(parsed);
   } catch (e) {
     // If parsing fails, attempt regex extraction of JSON object
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
-      return JSON.parse(match[0]);
+      return normalizeNFC(JSON.parse(match[0]));
     }
     throw new Error(`Invalid JSON from AI: ${rawContent}`);
   }
