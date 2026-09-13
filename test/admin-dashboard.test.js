@@ -589,9 +589,11 @@ function testFrontendDomAndClientFunctions() {
   assert.ok(html.includes('id="admin-stat-avg-level"'), 'Phải có thẻ KPI cấp độ trung bình');
   assert.ok(html.includes('id="admin-stat-cheaters-count"'), 'Phải có thẻ KPI số kẻ gian lận');
 
-  // Kiểm tra bảng danh sách & tìm kiếm
+  // Kiểm tra bảng danh sách & tìm kiếm (Bảng cho Desktop/iPad và Thẻ Cards cho Mobile)
   assert.ok(html.includes('id="admin-search-users"'), 'Phải có ô tìm kiếm người chơi');
-  assert.ok(html.includes('id="admin-users-tbody"'), 'Phải có tbody danh sách người chơi');
+  assert.ok(html.includes('id="admin-users-tbody"'), 'Phải có tbody danh sách người chơi cho Desktop/iPad');
+  assert.ok(html.includes('id="admin-users-cards"'), 'Phải có container dạng thẻ (Cards) tối ưu cho Mobile');
+  assert.ok(appJs.includes('cardsContainer'), 'renderAdminDashboard phải hỗ trợ render dạng thẻ cho thiết bị di động');
 
   // Kiểm tra Modal tinh chỉnh người chơi
   assert.ok(html.includes('id="modal-admin-edit-user"'), 'Phải có modal tinh chỉnh người chơi');

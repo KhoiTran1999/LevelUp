@@ -3662,8 +3662,9 @@ function setAdminFilter(filter) {
 
 function renderAdminDashboard() {
   const tbody = document.getElementById('admin-users-tbody');
+  const cardsContainer = document.getElementById('admin-users-cards');
   const emptyEl = document.getElementById('admin-users-empty');
-  if (!tbody) return;
+  if (!tbody && !cardsContainer) return;
 
   // Lọc theo search & category filter
   const filtered = adminUsersList.filter(u => {
@@ -3687,24 +3688,25 @@ function renderAdminDashboard() {
   if (emptyEl) emptyEl.classList.toggle('hidden', filtered.length > 0);
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = '';
+  if (tbody) tbody.innerHTML = '';
+  if (cardsContainer) cardsContainer.innerHTML = '';
+
   filtered.forEach(u => {
     const isMe = (appState.profile.googleId && u.sub === appState.profile.googleId) ||
                  (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
-    const tr = document.createElement('tr');
-    tr.className = `hover:bg-slate-50 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-purple-500/5 dark:bg-purple-950/20' : ''}`;
 
     const avatarHtml = isAvatarUrl(u.avatar)
-      ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-lg shrink-0\\'>⚔️</span>'">`
-      : `<span class="text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
+      ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-xl shrink-0\\'>⚔️</span>'">`
+      : `<span class="text-xl shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
 
     const statusBadge = u.isCheater
-      ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">⚠️ Gian Lận</span>'
-      : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">✅ Hiệp Sĩ</span>';
+      ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 whitespace-nowrap">⚠️ Gian Lận</span>'
+      : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">✅ Hiệp Sĩ</span>';
 
     const roleBadge = u.role === 'admin'
       ? '<span class="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-600 text-white font-bold whitespace-nowrap">👑 ADMIN</span>'
@@ -3714,45 +3716,104 @@ function renderAdminDashboard() {
       ? '<span class="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>'
       : '';
 
-    tr.innerHTML = `
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4">
-        <div class="flex items-center gap-2.5 min-w-0">
-          ${avatarHtml}
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[140px] sm:max-w-[200px]">${escapeHtml(u.nickname || 'Chưa đặt tên')}</span>
-              ${roleBadge}
-              ${youBadge}
+    // 1. Render Table Row (Desktop & Tablet / iPad)
+    if (tbody) {
+      const tr = document.createElement('tr');
+      tr.className = `hover:bg-slate-50 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-purple-500/5 dark:bg-purple-950/20' : ''}`;
+      tr.innerHTML = `
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4">
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${avatarHtml}
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[130px] md:max-w-[180px] lg:max-w-[240px]">${escapeHtml(u.nickname || 'Chưa đặt tên')}</span>
+                ${roleBadge}
+                ${youBadge}
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[150px] md:max-w-[200px] lg:max-w-[260px]">${escapeHtml(u.email || u.sub || '')}</div>
             </div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[160px] sm:max-w-[240px]">${escapeHtml(u.email || u.sub || '')}</div>
+          </div>
+        </td>
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+          Lv. ${u.level || 1}
+        </td>
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+          <span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${(u.coins ?? 0).toLocaleString('vi-VN')}</span>
+        </td>
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          📜 ${u.ledgerCount ?? 0}
+        </td>
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center whitespace-nowrap">
+          ${statusBadge}
+        </td>
+        <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center whitespace-nowrap">
+          <div class="flex items-center justify-center gap-1.5">
+            <button onclick="openAdminEditUserModal('${escapeHtml(u.sub)}')" class="p-2 rounded-xl text-purple-600 hover:bg-purple-500/10 border border-purple-500/20 transition active:scale-95 cursor-pointer" title="Tinh chỉnh Vàng & Level">
+              ✏️
+            </button>
+            <button onclick="openAdminUserLedgerModal('${escapeHtml(u.sub)}')" class="p-2 rounded-xl text-amber-600 hover:bg-amber-500/10 border border-amber-500/20 transition active:scale-95 cursor-pointer" title="Xem & Xóa Lịch sử thu chi">
+              📜
+            </button>
+            ${!isMe ? `<button onclick="adminDeleteUser('${escapeHtml(u.sub)}', '${escapeHtml(u.nickname || u.sub)}')" class="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition active:scale-95 cursor-pointer" title="Xóa tài khoản khỏi hệ thống">🗑️</button>` : ''}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // 2. Render Mobile Card (Phone View < md)
+    if (cardsContainer) {
+      const card = document.createElement('div');
+      card.className = `rpg-panel p-3.5 rounded-2xl space-y-2.5 border transition ${isMe ? 'border-purple-500/40 bg-purple-500/5 dark:bg-purple-950/20' : 'border-slate-200 dark:border-slate-800/80'}`;
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${avatarHtml}
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm truncate max-w-[140px]">${escapeHtml(u.nickname || 'Chưa đặt tên')}</span>
+                ${roleBadge}
+                ${youBadge}
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[180px]">${escapeHtml(u.email || u.sub || '')}</div>
+            </div>
+          </div>
+          <div class="shrink-0">
+            ${statusBadge}
           </div>
         </div>
-      </td>
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center font-mono font-bold text-blue-600 dark:text-blue-400">
-        Lv. ${u.level || 1}
-      </td>
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
-        <span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${(u.coins ?? 0).toLocaleString('vi-VN')}</span>
-      </td>
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center font-mono text-slate-500 dark:text-slate-400 hidden md:table-cell">
-        📜 ${u.ledgerCount ?? 0}
-      </td>
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center">
-        ${statusBadge}
-      </td>
-      <td class="py-2.5 sm:py-3 px-3 sm:px-4 text-center">
-        <div class="flex items-center justify-center gap-1">
-          <button onclick="openAdminEditUserModal('${escapeHtml(u.sub)}')" class="p-1.5 rounded-lg text-purple-600 hover:bg-purple-500/10 border border-purple-500/20 transition" title="Tinh chỉnh Vàng & Level">
-            ✏️
-          </button>
-          <button onclick="openAdminUserLedgerModal('${escapeHtml(u.sub)}')" class="p-1.5 rounded-lg text-amber-600 hover:bg-amber-500/10 border border-amber-500/20 transition" title="Xem & Xóa Lịch sử thu chi">
-            📜
-          </button>
-          ${!isMe ? `<button onclick="adminDeleteUser('${escapeHtml(u.sub)}', '${escapeHtml(u.nickname || u.sub)}')" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition" title="Xóa tài khoản khỏi hệ thống">🗑️</button>` : ''}
+
+        <div class="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800/60 text-center">
+          <div>
+            <div class="text-[9px] text-slate-400 font-medium">Cấp Độ</div>
+            <div class="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">Lv. ${u.level || 1}</div>
+          </div>
+          <div class="border-x border-slate-200 dark:border-slate-800">
+            <div class="text-[9px] text-slate-400 font-medium">Vàng</div>
+            <div class="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">${(u.coins ?? 0).toLocaleString('vi-VN')}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400 font-medium">Sổ Cái</div>
+            <div class="text-xs font-mono font-bold text-purple-600 dark:text-purple-400">${u.ledgerCount ?? 0} mục</div>
+          </div>
         </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
+
+        <div class="flex items-center gap-1.5 pt-0.5">
+          <button onclick="openAdminEditUserModal('${escapeHtml(u.sub)}')" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/25 transition active:scale-95 cursor-pointer">
+            <span>✏️</span> <span>Tinh Chỉnh</span>
+          </button>
+          <button onclick="openAdminUserLedgerModal('${escapeHtml(u.sub)}')" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/25 transition active:scale-95 cursor-pointer">
+            <span>📜</span> <span>Lịch Sử</span>
+          </button>
+          ${!isMe ? `
+            <button onclick="adminDeleteUser('${escapeHtml(u.sub)}', '${escapeHtml(u.nickname || u.sub)}')" class="flex items-center justify-center py-2 px-3 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/25 transition active:scale-95 cursor-pointer" title="Xóa tài khoản">
+              <span>🗑️</span>
+            </button>
+          ` : ''}
+        </div>
+      `;
+      cardsContainer.appendChild(card);
+    }
   });
 }
 
@@ -4073,18 +4134,20 @@ async function openAdminUserLedgerModal(sub) {
         const amountStr = entry.amount !== undefined ? `${isSpend ? '-' : '+'}${entry.amount} Vàng` : '';
 
         itemEl.innerHTML = `
-          <div class="flex items-center gap-2.5 min-w-0">
-            <input type="checkbox" class="admin-ledger-cb w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer shrink-0" data-id="${escapeHtml(entry.id)}" onchange="onAdminLedgerItemCheck(this, '${escapeHtml(entry.id)}')">
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <label class="p-1 -m-1 cursor-pointer shrink-0 flex items-center">
+              <input type="checkbox" class="admin-ledger-cb w-4 h-4 sm:w-5 sm:h-5 rounded text-purple-600 accent-purple-600 cursor-pointer shrink-0" data-id="${escapeHtml(entry.id)}" onchange="onAdminLedgerItemCheck(this, '${escapeHtml(entry.id)}')">
+            </label>
             ${typeBadge}
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="font-bold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(entry.title || 'Giao dịch')}</div>
-              <div class="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">${escapeHtml(entry.description || '')}</div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${escapeHtml(entry.description || '')}</div>
               <div class="text-[9px] text-slate-400 font-mono mt-0.5">${dateStr}</div>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="font-mono font-bold ${isSpend ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">${amountStr}</span>
-            <button onclick="adminDeleteLedgerEntry('${escapeHtml(sub)}', '${escapeHtml(entry.id)}')" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition" title="Xóa bản ghi này">
+            <span class="font-mono font-bold text-xs sm:text-sm ${isSpend ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">${amountStr}</span>
+            <button onclick="adminDeleteLedgerEntry('${escapeHtml(sub)}', '${escapeHtml(entry.id)}')" class="p-1.5 sm:p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition active:scale-95 cursor-pointer" title="Xóa bản ghi này">
               🗑️
             </button>
           </div>
