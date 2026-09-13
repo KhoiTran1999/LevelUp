@@ -646,8 +646,9 @@ function buyShopItem(itemId) {
   });
 
   sfx.playFanfare();
-  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà Của Tôi.`, 'success');
+  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà.`, 'success');
   triggerSave(true);
+  switchRewardSubtab('inventory');
 }
 
 function useInventoryItem(invId) {
@@ -1302,12 +1303,6 @@ function renderQuests() {
 
         <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 mb-1 leading-snug ${isCompleted ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(q.title)}</h3>
         ${q.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
-
-        ${q.verdict ? `
-          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic">
-            "${escapeHtml(q.verdict)}"
-          </div>
-        ` : ''}
       </div>
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
@@ -1356,6 +1351,7 @@ function renderShop() {
   const grid = document.getElementById('shop-grid');
   const countBadge = document.getElementById('badge-shop-count');
   if (countBadge) countBadge.textContent = appState.shopItems.length;
+  updateRewardsNavBadge();
 
   grid.innerHTML = '';
 
@@ -1368,7 +1364,7 @@ function renderShop() {
         <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Cửa hàng chưa có phần thưởng nào!</h3>
         <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy tạo những phần thưởng bạn yêu thích (ly cà phê, xem phim, mua sách...) và để AI định giá Vàng hợp lý nhé.</p>
         <div class="flex justify-center">
-          <button onclick="document.getElementById('btn-open-add-reward').click()" class="btn-action-reward flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
+          <button onclick="window.openRewardModal ? window.openRewardModal() : document.getElementById('btn-open-add-reward-nav')?.click()" class="btn-action-reward flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
             <span class="text-sm">🎁</span>
             <span>+ Thêm Phần Thưởng Ngay</span>
           </button>
@@ -1403,12 +1399,6 @@ function renderShop() {
 
         <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 mb-1 leading-snug">${escapeHtml(item.name)}</h3>
         ${item.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">${escapeHtml(item.description)}</p>` : ''}
-
-        ${item.verdict ? `
-          <div class="p-2.5 rounded-xl sub-panel mb-3 text-[11px] text-amber-900 dark:text-amber-200/90 italic">
-            "${escapeHtml(item.verdict)}"
-          </div>
-        ` : ''}
       </div>
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
@@ -1434,6 +1424,7 @@ function renderInventory() {
 
   const unusedCount = appState.inventory.filter(i => !i.isUsed).length;
   if (countBadge) countBadge.textContent = unusedCount;
+  updateRewardsNavBadge();
 
   if (appState.inventory.length === 0) {
     grid.innerHTML = '';
@@ -1520,7 +1511,49 @@ function renderAll() {
 // =============================================================================
 // 13. MODAL & NAVIGATION CONTROLLERS (Mobile Bottom Bar + Desktop Top Tabs)
 // =============================================================================
+function updateRewardsNavBadge() {
+  const totalRewardsBadge = document.getElementById('badge-rewards-total');
+  if (totalRewardsBadge) {
+    const unusedCount = appState.inventory ? appState.inventory.filter(i => !i.isUsed).length : 0;
+    totalRewardsBadge.textContent = unusedCount > 0 ? unusedCount : (appState.shopItems ? appState.shopItems.length : 0);
+  }
+}
+
+function switchRewardSubtab(subtab) {
+  const btnShop = document.getElementById('subtab-btn-shop');
+  const btnInv = document.getElementById('subtab-btn-inventory');
+  const paneShop = document.getElementById('subtab-pane-shop');
+  const paneInv = document.getElementById('subtab-pane-inventory');
+
+  if (subtab === 'inventory') {
+    if (btnShop) {
+      btnShop.className = 'reward-subtab flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
+    }
+    if (btnInv) {
+      btnInv.className = 'reward-subtab active flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm';
+    }
+    if (paneShop) paneShop.classList.add('hidden');
+    if (paneInv) paneInv.classList.remove('hidden');
+  } else {
+    if (btnShop) {
+      btnShop.className = 'reward-subtab active flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm';
+    }
+    if (btnInv) {
+      btnInv.className = 'reward-subtab flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
+    }
+    if (paneShop) paneShop.classList.remove('hidden');
+    if (paneInv) paneInv.classList.add('hidden');
+  }
+}
+window.switchRewardSubtab = switchRewardSubtab;
+
 function switchTab(tabId) {
+  // Graceful fallback / redirect for legacy 'inventory' tab links
+  if (tabId === 'inventory') {
+    tabId = 'shop';
+    switchRewardSubtab('inventory');
+  }
+
   // Sync desktop tabs
   document.querySelectorAll('.nav-tab').forEach(b => {
     const isActive = b.dataset.tab === tabId;
@@ -1966,7 +1999,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') sendDebateArgument();
   });
 
-  // Open Shop Reward Modal (Desktop & Mobile buttons)
+  // Open Shop Reward Modal (Desktop, Mobile & Global)
   const openRewardHandler = () => {
     sfx.playClick();
     document.getElementById('input-reward-name').value = '';
@@ -1985,8 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-save-reward').classList.add('hidden');
     openModal('modal-reward');
   };
-  const shopAddRewardBtn = document.getElementById('btn-open-add-reward');
-  if (shopAddRewardBtn) shopAddRewardBtn.addEventListener('click', openRewardHandler);
+  window.openRewardModal = openRewardHandler;
   const navAddRewardBtn = document.getElementById('btn-open-add-reward-nav');
   if (navAddRewardBtn) navAddRewardBtn.addEventListener('click', openRewardHandler);
   const mobileAddRewardBtn = document.getElementById('btn-open-add-reward-mobile');

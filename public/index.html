@@ -133,14 +133,9 @@
           <span id="badge-active-quests" class="text-xs px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">0</span>
         </button>
         <button data-tab="shop" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
-          <span>🏪</span>
-          <span>Đổi Thưởng</span>
-          <span id="badge-shop-count" class="text-xs px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">0</span>
-        </button>
-        <button data-tab="inventory" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
-          <span>🎒</span>
-          <span>Kho Quà Của Tôi</span>
-          <span id="badge-inventory-count" class="text-xs px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">0</span>
+          <span>🎁</span>
+          <span>Phần Thưởng</span>
+          <span id="badge-rewards-total" class="text-xs px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
         </button>
         <button data-tab="leaderboard" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
           <span>🏆</span>
@@ -267,45 +262,51 @@
 
     </section>
 
-    <!-- ==================== TAB 2: TAVERN SHOP ==================== -->
+    <!-- ==================== TAB 2: UNIFIED REWARDS & INVENTORY ==================== -->
     <section id="tab-shop" class="tab-pane hidden">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div>
-          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">CỬA HÀNG ĐỔI THƯỞNG</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Dùng số Vàng bạn kiếm được từ công việc để tự thưởng cho bản thân!</p>
-        </div>
-        <button id="btn-open-add-reward" class="btn-action-reward self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-md" title="Tạo phần thưởng mới (Phím tắt: R)">
-          <span class="text-sm">🎁</span>
-          <span>Thêm Phần Thưởng Mới</span>
-        </button>
-      </div>
-
-      <!-- Shop Items Grid (Responsive) -->
-      <div id="shop-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-        <!-- Shop items rendered dynamically -->
-      </div>
-    </section>
-
-    <!-- ==================== TAB 3: INVENTORY ==================== -->
-    <section id="tab-inventory" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">KHO QUÀ CỦA BẠN</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Những phần thưởng bạn đã đổi thành công. Hãy sử dụng và tận hưởng niềm vui sau khi đã nỗ lực!</p>
+        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">PHẦN THƯỞNG & KHO QUÀ</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Dùng số Vàng bạn kiếm được từ công việc để tự thưởng cho bản thân và tận hưởng thành quả!</p>
       </div>
 
-      <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-        <!-- Inventory items rendered dynamically -->
-      </div>
-
-      <div id="inventory-empty" class="hidden text-center py-12 sm:py-16 px-4">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
-          🎒
-        </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa đổi phần thưởng nào!</h3>
-        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Hãy hoàn thành các nhiệm vụ để kiếm Vàng, sau đó ghé Cửa Hàng để tự thưởng cho mình nhé.</p>
-        <button onclick="switchTab('shop')" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-          Ghé Cửa Hàng Đổi Quà
+      <!-- Segmented Subtabs: Cửa Hàng Đổi Quà vs Kho Quà Đã Đổi -->
+      <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl w-fit mb-5 border border-slate-300/60 dark:border-slate-800">
+        <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
+          <span>🏪</span>
+          <span>Cửa Hàng Đổi Quà</span>
+          <span id="badge-shop-count" class="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
         </button>
+        <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+          <span>🎒</span>
+          <span>Kho Quà Đã Đổi</span>
+          <span id="badge-inventory-count" class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
+        </button>
+      </div>
+
+      <!-- Subtab Pane 1: Shop Items Grid -->
+      <div id="subtab-pane-shop" class="block">
+        <div id="shop-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          <!-- Shop items rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Subtab Pane 2: Inventory Grid & Empty State -->
+      <div id="subtab-pane-inventory" class="hidden">
+        <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          <!-- Inventory items rendered dynamically -->
+        </div>
+
+        <div id="inventory-empty" class="hidden text-center py-12 sm:py-16 px-4">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
+            🎒
+          </div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa đổi phần thưởng nào!</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Hãy hoàn thành các nhiệm vụ để kiếm Vàng, sau đó ghé Cửa Hàng để tự thưởng cho mình nhé.</p>
+          <button onclick="switchRewardSubtab('shop')" class="btn-action-reward inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md">
+            <span>🏪</span>
+            <span>Ghé Cửa Hàng Đổi Quà</span>
+          </button>
+        </div>
       </div>
     </section>
 
@@ -362,12 +363,8 @@
         <span class="text-[10px]">Nhiệm Vụ</span>
       </button>
       <button data-tab="shop" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
-        <span class="text-lg leading-none">🏪</span>
-        <span class="text-[10px]">Đổi Thưởng</span>
-      </button>
-      <button data-tab="inventory" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
-        <span class="text-lg leading-none">🎒</span>
-        <span class="text-[10px]">Kho Quà</span>
+        <span class="text-lg leading-none">🎁</span>
+        <span class="text-[10px]">Phần Thưởng</span>
       </button>
       <button data-tab="leaderboard" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
         <span class="text-lg leading-none">🏆</span>
