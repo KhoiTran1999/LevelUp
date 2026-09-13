@@ -266,6 +266,29 @@ function loadLocalState() {
     console.error('Failed to parse localStorage:', e);
   }
   appState = normalizeObjectNFC(appState);
+
+  // Bắt buộc tài khoản phải đăng nhập Google:
+  // Nếu profile không có googleId -> cưỡng chế đăng xuất về trạng thái mặc định
+  if (!appState.profile?.googleId) {
+    localStorage.removeItem('levelup_onboarded');
+    if (typeof clearFocusTimerSession === 'function') {
+      try { clearFocusTimerSession(); } catch (_) {}
+    }
+    appState = {
+      ...DEFAULT_STATE,
+      profile: {
+        ...DEFAULT_STATE.profile,
+        nickname: '',
+        googleId: '',
+        googleEmail: '',
+        googlePicture: '',
+        googleToken: '',
+        hasOnboarded: false
+      }
+    };
+    saveLocalState();
+  }
+
   getOrCreateUserToken();
   // Initialize theme
   const initialTheme = appState.profile.theme || 'dark';
@@ -289,7 +312,11 @@ async function syncWithCloud(isManual = false) {
   if (modalSyncState) modalSyncState.textContent = 'Đang đồng bộ...';
 
   const nick = appState.profile.nickname;
-  if (!nick) return;
+  if (!appState.profile.googleId || !nick) {
+    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    if (modalSyncState) modalSyncState.textContent = 'Chưa đăng nhập Google';
+    return;
+  }
   const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
 
   try {
@@ -2826,8 +2853,8 @@ function renderMarkdown(text) {
 
 function checkIsOnboarded() {
   const hasLocal = localStorage.getItem('levelup_onboarded') === 'true';
-  const hasProfile = Boolean(appState.profile && (appState.profile.googleId || appState.profile.hasOnboarded) && appState.profile.nickname);
-  return hasLocal || hasProfile;
+  const hasGoogleProfile = Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
+  return hasLocal && hasGoogleProfile;
 }
 
 let googleClientIdCache = null;
@@ -3467,7 +3494,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTourControls();
 
   // Background Cloud Sync on start
-  if (appState.profile.nickname && (localStorage.getItem('levelup_onboarded') === 'true' || appState.profile.hasOnboarded)) {
+  if (appState.profile.googleId && appState.profile.nickname && localStorage.getItem('levelup_onboarded') === 'true') {
     syncWithCloud(false);
   }
 
