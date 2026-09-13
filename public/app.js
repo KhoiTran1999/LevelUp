@@ -1512,6 +1512,16 @@ function focusTimerFinished() {
       return;
     }
 
+    if (quest.requiresProof && !quest._proofVerified) {
+      sendFocusNotification(
+        '⏳ HẾT GIỜ TẬP TRUNG!',
+        `Bạn đã hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}". Hãy chụp ảnh bằng chứng để nhận Vàng nhé!`
+      );
+      showToast('Đã hết giờ tập trung! Vui lòng nộp ảnh bằng chứng để AI duyệt và nhận Vàng.', 'info');
+      openQuestProofModal(quest);
+      return;
+    }
+
     completeQuest(quest.id, true);
     sfx.playFanfare();
     sfx.playGong();
@@ -1583,6 +1593,16 @@ async function completeQuest(questId, skipConfirm = false) {
     const mins = Math.ceil(cooldownRemaining / 60000);
     showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
     return;
+  }
+
+  // Yêu cầu nộp ảnh bằng chứng nếu nhiệm vụ yêu cầu và chưa được AI duyệt
+  if (quest.requiresProof && !quest._proofVerified) {
+    openQuestProofModal(quest);
+    return;
+  }
+
+  if (quest._proofVerified) {
+    delete quest._proofVerified;
   }
 
   if (!skipConfirm) {
@@ -1749,6 +1769,199 @@ async function deleteQuest(questId) {
       showToast(`Đã khôi phục nhiệm vụ "${deletedQuest.title}".`, 'success');
     }
   });
+}
+
+// =============================================================================
+// 6.5. QUEST PROOF VERIFICATION (Camera Capture & AI Vision)
+// =============================================================================
+let currentProofQuest = null;
+let currentProofBase64 = null;
+let isSubmittingProof = false;
+
+// Client-side lightweight image compressor via HTML5 Canvas
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      return reject(new Error('Tệp tải lên không phải là hình ảnh hợp lệ.'));
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Không thể phân tích dữ liệu ảnh.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openQuestProofModal(quest) {
+  if (!quest) return;
+  currentProofQuest = quest;
+  currentProofBase64 = null;
+  isSubmittingProof = false;
+
+  const rankEl = document.getElementById('proof-quest-rank');
+  if (rankEl) {
+    rankEl.textContent = `HẠNG ${quest.rank || 'B'}`;
+    rankEl.className = `rank-badge-${quest.rank || 'B'} text-[10px] font-mono font-black px-2 py-0.5 rounded-md`;
+  }
+
+  const coinsEl = document.getElementById('proof-quest-coins');
+  if (coinsEl) coinsEl.textContent = `+${quest.rewardCoins || 10} Vàng`;
+
+  const titleEl = document.getElementById('proof-quest-title');
+  if (titleEl) titleEl.textContent = quest.title;
+
+  const guidanceContainer = document.getElementById('proof-guidance-container');
+  const guidanceText = document.getElementById('proof-guidance-text');
+  if (guidanceContainer && guidanceText) {
+    if (quest.proofGuidance) {
+      guidanceText.textContent = quest.proofGuidance;
+      guidanceContainer.classList.remove('hidden');
+    } else {
+      guidanceContainer.classList.add('hidden');
+    }
+  }
+
+  // Reset inputs and preview
+  const fileInput = document.getElementById('input-quest-proof-file');
+  if (fileInput) fileInput.value = '';
+
+  const noteInput = document.getElementById('input-quest-proof-note');
+  if (noteInput) {
+    noteInput.value = '';
+    noteInput.disabled = false;
+  }
+
+  const captureZone = document.getElementById('proof-capture-zone');
+  if (captureZone) captureZone.classList.remove('hidden');
+
+  const previewZone = document.getElementById('proof-preview-zone');
+  if (previewZone) previewZone.classList.add('hidden');
+
+  const previewImg = document.getElementById('proof-preview-img');
+  if (previewImg) previewImg.src = '';
+
+  const evaluatingZone = document.getElementById('proof-evaluating-zone');
+  if (evaluatingZone) evaluatingZone.classList.add('hidden');
+
+  const resultBox = document.getElementById('proof-result-box');
+  if (resultBox) resultBox.classList.add('hidden');
+
+  const submitBtn = document.getElementById('btn-submit-proof');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span>Gửi AI Duyệt</span><span>📸</span>`;
+  }
+
+  openModal('modal-quest-proof');
+}
+
+async function submitQuestProofToAI() {
+  if (!currentProofQuest || !currentProofBase64 || isSubmittingProof) return;
+
+  const noteInput = document.getElementById('input-quest-proof-note');
+  const userNote = noteInput ? noteInput.value.trim() : '';
+
+  const submitBtn = document.getElementById('btn-submit-proof');
+  const evaluatingZone = document.getElementById('proof-evaluating-zone');
+  const resultBox = document.getElementById('proof-result-box');
+  const resultIcon = document.getElementById('proof-result-icon');
+  const resultTitle = document.getElementById('proof-result-title');
+  const resultFeedback = document.getElementById('proof-result-feedback');
+
+  isSubmittingProof = true;
+  if (submitBtn) submitBtn.disabled = true;
+  if (noteInput) noteInput.disabled = true;
+  if (evaluatingZone) evaluatingZone.classList.remove('hidden');
+  if (resultBox) resultBox.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        action: 'verify_proof',
+        payload: {
+          questId: currentProofQuest.id,
+          title: currentProofQuest.title,
+          description: currentProofQuest.description,
+          userNote,
+          imageBase64: currentProofBase64
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || errData.details || 'Lỗi kết nối AI');
+    }
+
+    const data = await res.json();
+    if (evaluatingZone) evaluatingZone.classList.add('hidden');
+
+    if (resultBox) {
+      resultBox.classList.remove('hidden');
+      if (data.approved) {
+        resultBox.className = 'p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200';
+        if (resultIcon) resultIcon.textContent = '✅';
+        if (resultTitle) resultTitle.textContent = 'AI ĐÃ DUYỆT THÀNH CÔNG!';
+        if (resultFeedback) resultFeedback.textContent = data.feedback || 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.';
+
+        sfx.playFanfare();
+        showToast('🎉 AI đã duyệt bằng chứng! Đang trao thưởng...', 'gold');
+
+        const questToComplete = currentProofQuest;
+        questToComplete._proofVerified = true;
+
+        setTimeout(() => {
+          closeModal('modal-quest-proof');
+          completeQuest(questToComplete.id, true);
+        }, 1200);
+      } else {
+        resultBox.className = 'p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200';
+        if (resultIcon) resultIcon.textContent = '⚠️';
+        if (resultTitle) resultTitle.textContent = 'AI CHƯA PHÊ DUYỆT';
+        if (resultFeedback) resultFeedback.textContent = data.feedback || 'Ảnh chưa thấy rõ kết quả hoàn thành. Bạn vui lòng chụp lại nhé.';
+
+        sfx.playGong();
+        showToast('AI chưa phê duyệt bằng chứng. Vui lòng chụp lại ảnh rõ hơn nhé!', 'warning');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span>Gửi Lại AI Duyệt</span><span>📸</span>`;
+        }
+        if (noteInput) noteInput.disabled = false;
+      }
+    }
+  } catch (err) {
+    if (evaluatingZone) evaluatingZone.classList.add('hidden');
+    showToast('Lỗi thẩm định ảnh: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    if (submitBtn) submitBtn.disabled = false;
+    if (noteInput) noteInput.disabled = false;
+  } finally {
+    isSubmittingProof = false;
+  }
 }
 
 // =============================================================================
@@ -2140,7 +2353,9 @@ async function submitQuestToAI() {
       rank: data.rank || calculateRank(data.rewardCoins || 10),
       verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
       advice: data.advice || 'Tập trung hoàn thành từng bước một.',
-      isRepeatable: Boolean(isRepeatable)
+      isRepeatable: Boolean(isRepeatable),
+      requiresProof: Boolean(data.requiresProof),
+      proofGuidance: data.proofGuidance || ''
     };
     currentDebateHistory = [];
 
@@ -2186,6 +2401,44 @@ function updateVerdictDisplay() {
   const repeatText = document.getElementById('verdict-repeat-text');
   if (repeatText) {
     repeatText.textContent = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm 1 lần';
+  }
+
+  const proofBadge = document.getElementById('verdict-proof-badge');
+  const proofGuidanceBox = document.getElementById('verdict-proof-guidance-box');
+  const proofGuidanceText = document.getElementById('verdict-proof-guidance-text');
+
+  if (currentPendingVerdict.requiresProof) {
+    if (proofBadge) {
+      proofBadge.textContent = '📸 Cần chụp ảnh';
+      proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+    }
+    if (proofGuidanceBox && proofGuidanceText) {
+      if (currentPendingVerdict.proofGuidance) {
+        proofGuidanceText.textContent = currentPendingVerdict.proofGuidance;
+        proofGuidanceBox.classList.remove('hidden');
+      } else {
+        proofGuidanceBox.classList.add('hidden');
+      }
+    }
+  } else {
+    if (proofBadge) {
+      proofBadge.textContent = '⚡ Không cần ảnh (1 chạm)';
+      proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+    }
+    if (proofGuidanceBox) {
+      proofGuidanceBox.classList.add('hidden');
+    }
+  }
+
+  const btnProofSuggest = document.getElementById('btn-suggest-proof');
+  if (btnProofSuggest) {
+    if (currentPendingVerdict.requiresProof) {
+      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
+      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+    } else {
+      btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
+      btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
   }
 
   const verdictCoins = document.getElementById('verdict-coins');
@@ -2257,7 +2510,9 @@ function openQuestRenegotiateModal(questId) {
     signature: quest.signature || '',
     advice: quest.advice || 'Tập trung hoàn thành từng bước một.',
     verdict: quest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
-    isRepeatable: Boolean(quest.isRepeatable)
+    isRepeatable: Boolean(quest.isRepeatable),
+    requiresProof: Boolean(quest.requiresProof),
+    proofGuidance: quest.proofGuidance || ''
   };
   currentDebateHistory = [];
 
@@ -2327,6 +2582,8 @@ async function acceptVerdictAndCreateQuest() {
       targetQuest.advice = currentPendingVerdict.advice;
       targetQuest.verdict = currentPendingVerdict.verdict;
       targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
+      targetQuest.requiresProof = Boolean(currentPendingVerdict.requiresProof);
+      targetQuest.proofGuidance = currentPendingVerdict.proofGuidance || '';
 
       if (activeFocusQuest && activeFocusQuest.id === targetQuest.id) {
         activeFocusQuest.title = targetQuest.title;
@@ -2356,6 +2613,8 @@ async function acceptVerdictAndCreateQuest() {
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
     isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
+    requiresProof: Boolean(currentPendingVerdict.requiresProof),
+    proofGuidance: currentPendingVerdict.proofGuidance || '',
     completedCount: 0,
     status: 'active',
     createdAt: Date.now()
@@ -2472,7 +2731,19 @@ function initQuestDebateChat(forceReset = false) {
 
   const quest = currentPendingVerdict || {};
   const modeText = quest.type === 'focus' ? `${quest.targetMinutes || 25}p tập trung` : 'không cần bấm giờ';
+  const proofText = quest.requiresProof ? ' • 📸 Yêu cầu chụp ảnh' : ' • ⚡ Không cần ảnh';
   const isRenegotiate = Boolean(currentEditingQuestId);
+
+  const btnProofSuggest = document.getElementById('btn-suggest-proof');
+  if (btnProofSuggest) {
+    if (quest.requiresProof) {
+      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
+      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+    } else {
+      btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
+      btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
+  }
 
   chatLogs.innerHTML = `
     <div class="flex justify-start items-start gap-2 message-fade-in">
@@ -2480,7 +2751,7 @@ function initQuestDebateChat(forceReset = false) {
       <div class="max-w-[90%] sm:max-w-[92%] bg-amber-50/80 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] text-amber-950 dark:text-amber-200/90 shadow-xs leading-relaxed space-y-2">
         <div class="font-bold text-xs sm:text-[13px] text-amber-600 dark:text-amber-400">Trọng Tài AI:</div>
         <div>
-          ${isRenegotiate ? 'Bạn đang thương lượng lại nhiệm vụ' : 'Bạn đang xem xét nhiệm vụ'} <strong>"${escapeHtml(quest.title || 'Nhiệm vụ')}"</strong> (${quest.rewardCoins || 10} Vàng, ${modeText}).
+          ${isRenegotiate ? 'Bạn đang thương lượng lại nhiệm vụ' : 'Bạn đang xem xét nhiệm vụ'} <strong>"${escapeHtml(quest.title || 'Nhiệm vụ')}"</strong> (${quest.rewardCoins || 10} Vàng, ${modeText}${proofText}).
         </div>
         <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
           💡 Chọn một gợi ý nhanh bên dưới hoặc nhập đề xuất để mình điều chỉnh thông số cho phù hợp nhé!
@@ -2584,6 +2855,9 @@ async function sendDebateArgument() {
       if (data.newTitle && data.newTitle !== prevVerdict.title) {
         diffTags.push(`📝 Tên mới: "${data.newTitle}"`);
       }
+      if (data.newRequiresProof !== undefined && Boolean(data.newRequiresProof) !== Boolean(prevVerdict.requiresProof)) {
+        diffTags.push(data.newRequiresProof ? '📸 Yêu cầu chụp ảnh bằng chứng' : '⚡ Miễn chụp ảnh (Hoàn thành 1 chạm)');
+      }
     }
 
     appendAiChatBubble(chatLogs, {
@@ -2606,6 +2880,12 @@ async function sendDebateArgument() {
         currentPendingVerdict.type = data.newType;
       } else if (data.newTargetMinutes !== undefined) {
         currentPendingVerdict.type = data.newTargetMinutes > 0 ? 'focus' : 'bounty';
+      }
+      if (data.newRequiresProof !== undefined) {
+        currentPendingVerdict.requiresProof = Boolean(data.newRequiresProof);
+      }
+      if (data.newProofGuidance !== undefined) {
+        currentPendingVerdict.proofGuidance = data.newProofGuidance;
       }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
 
@@ -3382,6 +3662,11 @@ function renderQuests() {
         <div class="flex items-center justify-between gap-2 mb-3">
           <div class="flex items-center gap-2">
             <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg tracking-wider shadow-xs">HẠNG ${q.rank}</span>
+            ${q.requiresProof ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs" title="Cần chụp ảnh gửi AI thẩm định để nhận thưởng">
+                📸 CẦN ẢNH
+              </span>
+            ` : ''}
             ${isCurrentlyFocusing ? `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
                 ĐANG LÀM
@@ -5066,6 +5351,66 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // Quest Proof Verification Camera & Modal Handlers
+  const btnTriggerCamera = document.getElementById('btn-trigger-camera');
+  const inputProofFile = document.getElementById('input-quest-proof-file');
+  if (btnTriggerCamera && inputProofFile) {
+    btnTriggerCamera.addEventListener('click', () => {
+      sfx.playClick();
+      inputProofFile.click();
+    });
+  }
+
+  if (inputProofFile) {
+    inputProofFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        showToast('Đang xử lý ảnh...', 'info');
+        const compressed = await compressImage(file);
+        currentProofBase64 = compressed;
+
+        const previewImg = document.getElementById('proof-preview-img');
+        if (previewImg) previewImg.src = compressed;
+
+        document.getElementById('proof-capture-zone')?.classList.add('hidden');
+        document.getElementById('proof-preview-zone')?.classList.remove('hidden');
+
+        const submitBtn = document.getElementById('btn-submit-proof');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.classList.add('animate-pulse');
+          setTimeout(() => submitBtn.classList.remove('animate-pulse'), 800);
+        }
+        sfx.playClick();
+      } catch (err) {
+        showToast(err.message || 'Lỗi xử lý ảnh!', 'error');
+      }
+    });
+  }
+
+  const btnRetakePhoto = document.getElementById('btn-retake-photo');
+  if (btnRetakePhoto) {
+    btnRetakePhoto.addEventListener('click', () => {
+      sfx.playClick();
+      currentProofBase64 = null;
+      if (inputProofFile) inputProofFile.value = '';
+      document.getElementById('proof-preview-zone')?.classList.add('hidden');
+      document.getElementById('proof-capture-zone')?.classList.remove('hidden');
+      const submitBtn = document.getElementById('btn-submit-proof');
+      if (submitBtn) submitBtn.disabled = true;
+      inputProofFile?.click();
+    });
+  }
+
+  const btnSubmitProof = document.getElementById('btn-submit-proof');
+  if (btnSubmitProof) {
+    btnSubmitProof.addEventListener('click', () => {
+      sfx.playClick();
+      submitQuestProofToAI();
+    });
+  }
 
   // Open Shop Reward Modal (Desktop, Mobile & Global)
   const openRewardHandler = () => {

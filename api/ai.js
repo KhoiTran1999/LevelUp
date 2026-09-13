@@ -15,10 +15,15 @@ const API_KEY = process.env.CUSTOM_AI_API_KEY || '';
 const MODEL = process.env.CUSTOM_AI_MODEL || process.env.MODEL_WORKER || 'gpt-4o-mini';
 
 // Helper to call OpenAI-compatible completion with JSON output
-async function callAI(systemPrompt, userPrompt, temperature = 0.3) {
+async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 = null) {
   if (!API_KEY) {
     throw new Error('CUSTOM_AI_API_KEY is not configured');
   }
+
+  const userContent = imageBase64 ? [
+    { type: 'text', text: userPrompt },
+    { type: 'image_url', image_url: { url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }
+  ] : userPrompt;
 
   const response = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -30,7 +35,7 @@ async function callAI(systemPrompt, userPrompt, temperature = 0.3) {
       model: MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userContent }
       ],
       temperature,
       stream: false
@@ -104,6 +109,18 @@ function stripDiacritics(str) {
     .toLowerCase();
 }
 
+// Robust boolean parser for AI responses (handles booleans, strings "true"/"false", numbers)
+export function parseBool(val, defaultVal = false) {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    const s = val.trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'yes') return true;
+    if (s === 'false' || s === '0' || s === 'no') return false;
+  }
+  if (typeof val === 'number') return val !== 0;
+  return defaultVal;
+}
+
 // Programmatic Arbiter Sanitizer: Enforces chunking on overloaded tasks even if LLM has title inertia
 export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc = '') {
   if (!result || typeof result !== 'object') return result;
@@ -120,12 +137,30 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
-  // Composite search text (original + result + unaccented) to prevent context-wrapping bypasses
-  const rawMatch = `${normOrig} ${title} ${originalDesc} ${description}`.toLowerCase();
-  const matchText = `${rawMatch} ${stripDiacritics(rawMatch)}`;
+  // Task title representation for habit matching (strictly avoid matching on AI-generated instructions/descriptions)
+  const titleMatchRaw = `${normOrig} ${title}`.toLowerCase();
+  const titleMatchText = `${titleMatchRaw} ${stripDiacritics(titleMatchRaw)}`;
+
+  // Composite search text for multi-chapter / workload context
+  const fullMatchRaw = `${normOrig} ${title} ${originalDesc} ${description}`.toLowerCase();
+  const fullMatchText = `${fullMatchRaw} ${stripDiacritics(fullMatchRaw)}`;
+
+  // Guard: Intellectual, academic, coding or professional work is NEVER a trivial personal habit
+  const isStudyOrWork = /\b(học|hoc|đọc|doc|sách|sach|chương|chuong|tài\s*liệu|tai\s*lieu|giáo\s*trình|giao\s*trinh|bài\s*tập|bai\s*tap|ôn\s*thi|on\s*thi|nghiên\s*cứu|nghien\s*cuu|lập\s*trình|lap\s*trinh|code|coding|dự\s*án|du\s*an|kinh\s*tế|kinh\s*te|toán|toan|văn|van|sử|su|địa|dia|lý|ly|hóa|hoa|sinh|tiếng\s*(anh|trung|nhật|hàn|pháp)|tieng\s*(anh|trung|nhat|han|phap)|viết\s*(luận|báo\s*cáo|lách|bài)|viet\s*(luan|bao\s*cao|lach|bai)|thuyết\s*trình|thuyet\s*trinh|khoá\s*học|khoa\s*hoc|luận\s*văn|luan\s*van|tiểu\s*luận|tieu\s*luan|đề\s*cương|de\s*cuong|kì\s*thi|ki\s*thi|thi\s*cử|thi\s*cu)\b/i.test(titleMatchText);
 
   // Pattern detection for trivial / biological / routine tasks
-  const isTrivialTask = /(đánh\s*răng|danh\s*rang|chải\s*răng|chai\s*rang|rửa\s*mặt|rua\s*mat|tắm\s*(rửa)?|tam\s*(rua)?|gội\s*đầu|goi\s*dau|cắt\s*móng|cat\s*mong|\bthở\b|\btho\b|hít\s*thở|hit\s*tho|uống\s*nước|uong\s*nuoc|thức\s*dậy|thuc\s*day|ngủ\s*dậy|ngu\s*day|đi\s*ngủ|di\s*ngu|thức\s*giấc|thuc\s*giac|chợp\s*mắt|chop\s*mat|gấp\s*chăn|gap\s*chan|dọn\s*giường|don\s*giuong|mở\s*mắt|mo\s*mat|chớp\s*mắt|chop\s*mat|bật\s*quạt|bat\s*quat|tắt\s*quạt|tat\s*quat|bật\s*máy(\s*tính)?|bat\s*may(\s*tinh)?|tắt\s*máy|tat\s*may|bật\s*đèn|bat\s*den|tắt\s*đèn|tat\s*den|ăn\s*(cơm|sáng|trưa|tối|vặt)|an\s*(com|sang|trua|toi|vat)|đi\s*vệ\s*sinh|di\s*ve\s*sinh|rửa\s*tay|rua\s*tay|đi\s*tất|di\s*tat|mặc\s*quần\s*áo|mac\s*quan\s*ao|thay\s*đồ|thay\s*do)/i.test(matchText);
+  // ponytail: strict \b word boundaries and titleMatchText scoping prevent false positives on 'trọng tâm', 'tâm lý', etc.
+  const isTrivialTask = !isStudyOrWork && (
+    /\b(đánh\s*răng|danh\s*rang|chải\s*răng|chai\s*rang|rửa\s*mặt|rua\s*mat|đi\s*tắm|di\s*tam|tắm(\s*rửa)?|tắm\s*gội|tam\s*rua|tam\s*goi|gội\s*đầu|goi\s*dau|cắt\s*móng|cat\s*mong)\b/i.test(titleMatchText) ||
+    /\b(thở|tho|hít\s*thở|hit\s*tho|uống\s*nước|uong\s*nuoc)\b/i.test(titleMatchText) ||
+    /\b((thức|ngủ)\s*dậy|(thuc|ngu)\s*day|đi\s*ngủ|di\s*ngu|thức\s*giấc|thuc\s*giac|chợp\s*mắt|chop\s*mat)\b/i.test(titleMatchText) ||
+    /\b(gấp\s*chăn|gap\s*chan|dọn\s*giường|don\s*giuong|mở\s*mắt|mo\s*mat|chớp\s*mắt)\b/i.test(titleMatchText) ||
+    /\b((bật|tắt)\s*quạt|(bat|tat)\s*quat)\b/i.test(titleMatchText) ||
+    /\b((bật|tắt)\s*(máy(\s*tính)?|đèn)|(bat|tat)\s*(may(\s*tinh)?|den))\b/i.test(titleMatchText) ||
+    /\b(ăn\s*(cơm|sáng|trưa|tối|vặt)|an\s*(com|sang|trua|toi|vat))\b/i.test(titleMatchText) ||
+    /\b(đi\s*vệ\s*sinh|di\s*ve\s*sinh|rửa\s*tay|rua\s*tay)\b/i.test(titleMatchText) ||
+    /\b(đi\s*tất|di\s*tat|mặc\s*quần\s*áo|mac\s*quan\s*ao|thay\s*đồ|thay\s*do)\b/i.test(titleMatchText)
+  );
 
   if (isTrivialTask) {
     targetMinutes = 0;
@@ -137,7 +172,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   }
 
   // Pattern detection for quick household chores (anti-padding)
-  const isQuickChore = /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa)|lau\s*(ban|nha|bep|kinh|cua)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(matchText);
+  const isQuickChore = !isStudyOrWork && /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa)|lau\s*(ban|nha|bep|kinh|cua)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(titleMatchText);
   if (isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 5);
@@ -148,13 +183,13 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   }
 
   // Pattern detection for overloaded multi-chapter or crammed requests
-  const hasMultiChapterInOrig = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(matchText);
+  const hasMultiChapterInOrig = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(fullMatchText);
   const hasMultiChapterInTitle = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(`${title} ${stripDiacritics(title)}`);
   const mentionsOverload = /nhồi nhét|nhoi nhet|ảo tưởng|ao tuong|chia nhỏ|chia nho|quá tải|qua tai|lạm phát|lam phat|tẩu hỏa|tau hoa|phi thực tế|phi thuc te|bất khả thi|bat kha thi|không thể xong|khong the xong|quá nhiều|qua nhieu/i.test(
     `${verdict} ${modificationReason} ${result.chunkingPlan || ''} ${stripDiacritics(verdict + ' ' + modificationReason)}`
   );
   // ponytail: only chunk into Chapter 1 if input is actually a multi-chapter study task; upgrade if supporting other curriculum formats
-  const isCrammedStudy = hasMultiChapterInOrig || hasMultiChapterInTitle || ((Boolean(result.isOverloaded) || mentionsOverload) && /(chương|chuong|sách|sach|giáo\s*trình|giao\s*trinh|môn\s*học|mon\s*hoc)/i.test(matchText));
+  const isCrammedStudy = hasMultiChapterInOrig || hasMultiChapterInTitle || ((Boolean(result.isOverloaded) || mentionsOverload) && /(chương|chuong|sách|sach|giáo\s*trình|giao\s*trinh|môn\s*học|mon\s*hoc)/i.test(fullMatchText));
 
   if (isCrammedStudy) {
     // If title still has multi-chapter wording or is identical to original crammed title
@@ -164,6 +199,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
         .replace(/đọc\s+(hết\s+)?(toàn\s+bộ\s+)?([2-9]|\d{2,})\s*chương\s*(môn\s*|sách\s*|giáo trình\s*)?/i, '')
         .replace(/học\s+(hết\s+)?(toàn\s+bộ\s+)?([2-9]|\d{2,})\s*chương\s*(môn\s*|sách\s*|giáo trình\s*)?/i, '')
         .replace(/^môn\s+/i, '')
+        .replace(/\s*(để\s+)?(chuẩn\s+bị\s+cho\s+k[ìi]\s+thi|ôn\s+thi).*$/i, '')
         .trim();
       if (!subject) subject = 'môn học';
 
@@ -177,15 +213,9 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
       }
     }
 
-    // Single-session focus ceiling: never exceed 50m / 25 coins for a chunked task
-    if (targetMinutes > 50) {
-      targetMinutes = 50;
-      isModified = true;
-    }
-    if (rewardCoins > 25) {
-      rewardCoins = 25;
-      isModified = true;
-    }
+    type = 'focus';
+    targetMinutes = targetMinutes > 0 ? Math.min(50, Math.max(25, targetMinutes)) : 50;
+    rewardCoins = rewardCoins > 0 ? Math.min(25, Math.max(15, rewardCoins)) : 20;
   }
 
   // Double check isModified flag
@@ -206,6 +236,38 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
   }
 
+  let requiresProof = parseBool(result.requiresProof, false);
+  let proofGuidance = typeof result.proofGuidance === 'string' ? result.proofGuidance.trim() : '';
+
+  const isIntangible = /\b(ngủ|ngu|thiền|thien|nghe\s*podcast|nghe\s*nhạc|nghe\s*nhac|nhịn\s*ăn|nhin\s*an)\b/i.test(titleMatchText);
+
+  // Programmatic Arbiter: High-value tasks (>= 15 coins / Rank B, A, S) or deep focus sessions (>= 25m) with tangible physical output MUST require proof unless specifically negotiated or intangible
+  const isHighValueOrDeepWork = rewardCoins >= 15 || (type === 'focus' && targetMinutes >= 25);
+  if (!isTrivialTask && !isIntangible && (isHighValueOrDeepWork || isCrammedStudy)) {
+    if (!result.isNegotiated) {
+      requiresProof = true;
+    }
+    if (requiresProof && !proofGuidance) {
+      if (isStudyOrWork || isCrammedStudy) {
+        proofGuidance = 'Chụp ảnh trang vở ghi chép, sách hoặc sơ đồ tóm tắt kiến thức.';
+      } else {
+        proofGuidance = 'Chụp ảnh kết quả thực tế sau khi bạn hoàn thành nhiệm vụ.';
+      }
+    }
+  }
+
+  if (isTrivialTask) {
+    requiresProof = false;
+    proofGuidance = '';
+  }
+
+  if (requiresProof && !proofGuidance) {
+    proofGuidance = 'Chụp ảnh kết quả thực tế sau khi bạn hoàn thành nhiệm vụ.';
+  }
+  if (!requiresProof) {
+    proofGuidance = '';
+  }
+
   return {
     ...result,
     title,
@@ -214,6 +276,8 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     targetMinutes,
     rewardCoins,
     rank: calculateRank(rewardCoins),
+    requiresProof,
+    proofGuidance,
     verdict,
     isModified,
     modificationReason
@@ -373,6 +437,16 @@ QUY TẮC THẨM ĐỊNH & PHÂN LOẠI KỶ LUẬT:
      -> BẮT BUỘC đặt 'isModified': true và 'isOverloaded': true.
      -> BẮT BUỘC nêu rõ 'modificationReason': Lý do ngắn gọn vì sao việc 10 chương là quá tải và phiên bản Chương 1 này giúp người dùng học tập hiệu quả bền bỉ hơn.
    - CHỈ giữ nguyên tên ban đầu ("isModified": false) khi nhiệm vụ thực sự rõ ràng, vừa sức và khả thi trong 1 phiên duy nhất (25-50 phút).
+5. QUY TẮC BẮT BUỘC VỀ YÊU CẦU ẢNH BẰNG CHỨNG ('requiresProof'):
+   - BẮT BUỘC ĐẶT "requiresProof": true CHO MỌI NHIỆM VỤ THƯỞNG TỪ 15 VÀNG TRỞ LÊN (Hạng B, A, S) HOẶC PHIÊN TẬP TRUNG TỪ 25-50 PHÚT TRỞ LÊN có sản phẩm hữu hình:
+     * Việc học tập, đọc sách, làm bài tập, viết tóm tắt: BẮT BUỘC "requiresProof": true (người dùng chụp trang sách đang đọc, vở ghi bài, bản tóm tắt hoặc màn hình làm việc).
+     * Rèn luyện thể lực (chạy bộ, tập gym, hít đất...): BẮT BUỘC "requiresProof": true (chụp dụng cụ, giày tập, thảm tập hoặc mồ hôi).
+     * Dọn dẹp nhà cửa quy mô lớn: BẮT BUỘC "requiresProof": true (chụp thành quả sạch sẽ).
+     * Kèm theo 'proofGuidance': 1 câu hướng dẫn cụ thể chụp cái gì (dưới 20 từ, VD: 'Chụp ảnh trang vở ghi chép hoặc sơ đồ tóm tắt Chương 1').
+   - CHỈ ĐẶT "requiresProof": false KHI:
+     * Nhiệm vụ nhỏ dưới 10 Vàng (Hạng E, D).
+     * HOẶC công việc hoàn toàn vô hình không thể chụp ảnh (thiền định, đi ngủ sớm, nhịn ăn vặt, nghe podcast).
+     * Khi 'requiresProof': false thì 'proofGuidance': ''.
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
@@ -394,6 +468,8 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
   "rewardCoins": number,
   "targetMinutes": number,
   "rank": "E" | "D" | "C" | "B" | "A" | "S",
+  "requiresProof": boolean,
+  "proofGuidance": "Hướng dẫn ngắn gọn người dùng chụp gì nếu requiresProof = true (dưới 20 từ), nếu false thì để chuỗi rỗng",
   "verdict": "Nhận xét súc tích (1-2 câu, dưới 30 từ), chỉ nêu loại việc và cơ sở định giá Vàng, không văn mẫu lê thê",
   "advice": "1 mẹo nhỏ cụ thể và thực tế giúp hoàn thành phiên này (dưới 15 từ)"
 }`;
@@ -411,7 +487,7 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 
         const rawResult = await callAI(systemPrompt, userPrompt);
         const result = sanitizeEvaluatedQuest(rawResult, title, description);
-        result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins);
+        result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof);
         return res.status(200).json(result);
       }
 
@@ -455,6 +531,13 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
    - Khi yêu cầu vô lý hoặc vượt khung (VD: việc nhà đòi 50 Vàng):
      * Đặt "accepted": false, giải thích nhẹ nhàng vì sao không thể duyệt và giữ nguyên thông số.
 
+3. THƯƠNG LƯỢNG VỀ YÊU CẦU CHỤP ẢNH BẰNG CHỨNG ('requiresProof'):
+   - Nếu người dùng xin bỏ yêu cầu chụp ảnh với lý do chính đáng (Ví dụ: làm việc trực tiếp trên điện thoại không có máy khác chụp, điều kiện ánh sáng/môi trường không tiện, tính chất công việc vô hình):
+     * Bạn hoàn toàn CÓ THỂ ĐỒNG Ý đặt "newRequiresProof": false, "newProofGuidance": "". Dặn người dùng tự giác hoàn thành tốt.
+   - Nếu người dùng chủ động muốn thêm yêu cầu ảnh để tự rèn luyện kỷ luật cao hơn:
+     * Bạn sẵn sàng ủng hộ và đặt "newRequiresProof": true kèm "newProofGuidance" phù hợp.
+   - Nếu không có trao đổi về việc chụp ảnh, hãy giữ nguyên trạng thái hiện tại ("newRequiresProof": ${Boolean(quest.requiresProof)}).
+
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
 - TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
   * KHÔNG dùng từ "Pomodoro" -> chỉ gọi đơn giản là "tập trung 25 phút", "hẹn giờ", "phiên làm việc".
@@ -474,7 +557,9 @@ Trả về ĐÚNG định dạng JSON:
   "newType": "focus" | "bounty",
   "newRewardCoins": number,
   "newTargetMinutes": number,
-  "newRank": "E" | "D" | "C" | "B" | "A" | "S"
+  "newRank": "E" | "D" | "C" | "B" | "A" | "S",
+  "newRequiresProof": boolean,
+  "newProofGuidance": "Hướng dẫn chụp ảnh nếu newRequiresProof = true, ngược lại để chuỗi rỗng"
 }`;
 
         let rewardContext = '';
@@ -488,19 +573,27 @@ Trả về ĐÚNG định dạng JSON:
 - Tên hiện tại: "${quest.title}"
 - Chi tiết hiện tại: "${quest.description || ''}"
 - Loại nhiệm vụ: ${currentType === 'focus' ? 'Việc hẹn giờ tập trung' : 'Việc không cần bấm giờ (làm xong bấm nút Hoàn thành)'}
+- Yêu cầu ảnh bằng chứng hiện tại: ${quest.requiresProof ? 'Có yêu cầu chụp ảnh khi hoàn thành' : 'Không yêu cầu chụp ảnh'}
 - Định giá hiện tại: ${quest.rewardCoins} Vàng, ${currentType === 'focus' ? (quest.targetMinutes || 25) + ' phút tập trung' : 'không bấm giờ (làm xong bấm nút Hoàn thành)'}.${rewardContext}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         if (result.accepted) {
+          const hasExplicitProofDecision = result.newRequiresProof !== undefined;
+          const negotiatedProof = hasExplicitProofDecision
+            ? parseBool(result.newRequiresProof, quest.requiresProof)
+            : parseBool(quest.requiresProof, false);
+
           const rawDebate = {
             title: result.newTitle || quest.title,
             description: result.newDescription !== undefined ? result.newDescription : (quest.description || ''),
             type: result.newType || (result.newTargetMinutes > 0 ? 'focus' : quest.type || 'focus'),
             targetMinutes: result.newTargetMinutes !== undefined ? result.newTargetMinutes : quest.targetMinutes,
             rewardCoins: result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins,
-            rank: result.newRank
+            rank: result.newRank,
+            requiresProof: negotiatedProof,
+            proofGuidance: result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || '')
           };
           const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
           result.newTitle = clean.title;
@@ -509,7 +602,19 @@ Trả về ĐÚNG định dạng JSON:
           result.newTargetMinutes = clean.targetMinutes;
           result.newRewardCoins = clean.rewardCoins;
           result.newRank = clean.rank;
-          result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins);
+
+          // If debate explicitly negotiated proof requirement, honor the decision unless it's a trivial routine task
+          if (hasExplicitProofDecision && !clean.isTrivialTask) {
+            result.newRequiresProof = negotiatedProof;
+            result.newProofGuidance = negotiatedProof
+              ? (result.newProofGuidance?.trim() || clean.proofGuidance || 'Chụp ảnh kết quả thực tế khi hoàn thành.')
+              : '';
+          } else {
+            result.newRequiresProof = clean.requiresProof;
+            result.newProofGuidance = clean.proofGuidance;
+          }
+
+          result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, result.newRequiresProof);
         }
         return res.status(200).json(result);
       }
@@ -662,6 +767,61 @@ Trả về ĐÚNG định dạng JSON:
           result.signature = signReward(clean.name, clean.price, clean.tier);
         }
         return res.status(200).json(result);
+      }
+
+      // ==========================================
+      // 5. VERIFY QUEST PROOF (AI thẩm định ảnh bằng chứng)
+      // ==========================================
+      case 'verify_proof': {
+        const title = clampStr(payload?.title, 150);
+        const description = clampStr(payload?.description, 1000);
+        const userNote = clampStr(payload?.userNote, 500);
+        const imageBase64 = typeof payload?.imageBase64 === 'string' ? payload.imageBase64.trim() : '';
+
+        if (!title) {
+          return res.status(400).json({ error: 'Quest title is required.' });
+        }
+        if (!imageBase64) {
+          return res.status(400).json({ error: 'Cần có ảnh chụp bằng chứng để AI thẩm định.' });
+        }
+
+        const systemPrompt = `Bạn là Trọng Tài Giám Định Hình Ảnh & Khích Lệ Kỷ Luật của LevelUp.
+Nhiệm vụ của bạn: Xem ảnh chụp thực tế của người dùng và xác định xem ảnh có liên quan hợp lý đến kết quả hoặc quá trình làm nhiệm vụ hay không.
+
+PHONG CÁCH VÀ QUY TẮC THẨM ĐỊNH (TOLERANT ARBITER - DUNG THỨ & KHÍCH LỆ):
+1. TINH THẦN KHÍCH LỆ, TÔN TRỌNG NỖ LỰC:
+   - Mục đích chính của LevelUp là giúp người dùng phát triển bản thân, xây dựng thói quen tốt.
+   - TIÊU CHUẨN DUYỆT RỘNG LƯỢNG (Tolerant): Chỉ cần ảnh có tính liên quan hợp lý tương đối với ngữ cảnh nhiệm vụ là DUYỆT ("approved": true).
+     * Ví dụ nhiệm vụ "Đọc sách": Ảnh trang sách, bàn học, giá sách, sách mở -> DUYỆT.
+     * Ví dụ nhiệm vụ "Rửa bát/chén": Ảnh bồn rửa sạch, bát đĩa úp trên kệ, bọt xà phòng -> DUYỆT.
+     * Ví dụ nhiệm vụ "Chạy bộ / Thể dục": Ảnh giày, công viên, đồng hồ đo quãng đường, phòng gym -> DUYỆT.
+     * Ví dụ nhiệm vụ "Dọn phòng": Ảnh phòng gọn gàng, giường gấp chăn, sàn nhà sạch -> DUYỆT.
+     * Ví dụ nhiệm vụ "Lập trình / Làm việc": Ảnh màn hình máy tính có code, tài liệu, bàn làm việc -> DUYỆT.
+   - CHỈ TỪ CHỐI ("approved": false) KHI:
+     * Ảnh hoàn toàn không liên quan (VD: nhiệm vụ chạy bộ nhưng chụp bàn nhậu, ảnh màn hình đen ngòm tối thui, chụp sàn nhà trống trơn không có gì).
+     * Ảnh chụp lại một bức ảnh hoạt hình/meme châm biếm hoàn toàn vô nghĩa.
+2. VĂN PHONG PHẢN HỒI:
+   - Thân thiện, ấm áp, ngắn gọn (1-2 câu).
+   - Nếu DUYỆT: Khen ngợi cụ thể về nỗ lực và chúc mừng người dùng đã hoàn thành xuất sắc!
+   - Nếu TỪ CHỐI: Giải thích ân cần, nhẹ nhàng vì sao ảnh chưa rõ và gợi ý người dùng chụp lại góc khác rõ ràng hơn. Tuyệt đối không phán xét gay gắt hay nạt nộ.
+
+Trả về ĐÚNG định dạng JSON sau:
+{
+  "approved": boolean,
+  "feedback": "Lời nhận xét và khích lệ ngắn gọn (1-2 câu, dưới 35 từ)"
+}`;
+
+        const userPrompt = `Nhiệm vụ cần thẩm định bằng chứng:
+- Tên công việc: "${title}"
+${description ? `- Mô tả: "${description}"` : ''}
+${userNote ? `- Lời giải trình/ghi chú của người làm: "${userNote}"` : ''}
+Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
+
+        const result = await callAI(systemPrompt, userPrompt, 0.2, imageBase64);
+        return res.status(200).json({
+          approved: Boolean(result.approved),
+          feedback: (result.feedback || (result.approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim()
+        });
       }
 
       default:

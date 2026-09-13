@@ -612,9 +612,23 @@
               </button>
             </div>
 
+            <!-- AI Proof Requirement Box -->
+            <div id="verdict-proof-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">Bằng chứng hoàn thành:</span>
+              <div id="verdict-proof-badge-wrap" class="flex items-center gap-1.5">
+                <span id="verdict-proof-badge" class="font-bold text-xs px-2 py-0.5 rounded-lg border">📸 Cần chụp ảnh</span>
+              </div>
+            </div>
+            <div id="verdict-proof-guidance-box" class="hidden p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 space-y-1">
+              <div class="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
+                <span>💡 Gợi ý chụp ảnh từ AI:</span>
+              </div>
+              <p id="verdict-proof-guidance-text" class="text-[11px] leading-relaxed italic"></p>
+            </div>
+
             <p class="text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1">
               <span>⚖️</span>
-              <span>Muốn đổi tên, mô tả hay tăng/giảm thưởng? Nhấn "Thương lượng với AI" bên dưới.</span>
+              <span>Muốn đổi tên, mô tả, tăng/giảm thưởng hoặc xin miễn chụp ảnh? Nhấn "Thương lượng với AI" bên dưới.</span>
             </p>
           </div>
         </div>
@@ -635,6 +649,7 @@
           <!-- Quick Suggestion Chips -->
           <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
             <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
+            <button id="btn-suggest-proof" type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest-proof="true" data-suggest="Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?">📸 Xin miễn chụp ảnh</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?">💰 Xin thêm Vàng</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn chia nhỏ việc này thành phiên tập trung ngắn hơn 25 phút để đỡ quá tải.">⏱️ Giảm thời gian</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Đây là việc mình làm xong lúc nào thì vào bấm nhận thưởng lúc đó, đổi sang không cần bấm giờ được không?">⚡ Không cần bấm giờ</button>
@@ -1141,6 +1156,116 @@
         </button>
         <button id="btn-confirm-ok" type="button" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
           Xác Nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: SUBMIT QUEST PROOF (AI PHOTO VERIFICATION)                       -->
+  <!-- ======================================================================= -->
+  <div id="modal-quest-proof" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="proof-modal-title">
+    <div class="rpg-card rpg-panel rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-amber-500/40 shadow-2xl modal-fade">
+      <!-- Header -->
+      <div class="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg shadow-sm">
+            📸
+          </div>
+          <div>
+            <h3 id="proof-modal-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">NỘP BẰNG CHỨNG CHO AI DUYỆT</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Chụp ảnh thực tế để AI thẩm định trước khi mở khóa Vàng</p>
+          </div>
+        </div>
+        <button id="btn-close-quest-proof" class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none p-1 transition" aria-label="Đóng">&times;</button>
+      </div>
+
+      <!-- Body Container -->
+      <div class="p-4 sm:p-5 space-y-3.5 overflow-y-auto max-h-[calc(92vh-140px)]">
+        <!-- Quest Snapshot Card -->
+        <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span id="proof-quest-rank" class="rank-badge-B text-[10px] font-mono font-black px-2 py-0.5 rounded-md">HẠNG B</span>
+            <span id="proof-quest-reward" class="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1">
+              <span class="coin-icon"></span> <span id="proof-quest-coins">+15 Vàng</span>
+            </span>
+          </div>
+          <h4 id="proof-quest-title" class="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 line-clamp-2"></h4>
+          <div id="proof-guidance-container" class="pt-1">
+            <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+              <span>💡</span>
+              <div>
+                <span class="font-bold">Gợi ý chụp ảnh:</span>
+                <span id="proof-guidance-text" class="italic ml-1"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden Camera Input (native capture="environment" for rear camera on mobile) -->
+        <input type="file" id="input-quest-proof-file" accept="image/*" capture="environment" class="hidden">
+
+        <!-- Initial Photo Trigger Button / Dropzone -->
+        <div id="proof-capture-zone">
+          <button id="btn-trigger-camera" type="button" class="w-full py-6 px-4 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 transition-all flex flex-col items-center justify-center gap-2 group active:scale-[0.98]">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+              📷
+            </div>
+            <div class="text-center">
+              <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Chụp Ảnh Bằng Camera</div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Nhấn để mở máy ảnh chụp thực tế ngay</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- Preview Zone (shown once photo is taken) -->
+        <div id="proof-preview-zone" class="hidden space-y-2">
+          <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md max-h-60 bg-slate-950 flex items-center justify-center">
+            <img id="proof-preview-img" src="" alt="Bằng chứng nhiệm vụ" class="w-full h-auto max-h-60 object-contain">
+            <button id="btn-retake-photo" type="button" class="absolute bottom-2.5 right-2.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold backdrop-blur-sm border border-white/20 transition flex items-center gap-1.5 shadow-lg active:scale-95">
+              <span>🔄</span>
+              <span>Chụp lại</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Optional User Note -->
+        <div>
+          <label for="input-quest-proof-note" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+            Ghi chú thêm cho AI <span class="text-[10px] font-normal text-slate-400">(Tùy chọn)</span>
+          </label>
+          <input id="input-quest-proof-note" type="text" placeholder="VD: Đã làm xong bài tập trang 45, dọn sạch bàn học..." class="w-full rpg-input rounded-xl px-3.5 py-2 text-xs">
+        </div>
+
+        <!-- Evaluating Spinner (shown during AI inspection) -->
+        <div id="proof-evaluating-zone" class="hidden py-4 text-center space-y-2.5 bg-amber-500/5 rounded-2xl border border-amber-500/20">
+          <div class="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl animate-bounce">
+            🤖
+          </div>
+          <div>
+            <div class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">AI Đang Thẩm Định Bằng Chứng...</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Đang quan sát ảnh chụp và tính hợp lý của kết quả</div>
+          </div>
+        </div>
+
+        <!-- AI Result Box -->
+        <div id="proof-result-box" class="hidden p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all">
+          <div class="flex items-center gap-1.5 font-bold">
+            <span id="proof-result-icon">✨</span>
+            <span id="proof-result-title">Kết quả từ AI:</span>
+          </div>
+          <p id="proof-result-feedback" class="text-[11px] leading-relaxed italic"></p>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 sm:p-5 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-end gap-2.5">
+        <button id="btn-cancel-proof" type="button" class="modal-close px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+          Đóng
+        </button>
+        <button id="btn-submit-proof" type="button" class="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span>Gửi AI Duyệt</span>
+          <span>📸</span>
         </button>
       </div>
     </div>

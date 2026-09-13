@@ -35,7 +35,17 @@ export function deriveTitleForLevel(lvl) {
   return 'Tân Binh Cấp 1';
 }
 
-export function signQuest(title, type, targetMinutes, rewardCoins) {
+export function signQuest(title, type, targetMinutes, rewardCoins, requiresProof = false) {
+  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
+  const t = type === 'bounty' ? 'bounty' : 'focus';
+  const m = parseInt(targetMinutes, 10) || 0;
+  const c = parseInt(rewardCoins, 10) || 0;
+  const p = requiresProof ? '1' : '0';
+  const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function signQuestLegacy(title, type, targetMinutes, rewardCoins) {
   const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
   const t = type === 'bounty' ? 'bounty' : 'focus';
   const m = parseInt(targetMinutes, 10) || 0;
@@ -53,14 +63,16 @@ export function verifyQuestSignature(q) {
     return (parseInt(q.rewardCoins, 10) || 0) === 5 && (parseInt(q.targetMinutes, 10) || 0) === 0 && q.type === 'bounty';
   }
   if (!q.signature) return false;
-  const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins);
+  const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof));
   if (q.signature === expected) return true;
+  const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
+  if (q.signature === legacyExpected) return true;
 
   // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
   // verify against targetMinutes = 0 and auto-repair
   if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
-    const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins);
-    if (q.signature === healingExpected) {
+    const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof));
+    if (q.signature === healingExpected || q.signature === signQuestLegacy(q.title, 'bounty', 0, q.rewardCoins)) {
       q.targetMinutes = 0;
       q._healed = true;
       return true;
