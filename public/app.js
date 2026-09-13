@@ -257,6 +257,9 @@ function loadLocalState() {
         ...parsed,
         profile: { ...DEFAULT_STATE.profile, ...(parsed.profile || {}) }
       };
+      if (!appState.profile.avatar) {
+        appState.profile.avatar = appState.profile.googlePicture || '⚔️';
+      }
     }
   } catch (e) {
     console.error('Failed to parse localStorage:', e);
@@ -2255,11 +2258,14 @@ async function fetchLeaderboard() {
       tr.className = `hover:bg-slate-100/80 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-amber-500/10 font-bold' : ''}`;
 
       const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+      const avatarHtml = isAvatarUrl(u.avatar)
+        ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚔️</span>'">`
+        : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
 
       tr.innerHTML = `
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 flex items-center gap-2">
-          <span class="text-base sm:text-lg">${u.avatar || '⚔️'}</span>
+          ${avatarHtml}
           <div>
             <span class="text-slate-900 dark:text-slate-100">${escapeHtml(u.nickname)}</span>
             ${u.role === 'admin' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold">👑 ADMIN</span>' : ''}
@@ -2328,7 +2334,14 @@ let currentQuestFilter = 'all';
 
 function renderHeader() {
   const p = appState.profile;
-  document.getElementById('hero-avatar').textContent = p.avatar || '⚔️';
+  const heroAvatar = document.getElementById('hero-avatar');
+  if (heroAvatar) {
+    if (isAvatarUrl(p.avatar)) {
+      heroAvatar.innerHTML = `<img referrerpolicy="no-referrer" src="${escapeHtml(p.avatar)}" alt="${escapeHtml(p.nickname || 'Avatar')}" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null;this.parentElement.textContent='⚔️'">`;
+    } else {
+      heroAvatar.textContent = p.avatar || '⚔️';
+    }
+  }
   document.getElementById('hero-nickname').textContent = p.nickname;
   document.getElementById('hero-title').textContent = p.title;
   document.getElementById('hero-level-badge').textContent = `LV. ${p.level}`;
@@ -2779,6 +2792,10 @@ function closeModal(id) {
   if (modal) modal.classList.add('hidden');
 }
 
+function isAvatarUrl(avatar) {
+  return typeof avatar === 'string' && /^(https?:\/\/|\/\/|data:image\/)/i.test(avatar.trim());
+}
+
 function escapeHtml(text) {
   if (!text) return '';
   return text.toString()
@@ -2878,6 +2895,9 @@ async function handleGoogleCredentialResponse(response) {
           hasOnboarded: true
         }
       });
+      if (googleUser.picture && (!appState.profile.avatar || appState.profile.avatar === '⚔️')) {
+        appState.profile.avatar = googleUser.picture;
+      }
     } else {
       appState.profile.googleId = googleUser.sub;
       appState.profile.googleEmail = googleUser.email;
@@ -3234,6 +3254,9 @@ function renderTourStep(index) {
   currentTourStep = index;
   const step = TOUR_STEPS[index];
 
+  const card = document.getElementById('tour-card');
+  if (card) card.classList.remove('hidden');
+
   if (step.tab) {
     switchTab(step.tab);
   }
@@ -3303,10 +3326,14 @@ function startInteractiveTour(force = false) {
     return;
   }
 
-  document.querySelectorAll('.fixed:not(#modal-welcome):not(#tour-overlay):not(.hidden)').forEach(m => m.classList.add('hidden'));
+  // Đóng các modal khác nếu đang mở trước khi bắt đầu tour
+  document.querySelectorAll('.fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
 
   const overlay = document.getElementById('tour-overlay');
   if (!overlay) return;
+
+  const card = document.getElementById('tour-card');
+  if (card) card.classList.remove('hidden');
 
   isTourActive = true;
   currentTourStep = 0;
@@ -3575,6 +3602,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function highlightSelectedAvatar(selectedAvatar) {
+    const current = selectedAvatar || appState.profile.avatar || '⚔️';
+    document.querySelectorAll('.avatar-opt').forEach(b => {
+      const isSelected = b.dataset.avatar === current;
+      if (isSelected) {
+        b.classList.remove('border-slate-200', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-800');
+        b.classList.add(
+          'border-amber-500',
+          'dark:border-amber-500',
+          'bg-amber-500/20',
+          'dark:bg-amber-500/20',
+          'ring-2',
+          'ring-amber-500',
+          'ring-offset-2',
+          'ring-offset-white',
+          'dark:ring-offset-slate-900',
+          'scale-105'
+        );
+      } else {
+        b.classList.remove(
+          'border-amber-500',
+          'dark:border-amber-500',
+          'bg-amber-500/20',
+          'dark:bg-amber-500/20',
+          'ring-2',
+          'ring-amber-500',
+          'ring-offset-2',
+          'ring-offset-white',
+          'dark:ring-offset-slate-900',
+          'scale-105'
+        );
+        b.classList.add('border-slate-200', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-800');
+      }
+    });
+  }
+
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn').addEventListener('click', () => {
     document.getElementById('input-hero-nickname').value = appState.profile.nickname;
@@ -3595,15 +3658,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const email = appState.profile.googleEmail || '';
     const name = appState.profile.nickname || (email ? email.split('@')[0] : 'Hiệp Sĩ');
-    const picture = appState.profile.googlePicture || '';
+    const picture = appState.profile.googlePicture || (isAvatarUrl(appState.profile.avatar) ? appState.profile.avatar : '');
 
     if (emailEl) emailEl.textContent = email || 'Chưa liên kết';
     if (nameEl) nameEl.textContent = name;
     if (avatarImg && avatarPlaceholder) {
       if (picture) {
+        avatarImg.referrerPolicy = 'no-referrer';
         avatarImg.src = picture;
         avatarImg.classList.remove('hidden');
         avatarPlaceholder.classList.add('hidden');
+        avatarImg.onerror = () => {
+          avatarImg.classList.add('hidden');
+          avatarPlaceholder.classList.remove('hidden');
+        };
       } else {
         avatarImg.classList.add('hidden');
         avatarPlaceholder.classList.remove('hidden');
@@ -3611,14 +3679,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Cập nhật trạng thái avatar được chọn
-    document.querySelectorAll('.avatar-opt').forEach(b => {
-      if (b.dataset.avatar === appState.profile.avatar) {
-        b.classList.add('border-amber-500', 'bg-amber-500/20');
+    const googleAvatarOpt = document.getElementById('avatar-opt-google');
+    const googleAvatarOptImg = document.getElementById('avatar-opt-google-img');
+    if (googleAvatarOpt && googleAvatarOptImg) {
+      if (picture) {
+        googleAvatarOpt.dataset.avatar = picture;
+        googleAvatarOptImg.referrerPolicy = 'no-referrer';
+        googleAvatarOptImg.src = picture;
+        googleAvatarOpt.classList.remove('hidden');
       } else {
-        b.classList.remove('border-amber-500', 'bg-amber-500/20');
+        googleAvatarOpt.classList.add('hidden');
+        googleAvatarOpt.dataset.avatar = '';
       }
-    });
+    }
+
+    // Cập nhật trạng thái avatar được chọn
+    highlightSelectedAvatar(appState.profile.avatar);
 
     openModal('modal-profile');
   });
@@ -3634,10 +3710,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.querySelectorAll('.avatar-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.avatar-opt').forEach(b => b.classList.remove('border-amber-500', 'bg-amber-500/20'));
-      btn.classList.add('border-amber-500', 'bg-amber-500/20');
-      appState.profile.avatar = btn.dataset.avatar;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const val = btn.dataset.avatar;
+      if (!val) return;
+      appState.profile.avatar = val;
+      highlightSelectedAvatar(val);
+      if (sfx && typeof sfx.playClick === 'function') sfx.playClick();
     });
   });
 
@@ -3850,7 +3929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         return;
       }
-      document.querySelectorAll('.fixed:not(#modal-welcome):not(#tour-overlay):not(.hidden)').forEach(m => m.classList.add('hidden'));
+      document.querySelectorAll('.fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
     }
   });
 });

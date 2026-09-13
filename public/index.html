@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="no-referrer">
   <title>LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
 
@@ -68,7 +69,7 @@
 
       <!-- Profile: Avatar & Nickname Button (Left) -->
       <button id="open-profile-btn" class="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-100 dark:hover:bg-slate-900/80 rounded-xl px-2 py-1 transition group shrink-0" title="Hồ sơ cá nhân & Mã tài khoản">
-        <div id="hero-avatar" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm sm:text-base group-hover:scale-110 transition shadow-sm shrink-0">
+        <div id="hero-avatar" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm sm:text-base group-hover:scale-105 transition shadow-sm shrink-0 overflow-hidden">
           ⚔️
         </div>
         <div class="max-w-[70px] sm:max-w-[120px] md:max-w-[160px] truncate">
@@ -703,13 +704,16 @@
         <!-- Choose Avatar -->
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Đại Diện (Avatar)</label>
-          <div class="flex gap-2 justify-center py-1" id="avatar-selector">
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="⚔️">⚔️</button>
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="🧙‍♂️">🧙‍♂️</button>
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="🏹">🏹</button>
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="🛡️">🛡️</button>
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="🥷">🥷</button>
-            <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="👑">👑</button>
+          <div class="flex gap-2.5 justify-center py-2 flex-wrap items-center" id="avatar-selector">
+            <button id="avatar-opt-google" type="button" class="avatar-opt w-12 h-12 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all hidden overflow-hidden flex items-center justify-center shrink-0 p-0 cursor-pointer" data-avatar="" title="Sử dụng Ảnh đại diện Google">
+              <img id="avatar-opt-google-img" referrerpolicy="no-referrer" src="" alt="Google Avatar" class="w-full h-full object-cover pointer-events-none">
+            </button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="⚔️">⚔️</button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="🧙‍♂️">🧙‍♂️</button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="🏹">🏹</button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="🛡️">🛡️</button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="🥷">🥷</button>
+            <button class="avatar-opt w-12 h-12 text-2xl rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border-2 border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center justify-center shrink-0 cursor-pointer" data-avatar="👑">👑</button>
           </div>
         </div>
 
@@ -744,7 +748,7 @@
             </span>
           </div>
           <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <img id="profile-google-avatar" src="" alt="Google Avatar" class="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 hidden">
+            <img id="profile-google-avatar" referrerpolicy="no-referrer" src="" alt="Google Avatar" class="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 hidden">
             <div id="profile-google-avatar-placeholder" class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base font-bold shrink-0">G</div>
             <div class="min-w-0 flex-1">
               <div id="profile-google-name" class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">-</div>

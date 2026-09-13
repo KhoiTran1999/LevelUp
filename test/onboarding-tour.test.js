@@ -265,4 +265,55 @@ assert.strictEqual(desktopBottomLayout.arrowPlacement, 'bottom', 'Mũi tên hư�
 assert(desktopBottomLayout.cardLeft >= 16 && desktopBottomLayout.cardLeft + 420 <= 1440, 'Card nằm trọn trong viewport desktop');
 console.log('✓ Test 6: Tính toán đảo chiều vị trí trên Desktop khi sát đáy màn hình chuẩn xác.');
 
+// Test 7: Avatar URL Detector Function (isAvatarUrl logic)
+function isAvatarUrl(avatar) {
+  return typeof avatar === 'string' && /^(https?:\/\/|\/\/|data:image\/)/i.test(avatar.trim());
+}
+
+assert.strictEqual(isAvatarUrl('https://lh3.googleusercontent.com/a/ACg8ocJHV7XXHIMcw8=s96-c'), true, 'Nhận diện chuẩn Google avatar HTTPS URL');
+assert.strictEqual(isAvatarUrl('http://example.com/avatar.png'), true, 'Nhận diện chuẩn HTTP avatar URL');
+assert.strictEqual(isAvatarUrl('//lh3.googleusercontent.com/avatar.jpg'), true, 'Nhận diện chuẩn protocol-relative avatar URL');
+assert.strictEqual(isAvatarUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA'), true, 'Nhận diện chuẩn data URL avatar');
+assert.strictEqual(isAvatarUrl('⚔️'), false, 'Emoji kiếm không phải là URL');
+assert.strictEqual(isAvatarUrl('🧙‍♂️'), false, 'Emoji pháp sư không phải là URL');
+assert.strictEqual(isAvatarUrl('👑'), false, 'Emoji vương miện không phải là URL');
+assert.strictEqual(isAvatarUrl(''), false, 'Chuỗi rỗng không phải là URL');
+assert.strictEqual(isAvatarUrl(null), false, 'null không phải là URL');
+assert.strictEqual(isAvatarUrl(undefined), false, 'undefined không phải là URL');
+console.log('✓ Test 7: Nhận diện chính xác định dạng Avatar URL (Google photo) và Emoji.');
+
+// Test 8: Tour initialization modal-close selector protects tour-card & chrome elements
+function filterModalsToClose(elements) {
+  return elements.filter(el => {
+    // Selector: .fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)
+    const isFixed = el.classList.includes('fixed');
+    const isModalId = typeof el.id === 'string' && el.id.startsWith('modal-');
+    const notWelcome = el.id !== 'modal-welcome';
+    const notHidden = !el.classList.includes('hidden');
+    return isFixed && isModalId && notWelcome && notHidden;
+  });
+}
+
+const mockDomElements = [
+  { id: 'modal-quest', classList: ['fixed', 'inset-0'] },
+  { id: 'modal-reward', classList: ['fixed', 'inset-0'] },
+  { id: 'modal-profile', classList: ['fixed', 'inset-0'] },
+  { id: 'modal-welcome', classList: ['fixed', 'inset-0'] },
+  { id: 'tour-overlay', classList: ['fixed', 'inset-0', 'hidden'] },
+  { id: 'tour-card', classList: ['fixed', 'z-[108]'] },
+  { id: 'toast-container', classList: ['fixed', 'bottom-4'] },
+  { id: 'mobile-nav', classList: ['fixed', 'bottom-0'] }
+];
+
+const closed = filterModalsToClose(mockDomElements);
+assert.strictEqual(closed.length, 3, 'Chỉ đóng đúng 3 modal đang mở (quest, reward, profile)');
+assert(closed.some(e => e.id === 'modal-quest'));
+assert(closed.some(e => e.id === 'modal-reward'));
+assert(closed.some(e => e.id === 'modal-profile'));
+assert(!closed.some(e => e.id === 'tour-card'), 'tour-card KHÔNG bao giờ bị đóng nhầm khi bắt đầu tour');
+assert(!closed.some(e => e.id === 'tour-overlay'), 'tour-overlay không bị đóng');
+assert(!closed.some(e => e.id === 'toast-container'), 'toast-container không bị đóng');
+assert(!closed.some(e => e.id === 'mobile-nav'), 'mobile-nav không bị đóng');
+console.log('✓ Test 8: Bộ lọc selector đóng modal bảo vệ an toàn cho tour-card và các thành phần giao diện.');
+
 console.log('\n🎉 TẤT CẢ UNIT TESTS CHO ONBOARDING TOUR ĐÃ VƯỢT QUA THÀNH CÔNG!');
