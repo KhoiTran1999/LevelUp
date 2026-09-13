@@ -251,6 +251,14 @@ function getOrCreateUserToken() {
   return token;
 }
 
+function getAuthHeaders() {
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token || getOrCreateUserToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+}
+
 function normalizeObjectNFC(obj) {
   if (typeof obj === 'string') return obj.normalize('NFC');
   if (Array.isArray(obj)) return obj.map(normalizeObjectNFC);
@@ -330,7 +338,13 @@ function deriveLegitimateBalance(state) {
     tampered = true;
   }
 
-  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered };
+  let fine = 0;
+  if (tampered) {
+    fine = Math.min(rawCoins, Math.max(20, Math.floor(rawCoins * 0.5)));
+    rawCoins = Math.max(0, rawCoins - fine);
+  }
+
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered, fine };
 }
 
 async function syncWithCloud(isManual = false) {
@@ -397,12 +411,19 @@ async function syncWithCloud(isManual = false) {
 
       if (data.coins !== undefined) appState.profile.coins = data.coins;
       if (data.totalCoinsEarned !== undefined) appState.profile.totalCoinsEarned = data.totalCoinsEarned;
+      if (data.level !== undefined) appState.profile.level = data.level;
+      if (data.title) appState.profile.title = data.title;
       appState.lastSyncedAt = data.syncedAt || Date.now();
+
+      if (data.penalty) {
+        showToast(data.penalty, 'error');
+        renderHeader();
+      }
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
-      if (isManual) showToast('Đồng bộ Cloud thành công!', 'success');
+      if (isManual && !data.penalty) showToast('Đồng bộ Cloud thành công!', 'success');
     } else {
       const errData = await res.json().catch(() => ({}));
       if (res.status === 401) {
@@ -1701,6 +1722,7 @@ async function buyShopItem(itemId) {
     price: item.price,
     tier: item.tier,
     icon: item.icon,
+    signature: item.signature || '',
     purchasedAt: Date.now(),
     isUsed: false
   };
@@ -1983,7 +2005,7 @@ async function submitQuestToAI() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'evaluate_quest',
         payload: {
@@ -2014,6 +2036,7 @@ async function submitQuestToAI() {
       type: data.type || 'focus',
       rewardCoins: data.rewardCoins || 10,
       targetMinutes: data.targetMinutes || 25,
+      signature: data.signature || '',
       rank: data.rank || calculateRank(data.rewardCoins || 10),
       verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
       advice: data.advice || 'Tập trung hoàn thành từng bước một.',
@@ -2126,6 +2149,7 @@ function acceptVerdictAndCreateQuest() {
     rank: currentPendingVerdict.rank || calculateRank(currentPendingVerdict.rewardCoins),
     rewardCoins: currentPendingVerdict.rewardCoins,
     targetMinutes: currentPendingVerdict.targetMinutes || 0,
+    signature: currentPendingVerdict.signature || '',
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
     isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
@@ -2170,7 +2194,7 @@ async function sendDebateArgument() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'debate_quest',
         payload: {
@@ -2200,6 +2224,7 @@ async function sendDebateArgument() {
       if (data.newDescription !== undefined) currentPendingVerdict.description = data.newDescription;
       if (data.newRewardCoins) currentPendingVerdict.rewardCoins = data.newRewardCoins;
       if (data.newTargetMinutes !== undefined) currentPendingVerdict.targetMinutes = data.newTargetMinutes;
+      if (data.signature) currentPendingVerdict.signature = data.signature;
       if (data.newType) {
         currentPendingVerdict.type = data.newType;
       } else if (data.newTargetMinutes !== undefined) {
@@ -2250,7 +2275,7 @@ async function evaluateRewardItem() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'evaluate_reward',
         payload: {
@@ -2278,6 +2303,7 @@ async function evaluateRewardItem() {
       price: data.price || 30,
       tier: data.tier || 'rare',
       icon: data.icon || '🎁',
+      signature: data.signature || '',
       verdict: data.verdict || 'Phần thưởng đã được định giá phù hợp.'
     };
     currentRewardDebateHistory = [];
@@ -2362,7 +2388,7 @@ async function sendRewardDebateArgument() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'debate_reward',
         payload: {
@@ -2392,6 +2418,7 @@ async function sendRewardDebateArgument() {
       if (data.newDescription !== undefined) currentPendingReward.description = data.newDescription;
       if (data.newPrice) currentPendingReward.price = data.newPrice;
       if (data.newTier) currentPendingReward.tier = data.newTier;
+      if (data.signature) currentPendingReward.signature = data.signature;
 
       // Update locked reward display card
       const lockedName = document.getElementById('reward-locked-name');
@@ -2424,7 +2451,8 @@ function savePendingReward() {
 
   const finalItem = {
     ...currentPendingReward,
-    price: currentPendingReward.price
+    price: currentPendingReward.price,
+    signature: currentPendingReward.signature || ''
   };
 
   appState.shopItems.unshift(finalItem);

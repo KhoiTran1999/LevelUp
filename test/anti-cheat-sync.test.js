@@ -2,7 +2,9 @@ import assert from 'node:assert';
 import handler, {
   setRedisClientForTesting,
   setGoogleTokenVerifierForTesting,
-  deriveLegitimateBalance
+  deriveLegitimateBalance,
+  signQuest,
+  signReward
 } from '../api/sync.js';
 
 // In-memory Mock Redis for Anti-cheat & Sync tests
@@ -114,29 +116,37 @@ setGoogleTokenVerifierForTesting(async (token) => {
 
 // Test 1: deriveLegitimateBalance chặn đứng việc tự sửa Vàng 999,999 trên LocalStorage
 {
+  const q1Sig = signQuest('q1', 'focus', 25, 10);
+  const q2Sig = signQuest('q2', 'focus', 25, 15);
+  const item1Sig = signReward('item1', 20, 'common');
+
   const tamperedState = {
     profile: {
       coins: 999999,
       totalCoinsEarned: 999999
     },
     quests: [
-      { id: 'q1', rewardCoins: 10, status: 'completed' },
-      { id: 'q2', rewardCoins: 15, isRepeatable: true, completedCount: 2 }
+      { id: 'q1', title: 'q1', type: 'focus', targetMinutes: 25, rewardCoins: 10, status: 'completed', signature: q1Sig },
+      { id: 'q2', title: 'q2', type: 'focus', targetMinutes: 25, rewardCoins: 15, isRepeatable: true, completedCount: 2, signature: q2Sig }
     ],
     inventory: [
-      { id: 'item1', price: 20 }
+      { id: 'item1', name: 'item1', price: 20, tier: 'common', signature: item1Sig }
     ],
     ledger: []
   };
 
   // Quests earn: 20 (base) + 10 (q1) + 15*2 (q2) = 60
   // Inventory spent: 20
-  // Max legitimate current coins: 60 - 20 = 40
+  // Legitimate base coins before penalty: 60 - 20 = 40
+  // Fine (50% penalty): Math.min(40, Math.max(20, Math.floor(40 * 0.5))) = 20
+  // Final coins after fine: 40 - 20 = 20
   const result = deriveLegitimateBalance(tamperedState);
   assert.strictEqual(result.tampered, true, 'Phải phát hiện can thiệp gian lận Vàng');
   assert.strictEqual(result.totalCoinsEarned, 60, 'Tổng Vàng tích lũy tối đa phải là 60');
-  assert.strictEqual(result.coins, 40, 'Số Vàng hiện tại phải bị giới hạn về 40');
-  console.log('✓ Test 1: Chặn đứng can thiệp sửa Vàng 999,999 thành công, tái tạo số dư chuẩn 40.');
+  assert.strictEqual(result.fine, 20, 'Phải phạt trừ 50% số Vàng hợp lệ (20 Vàng)');
+  assert.strictEqual(result.coins, 20, 'Số Vàng sau án phạt phải còn 20 Vàng');
+  assert.strictEqual(result.title, 'Kẻ Gian Lận ⚠️', 'Phải bị tước danh hiệu thành Kẻ Gian Lận ⚠️');
+  console.log('✓ Test 1: Chặn đứng can thiệp sửa Vàng 999,999 và thi hành án phạt trừ 50% Vàng (còn 20 Vàng), tước danh hiệu.');
 }
 
 // Test 2: Integrity checksum signature calculation
@@ -196,6 +206,7 @@ const timeDeviceB_stale = baseTime + 500;
 const timeDeviceB_fresh = baseTime + 2000;
 
 {
+  const q1Sig = signQuest('q1', 'focus', 25, 10);
   const stateDeviceA = {
     lastModified: timeDeviceA,
     profile: {
@@ -205,7 +216,7 @@ const timeDeviceB_fresh = baseTime + 2000;
       totalCoinsEarned: 30
     },
     quests: [
-      { id: 'q1', rewardCoins: 10, status: 'completed' }
+      { id: 'q1', title: 'q1', type: 'focus', targetMinutes: 25, rewardCoins: 10, status: 'completed', signature: q1Sig }
     ]
   };
 
@@ -260,6 +271,8 @@ const timeDeviceB_fresh = baseTime + 2000;
 
 // Test 6: Thiết bị B thực hiện nhiệm vụ mới hơn (timestamp 2000) -> Server chấp nhận và cập nhật Cloud
 {
+  const q1Sig = signQuest('q1', 'focus', 25, 10);
+  const q2Sig = signQuest('q2', 'focus', 25, 15);
   const freshStateDeviceB = {
     lastModified: timeDeviceB_fresh, // Mới hơn timeDeviceA
     profile: {
@@ -269,8 +282,8 @@ const timeDeviceB_fresh = baseTime + 2000;
       totalCoinsEarned: 45
     },
     quests: [
-      { id: 'q1', rewardCoins: 10, status: 'completed' },
-      { id: 'q2', rewardCoins: 15, status: 'completed' }
+      { id: 'q1', title: 'q1', type: 'focus', targetMinutes: 25, rewardCoins: 10, status: 'completed', signature: q1Sig },
+      { id: 'q2', title: 'q2', type: 'focus', targetMinutes: 25, rewardCoins: 15, status: 'completed', signature: q2Sig }
     ]
   };
 

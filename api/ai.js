@@ -1,4 +1,13 @@
 import dotenv from 'dotenv';
+import {
+  extractToken,
+  getRedis,
+  authenticateCaller,
+  getAdminConfig,
+  checkRateLimit,
+  signQuest,
+  signReward
+} from './sync.js';
 dotenv.config();
 
 const BASE_URL = (process.env.CUSTOM_AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
@@ -256,6 +265,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
 
+  const redis = getRedis();
+  const token = extractToken(req);
+  const adminConfig = getAdminConfig();
+
+  // Xác thực tài khoản trước khi cho phép gọi AI Gateway
+  const caller = await authenticateCaller(token, redis, adminConfig);
+  if (!caller) {
+    return res.status(401).json({ error: 'Cần đăng nhập tài khoản để sử dụng Trợ Lý AI.' });
+  }
+
+  // Giới hạn tần suất gọi AI (20 lượt / phút)
+  const clientIp = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const rateLimitId = caller.sub ? `ai:user:${caller.sub}` : `ai:ip:${clientIp}`;
+  const allowed = await checkRateLimit(redis, rateLimitId, 20, 60);
+  if (!allowed) {
+    return res.status(429).json({ error: 'Bạn đang gọi AI quá nhanh. Vui lòng chờ 1 phút trước khi tiếp tục.' });
+  }
+
   try {
     const { action, payload } = req.body || {};
 
@@ -337,6 +364,7 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 
         const rawResult = await callAI(systemPrompt, userPrompt);
         const result = sanitizeEvaluatedQuest(rawResult, title, description);
+        result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins);
         return res.status(200).json(result);
       }
 
@@ -409,6 +437,13 @@ Trả về ĐÚNG định dạng JSON:
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
+        if (result.accepted) {
+          const title = result.newTitle || quest.title;
+          const minutes = result.newTargetMinutes !== undefined ? result.newTargetMinutes : (quest.targetMinutes || 0);
+          const type = result.newType || (minutes > 0 ? 'focus' : 'bounty');
+          const coins = result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins;
+          result.signature = signQuest(title, type, minutes, coins);
+        }
         return res.status(200).json(result);
       }
 
@@ -476,6 +511,7 @@ Trả về ĐÚNG định dạng JSON:
 
         const rawResult = await callAI(systemPrompt, userPrompt);
         const result = sanitizeEvaluatedReward(rawResult, name, description);
+        result.signature = signReward(result.name, result.price, result.tier);
         return res.status(200).json(result);
       }
 
@@ -530,6 +566,12 @@ Trả về ĐÚNG định dạng JSON:
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
+        if (result.accepted) {
+          const name = result.newName || reward.name;
+          const price = result.newPrice !== undefined ? result.newPrice : reward.price;
+          const tier = result.newTier || reward.tier;
+          result.signature = signReward(name, price, tier);
+        }
         return res.status(200).json(result);
       }
 
@@ -538,9 +580,10 @@ Trả về ĐÚNG định dạng JSON:
     }
   } catch (err) {
     console.error('API /api/ai error:', err);
+    const isProd = process.env.NODE_ENV === 'production';
     return res.status(500).json({
       error: 'AI Service Error',
-      details: err.message
+      ...(isProd ? {} : { details: err.message })
     });
   }
 }

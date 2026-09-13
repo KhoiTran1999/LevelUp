@@ -17,14 +17,58 @@ export function setGoogleTokenVerifierForTesting(verifier) {
   googleTokenVerifierForTesting = verifier;
 }
 
+const HMAC_SECRET = process.env.APP_SECRET || process.env.REDIS_URL || 'levelup_vault_secret_2026';
+
+export function deriveTitleForLevel(lvl) {
+  const l = parseInt(lvl, 10) || 1;
+  if (l >= 20) return 'Huyền Thoại Kỷ Luật';
+  if (l >= 15) return 'Bậc Thầy Năng Suất';
+  if (l >= 10) return 'Chuyên Gia Tập Trung';
+  if (l >= 6) return 'Chiến Binh Kiên Trì';
+  if (l >= 3) return 'Học Viên Chăm Chỉ';
+  return 'Tân Binh Cấp 1';
+}
+
+export function signQuest(title, type, targetMinutes, rewardCoins) {
+  const normTitle = (title || '').trim().toLowerCase();
+  const t = type === 'bounty' ? 'bounty' : 'focus';
+  const m = parseInt(targetMinutes, 10) || 0;
+  const c = parseInt(rewardCoins, 10) || 0;
+  const payload = `quest:${normTitle}:${t}:${m}:${c}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function verifyQuestSignature(q) {
+  if (!q || typeof q !== 'object') return false;
+  if (q.id === 'q_seed_1' || q.id === 'q_seed_2') return true;
+  if (!q.signature) return false;
+  const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins);
+  return q.signature === expected;
+}
+
+export function signReward(name, price, tier) {
+  const normName = (name || '').trim().toLowerCase();
+  const p = parseInt(price, 10) || 0;
+  const tr = (tier || 'common').toLowerCase();
+  const payload = `reward:${normName}:${p}:${tr}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function verifyRewardSignature(r) {
+  if (!r || typeof r !== 'object') return false;
+  if (r.id === 'shop_seed_1' || r.id === 'shop_seed_2' || r.id === 'shop_seed_3') return true;
+  if (!r.signature) return false;
+  const expected = signReward(r.name, r.price, r.tier);
+  return r.signature === expected;
+}
+
 /**
  * Anti-Cheat: Validate and derive legitimate coin balance from quests, ledger, and inventory
- * Prevents client DevTools manipulation of gold values.
+ * Cryptographically verifies AI signatures on quests and shop prices. Zero-trust: quests without AI signatures award 0 coins.
  */
 export function deriveLegitimateBalance(state, existingState = null) {
   const quests = Array.isArray(state?.quests) ? state.quests : [];
   const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
-  const ledger = Array.isArray(state?.ledger) ? state.ledger : [];
 
   let rawTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
   let rawCoins = parseInt(state?.profile?.coins, 10);
@@ -33,40 +77,50 @@ export function deriveLegitimateBalance(state, existingState = null) {
 
   let tampered = false;
 
-  // 1. Quản lý tiền thưởng từ nhiệm vụ
+  // 1. Quản lý tiền thưởng từ nhiệm vụ (Zero-Trust: 100% nhiệm vụ phải có chữ ký AI hợp lệ)
   let questEarned = 20; // Thưởng khởi đầu tân binh
   for (const q of quests) {
-    const reward = Math.max(1, parseInt(q.rewardCoins, 10) || 10);
+    const isLegit = verifyQuestSignature(q);
+    if (!isLegit) {
+      // Chữ ký sai hoặc không có chữ ký AI -> 0 Vàng
+      tampered = true;
+      continue;
+    }
+    const reward = Math.min(40, Math.max(1, parseInt(q.rewardCoins, 10) || 10));
+    // ponytail: cap repeatable count to 20 between syncs
     const count = q.isRepeatable
-      ? Math.max(0, parseInt(q.completedCount, 10) || 0)
+      ? Math.min(20, Math.max(0, parseInt(q.completedCount, 10) || 0))
       : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
     questEarned += reward * count;
   }
 
-  // 2. Kiểm tra nhật ký giao dịch ledger
-  let ledgerEarned = 0;
-  for (const entry of ledger) {
-    if (entry && entry.type === 'earn') {
-      ledgerEarned += Math.max(0, parseInt(entry.amount, 10) || 0);
-    }
-  }
-  const maxTrackedEarned = Math.max(questEarned, ledgerEarned, 20);
+  // 2. Nguồn thu nhập hợp lệ duy nhất là từ nhiệm vụ đã kiểm định (chống giả mạo ledger)
+  const maxTrackedEarned = Math.max(20, questEarned);
 
-  // 3. Tổng chi tiêu cho vật phẩm kho đồ
+  // 3. Tổng chi tiêu cho vật phẩm kho đồ (bảo vệ giá phần thưởng chuẩn)
   let totalSpent = 0;
   for (const item of inventory) {
-    totalSpent += Math.max(0, parseInt(item.price, 10) || 0);
+    const sigStatus = verifyRewardSignature(item);
+    let price = Math.max(0, parseInt(item.price, 10) || 0);
+    if (sigStatus === false) {
+      // Bị sửa giá trong DevTools (ví dụ từ 50 xuống 1) -> Khôi phục giá tối thiểu theo Tier
+      const tierMin = { common: 20, rare: 40, epic: 80, legendary: 150 };
+      const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 25;
+      price = Math.max(price, fallbackPrice);
+      tampered = true;
+    }
+    totalSpent += price;
   }
 
   // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
-  // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng
+  // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng hoặc bơm hàng ngàn quest giả
   const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
   const maxAllowedCeiling = existingTotal > 0
-    ? Math.max(existingTotal + 500, maxTrackedEarned)
-    : Math.max(maxTrackedEarned, 1000);
+    ? existingTotal + 500
+    : maxTrackedEarned;
 
   if (rawTotal > maxAllowedCeiling) {
-    rawTotal = Math.max(maxTrackedEarned, existingTotal || 20);
+    rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxTrackedEarned;
     tampered = true;
   }
   if (rawTotal < 0) {
@@ -85,10 +139,34 @@ export function deriveLegitimateBalance(state, existingState = null) {
     tampered = true;
   }
 
-  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered };
+  // 4. Anti-Cheat Level: Ngăn chặn can thiệp level 999,999 để thao túng Leaderboard
+  let rawLevel = parseInt(state?.profile?.level, 10);
+  if (isNaN(rawLevel) || rawLevel < 1) rawLevel = 1;
+  const existingLevel = Math.max(1, parseInt(existingState?.profile?.level, 10) || 1);
+  const maxAllowedLevel = existingTotal > 0
+    ? existingLevel + 2
+    : Math.min(10, Math.max(existingLevel, Math.floor(rawTotal / 40) + 1));
+
+  if (rawLevel > maxAllowedLevel) {
+    rawLevel = existingTotal > 0 ? existingLevel + 1 : Math.min(maxAllowedLevel, 5);
+    tampered = true;
+  }
+  rawLevel = Math.max(1, Math.min(100, rawLevel));
+
+  // 5. Hình phạt trừng phạt gian lận (Anti-Cheat Sanctions)
+  let title = deriveTitleForLevel(rawLevel);
+  let fine = 0;
+  if (tampered) {
+    // Phạt trừ 50% số Vàng thực tế (tối thiểu trừ 20 Vàng, hoặc trừ sạch số vàng còn lại nếu ít hơn 20)
+    fine = Math.min(rawCoins, Math.max(20, Math.floor(rawCoins * 0.5)));
+    rawCoins = Math.max(0, rawCoins - fine);
+    title = 'Kẻ Gian Lận ⚠️';
+  }
+
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, level: rawLevel, tampered, fine, title };
 }
 
-function getRedis() {
+export function getRedis() {
   if (!process.env.REDIS_URL) {
     return null;
   }
@@ -114,7 +192,7 @@ export function sanitizeNickname(raw) {
   return normalized.toLowerCase().replace(/[^a-z0-9_\-\.]/gi, '').slice(0, 30);
 }
 
-function extractToken(req) {
+export function extractToken(req) {
   const cookieHeader = req.headers?.cookie || req.headers?.Cookie;
   if (cookieHeader && typeof cookieHeader === 'string') {
     const match = cookieHeader.match(/(?:^|;\s*)levelup_session=([^;]+)/);
@@ -129,17 +207,35 @@ function extractToken(req) {
   return req.body?.idToken || req.body?.token || req.query?.idToken || req.query?.token || '';
 }
 
-function getAdminConfig() {
+export function getAdminConfig() {
   const nicks = (process.env.ADMIN_NICKNAMES || 'admin,guildmaster')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
-  const emails = (process.env.ADMIN_EMAILS || 'admin@gmail.com,guildmaster@gmail.com')
+  const emails = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
   const token = (process.env.ADMIN_TOKEN || '').trim();
   return { nicks, emails, token };
+}
+
+/**
+ * Rate Limiter: stdlib Redis INCR + EXPIRE sliding window
+ * Gracefully fails open if Redis is not configured or in mock environments
+ */
+export async function checkRateLimit(redis, identifier, limit = 60, windowSec = 60) {
+  if (!redis || !identifier || typeof redis.incr !== 'function') return true;
+  try {
+    const key = `levelup:ratelimit:${identifier}`;
+    const count = await redis.incr(key);
+    if (count === 1 && typeof redis.expire === 'function') {
+      await redis.expire(key, windowSec);
+    }
+    return count <= limit;
+  } catch (e) {
+    return true; // Fail open on transient network hiccups
+  }
 }
 
 /**
@@ -262,6 +358,14 @@ export default async function handler(req, res) {
     const token = extractToken(req);
     const action = req.query?.action;
 
+    // Rate Limit: 60 requests per minute per IP / token
+    const clientIp = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const rateLimitId = token ? `sync:${token.slice(0, 32)}` : `sync:ip:${clientIp}`;
+    const allowed = await checkRateLimit(redis, rateLimitId, 60, 60);
+    if (!allowed) {
+      return res.status(429).json({ error: 'Bạn đang gửi yêu cầu quá nhanh. Vui lòng thử lại sau 1 phút.' });
+    }
+
     // 0. Public endpoint: Lấy Client ID của Google cho Frontend khởi tạo nút Google Sign-In
     if (req.method === 'GET' && action === 'auth_config') {
       return res.status(200).json({
@@ -282,7 +386,7 @@ export default async function handler(req, res) {
       }
 
       const { sub, email, name, picture } = googleUser;
-      const isAdmin = ADMIN_EMAILS.includes(email) || (ADMIN_TOKEN && token === ADMIN_TOKEN);
+      const isAdmin = (email && ADMIN_EMAILS.includes(email)) || (Boolean(ADMIN_TOKEN) && token === ADMIN_TOKEN);
       const userKey = `levelup:user:google:${sub}`;
 
       // Cấp phát session token bền vững (90 ngày) để đồng bộ đa thiết bị không bị đứt quãng
@@ -456,7 +560,7 @@ export default async function handler(req, res) {
 
         // Chặn đặt nickname quản trị bảo lưu nếu không phải Admin
         if (ADMIN_NICKS.includes(nickname)) {
-          const isAdminCaller = callerSub && token === ADMIN_TOKEN;
+          const isAdminCaller = callerSub && Boolean(ADMIN_TOKEN) && token === ADMIN_TOKEN;
           if (!isAdminCaller) {
             return res.status(200).json({
               available: false,
@@ -519,13 +623,13 @@ export default async function handler(req, res) {
         let callerEmail = '';
         let isCallerAdmin = false;
 
-        if (token === ADMIN_TOKEN) {
+        if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
           isCallerAdmin = true;
         } else if (token) {
           const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
           if (caller) {
             callerEmail = caller.email || '';
-            isCallerAdmin = ADMIN_EMAILS.includes(callerEmail);
+            isCallerAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(callerEmail);
           }
         }
 
@@ -582,7 +686,7 @@ export default async function handler(req, res) {
       const oldNickname = sanitizeNickname(rawOldNick);
 
       // Chống mạo danh biệt danh Admin nếu không phải admin email hoặc admin token
-      const isAdmin = (userEmail && ADMIN_EMAILS.includes(userEmail)) || token === ADMIN_TOKEN;
+      const isAdmin = (userEmail && ADMIN_EMAILS.includes(userEmail)) || (Boolean(ADMIN_TOKEN) && token === ADMIN_TOKEN);
       if (ADMIN_NICKS.includes(nickname) && !isAdmin) {
         return res.status(403).json({ error: 'Bạn không có quyền sử dụng biệt danh Quản trị viên.' });
       }
@@ -639,17 +743,45 @@ export default async function handler(req, res) {
         });
       }
 
+      // ponytail: sanitize shopItems to prevent saving tampered prices
+      const sanitizedShopItems = (Array.isArray(state.shopItems) ? state.shopItems : []).map(item => {
+        if (verifyRewardSignature(item) === false) {
+          const tierMin = { common: 20, rare: 40, epic: 80, legendary: 150 };
+          const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 25;
+          return { ...item, price: Math.max(parseInt(item.price, 10) || 0, fallbackPrice) };
+        }
+        return item;
+      });
+
+      // Ghi nhận án phạt vào Ledger nếu phát hiện gian lận
+      let updatedLedger = Array.isArray(state.ledger) ? [...state.ledger] : [];
+      if (balanceCheck.tampered && balanceCheck.fine > 0) {
+        updatedLedger.unshift({
+          id: `penalty_${serverTimestamp}`,
+          type: 'spend',
+          amount: balanceCheck.fine,
+          description: `⚠️ ÁN PHẠT ANTI-CHEAT: Trừ ${balanceCheck.fine} Vàng & tước danh hiệu do phát hiện can thiệp dữ liệu trái phép`,
+          timestamp: serverTimestamp
+        });
+      }
+
       const payloadToSave = {
         ...state,
+        shopItems: sanitizedShopItems,
+        ledger: updatedLedger,
         googleId: userSub,
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),
           nickname: state.profile?.nickname || rawNick || userName || nickname,
           role: userRole,
+          title: balanceCheck.title,
+          isCheater: Boolean(balanceCheck.tampered || existingState?.profile?.isCheater),
+          cheatStrikes: (existingState?.profile?.cheatStrikes || 0) + (balanceCheck.tampered ? 1 : 0),
           googleId: userSub,
           googleEmail: userEmail || state.profile?.googleEmail || '',
           googlePicture: userPicture || state.profile?.googlePicture || '',
+          level: balanceCheck.level,
           coins: balanceCheck.coins,
           totalCoinsEarned: balanceCheck.totalCoinsEarned
         },
@@ -658,12 +790,17 @@ export default async function handler(req, res) {
 
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
 
-      // Cập nhật Leaderboard với userSub và điểm số chuẩn xác đã kiểm định
-      const level = payloadToSave.profile?.level || 1;
-      const totalCoins = balanceCheck.totalCoinsEarned;
-      const score = (level * 1000) + totalCoins;
-
-      await redis.zadd('levelup:leaderboard', score, userSub);
+      // Cập nhật Leaderboard:
+      // Kẻ gian lận: Trục xuất vĩnh viễn khỏi Leaderboard (zrem)!
+      // Người chơi trung thực: Cập nhật điểm số bình thường (zadd)
+      if (balanceCheck.tampered) {
+        await redis.zrem('levelup:leaderboard', userSub);
+      } else {
+        const level = balanceCheck.level;
+        const totalCoins = balanceCheck.totalCoinsEarned;
+        const score = (level * 1000) + totalCoins;
+        await redis.zadd('levelup:leaderboard', score, userSub);
+      }
 
       return res.status(200).json({
         success: true,
@@ -672,17 +809,25 @@ export default async function handler(req, res) {
         nickname: payloadToSave.profile.nickname,
         role: userRole,
         syncedAt: serverTimestamp,
+        level: balanceCheck.level,
         coins: balanceCheck.coins,
-        totalCoinsEarned: balanceCheck.totalCoinsEarned
+        totalCoinsEarned: balanceCheck.totalCoinsEarned,
+        title: balanceCheck.title,
+        tampered: balanceCheck.tampered,
+        fine: balanceCheck.fine,
+        penalty: balanceCheck.tampered
+          ? `⚠️ CẢNH BÁO GIAN LẬN: Hệ thống phát hiện can thiệp dữ liệu trái phép! Bạn bị phạt trừ ${balanceCheck.fine} Vàng, tước danh hiệu ("Kẻ Gian Lận ⚠️") và bị loại khỏi Bảng Xếp Hạng.`
+          : null
       });
     }
 
     return res.status(405).json({ error: 'Phương thức không được hỗ trợ.' });
   } catch (err) {
     console.error('API /api/sync error:', err);
+    const isProd = process.env.NODE_ENV === 'production';
     return res.status(500).json({
       error: 'Lỗi máy chủ Redis Sync',
-      details: err.message
+      ...(isProd ? {} : { details: err.message })
     });
   }
 }
