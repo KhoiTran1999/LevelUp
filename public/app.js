@@ -99,6 +99,7 @@ class SoundFX {
 }
 
 const sfx = new SoundFX();
+const COIN_ICON_HTML = '<span class="coin-icon"></span>';
 
 // =============================================================================
 // 2. DEFAULT STATE & SEED DATA
@@ -552,7 +553,7 @@ function showToast(message, type = 'info', action = null) {
 
   const icons = {
     success: '✅',
-    gold: '🪙',
+    gold: COIN_ICON_HTML,
     error: '❌',
     info: '📜'
   };
@@ -912,7 +913,7 @@ function renderFocusStationUI() {
       rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30';
     }
     if (modeLabel) modeLabel.textContent = 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎉';
-    if (coinsEl) coinsEl.textContent = `🪙 -${activeRewardItem.price}`;
+    if (coinsEl) coinsEl.textContent = `-${activeRewardItem.price}`;
     if (expEl) expEl.textContent = '🎉 Thư giãn';
   } else if (activeFocusQuest) {
     if (titleEl) titleEl.textContent = activeFocusQuest.title;
@@ -1313,7 +1314,7 @@ async function completeQuest(questId, skipConfirm = false) {
     const ok = await confirmAction({
       title: 'Xác Nhận Hoàn Thành?',
       message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-      detail: `🪙 Phần thưởng: +${quest.rewardCoins} Vàng | ⚡ Kinh nghiệm: +${quest.rewardCoins * 3} EXP`,
+      detail: `💰 Phần thưởng: +${quest.rewardCoins} Vàng | ⚡ Kinh nghiệm: +${quest.rewardCoins * 3} EXP`,
       confirmText: 'Hoàn Thành ✓',
       cancelText: 'Chưa Xong',
       icon: '🎉',
@@ -1366,7 +1367,7 @@ async function undoCompleteQuest(questId) {
   const ok = await confirmAction({
     title: 'Hoàn Tác Nhiệm Vụ?',
     message: `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
-    detail: `🪙 Sẽ trừ lại: -${quest.rewardCoins} Vàng | ⚡ Sẽ trừ lại: -${quest.rewardCoins * 3} EXP`,
+    detail: `💰 Sẽ trừ lại: -${quest.rewardCoins} Vàng | ⚡ Sẽ trừ lại: -${quest.rewardCoins * 3} EXP`,
     confirmText: 'Hoàn Tác ↩️',
     cancelText: 'Giữ Nguyên',
     icon: '↩️',
@@ -1490,7 +1491,7 @@ async function buyShopItem(itemId) {
   const ok = await confirmAction({
     title: 'Đổi Phần Thưởng?',
     message: `Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`,
-    detail: `🪙 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${appState.profile.coins - item.price}`,
+    detail: `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${appState.profile.coins - item.price}`,
     confirmText: 'Đổi Quà 🎁',
     cancelText: 'Để Sau',
     icon: '🎁',
@@ -1542,10 +1543,10 @@ async function refundInventoryItem(invId, skipConfirm = false) {
     const ok = await confirmAction({
       title: 'Hoàn Trả Phần Thưởng?',
       message: `Bạn muốn hoàn trả "${item.name}" và nhận lại ${item.price} Vàng?`,
-      detail: '🪙 Số Vàng sẽ được hoàn lại đầy đủ vào tài khoản của bạn.',
+      detail: '💰 Số Vàng sẽ được hoàn lại đầy đủ vào tài khoản của bạn.',
       confirmText: 'Hoàn Trả ↩️',
       cancelText: 'Giữ Lại',
-      icon: '🪙',
+      icon: '💰',
       btnColor: 'amber'
     });
     if (!ok) return;
@@ -1865,7 +1866,7 @@ function updateVerdictDisplay() {
   }
 
   const verdictCoins = document.getElementById('verdict-coins');
-  if (verdictCoins) verdictCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
+  if (verdictCoins) verdictCoins.innerHTML = `${COIN_ICON_HTML} ${currentPendingVerdict.rewardCoins} Vàng`;
 
   // AI-locked display card
   const lockedTitle = document.getElementById('verdict-locked-title');
@@ -1883,7 +1884,7 @@ function updateVerdictDisplay() {
   }
 
   const lockedCoins = document.getElementById('verdict-locked-coins');
-  if (lockedCoins) lockedCoins.textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
+  if (lockedCoins) lockedCoins.innerHTML = `${COIN_ICON_HTML} ${currentPendingVerdict.rewardCoins} Vàng`;
 
   const lockedMinutes = document.getElementById('verdict-locked-minutes');
   if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
@@ -2100,7 +2101,7 @@ async function evaluateRewardItem() {
     if (lockedIcon) lockedIcon.textContent = currentPendingReward.icon;
 
     document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
-    document.getElementById('eval-price').textContent = `🪙 ${currentPendingReward.price} Vàng`;
+    document.getElementById('eval-price').innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
     document.getElementById('eval-verdict').textContent = `"${currentPendingReward.verdict}"`;
 
     const rewardModNotice = document.getElementById('reward-modified-notice');
@@ -2206,7 +2207,7 @@ async function sendRewardDebateArgument() {
       }
 
       document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
-      document.getElementById('eval-price').textContent = `🪙 ${currentPendingReward.price} Vàng`;
+      document.getElementById('eval-price').innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
 
       showToast('Thương lượng thành công! AI đã cập nhật phần thưởng.', 'gold');
       sfx.playFanfare();
@@ -2278,7 +2279,7 @@ async function fetchLeaderboard() {
         </td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell whitespace-nowrap">${escapeHtml(u.title || 'Thành viên')}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Lv. ${u.level || 1}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">🪙 ${u.totalCoinsEarned || 0}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"><span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${u.totalCoinsEarned || 0}</span></td>
       `;
       tbody.appendChild(tr);
     });
@@ -2410,7 +2411,7 @@ function renderQuests() {
         <div class="flex items-center justify-between gap-2 mb-2.5">
           <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
           <div class="flex items-center gap-1.5">
-            <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono">🪙 +${q.rewardCoins}</span>
+            <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1">${COIN_ICON_HTML} +${q.rewardCoins}</span>
             <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa nhiệm vụ">&times;</button>
           </div>
         </div>
@@ -2533,7 +2534,7 @@ function renderShop() {
       </div>
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-        <span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400">🪙 ${item.price} Vàng</span>
+        <span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">${COIN_ICON_HTML} ${item.price} Vàng</span>
         <button class="btn-buy-item px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 active:scale-95 ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}">
           <span>${canAfford ? 'Đổi Quà' : 'Chưa Đủ Vàng'}</span>
         </button>
@@ -2599,7 +2600,7 @@ function renderInventory() {
       </div>
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
-        <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">🪙 ${item.price} Vàng</span>
+        <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold inline-flex items-center gap-1">${COIN_ICON_HTML} ${item.price} Vàng</span>
         ${item.isUsed ? `
           <div class="flex items-center gap-1.5 flex-wrap justify-end">
             ${isThisActiveReward ? `
@@ -2684,8 +2685,8 @@ function renderLedger() {
           <div class="text-[10px] text-slate-500 font-mono">${new Date(entry.timestamp).toLocaleString()}</div>
         </div>
       </div>
-      <div class="font-mono font-bold text-sm shrink-0 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
-        ${isEarn ? '+' : '-'}${entry.amount} 🪙
+      <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
+        <span>${isEarn ? '+' : '-'}${entry.amount}</span> ${COIN_ICON_HTML}
       </div>
     `;
 
@@ -3080,7 +3081,7 @@ const TOUR_STEPS = [
     icon: '🛡️',
     tab: 'quests',
     getTarget: () => document.getElementById('open-profile-btn'),
-    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (🪙) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
+    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (💰) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
   },
   {
     id: 'add-quest',

@@ -7,7 +7,7 @@ const TOUR_STEPS = [
     title: 'Hồ Sơ & Trạng Thái Hiệp Sĩ',
     icon: '🛡️',
     tab: 'quests',
-    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (🪙) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
+    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (💰) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
   },
   {
     id: 'add-quest',

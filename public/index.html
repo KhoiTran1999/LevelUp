@@ -100,7 +100,7 @@
 
         <!-- Gold Balance -->
         <div class="flex items-center gap-1 sm:gap-1.5 px-0.5 shrink-0">
-          <span class="text-sm sm:text-base coin-shine">🪙</span>
+          <span class="text-sm sm:text-base coin-icon coin-shine"></span>
           <div class="flex flex-col">
             <span class="hidden md:inline text-[9px] text-slate-500 dark:text-slate-400 leading-none">Vàng</span>
             <span id="hero-coins" class="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight leading-tight">0</span>
@@ -215,8 +215,8 @@
             <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-0.5">
               <span id="timer-mode-label" class="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG BẤM GIỜ TẬP TRUNG</span>
               <span id="timer-quest-rank" class="rank-badge-B text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">RANK B</span>
-              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
-                <span>🪙</span><span id="timer-quest-coins">+15</span>
+              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                <span class="coin-icon"></span><span id="timer-quest-coins">+15</span>
               </span>
               <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
                 <span>🌟</span><span id="timer-quest-exp">+45</span>
@@ -486,7 +486,7 @@
             <span id="verdict-rank" class="rank-badge-C text-xs font-mono font-black px-2.5 py-1 rounded-lg">RANK C</span>
             <div class="flex items-center gap-2">
               <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏱️ BẤM GIỜ TẬP TRUNG</span>
-              <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono">🪙 15 Vàng</span>
+              <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
             </div>
           </div>
 
@@ -533,7 +533,7 @@
               </div>
               <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
                 <span class="text-[11px] text-slate-500 dark:text-slate-400">Thưởng:</span>
-                <span id="verdict-locked-coins" class="font-bold text-amber-600 dark:text-amber-400 font-mono">🪙 15 Vàng</span>
+                <span id="verdict-locked-coins" class="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
               </div>
             </div>
 
@@ -642,7 +642,7 @@
 
             <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
               <span class="text-xs text-slate-600 dark:text-slate-400 font-medium">Giá Vàng tự thưởng:</span>
-              <span id="eval-price" class="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">🪙 35 Vàng</span>
+              <span id="eval-price" class="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 35 Vàng</span>
             </div>
 
             <p id="eval-verdict" class="text-xs text-amber-900 dark:text-amber-200/90 italic bg-amber-50/70 dark:bg-slate-950/70 p-2.5 rounded-lg border border-amber-200/60 dark:border-slate-800">
@@ -847,7 +847,7 @@
               </div>
               <div class="text-xs">
                 <div class="font-bold text-slate-200">2. Trọng Tài AI Thẩm Định Rank</div>
-                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">AI đánh giá độ khó khách quan (Rank S, A, B, C, D) và thưởng Vàng 🪙, EXP 🌟 xứng đáng với công sức bỏ ra.</div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">AI đánh giá độ khó khách quan (Rank S, A, B, C, D) và thưởng Vàng <span class="coin-icon"></span>, EXP 🌟 xứng đáng với công sức bỏ ra.</div>
               </div>
             </div>
 
@@ -873,7 +873,7 @@
           <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
             <div class="text-xs font-bold text-amber-300 uppercase tracking-wide">Đăng nhập tài khoản để lưu tiến trình</div>
             <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-              Toàn bộ Nhiệm vụ, Vàng tích lũy 🪙, EXP và Cửa hàng sẽ được tự động đồng bộ trên đám mây bằng tài khoản Google.
+              Toàn bộ Nhiệm vụ, Vàng tích lũy <span class="coin-icon"></span>, EXP và Cửa hàng sẽ được tự động đồng bộ trên đám mây bằng tài khoản Google.
             </p>
           </div>
 
@@ -959,7 +959,7 @@
       <!-- Reward Badges Row -->
       <div class="flex justify-center items-center gap-3 py-2">
         <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-sm">
-          <span>🪙</span>
+          <span class="coin-icon"></span>
           <span id="focus-complete-coins">+0 VÀNG</span>
         </div>
         <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono font-black text-sm">
