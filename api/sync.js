@@ -4,10 +4,16 @@ import Redis from 'ioredis';
 dotenv.config();
 
 let redisClient = null;
+let googleTokenVerifierForTesting = null;
 
 // ponytail: test hook for hermetic in-memory mock testing without network
 export function setRedisClientForTesting(client) {
   redisClient = client;
+}
+
+// ponytail: test hook for mocking Google Token Verification in unit tests
+export function setGoogleTokenVerifierForTesting(verifier) {
+  googleTokenVerifierForTesting = verifier;
 }
 
 function getRedis() {
@@ -24,9 +30,9 @@ function getRedis() {
   return redisClient;
 }
 
-function sanitizeNickname(raw) {
+export function sanitizeNickname(raw) {
   if (!raw || typeof raw !== 'string') return '';
-  // Normalize Vietnamese accents and special characters to clean ASCII for Redis key indexing
+  // Normalize Vietnamese accents and special characters to clean ASCII for indexing
   const normalized = raw
     .trim()
     .normalize('NFD')
@@ -41,7 +47,7 @@ function extractToken(req) {
   if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     return authHeader.slice(7).trim();
   }
-  return req.body?.token || req.query?.token || '';
+  return req.body?.idToken || req.body?.token || req.query?.idToken || req.query?.token || '';
 }
 
 function getAdminConfig() {
@@ -49,12 +55,60 @@ function getAdminConfig() {
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
+  const emails = (process.env.ADMIN_EMAILS || 'admin@gmail.com,guildmaster@gmail.com')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
   const token = (process.env.ADMIN_TOKEN || '').trim();
-  return { nicks, token };
+  return { nicks, emails, token };
+}
+
+/**
+ * Verify Google ID Token via Google's official tokeninfo endpoint
+ * Uses native Node.js fetch (stdlib-first, zero extra npm dependencies)
+ */
+export async function verifyGoogleToken(idToken) {
+  if (!idToken || typeof idToken !== 'string') return null;
+
+  if (googleTokenVerifierForTesting) {
+    return await googleTokenVerifierForTesting(idToken);
+  }
+
+  try {
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken.trim())}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const payload = await response.json();
+
+    if (!payload.sub || !payload.email) return null;
+
+    // Optional verification of Google Client ID if configured
+    const expectedClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+    if (expectedClientId && payload.aud && payload.aud !== expectedClientId) {
+      console.warn('Google Token aud mismatch:', payload.aud, 'expected:', expectedClientId);
+      return null;
+    }
+
+    // Check expiration
+    if (payload.exp && Number(payload.exp) * 1000 < Date.now()) {
+      return null;
+    }
+
+    return {
+      sub: payload.sub,
+      email: payload.email.toLowerCase(),
+      name: payload.name || payload.email.split('@')[0],
+      picture: payload.picture || ''
+    };
+  } catch (err) {
+    console.error('Error verifying Google Token:', err.message);
+    return null;
+  }
 }
 
 export default async function handler(req, res) {
-  const { nicks: ADMIN_NICKS, token: ADMIN_TOKEN } = getAdminConfig();
+  const { nicks: ADMIN_NICKS, emails: ADMIN_EMAILS, token: ADMIN_TOKEN } = getAdminConfig();
+
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -77,292 +131,375 @@ export default async function handler(req, res) {
       await redis.connect();
     }
 
-    // GET /api/sync?action=leaderboard
-    // GET /api/sync?nickname=anhduc
-    if (req.method === 'GET') {
-      const action = req.query?.action;
-      const token = extractToken(req);
+    const token = extractToken(req);
+    const action = req.query?.action;
 
-      // 1. Kiểm tra nhanh tính khả dụng của nickname (check_nickname)
-      if (action === 'check_nickname') {
-        const nickname = sanitizeNickname(req.query?.nickname);
-        if (!nickname) {
-          return res.status(400).json({ error: 'Missing nickname parameter.' });
-        }
-        // Chặn đăng ký biệt danh Admin nếu không có ADMIN_TOKEN
-        if (ADMIN_NICKS.includes(nickname) && ADMIN_TOKEN && token !== ADMIN_TOKEN) {
-          return res.status(200).json({
-            available: false,
-            isOwner: false,
-            message: 'Nickname này được bảo lưu riêng cho Hội đồng Quản trị.'
-          });
-        }
-        const rawData = await redis.get(`levelup:user:${nickname}`);
-        if (!rawData) {
-          return res.status(200).json({ available: true, isOwner: true });
-        }
+    // 0. Public endpoint: Lấy Client ID của Google cho Frontend khởi tạo nút Google Sign-In
+    if (req.method === 'GET' && action === 'auth_config') {
+      return res.status(200).json({
+        googleClientId: (process.env.GOOGLE_CLIENT_ID || '').trim()
+      });
+    }
+
+    // 1. Google Authentication Endpoint (POST /api/sync?action=google_auth)
+    if (req.method === 'POST' && action === 'google_auth') {
+      const idToken = req.body?.idToken || token;
+      if (!idToken) {
+        return res.status(401).json({ error: 'Mã Google ID Token là bắt buộc.' });
+      }
+
+      const googleUser = await verifyGoogleToken(idToken);
+      if (!googleUser) {
+        return res.status(401).json({ error: 'Xác thực tài khoản Google không hợp lệ hoặc đã hết hạn.' });
+      }
+
+      const { sub, email, name, picture } = googleUser;
+      const isAdmin = ADMIN_EMAILS.includes(email) || (ADMIN_TOKEN && token === ADMIN_TOKEN);
+      const userKey = `levelup:user:google:${sub}`;
+
+      let rawData = await redis.get(userKey);
+      let isNew = false;
+      let userState = null;
+
+      if (rawData) {
         try {
-          const parsed = JSON.parse(rawData);
-          const isOwner = Boolean(token && parsed.ownerToken && parsed.ownerToken === token);
-          return res.status(200).json({
-            available: isOwner,
-            isOwner,
-            message: isOwner ? 'Nickname thuộc về bạn.' : 'Nickname đã có người sở hữu.'
-          });
-        } catch {
-          return res.status(200).json({ available: false, isOwner: false });
-        }
+          userState = JSON.parse(rawData);
+        } catch (e) {}
       }
 
-      // 2. Tìm tài khoản theo Token (Khôi phục / Chuyển tài khoản tự động)
-      if (action === 'find_by_token') {
-        if (!token) {
-          return res.status(400).json({ error: 'Mã Token là bắt buộc.' });
-        }
-        const targetNick = await redis.get(`levelup:token:${token}`);
-        if (!targetNick) {
-          return res.status(404).json({ found: false, error: 'Không tìm thấy tài khoản nào khớp với Mã Token này.' });
-        }
-        const rawData = await redis.get(`levelup:user:${targetNick}`);
-        if (!rawData) {
-          return res.status(404).json({ found: false, error: 'Dữ liệu tài khoản đã hết hạn hoặc không tồn tại.' });
-        }
-        const data = JSON.parse(rawData);
-        if (data.ownerToken && data.ownerToken !== token) {
-          return res.status(403).json({ found: false, error: 'Mã Token không trùng khớp với chủ tài khoản.' });
-        }
-        const { ownerToken, ...safeData } = data;
-        const isAdmin = ADMIN_NICKS.includes(targetNick) && (!ADMIN_TOKEN || token === ADMIN_TOKEN);
-        const displayNickname = data.profile?.nickname || targetNick;
-        return res.status(200).json({
-          found: true,
-          nickname: displayNickname,
-          targetNick,
-          role: isAdmin ? 'admin' : 'adventurer',
-          data: {
-            ...safeData,
-            profile: {
-              ...(safeData.profile || {}),
-              nickname: displayNickname
-            }
+      if (!userState) {
+        isNew = true;
+        const defaultNick = name || email.split('@')[0];
+        userState = {
+          profile: {
+            nickname: defaultNick,
+            avatar: picture || '⚔️',
+            level: 1,
+            exp: 0,
+            coins: 20,
+            totalCoinsEarned: 20,
+            title: 'Tân Binh Cấp 1',
+            streak: 1,
+            soundEnabled: true,
+            theme: 'dark',
+            role: isAdmin ? 'admin' : 'adventurer',
+            googleId: sub,
+            googleEmail: email,
+            googlePicture: picture,
+            hasOnboarded: true
+          },
+          quests: [],
+          shopItems: [],
+          inventory: [],
+          ledger: [{
+            id: 'led_google_welcome',
+            type: 'earn',
+            amount: 20,
+            description: 'Thưởng chào mừng hiệp sĩ Google',
+            timestamp: Date.now()
+          }],
+          lastSyncedAt: Date.now()
+        };
+
+        const sanitized = sanitizeNickname(defaultNick);
+        if (sanitized) {
+          const existingOwner = await redis.get(`levelup:nick_to_sub:${sanitized}`);
+          if (!existingOwner) {
+            await redis.set(`levelup:nick_to_sub:${sanitized}`, sub, 'EX', 180 * 24 * 3600);
           }
-        });
+        }
+
+        await redis.set(userKey, JSON.stringify(userState), 'EX', 180 * 24 * 3600);
+        await redis.set(`levelup:google:email:${email}`, sub, 'EX', 180 * 24 * 3600);
+
+        const initialScore = 1020;
+        await redis.zadd('levelup:leaderboard', initialScore, sub);
+      } else {
+        if (userState.profile) {
+          userState.profile.googleId = sub;
+          userState.profile.googleEmail = email;
+          if (picture && !userState.profile.googlePicture) {
+            userState.profile.googlePicture = picture;
+          }
+          if (isAdmin) userState.profile.role = 'admin';
+        }
       }
 
-      // 3. Lấy Bảng xếp hạng (leaderboard)
+      return res.status(200).json({
+        success: true,
+        isNew,
+        role: isAdmin ? 'admin' : (userState.profile?.role || 'adventurer'),
+        googleUser: { sub, email, name, picture },
+        state: userState
+      });
+    }
+
+    // 2. GET /api/sync: Leaderboard, check_nickname, hoặc tải dữ liệu người dùng
+    if (req.method === 'GET') {
+      // 2.1 Bảng xếp hạng (Leaderboard)
       if (action === 'leaderboard') {
         const topUsers = await redis.zrevrange('levelup:leaderboard', 0, 19, 'WITHSCORES');
         const leaderboard = [];
-        const seenTokens = new Set();
+        const seenSubs = new Set();
+
         for (let i = 0; i < topUsers.length; i += 2) {
-          const nick = topUsers[i];
+          const memberKey = topUsers[i];
           const score = parseInt(topUsers[i + 1], 10);
-          const rawData = await redis.get(`levelup:user:${nick}`);
+
+          let rawData = await redis.get(`levelup:user:google:${memberKey}`);
           if (!rawData) {
-            await redis.zrem('levelup:leaderboard', nick);
+            // Hỗ trợ legacy member key nếu có
+            rawData = await redis.get(`levelup:user:${memberKey}`);
+          }
+
+          if (!rawData) {
+            await redis.zrem('levelup:leaderboard', memberKey);
             continue;
           }
-          let profile = { nickname: nick, level: 1, title: 'Tập sự' };
-          let ownerToken = null;
+
+          let profile = { nickname: memberKey, level: 1, title: 'Tập sự' };
+          let subId = memberKey;
+
           try {
             const parsed = JSON.parse(rawData);
-            ownerToken = parsed.ownerToken;
+            subId = parsed.googleId || parsed.profile?.googleId || memberKey;
             if (parsed.profile) {
+              const isAdminMember = (parsed.profile.googleEmail && ADMIN_EMAILS.includes(parsed.profile.googleEmail)) ||
+                                    ADMIN_NICKS.includes(parsed.profile.nickname);
               profile = {
-                nickname: parsed.profile.nickname || nick,
-                avatar: parsed.profile.avatar || '⚔️',
+                nickname: parsed.profile.nickname || memberKey,
+                avatar: parsed.profile.avatar || parsed.profile.googlePicture || '⚔️',
                 level: parsed.profile.level || 1,
                 title: parsed.profile.title || 'Tập sự',
-                role: ADMIN_NICKS.includes(nick) ? 'admin' : (parsed.profile.role || 'adventurer'),
+                role: isAdminMember ? 'admin' : (parsed.profile.role || 'adventurer'),
                 totalCoinsEarned: parsed.profile.totalCoinsEarned || score
               };
             }
           } catch (e) {}
 
-          // Loại bỏ bản ghi trùng nếu cùng một tài khoản (token)
-          if (ownerToken) {
-            if (seenTokens.has(ownerToken)) {
-              await redis.zrem('levelup:leaderboard', nick);
-              continue;
-            }
-            seenTokens.add(ownerToken);
+          if (seenSubs.has(subId)) {
+            await redis.zrem('levelup:leaderboard', memberKey);
+            continue;
           }
+          seenSubs.add(subId);
 
-          leaderboard.push({ ...profile, key: nick, score });
+          leaderboard.push({ ...profile, key: memberKey, score });
           if (leaderboard.length >= 10) break;
         }
+
         return res.status(200).json({ leaderboard });
       }
 
-      // 4. Tải hồ sơ người dùng theo nickname
-      const nickname = sanitizeNickname(req.query?.nickname);
-      if (!nickname) {
-        return res.status(400).json({ error: 'Missing or invalid nickname query parameter.' });
-      }
+      // 2.2 Kiểm tra tính khả dụng của Nickname (check_nickname)
+      if (action === 'check_nickname') {
+        const nickname = sanitizeNickname(req.query?.nickname);
+        if (!nickname) {
+          return res.status(400).json({ error: 'Thiếu tham số nickname.' });
+        }
 
-      const rawData = await redis.get(`levelup:user:${nickname}`);
-      if (!rawData) {
-        return res.status(200).json({ found: false, nickname });
-      }
+        let callerSub = null;
+        if (token) {
+          const verified = await verifyGoogleToken(token);
+          if (verified) callerSub = verified.sub;
+        }
 
-      const data = JSON.parse(rawData);
-      const isOwner = Boolean(token && data.ownerToken && data.ownerToken === token);
-
-      if (!isOwner) {
-        // Bảo vệ dữ liệu cá nhân: Người lạ chỉ được xem thông tin hồ sơ công khai, không lộ quests/habits/inventory
-        return res.status(200).json({
-          found: true,
-          isOwner: false,
-          nickname,
-          profile: {
-            nickname: data.profile?.nickname || nickname,
-            avatar: data.profile?.avatar || '⚔️',
-            level: data.profile?.level || 1,
-            title: data.profile?.title || 'Tập sự',
-            role: ADMIN_NICKS.includes(nickname) ? 'admin' : 'adventurer'
+        // Chặn đặt nickname quản trị bảo lưu nếu không phải Admin
+        if (ADMIN_NICKS.includes(nickname)) {
+          const isAdminCaller = callerSub && token === ADMIN_TOKEN;
+          if (!isAdminCaller) {
+            return res.status(200).json({
+              available: false,
+              isOwner: false,
+              message: 'Nickname này được bảo lưu riêng cho Quản trị viên.'
+            });
           }
+        }
+
+        const ownerSub = await redis.get(`levelup:nick_to_sub:${nickname}`);
+        if (!ownerSub) {
+          // Kiểm tra thêm key user legacy nếu có
+          const legacyOwner = await redis.get(`levelup:user:${nickname}`);
+          if (!legacyOwner) {
+            return res.status(200).json({ available: true, isOwner: true });
+          }
+          return res.status(200).json({ available: false, isOwner: false, message: 'Nickname đã có người sở hữu.' });
+        }
+
+        const isOwner = Boolean(callerSub && ownerSub === callerSub);
+        return res.status(200).json({
+          available: isOwner,
+          isOwner,
+          message: isOwner ? 'Nickname thuộc về tài khoản của bạn.' : 'Nickname đã có người sở hữu.'
         });
       }
 
-      // Chủ sở hữu chính xác: Trả về đầy đủ dữ liệu an toàn (loại bỏ ownerToken)
-      const { ownerToken, ...safeData } = data;
-      return res.status(200).json({ found: true, isOwner: true, data: safeData });
+      // 2.3 Tải hồ sơ người dùng theo Google ID Token
+      if (!token) {
+        return res.status(401).json({ error: 'Cần đăng nhập tài khoản Google để tải dữ liệu.' });
+      }
+
+      const googleUser = await verifyGoogleToken(token);
+      let targetSub = googleUser ? googleUser.sub : null;
+
+      // Hỗ trợ legacy test token nếu là ADMIN_TOKEN hoặc token cũ
+      if (!targetSub && token === ADMIN_TOKEN) {
+        targetSub = 'admin_sub';
+      }
+
+      if (!targetSub) {
+        return res.status(401).json({ error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.' });
+      }
+
+      const rawData = await redis.get(`levelup:user:google:${targetSub}`);
+      if (!rawData) {
+        return res.status(200).json({ found: false, googleId: targetSub });
+      }
+
+      const data = JSON.parse(rawData);
+      return res.status(200).json({
+        found: true,
+        isOwner: true,
+        data
+      });
     }
 
-    // POST /api/sync: Save state / Admin actions
+    // 3. POST /api/sync: Lưu game state hoặc Admin Actions
     if (req.method === 'POST') {
       const { nickname: rawNick, oldNickname: rawOldNick, state } = req.body || {};
-      const token = extractToken(req);
-      const nickname = sanitizeNickname(rawNick);
-      const oldNickname = sanitizeNickname(rawOldNick);
-      const action = req.query?.action;
 
-      // Admin action: Xóa tài khoản gian lận khỏi Leaderboard
+      // 3.1 Admin Action: Xóa tài khoản gian lận khỏi Leaderboard
       if (action === 'admin_remove') {
-        const targetNick = sanitizeNickname(req.body?.targetNickname);
-        const isAdmin = ADMIN_NICKS.includes(nickname) && (!ADMIN_TOKEN || token === ADMIN_TOKEN);
-        if (!isAdmin) {
-          return res.status(403).json({ error: 'Chỉ Trưởng Hội (Admin) có thẩm quyền mới có quyền này.' });
-        }
-        // Kiểm tra token có khớp với ownerToken của admin đã lưu không
-        const adminRaw = await redis.get(`levelup:user:${nickname}`);
-        if (adminRaw) {
-          try {
-            const adminData = JSON.parse(adminRaw);
-            if (adminData.ownerToken && adminData.ownerToken !== token) {
-              return res.status(403).json({ error: 'Mã Token Admin không chính xác.' });
-            }
-          } catch (e) {}
-        }
-        if (targetNick) {
-          const targetRaw = await redis.get(`levelup:user:${targetNick}`);
-          if (targetRaw) {
-            try {
-              const targetData = JSON.parse(targetRaw);
-              if (targetData.ownerToken) {
-                await redis.del(`levelup:token:${targetData.ownerToken}`);
-              }
-            } catch (e) {}
+        const target = req.body?.targetSub || req.body?.targetNickname;
+        let callerEmail = '';
+        let isCallerAdmin = false;
+
+        if (token === ADMIN_TOKEN) {
+          isCallerAdmin = true;
+        } else if (token) {
+          const verified = await verifyGoogleToken(token);
+          if (verified) {
+            callerEmail = verified.email;
+            isCallerAdmin = ADMIN_EMAILS.includes(callerEmail);
           }
-          await redis.del(`levelup:user:${targetNick}`);
-          await redis.zrem('levelup:leaderboard', targetNick);
         }
-        return res.status(200).json({ success: true, removed: targetNick });
+
+        if (!isCallerAdmin) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên (Admin) mới có thẩm quyền thực hiện thao tác này.' });
+        }
+
+        let targetSubToDelete = target;
+        if (target) {
+          const sanitizedTarget = sanitizeNickname(target);
+          const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizedTarget}`);
+          if (mappedSub) {
+            targetSubToDelete = mappedSub;
+            await redis.del(`levelup:nick_to_sub:${sanitizedTarget}`);
+          }
+          await redis.del(`levelup:user:google:${targetSubToDelete}`);
+          await redis.del(`levelup:user:${sanitizedTarget}`);
+          await redis.zrem('levelup:leaderboard', targetSubToDelete);
+          await redis.zrem('levelup:leaderboard', target);
+        }
+
+        return res.status(200).json({ success: true, removed: targetSubToDelete });
       }
 
-      if (!nickname) {
-        return res.status(400).json({ error: 'Valid nickname is required.' });
-      }
-
+      // 3.2 Đồng bộ dữ liệu người dùng (Cloud Sync)
       if (!token) {
-        return res.status(400).json({ error: 'Mã định danh (Token) là bắt buộc để phân quyền tài khoản.' });
+        return res.status(401).json({ error: 'Cần đăng nhập Google để đồng bộ dữ liệu.' });
       }
 
-      // Chặn tạo tài khoản Admin mạo danh nếu không khớp ADMIN_TOKEN
-      if (ADMIN_NICKS.includes(nickname) && ADMIN_TOKEN && token !== ADMIN_TOKEN) {
-        return res.status(403).json({ error: 'Bạn không có quyền đăng ký hoặc sử dụng tài khoản Quản trị viên.' });
+      const googleUser = await verifyGoogleToken(token);
+      let userSub = googleUser ? googleUser.sub : null;
+      let userEmail = googleUser ? googleUser.email : '';
+      let userName = googleUser ? googleUser.name : '';
+      let userPicture = googleUser ? googleUser.picture : '';
+
+      // Hỗ trợ kiểm thử hoặc ADMIN_TOKEN
+      if (!userSub && token === ADMIN_TOKEN) {
+        userSub = 'admin_master_sub';
+        userEmail = 'admin@guildmaster.com';
+      }
+
+      if (!userSub) {
+        return res.status(401).json({ error: 'Phiên Google không hợp lệ hoặc đã hết hạn.' });
       }
 
       if (!state || typeof state !== 'object') {
-        return res.status(400).json({ error: 'State payload is required.' });
+        return res.status(400).json({ error: 'Payload state là bắt buộc.' });
       }
 
-      // 1. Kiểm tra tính duy nhất: Nickname đích đã có ai sở hữu chưa?
-      const existingRaw = await redis.get(`levelup:user:${nickname}`);
-      if (existingRaw) {
-        try {
-          const existingUser = JSON.parse(existingRaw);
-          if (!existingUser.ownerToken || existingUser.ownerToken !== token) {
-            return res.status(409).json({
-              error: `Nickname "${nickname}" đã có người sử dụng. Vui lòng chọn nickname khác!`
-            });
-          }
-        } catch (e) {}
+      const nickname = sanitizeNickname(rawNick || state.profile?.nickname);
+      const oldNickname = sanitizeNickname(rawOldNick);
+
+      // Chống mạo danh biệt danh Admin nếu không phải admin email hoặc admin token
+      const isAdmin = (userEmail && ADMIN_EMAILS.includes(userEmail)) || token === ADMIN_TOKEN;
+      if (ADMIN_NICKS.includes(nickname) && !isAdmin) {
+        return res.status(403).json({ error: 'Bạn không có quyền sử dụng biệt danh Quản trị viên.' });
       }
 
-      // 2. Kiểm tra quyền đổi tên hoặc dọn dẹp key cũ liên kết với token này
-      // ponytail: sequential del + zrem; upgrade to MULTI/EXEC pipeline if high-concurrency rename races occur
-      const priorNick = await redis.get(`levelup:token:${token}`);
-      const effectiveOldNick = oldNickname || (priorNick && priorNick !== nickname ? priorNick : null);
-      if (effectiveOldNick && effectiveOldNick !== nickname) {
-        const oldRaw = await redis.get(`levelup:user:${effectiveOldNick}`);
-        if (oldRaw) {
-          try {
-            const oldUser = JSON.parse(oldRaw);
-            if (oldUser.ownerToken && oldUser.ownerToken !== token) {
-              return res.status(403).json({
-                error: `Bạn không có quyền đổi tên cho tài khoản "${effectiveOldNick}".`
-              });
-            }
-          } catch (e) {}
+      // Kiểm tra tính duy nhất của nickname
+      if (nickname) {
+        const currentOwnerSub = await redis.get(`levelup:nick_to_sub:${nickname}`);
+        if (currentOwnerSub && currentOwnerSub !== userSub) {
+          return res.status(409).json({
+            error: `Nickname "${rawNick || nickname}" đã có người sử dụng. Vui lòng chọn nickname khác!`
+          });
         }
-        await redis.del(`levelup:user:${effectiveOldNick}`);
-        await redis.zrem('levelup:leaderboard', effectiveOldNick);
+
+        // Nếu người dùng đổi tên: dọn dẹp mapping cũ
+        if (oldNickname && oldNickname !== nickname) {
+          const oldOwnerSub = await redis.get(`levelup:nick_to_sub:${oldNickname}`);
+          if (oldOwnerSub === userSub) {
+            await redis.del(`levelup:nick_to_sub:${oldNickname}`);
+          }
+        }
+
+        // Lưu ánh xạ nickname -> sub
+        await redis.set(`levelup:nick_to_sub:${nickname}`, userSub, 'EX', 180 * 24 * 3600);
       }
 
-      // 3. Gắn quyền role: Khóa chặt, không cho phép client tự leo thang đặc quyền
-      const isAdmin = ADMIN_NICKS.includes(nickname) && (!ADMIN_TOKEN || token === ADMIN_TOKEN);
       const userRole = isAdmin ? 'admin' : 'adventurer';
-
-      // 4. Lưu dữ liệu với ownerToken
       const serverTimestamp = Date.now();
+
       const payloadToSave = {
         ...state,
-        ownerToken: token,
+        googleId: userSub,
         profile: {
           ...(state.profile || {}),
-          nickname: state.profile?.nickname || rawNick || nickname,
-          role: userRole
+          nickname: state.profile?.nickname || rawNick || userName || nickname,
+          role: userRole,
+          googleId: userSub,
+          googleEmail: userEmail || state.profile?.googleEmail || '',
+          googlePicture: userPicture || state.profile?.googlePicture || ''
         },
         lastSyncedAt: serverTimestamp
       };
 
-      const key = `levelup:user:${nickname}`;
-      await redis.set(key, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
+      const userKey = `levelup:user:google:${userSub}`;
+      await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
 
-      // Lưu index ánh xạ ngược token -> nickname (180 ngày)
-      await redis.set(`levelup:token:${token}`, nickname, 'EX', 180 * 24 * 3600);
-
-      // Update leaderboard: Score = (level * 1000) + totalCoinsEarned
+      // Cập nhật Leaderboard với userSub
       const level = payloadToSave.profile?.level || 1;
       const totalCoins = payloadToSave.profile?.totalCoinsEarned || 0;
       const score = (level * 1000) + totalCoins;
 
-      await redis.zadd('levelup:leaderboard', score, nickname);
+      await redis.zadd('levelup:leaderboard', score, userSub);
 
       return res.status(200).json({
         success: true,
-        nickname,
+        googleId: userSub,
+        nickname: payloadToSave.profile.nickname,
         role: userRole,
         syncedAt: serverTimestamp
       });
     }
 
-    return res.status(405).json({ error: 'Method not allowed.' });
+    return res.status(405).json({ error: 'Phương thức không được hỗ trợ.' });
   } catch (err) {
     console.error('API /api/sync error:', err);
     return res.status(500).json({
-      error: 'Redis Sync Internal Error',
+      error: 'Lỗi máy chủ Redis Sync',
       details: err.message
     });
   }

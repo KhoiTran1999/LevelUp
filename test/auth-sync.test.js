@@ -1,5 +1,10 @@
 import assert from 'node:assert';
-import handler, { setRedisClientForTesting } from '../api/sync.js';
+import handler, {
+  setRedisClientForTesting,
+  setGoogleTokenVerifierForTesting,
+  verifyGoogleToken,
+  sanitizeNickname
+} from '../api/sync.js';
 
 // In-memory mock Redis
 class MockRedis {
@@ -68,297 +73,348 @@ function createMockReqRes(method, body = {}, query = {}, headers = {}) {
   return { req, res };
 }
 
-async function runAuthTests() {
+async function runGoogleAuthTests() {
   const mockRedis = new MockRedis();
   setRedisClientForTesting(mockRedis);
 
-  const tokenA = 'token_user_a_1234567890abcdef';
-  const tokenB = 'token_user_b_9876543210fedcba';
-  const adminToken = 'token_admin_supersecret123456';
-  process.env.ADMIN_TOKEN = adminToken;
+  // Cấu hình môi trường thử nghiệm
+  process.env.GOOGLE_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
+  process.env.ADMIN_EMAILS = 'guildmaster@gmail.com,admin@gmail.com';
   process.env.ADMIN_NICKNAMES = 'admin,guildmaster';
+  process.env.ADMIN_TOKEN = 'admin_master_secret_token';
 
-  console.log('--- Bắt đầu kiểm thử phân quyền & chống trùng nickname ---');
+  // Thiết lập Mock Verifier cho Google Token
+  const MOCK_GOOGLE_USERS = {
+    'valid_google_token_user_a': {
+      sub: 'google_sub_user_a_1001',
+      email: 'hiepsi_a@gmail.com',
+      name: 'Hiệp Sĩ A',
+      picture: 'https://lh3.googleusercontent.com/avatar_a.jpg'
+    },
+    'valid_google_token_user_b': {
+      sub: 'google_sub_user_b_2002',
+      email: 'hiepsi_b@gmail.com',
+      name: 'Hiệp Sĩ B',
+      picture: 'https://lh3.googleusercontent.com/avatar_b.jpg'
+    },
+    'valid_google_token_admin': {
+      sub: 'google_sub_admin_9999',
+      email: 'guildmaster@gmail.com',
+      name: 'Bang Chủ',
+      picture: 'https://lh3.googleusercontent.com/avatar_admin.jpg'
+    }
+  };
 
-  // Test 1: User A đăng ký nickname "hiepsi1"
+  setGoogleTokenVerifierForTesting(async (idToken) => {
+    if (MOCK_GOOGLE_USERS[idToken]) {
+      return { ...MOCK_GOOGLE_USERS[idToken] };
+    }
+    return null; // Giả lập token không hợp lệ hoặc hết hạn
+  });
+
+  console.log('=== Bắt đầu kiểm thử toàn diện Google Identity Services & Auth Sync ===\n');
+
+  // Test 1: Public endpoint GET /api/sync?action=auth_config trả về googleClientId
+  {
+    const { req, res } = createMockReqRes('GET', {}, { action: 'auth_config' });
+    await handler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.googleClientId, 'test-google-client-id.apps.googleusercontent.com');
+    console.log('✓ Test 1 Passed: Endpoint /api/sync?action=auth_config cung cấp đúng Google Client ID.');
+  }
+
+  // Test 2: Đăng nhập Google lần đầu (POST /api/sync?action=google_auth) -> Khởi tạo tài khoản tự động từ Google profile
   {
     const { req, res } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi1', state: { profile: { level: 3, totalCoinsEarned: 50 } } },
-      {},
-      { authorization: `Bearer ${tokenA}` }
+      { idToken: 'valid_google_token_user_a' },
+      { action: 'google_auth' }
     );
     await handler(req, res);
-    assert.strictEqual(res.statusCode, 200, 'User A đăng ký nickname hợp lệ phải thành công (200)');
+    assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.body.success, true);
-    console.log('✓ Test 1 Passed: User A đăng ký nickname "hiepsi1" thành công.');
+    assert.strictEqual(res.body.isNew, true, 'Lần đầu đăng nhập phải là tài khoản mới (isNew: true)');
+    assert.strictEqual(res.body.googleUser.sub, 'google_sub_user_a_1001');
+    assert.strictEqual(res.body.googleUser.email, 'hiepsi_a@gmail.com');
+    assert.strictEqual(res.body.state.profile.nickname, 'Hiệp Sĩ A', 'Tự động lấy Tên Google làm Nickname ban đầu');
+    assert.strictEqual(res.body.state.profile.avatar, 'https://lh3.googleusercontent.com/avatar_a.jpg', 'Tự động lấy Avatar Google');
+    assert.strictEqual(res.body.state.profile.role, 'adventurer');
+
+    // Kiểm tra đã lưu trên Redis
+    const saved = await mockRedis.get('levelup:user:google:google_sub_user_a_1001');
+    assert.notStrictEqual(saved, null, 'Dữ liệu phải được lưu theo key vĩnh viễn levelup:user:google:${sub}');
+    console.log('✓ Test 2 Passed: Đăng nhập Google tài khoản mới tự động sinh profile từ Google info.');
   }
 
-  // Test 2: User B cố tình dùng lại nickname "hiepsi1" với tokenB -> Bị từ chối 409 Conflict
+  // Test 3: Đăng nhập Google lại (Returning User) -> Khôi phục chính xác tài khoản đã có
   {
     const { req, res } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi1', state: { profile: { level: 1, totalCoinsEarned: 0 } } },
-      {},
-      { authorization: `Bearer ${tokenB}` }
+      { idToken: 'valid_google_token_user_a' },
+      { action: 'google_auth' }
     );
     await handler(req, res);
-    assert.strictEqual(res.statusCode, 409, 'User B không được phép chiếm nickname của User A (phải trả về 409 Conflict)');
-    assert.match(res.body.error, /đã có người sử dụng/i);
-    console.log('✓ Test 2 Passed: Chặn thành công User B cố tình lấy trùng nickname "hiepsi1" (409 Conflict).');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.isNew, false, 'Đăng nhập lại phải báo isNew: false');
+    assert.strictEqual(res.body.state.profile.nickname, 'Hiệp Sĩ A');
+    console.log('✓ Test 3 Passed: Đăng nhập lại nhận diện đúng người chơi cũ và tải lại dữ liệu.');
   }
 
-  // Test 3: User B cố tình đổi tên sang "hiepsi1" mà không có tokenA -> Bị từ chối 409 Conflict
+  // Test 4: Chặn Google Token không hợp lệ hoặc hết hạn (401 Unauthorized)
   {
     const { req, res } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi1', oldNickname: 'user_b_initial', state: { profile: { level: 1, totalCoinsEarned: 0 } } },
-      {},
-      { authorization: `Bearer ${tokenB}` }
+      { idToken: 'invalid_expired_token' },
+      { action: 'google_auth' }
     );
     await handler(req, res);
-    assert.strictEqual(res.statusCode, 409, 'Đổi tên sang nickname đã tồn tại phải bị từ chối (409 Conflict)');
-    console.log('✓ Test 3 Passed: Chặn đổi tên sang nickname đã tồn tại.');
+    assert.strictEqual(res.statusCode, 401, 'Token không hợp lệ phải trả về 401 Unauthorized');
+    assert.match(res.body.error, /không hợp lệ|hết hạn/i);
+    console.log('✓ Test 4 Passed: Chặn đứng Google ID Token không hợp lệ hoặc đã hết hạn.');
   }
 
-  // Test 4: Kiểm tra tính khả dụng check_nickname
-  {
-    // Với tokenA (chính chủ)
-    const { req: req1, res: res1 } = createMockReqRes(
-      'GET',
-      {},
-      { action: 'check_nickname', nickname: 'hiepsi1' },
-      { authorization: `Bearer ${tokenA}` }
-    );
-    await handler(req1, res1);
-    assert.strictEqual(res1.body.available, true, 'Chính chủ kiểm tra tên của mình phải báo available: true');
-    assert.strictEqual(res1.body.isOwner, true);
-
-    // Với tokenB (người khác)
-    const { req: req2, res: res2 } = createMockReqRes(
-      'GET',
-      {},
-      { action: 'check_nickname', nickname: 'hiepsi1' },
-      { authorization: `Bearer ${tokenB}` }
-    );
-    await handler(req2, res2);
-    assert.strictEqual(res2.body.available, false, 'Người khác kiểm tra tên đã có chủ phải báo available: false');
-    assert.strictEqual(res2.body.isOwner, false);
-
-    console.log('✓ Test 4 Passed: Endpoint check_nickname xác định đúng tính khả dụng và quyền sở hữu.');
-  }
-
-  // Test 5: User A đổi tên từ "hiepsi1" sang "hiepsi2" -> Thành công, xóa "hiepsi1"
+  // Test 5: Tải hồ sơ người dùng chính chủ qua Bearer Google Token (GET /api/sync)
   {
     const { req, res } = createMockReqRes(
-      'POST',
-      { nickname: 'hiepsi2', oldNickname: 'hiepsi1', state: { profile: { level: 3, totalCoinsEarned: 50 } } },
+      'GET',
       {},
-      { authorization: `Bearer ${tokenA}` }
+      {},
+      { authorization: 'Bearer valid_google_token_user_a' }
     );
     await handler(req, res);
-    assert.strictEqual(res.statusCode, 200, 'User A đổi tên chính chủ phải thành công');
-    assert.strictEqual(await mockRedis.get('levelup:user:hiepsi1'), null, 'Key cũ phải bị xóa');
-    assert.notStrictEqual(await mockRedis.get('levelup:user:hiepsi2'), null, 'Key mới phải tồn tại');
-    console.log('✓ Test 5 Passed: User A đổi tên thành công và key cũ được dọn dẹp sạch sẽ.');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.found, true);
+    assert.strictEqual(res.body.isOwner, true);
+    assert.strictEqual(res.body.data.profile.googleId, 'google_sub_user_a_1001');
+    console.log('✓ Test 5 Passed: Tải hồ sơ chính chủ qua Authorization: Bearer <GoogleToken> thành công.');
   }
 
-  // Test 6: Nickname cũ "hiepsi1" sau khi User A đổi đã được giải phóng -> User B có thể đăng ký
+  // Test 6: Cách ly dữ liệu tuyệt đối giữa 2 tài khoản Google
   {
+    // User B chưa từng lưu dữ liệu
+    const { req, res } = createMockReqRes(
+      'GET',
+      {},
+      {},
+      { authorization: 'Bearer valid_google_token_user_b' }
+    );
+    await handler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.found, false, 'User B chưa lưu dữ liệu nên found phải là false');
+    assert.strictEqual(res.body.data, undefined, 'Server không trả về data của User A cho User B');
+    console.log('✓ Test 6 Passed: Cách ly dữ liệu cá nhân tuyệt đối giữa các tài khoản Google khác nhau.');
+  }
+
+  // Test 7: Đồng bộ tiến trình Cloud (POST /api/sync) và cập nhật Leaderboard
+  {
+    const updatedState = {
+      profile: {
+        nickname: 'Hiệp Sĩ A',
+        level: 5,
+        totalCoinsEarned: 250,
+        avatar: '🏹'
+      },
+      quests: [{ id: 'q1', title: 'Luyện kiếm', completed: true }]
+    };
+
     const { req, res } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi1', state: { profile: { level: 1, totalCoinsEarned: 10 } } },
+      { nickname: 'Hiệp Sĩ A', state: updatedState },
       {},
-      { authorization: `Bearer ${tokenB}` }
+      { authorization: 'Bearer valid_google_token_user_a' }
     );
     await handler(req, res);
-    assert.strictEqual(res.statusCode, 200, 'User B được phép dùng "hiepsi1" vì User A đã chuyển sang tên mới');
-    console.log('✓ Test 6 Passed: Nickname cũ được giải phóng hoàn toàn sau khi đổi tên.');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.googleId, 'google_sub_user_a_1001');
+
+    // Kiểm tra điểm Leaderboard: (level * 1000) + totalCoinsEarned = (5 * 1000) + 250 = 5250
+    const top = await mockRedis.zrevrange('levelup:leaderboard', 0, 0, 'WITHSCORES');
+    assert.strictEqual(top[0], 'google_sub_user_a_1001', 'Thành viên Leaderboard được định danh theo Google sub');
+    assert.strictEqual(top[1], '5250', 'Điểm số được tính chính xác (5250)');
+    console.log('✓ Test 7 Passed: Đồng bộ game state thành công và cập nhật điểm số Leaderboard theo Google Sub.');
   }
 
-  // Test 7: Phân quyền Admin - Chỉ Admin thật mới có quyền dọn dẹp user trên Leaderboard
+  // Test 8: Đăng ký User B và kiểm tra chống trùng lặp Nickname
   {
-    // User B cố gọi admin_remove với nickname của mình
-    const { req: reqFail, res: resFail } = createMockReqRes(
+    // Trước tiên User B đăng nhập Google
+    const { req: reqAuthB, res: resAuthB } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi1', targetNickname: 'hiepsi2' },
-      { action: 'admin_remove' },
-      { authorization: `Bearer ${tokenB}` }
+      { idToken: 'valid_google_token_user_b' },
+      { action: 'google_auth' }
     );
-    await handler(reqFail, resFail);
-    assert.strictEqual(resFail.statusCode, 403, 'User thường không được gọi chức năng Admin (403)');
+    await handler(reqAuthB, resAuthB);
+    assert.strictEqual(resAuthB.statusCode, 200);
 
-    // User B cố mạo danh nickname "admin" nhưng dùng tokenB giả mạo
-    const { req: reqImpersonate, res: resImpersonate } = createMockReqRes(
+    // User B cố tình đồng bộ đổi tên thành "Hiệp Sĩ A" (đã thuộc về User A) -> Bị từ chối 409 Conflict
+    const { req: reqConflict, res: resConflict } = createMockReqRes(
       'POST',
-      { nickname: 'admin', targetNickname: 'hiepsi2' },
-      { action: 'admin_remove' },
-      { authorization: `Bearer ${tokenB}` }
+      {
+        nickname: 'Hiệp Sĩ A',
+        state: { profile: { nickname: 'Hiệp Sĩ A', level: 1, totalCoinsEarned: 10 } }
+      },
+      {},
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
-    await handler(reqImpersonate, resImpersonate);
-    assert.strictEqual(resImpersonate.statusCode, 403, 'Mạo danh Admin với sai Token phải bị từ chối 403');
+    await handler(reqConflict, resConflict);
+    assert.strictEqual(resConflict.statusCode, 409, 'Trùng nickname với tài khoản Google khác phải trả về 409');
+    assert.match(resConflict.body.error, /đã có người sử dụng/i);
 
-    // Admin thật gọi admin_remove
-    const { req: reqAdmin, res: resAdmin } = createMockReqRes(
-      'POST',
-      { nickname: 'admin', targetNickname: 'hiepsi1' },
-      { action: 'admin_remove' },
-      { authorization: `Bearer ${adminToken}` }
-    );
-    await handler(reqAdmin, resAdmin);
-    assert.strictEqual(resAdmin.statusCode, 200, 'Admin gọi thành công');
-    assert.strictEqual(await mockRedis.get('levelup:user:hiepsi1'), null, 'Target user đã bị Admin xóa');
-    console.log('✓ Test 7 Passed: Phân quyền Admin hoạt động chính xác (chặn user thường và chặn mạo danh 403, cho phép Admin thật).');
-  }
-
-  // Test 8: Tìm và chuyển tài khoản bằng Token (action: find_by_token)
-  {
-    // Tìm với tokenA (thuộc về hiepsi2)
-    const { req: reqFound, res: resFound } = createMockReqRes(
+    // Kiểm tra endpoint check_nickname
+    const { req: reqChkOwner, res: resChkOwner } = createMockReqRes(
       'GET',
       {},
-      { action: 'find_by_token' },
-      { authorization: `Bearer ${tokenA}` }
+      { action: 'check_nickname', nickname: 'Hiệp Sĩ A' },
+      { authorization: 'Bearer valid_google_token_user_a' }
     );
-    await handler(reqFound, resFound);
-    assert.strictEqual(resFound.statusCode, 200, 'Tìm bằng tokenA phải thành công');
-    assert.strictEqual(resFound.body.found, true);
-    assert.strictEqual(resFound.body.nickname, 'hiepsi2');
+    await handler(reqChkOwner, resChkOwner);
+    assert.strictEqual(resChkOwner.body.available, true, 'Chính chủ User A kiểm tra tên của mình phải available: true');
+    assert.strictEqual(resChkOwner.body.isOwner, true);
 
-    // Tìm với token không tồn tại
-    const { req: reqNotFound, res: resNotFound } = createMockReqRes(
+    const { req: reqChkOther, res: resChkOther } = createMockReqRes(
       'GET',
       {},
-      { action: 'find_by_token' },
-      { authorization: 'Bearer token_khong_ton_tai_12345678' }
+      { action: 'check_nickname', nickname: 'Hiệp Sĩ A' },
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
-    await handler(reqNotFound, resNotFound);
-    assert.strictEqual(resNotFound.statusCode, 404, 'Token không tồn tại phải trả về 404');
-    assert.strictEqual(resNotFound.body.found, false);
-    console.log('✓ Test 8 Passed: Tìm và chuyển tài khoản tự động bằng Token (find_by_token) hoạt động chính xác.');
+    await handler(reqChkOther, resChkOther);
+    assert.strictEqual(resChkOther.body.available, false, 'User B kiểm tra tên đã có chủ phải available: false');
+    assert.strictEqual(resChkOther.body.isOwner, false);
+
+    console.log('✓ Test 8 Passed: Chống trùng lặp Nickname và bảo vệ quyền sở hữu tên người chơi (409 Conflict).');
   }
 
-  // Test 9: Cách ly dữ liệu cá nhân (Data Isolation & Privacy)
+  // Test 9: Đổi Nickname và giải phóng tên cũ cho người khác sử dụng
   {
-    // User B cố đọc trộm dữ liệu cá nhân của User A (hiepsi2) qua GET /api/sync
-    const { req: reqSnoop, res: resSnoop } = createMockReqRes(
-      'GET',
+    // User A đổi tên từ "Hiệp Sĩ A" sang "Hiệp Sĩ Rồng"
+    const { req: reqRenameA, res: resRenameA } = createMockReqRes(
+      'POST',
+      {
+        nickname: 'Hiệp Sĩ Rồng',
+        oldNickname: 'Hiệp Sĩ A',
+        state: { profile: { nickname: 'Hiệp Sĩ Rồng', level: 5, totalCoinsEarned: 250 } }
+      },
       {},
-      { nickname: 'hiepsi2' },
-      { authorization: `Bearer ${tokenB}` }
+      { authorization: 'Bearer valid_google_token_user_a' }
     );
-    await handler(reqSnoop, resSnoop);
-    assert.strictEqual(resSnoop.statusCode, 200);
-    assert.strictEqual(resSnoop.body.isOwner, false, 'User B không phải chủ sở hữu');
-    assert.strictEqual(resSnoop.body.data, undefined, 'Server TUYỆT ĐỐI không được trả về data bí mật (quests, habits) cho người khác');
-    assert.notStrictEqual(resSnoop.body.profile, undefined, 'Chỉ được phép trả về thông tin public profile');
-    console.log('✓ Test 9 Passed: Cách ly dữ liệu cá nhân tuyệt đối giữa các người chơi.');
+    await handler(reqRenameA, resRenameA);
+    assert.strictEqual(resRenameA.statusCode, 200);
+
+    // User B giờ đây có thể lấy tên cũ "Hiệp Sĩ A" vì User A đã giải phóng
+    const { req: reqClaimB, res: resClaimB } = createMockReqRes(
+      'POST',
+      {
+        nickname: 'Hiệp Sĩ A',
+        state: { profile: { nickname: 'Hiệp Sĩ A', level: 2, totalCoinsEarned: 40 } }
+      },
+      {},
+      { authorization: 'Bearer valid_google_token_user_b' }
+    );
+    await handler(reqClaimB, resClaimB);
+    assert.strictEqual(resClaimB.statusCode, 200, 'User B được phép nhận lại nickname cũ đã giải phóng');
+    console.log('✓ Test 9 Passed: Đổi tên thành công và giải phóng nickname cũ không để lại key rác.');
   }
 
-  // Test 10: Chống leo thang đặc quyền (Privilege Escalation Defense)
+  // Test 10: Phân quyền Quản trị viên (Admin) tự động qua ADMIN_EMAILS
   {
-    // User B cố tự gán role: 'admin' trong payload
+    // Đăng nhập tài khoản Google có email nằm trong ADMIN_EMAILS
+    const { req: reqAdminAuth, res: resAdminAuth } = createMockReqRes(
+      'POST',
+      { idToken: 'valid_google_token_admin' },
+      { action: 'google_auth' }
+    );
+    await handler(reqAdminAuth, resAdminAuth);
+    assert.strictEqual(resAdminAuth.statusCode, 200);
+    assert.strictEqual(resAdminAuth.body.role, 'admin', 'Email trong ADMIN_EMAILS phải được cấp quyền admin');
+
+    // Thử nghiệm ngăn chặn Privilege Escalation: User B tự sửa payload gán role: 'admin'
     const { req: reqEscalate, res: resEscalate } = createMockReqRes(
       'POST',
-      { nickname: 'hiepsi_hacker', state: { profile: { role: 'admin', level: 1 } } },
+      {
+        nickname: 'Hiệp Sĩ Hacker',
+        state: { profile: { role: 'admin', level: 1 } }
+      },
       {},
-      { authorization: `Bearer ${tokenB}` }
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
     await handler(reqEscalate, resEscalate);
     assert.strictEqual(resEscalate.statusCode, 200);
-    assert.strictEqual(resEscalate.body.role, 'adventurer', 'Role phải bị khóa ở adventurer, không thể tự phong Admin');
-    console.log('✓ Test 10 Passed: Chặn đứng hành vi tự phong Admin (Privilege Escalation).');
+    assert.strictEqual(resEscalate.body.role, 'adventurer', 'User B không thể tự thăng cấp Admin nếu email không trong ADMIN_EMAILS');
+    console.log('✓ Test 10 Passed: Phân quyền Admin tự động qua Google Email và chặn đứng leo thang đặc quyền.');
   }
 
   // Test 11: Bảo vệ biệt danh quản trị (Admin Nickname Defense)
   {
-    // User B cố đăng ký tên "admin" bằng token thường
-    const { req: reqStealAdmin, res: resStealAdmin } = createMockReqRes(
+    // User B cố tình đăng ký nickname "admin" hoặc "guildmaster"
+    const { req: reqClaimAdminNick, res: resClaimAdminNick } = createMockReqRes(
       'POST',
-      { nickname: 'admin', state: { profile: { level: 99 } } },
+      {
+        nickname: 'admin',
+        state: { profile: { nickname: 'admin', level: 1 } }
+      },
       {},
-      { authorization: `Bearer ${tokenB}` }
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
-    await handler(reqStealAdmin, resStealAdmin);
-    assert.strictEqual(resStealAdmin.statusCode, 403, 'Không có ADMIN_TOKEN thì không được chiếm tên admin');
+    await handler(reqClaimAdminNick, resClaimAdminNick);
+    assert.strictEqual(resClaimAdminNick.statusCode, 403, 'User thường không được dùng nickname Admin (403)');
 
-    // Kiểm tra check_nickname cho "admin"
-    const { req: reqCheckAdmin, res: resCheckAdmin } = createMockReqRes(
+    // Kiểm tra check_nickname với nickname bảo lưu
+    const { req: reqChkAdmin, res: resChkAdmin } = createMockReqRes(
       'GET',
       {},
-      { action: 'check_nickname', nickname: 'admin' },
-      { authorization: `Bearer ${tokenB}` }
+      { action: 'check_nickname', nickname: 'guildmaster' },
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
-    await handler(reqCheckAdmin, resCheckAdmin);
-    assert.strictEqual(resCheckAdmin.body.available, false, 'check_nickname phải báo admin không khả dụng với user thường');
-    console.log('✓ Test 11 Passed: Bảo vệ toàn diện biệt danh quản trị viên khỏi bị đăng ký trái phép.');
+    await handler(reqChkAdmin, resChkAdmin);
+    assert.strictEqual(resChkAdmin.body.available, false);
+    console.log('✓ Test 11 Passed: Bảo vệ toàn diện các biệt danh Quản trị viên khỏi bị đăng ký trái phép.');
   }
 
-  // Test 12: Bảo toàn tên hiển thị có dấu / viết hoa khi khôi phục bằng Token trên thiết bị mới
+  // Test 12: Thao tác Quản trị viên admin_remove (Xóa tài khoản gian lận)
   {
-    const tokenC = 'token_user_c_abcdef1234567890';
-    const originalNick = 'Hiệp Sĩ Đấu Trường';
-
-    // Đăng ký tài khoản với tên có dấu tiếng Việt
-    const { req: reqRegister, res: resRegister } = createMockReqRes(
+    // User B cố tình gọi admin_remove -> 403
+    const { req: reqFailRemove, res: resFailRemove } = createMockReqRes(
       'POST',
-      { nickname: originalNick, state: { profile: { nickname: originalNick, level: 5, coins: 100 } } },
-      {},
-      { authorization: `Bearer ${tokenC}` }
+      { targetSub: 'google_sub_user_a_1001' },
+      { action: 'admin_remove' },
+      { authorization: 'Bearer valid_google_token_user_b' }
     );
-    await handler(reqRegister, resRegister);
-    assert.strictEqual(resRegister.statusCode, 200, 'Đăng ký tên tiếng Việt có dấu phải thành công');
+    await handler(reqFailRemove, resFailRemove);
+    assert.strictEqual(resFailRemove.statusCode, 403, 'User thường gọi admin_remove phải bị từ chối 403');
 
-    // Khôi phục bằng Token trên thiết bị mới (action: find_by_token)
-    const { req: reqRecover, res: resRecover } = createMockReqRes(
-      'GET',
-      {},
-      { action: 'find_by_token' },
-      { authorization: `Bearer ${tokenC}` }
+    // Admin thật gọi admin_remove xóa tài khoản User A
+    const { req: reqOkRemove, res: resOkRemove } = createMockReqRes(
+      'POST',
+      { targetSub: 'google_sub_user_a_1001' },
+      { action: 'admin_remove' },
+      { authorization: 'Bearer valid_google_token_admin' }
     );
-    await handler(reqRecover, resRecover);
-    assert.strictEqual(resRecover.statusCode, 200);
-    assert.strictEqual(resRecover.body.found, true);
-    assert.strictEqual(resRecover.body.nickname, originalNick, 'Tên trả về từ find_by_token phải giữ nguyên gốc tiếng Việt có dấu, không bị méo mó');
-    assert.strictEqual(resRecover.body.data.profile.nickname, originalNick, 'Tên trong profile state cũng phải giữ nguyên');
-    console.log('✓ Test 12 Passed: Khôi phục bằng Token bảo toàn chính xác 100% tên tài khoản có dấu / viết hoa.');
+    await handler(reqOkRemove, resOkRemove);
+    assert.strictEqual(resOkRemove.statusCode, 200);
+    assert.strictEqual(resOkRemove.body.success, true);
+
+    const userADeleted = await mockRedis.get('levelup:user:google:google_sub_user_a_1001');
+    assert.strictEqual(userADeleted, null, 'Tài khoản mục tiêu phải bị xóa khỏi Redis');
+    console.log('✓ Test 12 Passed: Chức năng admin_remove hoạt động chính xác với xác thực Admin Google.');
   }
 
-  // Test 13: Leaderboard loại bỏ duplicate do đổi tên hoặc key cũ, dọn sạch key mồ côi
+  // Test 13: Bảng xếp hạng Leaderboard hiển thị đầy đủ và không bị trùng lặp
   {
-    const tokenD = 'token_user_d_dedup1234567890';
-    // Giả lập 2 key cũ và mới cùng trỏ về 1 token (như trường hợp sanitize đổi từ khitrn sang khoitran)
-    await mockRedis.set('levelup:user:khitrn_old', JSON.stringify({
-      ownerToken: tokenD,
-      profile: { nickname: 'Khôi Trần', level: 1, totalCoinsEarned: 20 }
-    }));
-    await mockRedis.set('levelup:user:khoitran_new', JSON.stringify({
-      ownerToken: tokenD,
-      profile: { nickname: 'Khôi Trần', level: 1, totalCoinsEarned: 30 }
-    }));
-    await mockRedis.zadd('levelup:leaderboard', 1030, 'khoitran_new');
-    await mockRedis.zadd('levelup:leaderboard', 1020, 'khitrn_old');
-
-    // Gọi API leaderboard
     const { req: reqLb, res: resLb } = createMockReqRes('GET', {}, { action: 'leaderboard' });
     await handler(reqLb, resLb);
-
     assert.strictEqual(resLb.statusCode, 200);
-    const list = resLb.body.leaderboard;
-    const duplicates = list.filter(u => u.nickname === 'Khôi Trần');
-    assert.strictEqual(duplicates.length, 1, 'Bảng xếp hạng chỉ được giữ 1 bản ghi duy nhất có điểm cao nhất cho 1 tài khoản');
-    assert.strictEqual(duplicates[0].score, 1030, 'Bản ghi được giữ phải là bản ghi điểm cao nhất');
-
-    // Kiểm tra key cũ đã bị zrem khỏi leaderboard
-    const oldStillInLb = await mockRedis.zrem('levelup:leaderboard', 'khitrn_old');
-    assert.strictEqual(oldStillInLb, 0, 'Bản ghi cũ phải được tự động zrem dọn dẹp khỏi sorted set');
-    console.log('✓ Test 13 Passed: Tự động khử trùng lặp và dọn dẹp key mồ côi trên Bảng Xếp Hạng.');
+    assert.strictEqual(Array.isArray(resLb.body.leaderboard), true);
+    // User B còn lại trên leaderboard
+    const foundB = resLb.body.leaderboard.find(u => u.key === 'google_sub_user_b_2002');
+    assert.notStrictEqual(foundB, undefined, 'User B phải có mặt trên Bảng Xếp Hạng');
+    assert.strictEqual(foundB.nickname, 'Hiệp Sĩ Hacker');
+    console.log('✓ Test 13 Passed: Bảng xếp hạng Leaderboard sắp xếp đúng điểm và thông tin hiển thị.');
   }
 
-  console.log('\n🎉 TẤT CẢ 13 TEST PHÂN QUYỀN VÀ BẢO VỆ DỮ LIỆU ĐÃ VƯỢT QUA TOÀN DIỆN!');
+  console.log('\n🎉 TẤT CẢ 13/13 TEST GOOGLE AUTHENTICATION & SYNC ĐÃ VƯỢT QUA XUẤT SẮC!');
 }
 
-runAuthTests().catch(err => {
-  console.error('❌ Test thất bại:', err);
+runGoogleAuthTests().catch((err) => {
+  console.error('\n❌ TEST THẤT BẠI:', err);
   process.exit(1);
 });

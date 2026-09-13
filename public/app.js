@@ -117,6 +117,10 @@ const DEFAULT_STATE = {
     theme: 'dark',
     role: 'adventurer',
     token: '',
+    googleId: '',
+    googleEmail: '',
+    googlePicture: '',
+    googleToken: '',
     hasOnboarded: false
   },
   quests: [
@@ -282,7 +286,7 @@ async function syncWithCloud(isManual = false) {
 
   const nick = appState.profile.nickname;
   if (!nick) return;
-  const token = getOrCreateUserToken();
+  const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
 
   try {
     const res = await fetch('/api/sync', {
@@ -295,6 +299,7 @@ async function syncWithCloud(isManual = false) {
         nickname: nick,
         oldNickname: appState.pendingOldNickname,
         token: token,
+        idToken: appState.profile.googleToken || token,
         state: appState
       })
     });
@@ -312,7 +317,11 @@ async function syncWithCloud(isManual = false) {
       if (isManual) showToast('Đồng bộ Cloud thành công!', 'success');
     } else {
       const errData = await res.json().catch(() => ({}));
-      if (res.status === 409 || res.status === 403) {
+      if (res.status === 401) {
+        if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
+        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        if (isManual) showToast('Phiên đăng nhập Google đã hết hạn. Vui lòng đăng nhập lại!', 'error');
+      } else if (res.status === 409 || res.status === 403) {
         showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
         if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
@@ -339,34 +348,36 @@ function triggerSave(needsCloud = true) {
   }
 }
 
-async function loadFromCloud(nickname, tokenOverride = null) {
+async function loadFromCloud(tokenOverride = null) {
   try {
     showToast('Đang tải dữ liệu từ Cloud...', 'info');
-    const token = tokenOverride || getOrCreateUserToken();
-    const res = await fetch(`/api/sync?nickname=${encodeURIComponent(nickname)}&token=${encodeURIComponent(token)}`);
+    const token = tokenOverride || appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
+    const res = await fetch(`/api/sync`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Không thể tải hồ sơ');
+      throw new Error(err.error || 'Không thể tải hồ sơ từ Cloud');
     }
     const result = await res.json();
-    if (result.found && result.isOwner && result.data) {
+    if (result.found && result.data) {
       appState = normalizeObjectNFC({
         ...DEFAULT_STATE,
         ...result.data,
         profile: {
           ...DEFAULT_STATE.profile,
           ...(result.data.profile || {}),
-          token // retain device token
+          googleToken: appState.profile.googleToken || token
         }
       });
       saveLocalState();
       applyTheme(appState.profile.theme || 'dark');
       renderAll();
-      showToast(`Đã tải hồ sơ "${nickname}" từ Cloud!`, 'success');
-    } else if (result.found && !result.isOwner) {
-      showToast('Bạn không sở hữu tài khoản này! Cần nhập đúng Mã Token để tải dữ liệu.', 'error');
+      showToast(`Đã tải hồ sơ từ Cloud thành công!`, 'success');
     } else {
-      showToast(`Không tìm thấy hồ sơ cũ, bắt đầu mới với "${nickname}"`, 'info');
+      showToast('Chưa có bản lưu nào trên Cloud. Đang bắt đầu với dữ liệu hiện tại.', 'info');
       triggerSave(true);
     }
   } catch (e) {
@@ -374,54 +385,73 @@ async function loadFromCloud(nickname, tokenOverride = null) {
   }
 }
 
-async function switchAccountByToken(token) {
-  const cleanToken = (token || '').trim();
-  if (!cleanToken || cleanToken.length < 8) {
-    showToast('Mã Token không hợp lệ!', 'error');
-    return { success: false, error: 'Mã Token không hợp lệ' };
-  }
-
-  showToast('Đang nhận diện Token và chuyển tài khoản...', 'info');
-
-  try {
-    const res = await fetch(`/api/sync?action=find_by_token&token=${encodeURIComponent(cleanToken)}`);
-    const resData = await res.json().catch(() => ({}));
-    if (!res.ok || !resData.found) {
-      const errMsg = resData.error || 'Không tìm thấy tài khoản tương ứng với Token này.';
-      showToast(errMsg, 'error');
-      return { success: false, error: errMsg };
-    }
-
-    // Dọn dẹp phiên tập trung của tài khoản cũ trước khi chuyển
-    clearFocusTimerSession();
-
-    // Cập nhật toàn bộ dữ liệu người dùng (giữ nguyên tên hiển thị gốc nếu có)
-    const displayNickname = resData.data?.profile?.nickname || resData.nickname;
-    appState = normalizeObjectNFC({
-      ...DEFAULT_STATE,
-      ...resData.data,
-      profile: {
-        ...DEFAULT_STATE.profile,
-        ...(resData.data.profile || {}),
-        nickname: displayNickname,
-        role: resData.role || 'adventurer',
-        token: cleanToken,
-        hasOnboarded: true
+function logoutGoogle() {
+  confirmAction({
+    title: 'ĐĂNG XUẤT TÀI KHOẢN',
+    message: 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Google này? Dữ liệu đã đồng bộ trên đám mây sẽ được bảo toàn nguyên vẹn.',
+    confirmText: 'Đăng Xuất',
+    icon: '🚪',
+    btnColor: 'rose',
+    onConfirm: () => {
+      if (window.google?.accounts?.id) {
+        try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
       }
-    });
-    localStorage.setItem('levelup_onboarded', 'true');
-    saveLocalState();
-    applyTheme(appState.profile.theme || 'dark');
-    renderAll();
+      localStorage.removeItem('levelup_onboarded');
+      clearFocusTimerSession();
+      appState = {
+        ...DEFAULT_STATE,
+        profile: {
+          ...DEFAULT_STATE.profile,
+          nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
+          googleId: '',
+          googleEmail: '',
+          googlePicture: '',
+          googleToken: '',
+          hasOnboarded: false
+        }
+      };
+      saveLocalState();
+      closeModal('modal-profile');
+      renderAll();
+      openModal('modal-welcome');
+      renderGoogleSignInButton();
+      showToast('Đã đăng xuất tài khoản Google.', 'info');
+    }
+  });
+}
 
-    closeModal('modal-welcome');
-    closeModal('modal-profile');
-    showToast(`Đã tự động chuyển sang tài khoản "${displayNickname}"!`, 'success');
-    return { success: true, nickname: displayNickname };
-  } catch (err) {
-    showToast('Lỗi khi chuyển tài khoản: ' + err.message, 'error');
-    return { success: false, error: err.message };
-  }
+function switchGoogleAccount() {
+  confirmAction({
+    title: 'ĐỔI TÀI KHOẢN GOOGLE',
+    message: 'Hệ thống sẽ đăng xuất tài khoản hiện tại và đưa bạn về màn hình đăng nhập Google để chọn tài khoản khác.',
+    confirmText: 'Đổi Tài Khoản',
+    icon: '🔄',
+    btnColor: 'amber',
+    onConfirm: () => {
+      if (window.google?.accounts?.id) {
+        try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
+      }
+      localStorage.removeItem('levelup_onboarded');
+      clearFocusTimerSession();
+      appState = {
+        ...DEFAULT_STATE,
+        profile: {
+          ...DEFAULT_STATE.profile,
+          googleId: '',
+          googleEmail: '',
+          googlePicture: '',
+          googleToken: '',
+          hasOnboarded: false
+        }
+      };
+      saveLocalState();
+      closeModal('modal-profile');
+      renderAll();
+      openModal('modal-welcome');
+      renderGoogleSignInButton();
+      showToast('Vui lòng đăng nhập tài khoản Google mới.', 'info');
+    }
+  });
 }
 
 // =============================================================================
@@ -2260,7 +2290,7 @@ async function fetchLeaderboard() {
           });
           if (!ok) return;
           try {
-            const token = getOrCreateUserToken();
+            const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
             const res = await fetch('/api/sync?action=admin_remove', {
               method: 'POST',
               headers: {
@@ -2269,7 +2299,8 @@ async function fetchLeaderboard() {
               },
               body: JSON.stringify({
                 nickname: appState.profile.nickname,
-                targetNickname: target
+                targetNickname: target,
+                targetSub: u.key || target
               })
             });
             if (res.ok) {
@@ -2742,8 +2773,7 @@ function openModal(id) {
 
 function closeModal(id) {
   if (id === 'modal-welcome') {
-    const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile.hasOnboarded && appState.profile.nickname);
-    if (!isOnboarded) return;
+    if (!checkIsOnboarded()) return;
   }
   const modal = document.getElementById(id);
   if (modal) modal.classList.add('hidden');
@@ -2773,13 +2803,186 @@ function renderMarkdown(text) {
 }
 
 function checkIsOnboarded() {
-  return localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile && appState.profile.hasOnboarded && appState.profile.nickname);
+  const hasLocal = localStorage.getItem('levelup_onboarded') === 'true';
+  const hasProfile = Boolean(appState.profile && (appState.profile.googleId || appState.profile.hasOnboarded) && appState.profile.nickname);
+  return hasLocal || hasProfile;
+}
+
+let googleClientIdCache = null;
+
+async function fetchGoogleClientId() {
+  if (googleClientIdCache !== null) return googleClientIdCache;
+  try {
+    const res = await fetch('/api/sync?action=auth_config');
+    if (res.ok) {
+      const data = await res.json();
+      googleClientIdCache = (data.googleClientId || '').trim();
+      return googleClientIdCache;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch auth config:', err);
+  }
+  googleClientIdCache = '';
+  return googleClientIdCache;
+}
+
+async function handleGoogleCredentialResponse(response) {
+  const idToken = response?.credential;
+  if (!idToken) {
+    showToast('Không nhận được mã xác thực từ Google!', 'error');
+    return;
+  }
+
+  const errEl = document.getElementById('welcome-google-error');
+  const loadingEl = document.getElementById('google-signin-loading');
+  if (errEl) errEl.classList.add('hidden');
+  if (loadingEl) {
+    loadingEl.classList.remove('hidden');
+    const loadingText = loadingEl.querySelector('span:last-child');
+    if (loadingText) loadingText.textContent = 'Đang xác thực với máy chủ...';
+  }
+
+  try {
+    const res = await fetch('/api/sync?action=google_auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errMsg = data.error || 'Xác thực Google thất bại. Vui lòng thử lại!';
+      if (errEl) {
+        errEl.textContent = errMsg;
+        errEl.classList.remove('hidden');
+      }
+      showToast(errMsg, 'error');
+      if (loadingEl) loadingEl.classList.add('hidden');
+      return;
+    }
+
+    const { isNew, role, googleUser, state } = data;
+
+    if (state) {
+      appState = normalizeObjectNFC({
+        ...DEFAULT_STATE,
+        ...state,
+        profile: {
+          ...DEFAULT_STATE.profile,
+          ...(state.profile || {}),
+          googleId: googleUser.sub,
+          googleEmail: googleUser.email,
+          googlePicture: googleUser.picture || state.profile?.googlePicture || '',
+          googleToken: idToken,
+          role: role || 'adventurer',
+          hasOnboarded: true
+        }
+      });
+    } else {
+      appState.profile.googleId = googleUser.sub;
+      appState.profile.googleEmail = googleUser.email;
+      appState.profile.googlePicture = googleUser.picture;
+      appState.profile.googleToken = idToken;
+      appState.profile.role = role || 'adventurer';
+      appState.profile.hasOnboarded = true;
+      if (!appState.profile.nickname) {
+        appState.profile.nickname = googleUser.name || googleUser.email.split('@')[0];
+      }
+      if (googleUser.picture && (!appState.profile.avatar || appState.profile.avatar === '⚔️')) {
+        appState.profile.avatar = googleUser.picture;
+      }
+    }
+
+    localStorage.setItem('levelup_onboarded', 'true');
+    saveLocalState();
+    applyTheme(appState.profile.theme || 'dark');
+    renderAll();
+    closeModal('modal-welcome');
+
+    if (loadingEl) loadingEl.classList.add('hidden');
+
+    if (isNew) {
+      showToast(`Chào mừng Hiệp Sĩ ${appState.profile.nickname} gia nhập LevelUp!`, 'success');
+      setTimeout(() => startInteractiveTour(true), 350);
+    } else {
+      showToast(`Chào mừng trở lại, ${appState.profile.nickname}!`, 'success');
+    }
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = 'Lỗi kết nối khi xác thực: ' + err.message;
+      errEl.classList.remove('hidden');
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+    if (loadingEl) loadingEl.classList.add('hidden');
+  }
+}
+
+async function renderGoogleSignInButton() {
+  const container = document.getElementById('google-signin-btn-container');
+  const loadingEl = document.getElementById('google-signin-loading');
+  const errEl = document.getElementById('welcome-google-error');
+
+  if (!container) return;
+  container.innerHTML = '';
+  if (loadingEl) loadingEl.classList.remove('hidden');
+  if (errEl) errEl.classList.add('hidden');
+
+  const clientId = await fetchGoogleClientId();
+
+  if (!clientId) {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (errEl) {
+      errEl.innerHTML = '<strong>Chưa cấu hình GOOGLE_CLIENT_ID:</strong><br>Vui lòng điền <code>GOOGLE_CLIENT_ID</code> vào file <code>.env</code> để kích hoạt đăng nhập Google Identity Services.';
+      errEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  let attempts = 0;
+  const checkGis = setInterval(() => {
+    attempts++;
+    if (window.google?.accounts?.id) {
+      clearInterval(checkGis);
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: false
+        });
+
+        window.google.accounts.id.renderButton(container, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'pill',
+          width: Math.min(280, window.innerWidth - 64)
+        });
+
+        if (loadingEl) loadingEl.classList.add('hidden');
+      } catch (e) {
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (errEl) {
+          errEl.textContent = 'Không thể hiển thị nút Google Sign-In: ' + e.message;
+          errEl.classList.remove('hidden');
+        }
+      }
+    } else if (attempts > 30) {
+      clearInterval(checkGis);
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (errEl) {
+        errEl.innerHTML = 'Không thể tải Google Identity Services SDK.<br>Vui lòng kiểm tra kết nối mạng hoặc thử lại.';
+        errEl.classList.remove('hidden');
+      }
+    }
+  }, 100);
 }
 
 function initWelcomeModal() {
   if (checkIsOnboarded()) return;
 
   openModal('modal-welcome');
+  renderGoogleSignInButton();
 
   // Anti-DevTools 1: MutationObserver theo dõi thời gian thực nếu modal bị xóa class hidden bằng F12
   const welcomeModal = document.getElementById('modal-welcome');
@@ -2800,7 +3003,7 @@ function initWelcomeModal() {
     e.preventDefault();
     e.stopPropagation();
     openModal('modal-welcome');
-    showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'error');
+    showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'error');
   }, true);
 
   // Anti-DevTools 3: Chặn phím tắt gõ vào trang nếu chưa onboard
@@ -2811,146 +3014,30 @@ function initWelcomeModal() {
     e.stopPropagation();
   }, true);
 
+  const tabLogin = document.getElementById('btn-tab-welcome-login');
   const tabIntro = document.getElementById('btn-tab-welcome-intro');
-  const tabNew = document.getElementById('btn-tab-welcome-new');
-  const tabReturning = document.getElementById('btn-tab-welcome-returning');
+  const panelLogin = document.getElementById('welcome-panel-login');
   const panelIntro = document.getElementById('welcome-panel-intro');
-  const panelNew = document.getElementById('welcome-panel-new');
-  const panelReturning = document.getElementById('welcome-panel-returning');
-  const btnGotoNickname = document.getElementById('btn-welcome-goto-nickname');
-  const errNew = document.getElementById('welcome-new-error');
-  const errReturning = document.getElementById('welcome-token-error');
+  const btnGotoLogin = document.getElementById('btn-welcome-goto-login');
 
   function setWelcomeTab(tab) {
-    const tabs = [
-      { id: 'intro', tabEl: tabIntro, panelEl: panelIntro },
-      { id: 'new', tabEl: tabNew, panelEl: panelNew },
-      { id: 'returning', tabEl: tabReturning, panelEl: panelReturning }
-    ];
-
-    tabs.forEach(t => {
-      if (!t.tabEl || !t.panelEl) return;
-      if (t.id === tab) {
-        t.tabEl.className = 'py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm font-bold';
-        t.panelEl.classList.remove('hidden');
-      } else {
-        t.tabEl.className = 'py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200 font-bold';
-        t.panelEl.classList.add('hidden');
-      }
-    });
-
-    if (tab === 'new') {
-      const input = document.getElementById('input-welcome-nickname');
-      if (input) setTimeout(() => input.focus(), 50);
-    } else if (tab === 'returning') {
-      const input = document.getElementById('input-welcome-token');
-      if (input) setTimeout(() => input.focus(), 50);
+    if (tab === 'login') {
+      if (tabLogin) tabLogin.className = 'py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm font-bold';
+      if (tabIntro) tabIntro.className = 'py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
+      if (panelLogin) panelLogin.classList.remove('hidden');
+      if (panelIntro) panelIntro.classList.add('hidden');
+      renderGoogleSignInButton();
+    } else {
+      if (tabLogin) tabLogin.className = 'py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
+      if (tabIntro) tabIntro.className = 'py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm font-bold';
+      if (panelLogin) panelLogin.classList.add('hidden');
+      if (panelIntro) panelIntro.classList.remove('hidden');
     }
   }
 
+  if (tabLogin) tabLogin.addEventListener('click', () => setWelcomeTab('login'));
   if (tabIntro) tabIntro.addEventListener('click', () => setWelcomeTab('intro'));
-  if (tabNew) tabNew.addEventListener('click', () => setWelcomeTab('new'));
-  if (tabReturning) tabReturning.addEventListener('click', () => setWelcomeTab('returning'));
-  if (btnGotoNickname) btnGotoNickname.addEventListener('click', () => setWelcomeTab('new'));
-
-  let selectedAvatar = '⚔️';
-
-  document.querySelectorAll('.welcome-avatar-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.welcome-avatar-opt').forEach(b => {
-        b.className = 'welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition';
-      });
-      btn.className = 'welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border-2 border-amber-500 bg-amber-500/20 shadow-sm transition';
-      selectedAvatar = btn.dataset.avatar;
-    });
-  });
-
-  const btnCreate = document.getElementById('btn-welcome-create');
-  if (btnCreate) {
-    btnCreate.addEventListener('click', async () => {
-      const inputNick = document.getElementById('input-welcome-nickname');
-      const nick = inputNick ? inputNick.value.trim() : '';
-      if (!nick) {
-        if (errNew) {
-          errNew.textContent = 'Nickname không được để trống!';
-          errNew.classList.remove('hidden');
-        }
-        return;
-      }
-
-      btnCreate.disabled = true;
-      btnCreate.textContent = '⏳ Đang kiểm tra...';
-      if (errNew) errNew.classList.add('hidden');
-
-      try {
-        const token = getOrCreateUserToken();
-        const checkRes = await fetch(`/api/sync?action=check_nickname&nickname=${encodeURIComponent(nick)}&token=${encodeURIComponent(token)}`);
-        const checkData = await checkRes.json().catch(() => ({}));
-
-        if (!checkData.available) {
-          if (errNew) {
-            errNew.textContent = `Tên "${nick}" đã có người sử dụng. Vui lòng chọn tên khác!`;
-            errNew.classList.remove('hidden');
-          }
-          btnCreate.disabled = false;
-          btnCreate.textContent = '🚀 Bắt Đầu Ngay';
-          return;
-        }
-
-        appState.profile.nickname = nick;
-        appState.profile.avatar = selectedAvatar;
-        appState.profile.hasOnboarded = true;
-        localStorage.setItem('levelup_onboarded', 'true');
-        saveLocalState();
-        renderAll();
-
-        closeModal('modal-welcome');
-        syncWithCloud(true);
-        showToast(`Chào mừng "${nick}" đến với LevelUp!`, 'success');
-
-        // Khởi động Tour giới thiệu tương tác sau khi tạo xong nickname
-        setTimeout(() => {
-          startInteractiveTour(true);
-        }, 350);
-      } catch (e) {
-        if (errNew) {
-          errNew.textContent = 'Lỗi kiểm tra: ' + e.message;
-          errNew.classList.remove('hidden');
-        }
-        btnCreate.disabled = false;
-        btnCreate.textContent = '🚀 Bắt Đầu Ngay';
-      }
-    });
-  }
-
-  const btnRestore = document.getElementById('btn-welcome-restore');
-  if (btnRestore) {
-    btnRestore.addEventListener('click', async () => {
-      const inputToken = document.getElementById('input-welcome-token');
-      const token = inputToken ? inputToken.value.trim() : '';
-      if (!token) {
-        if (errReturning) {
-          errReturning.textContent = 'Vui lòng nhập Mã Tài Khoản (Token) của bạn!';
-          errReturning.classList.remove('hidden');
-        }
-        return;
-      }
-
-      btnRestore.disabled = true;
-      btnRestore.textContent = '⏳ Đang khôi phục...';
-      if (errReturning) errReturning.classList.add('hidden');
-
-      const result = await switchAccountByToken(token);
-      if (!result.success) {
-        if (errReturning) {
-          errReturning.textContent = result.error || 'Không tìm thấy tài khoản tương ứng với Token này.';
-          errReturning.classList.remove('hidden');
-        }
-        btnRestore.disabled = false;
-        btnRestore.textContent = '📥 Đăng Nhập Ngay';
-      }
-    });
-  }
+  if (btnGotoLogin) btnGotoLogin.addEventListener('click', () => setWelcomeTab('login'));
 }
 
 // =============================================================================
@@ -3491,67 +3578,59 @@ document.addEventListener('DOMContentLoaded', () => {
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn').addEventListener('click', () => {
     document.getElementById('input-hero-nickname').value = appState.profile.nickname;
-    const tokenInput = document.getElementById('input-hero-token');
-    if (tokenInput) {
-      tokenInput.value = getOrCreateUserToken();
-      tokenInput.readOnly = true;
-      tokenInput.type = 'password';
-    }
+
     const roleBadge = document.getElementById('profile-role-badge');
     if (roleBadge) {
       const isAdmin = appState.profile.role === 'admin';
-      roleBadge.textContent = isAdmin ? '👑 Quản Trị Viên (Admin)' : '👤 Người Dùng';
+      roleBadge.textContent = isAdmin ? '👑 Quản Trị Viên (Admin)' : '👤 Hiệp Sĩ';
       roleBadge.className = isAdmin
         ? 'font-bold px-2 py-0.5 rounded text-[11px] bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30'
         : 'font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30';
     }
+
+    const emailEl = document.getElementById('profile-google-email');
+    const nameEl = document.getElementById('profile-google-name');
+    const avatarImg = document.getElementById('profile-google-avatar');
+    const avatarPlaceholder = document.getElementById('profile-google-avatar-placeholder');
+
+    const email = appState.profile.googleEmail || '';
+    const name = appState.profile.nickname || (email ? email.split('@')[0] : 'Hiệp Sĩ');
+    const picture = appState.profile.googlePicture || '';
+
+    if (emailEl) emailEl.textContent = email || 'Chưa liên kết';
+    if (nameEl) nameEl.textContent = name;
+    if (avatarImg && avatarPlaceholder) {
+      if (picture) {
+        avatarImg.src = picture;
+        avatarImg.classList.remove('hidden');
+        avatarPlaceholder.classList.add('hidden');
+      } else {
+        avatarImg.classList.add('hidden');
+        avatarPlaceholder.classList.remove('hidden');
+        avatarPlaceholder.textContent = (email ? email[0] : 'G').toUpperCase();
+      }
+    }
+
+    // Cập nhật trạng thái avatar được chọn
+    document.querySelectorAll('.avatar-opt').forEach(b => {
+      if (b.dataset.avatar === appState.profile.avatar) {
+        b.classList.add('border-amber-500', 'bg-amber-500/20');
+      } else {
+        b.classList.remove('border-amber-500', 'bg-amber-500/20');
+      }
+    });
+
     openModal('modal-profile');
   });
 
-  const btnCopyToken = document.getElementById('btn-copy-token');
-  if (btnCopyToken) {
-    btnCopyToken.addEventListener('click', () => {
-      const token = getOrCreateUserToken();
-      navigator.clipboard.writeText(token).then(() => {
-        showToast('Đã sao chép Mã Tài Khoản (Token)!', 'success');
-      }).catch(() => {
-        showToast('Vui lòng chọn và sao chép thủ công từ ô nhập.', 'info');
-      });
-    });
+  const btnSwitchGoogle = document.getElementById('btn-switch-google-account');
+  if (btnSwitchGoogle) {
+    btnSwitchGoogle.addEventListener('click', switchGoogleAccount);
   }
 
-  const btnToggleTokenEdit = document.getElementById('btn-toggle-token-edit');
-  if (btnToggleTokenEdit) {
-    btnToggleTokenEdit.addEventListener('click', () => {
-      const tokenInput = document.getElementById('input-hero-token');
-      if (!tokenInput) return;
-      tokenInput.readOnly = false;
-      tokenInput.type = 'text';
-      tokenInput.focus();
-      tokenInput.select();
-      showToast('Dán Mã Tài Khoản (Token) mới vào đây để đăng nhập vào tài khoản đó.', 'info');
-    });
-  }
-
-  const heroTokenInput = document.getElementById('input-hero-token');
-  if (heroTokenInput) {
-    // Tự động nhận diện khi người dùng paste Token vào ô Mã sở hữu
-    heroTokenInput.addEventListener('paste', (e) => {
-      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
-      if (pasted && pasted.length >= 16 && pasted !== appState.profile.token) {
-        setTimeout(() => {
-          switchAccountByToken(pasted);
-        }, 80);
-      }
-    });
-  }
-
-  const btnSwitchByToken = document.getElementById('btn-switch-by-token');
-  if (btnSwitchByToken) {
-    btnSwitchByToken.addEventListener('click', () => {
-      const val = heroTokenInput ? heroTokenInput.value.trim() : '';
-      if (val) switchAccountByToken(val);
-    });
+  const btnLogoutGoogle = document.getElementById('btn-logout-google');
+  if (btnLogoutGoogle) {
+    btnLogoutGoogle.addEventListener('click', logoutGoogle);
   }
 
   document.querySelectorAll('.avatar-opt').forEach(btn => {
@@ -3569,15 +3648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const tokenInput = document.getElementById('input-hero-token');
-    const enteredToken = tokenInput ? tokenInput.value.trim() : '';
-    // Nếu người dùng nhập mã Token khác với tài khoản hiện tại -> chuyển tài khoản an toàn thay vì ghi đè
-    if (enteredToken && enteredToken !== appState.profile.token && enteredToken.length >= 8) {
-      const switchResult = await switchAccountByToken(enteredToken);
-      if (switchResult.success) return;
-    }
-
-    const token = getOrCreateUserToken();
+    const token = appState.profile.googleToken || '';
     const currentNick = appState.profile.nickname;
 
     // Kiểm tra tính khả dụng của nickname nếu người dùng đổi sang tên mới
@@ -3607,10 +3678,12 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerSave(true);
   });
 
-  document.getElementById('btn-force-cloud-load').addEventListener('click', () => {
-    const nick = document.getElementById('input-hero-nickname').value.trim() || appState.profile.nickname;
-    if (nick) loadFromCloud(nick);
-  });
+  const btnForceCloud = document.getElementById('btn-force-cloud-load');
+  if (btnForceCloud) {
+    btnForceCloud.addEventListener('click', () => {
+      loadFromCloud();
+    });
+  }
 
   // Open Quest Modal (Desktop & Mobile buttons)
   const openQuestHandler = () => {
@@ -3744,7 +3817,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (modal.id === 'modal-welcome') {
           // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
-          showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'info');
+          showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
           const panel = modal.querySelector('.rpg-panel');
           if (panel) {
             panel.classList.add('ring-4', 'ring-amber-500/60');

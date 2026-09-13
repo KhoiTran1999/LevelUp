@@ -13,6 +13,9 @@
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -732,20 +735,32 @@
           </button>
         </div>
 
-        <!-- Token Ownership Box -->
-        <div class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+        <!-- Google Account Info Box -->
+        <div class="space-y-2.5 bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <div class="flex justify-between items-center">
-            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mã Tài Khoản Bí Mật (Token)</label>
-            <div class="flex gap-2">
-              <button id="btn-toggle-token-edit" type="button" class="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">✏️ Nhập mã khác</button>
-              <button id="btn-copy-token" type="button" class="text-[11px] text-amber-600 dark:text-amber-400 font-bold hover:underline">📋 Sao chép mã</button>
+            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tài Khoản Google Đã Liên Kết</label>
+            <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã xác thực
+            </span>
+          </div>
+          <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <img id="profile-google-avatar" src="" alt="Google Avatar" class="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 hidden">
+            <div id="profile-google-avatar-placeholder" class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base font-bold shrink-0">G</div>
+            <div class="min-w-0 flex-1">
+              <div id="profile-google-name" class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">-</div>
+              <div id="profile-google-email" class="text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate">-</div>
             </div>
           </div>
-          <div class="flex gap-1.5">
-            <input id="input-hero-token" type="text" class="w-full rpg-input rounded-lg px-3 py-1.5 text-xs font-mono select-all bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300" placeholder="Dán mã Token vào đây để chuyển tài khoản...">
-            <button id="btn-switch-by-token" type="button" class="shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition" title="Đăng nhập vào tài khoản ứng với mã Token này">🔄 Đổi tài khoản</button>
+          <div class="flex gap-2 pt-0.5">
+            <button id="btn-switch-google-account" type="button" class="flex-1 py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition flex items-center justify-center gap-1.5">
+              <span>🔄</span>
+              <span>Đổi Tài Khoản Google</span>
+            </button>
+            <button id="btn-logout-google" type="button" class="py-2 px-3.5 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition flex items-center justify-center gap-1">
+              <span>🚪</span>
+              <span>Đăng Xuất</span>
+            </button>
           </div>
-          <p class="text-[10px] text-slate-500 dark:text-slate-400">💡 Mã Token giống như mật khẩu bí mật giúp bạn chuyển tài khoản sang thiết bị khác hoặc khôi phục dữ liệu.</p>
         </div>
 
         <!-- Sync Status info -->
@@ -793,16 +808,13 @@
         <p class="text-xs text-slate-400 mt-1">Biến công việc và thói quen hàng ngày thành trò chơi để không còn trì hoãn</p>
       </div>
 
-      <!-- Tab Switch: Intro vs New vs Returning -->
-      <div class="grid grid-cols-3 p-1.5 sm:p-2 bg-slate-950/60 border-b border-slate-800 text-[11px] sm:text-xs font-bold gap-1">
+      <!-- Tab Switch: Google Login vs Intro -->
+      <div class="grid grid-cols-2 p-1.5 sm:p-2 bg-slate-950/60 border-b border-slate-800 text-[11px] sm:text-xs font-bold gap-1">
+        <button id="btn-tab-welcome-login" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm font-bold">
+          🔐 Đăng Nhập Google
+        </button>
         <button id="btn-tab-welcome-intro" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
           📖 Giới Thiệu
-        </button>
-        <button id="btn-tab-welcome-new" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm">
-          ✨ Đặt Tên Mới
-        </button>
-        <button id="btn-tab-welcome-returning" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
-          🔑 Đã Có Token
         </button>
       </div>
 
@@ -846,57 +858,41 @@
             </div>
           </div>
 
-          <button id="btn-welcome-goto-nickname" type="button" class="w-full mt-2 py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
-            <span>Tiếp Tục: Chọn Avatar & Đặt Tên</span>
+          <button id="btn-welcome-goto-login" type="button" class="w-full mt-2 py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
+            <span>Tiếp Tục: Đăng Nhập Bằng Google</span>
             <span>➡️</span>
           </button>
         </div>
 
-        <!-- TAB 1: NEW USER -->
-        <div id="welcome-panel-new" class="space-y-4">
-          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300/90 flex items-center gap-2">
-            <span>💡</span>
-            <span>Sau khi tạo nickname, hệ thống sẽ mở <strong>Tour hướng dẫn tương tác</strong> ngay trên màn hình!</span>
+        <!-- TAB 1: GOOGLE LOGIN (CHÍNH THỨC) -->
+        <div id="welcome-panel-login" class="space-y-4">
+          <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+            <div class="text-xs font-bold text-amber-300 uppercase tracking-wide">Đăng nhập tài khoản để lưu tiến trình</div>
+            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              Toàn bộ Nhiệm vụ, Vàng tích lũy 🪙, EXP và Cửa hàng sẽ được tự động đồng bộ trên đám mây bằng tài khoản Google.
+            </p>
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Đại Diện (Avatar)</label>
-            <div class="flex gap-2 justify-center py-1" id="welcome-avatar-selector">
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border-2 border-amber-500 bg-amber-500/20 shadow-sm transition" data-avatar="⚔️">⚔️</button>
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🧙‍♂️">🧙‍♂️</button>
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🏹">🏹</button>
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🛡️">🛡️</button>
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🥷">🥷</button>
-              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="👑">👑</button>
+          <div class="py-3 flex flex-col items-center justify-center">
+            <div id="google-signin-btn-container" class="flex justify-center min-h-[44px]"></div>
+            <div id="google-signin-loading" class="text-xs text-slate-400 flex items-center gap-2 py-2">
+              <span class="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>
+              <span>Đang kết nối Google Identity Services...</span>
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">2. Đặt Tên Của Bạn (Nickname) *</label>
-            <input id="input-welcome-nickname" type="text" placeholder="Nhập nickname không dấu (VD: quang_anh, minh_duc)" class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
-            <p class="text-[11px] text-slate-400 mt-1">Tên này sẽ hiển thị trên Bảng Xếp Hạng. Hệ thống sẽ tự cấp Mã Token để bạn đăng nhập sau này.</p>
+          <div id="welcome-google-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-3 rounded-xl border border-rose-800 text-left"></div>
+
+          <div class="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 text-[11px] text-slate-400 space-y-1.5 text-left">
+            <div class="flex items-center gap-1.5 text-slate-300 font-semibold">
+              <span>🛡️</span>
+              <span>Bảo mật & Tự động</span>
+            </div>
+            <p class="leading-relaxed">
+              • Tên hiển thị & ảnh đại diện được tự động nhận diện từ Google (có thể tùy chỉnh lại bất kỳ lúc nào trong Hồ sơ).<br>
+              • Dữ liệu gắn liền vĩnh viễn với tài khoản Google, không lo mất dữ liệu khi đổi thiết bị.
+            </p>
           </div>
-
-          <div id="welcome-new-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
-
-          <button id="btn-welcome-create" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
-            🚀 Bắt Đầu Hành Trình Ngay
-          </button>
-        </div>
-
-        <!-- TAB 2: RETURNING USER WITH TOKEN -->
-        <div id="welcome-panel-returning" class="hidden space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Dán Mã Tài Khoản (Token) Của Bạn *</label>
-            <input id="input-welcome-token" type="text" placeholder="Dán mã Token 32 ký tự vào đây..." class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
-            <p class="text-[11px] text-slate-400 mt-1">Hệ thống sẽ tự động tìm hồ sơ của bạn trên đám mây và khôi phục toàn bộ tiến trình.</p>
-          </div>
-
-          <div id="welcome-token-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
-
-          <button id="btn-welcome-restore" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-lg shadow-purple-600/20 active:scale-95 flex items-center justify-center gap-2">
-            📥 Khôi Phục & Đăng Nhập
-          </button>
         </div>
       </div>
     </div>
