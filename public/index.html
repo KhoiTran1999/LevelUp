@@ -135,44 +135,49 @@
   <!-- ======================================================================= -->
   <!-- DESKTOP / TABLET TOP NAVIGATION BAR (Hidden on Mobile)                  -->
   <!-- ======================================================================= -->
-  <nav class="hidden md:block max-w-6xl mx-auto px-4 mt-4">
-    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-2">
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-2 mr-1 pr-2.5 border-r border-slate-200 dark:border-slate-800 shrink-0 select-none" title="LevelUp RPG">
+  <nav class="hidden md:block max-w-6xl mx-auto px-3 sm:px-4 mt-4">
+    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-1.5 xl:gap-2">
+      <div class="flex items-center gap-1 sm:gap-1.5 xl:gap-2 min-w-0 overflow-x-auto no-scrollbar">
+        <div class="flex items-center gap-2 mr-0.5 sm:mr-1 pr-1.5 sm:pr-2.5 border-r border-slate-200 dark:border-slate-800 shrink-0 select-none" title="LevelUp RPG">
           <img src="logo.svg" alt="LevelUp Logo" class="w-7 h-7 rounded-lg shadow-sm">
-          <span class="font-rpg-title font-black text-sm tracking-wider bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent">LEVELUP</span>
+          <span class="font-rpg-title font-black text-sm tracking-wider bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent hidden xl:inline">LEVELUP</span>
         </div>
-        <button data-tab="quests" class="nav-tab active flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+        <button data-tab="quests" class="nav-tab active flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 whitespace-nowrap">
           <span>📜</span>
           <span>Nhiệm Vụ</span>
-          <span id="badge-active-quests" class="text-xs px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">0</span>
+          <span id="badge-active-quests" class="text-[11px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">0</span>
         </button>
-        <button data-tab="shop" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
+        <button data-tab="shop" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>🎁</span>
-          <span>Phần Thưởng</span>
-          <span id="badge-rewards-total" class="text-xs px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
+          <span class="hidden xl:inline">Phần Thưởng</span>
+          <span class="xl:hidden">Thưởng</span>
+          <span id="badge-rewards-total" class="text-[11px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
         </button>
-        <button data-tab="leaderboard" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
+        <button data-tab="leaderboard" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>🏆</span>
-          <span>Bảng Xếp Hạng</span>
+          <span class="hidden xl:inline">Bảng Xếp Hạng</span>
+          <span class="xl:hidden">Xếp Hạng</span>
         </button>
-        <button data-tab="ledger" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
+        <button data-tab="ledger" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>📖</span>
-          <span>Lịch Sử Vàng</span>
+          <span class="hidden xl:inline">Lịch Sử Vàng</span>
+          <span class="xl:hidden">Lịch Sử</span>
         </button>
       </div>
 
-      <!-- Desktop Quick Action Buttons -->
-      <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-open-add-quest" class="btn-action-quest flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition" title="Tạo việc mới (Phím tắt: Q)">
+      <!-- Desktop / Tablet Quick Action Buttons -->
+      <div class="flex items-center gap-1 sm:gap-1.5 xl:gap-2 shrink-0">
+        <button id="btn-open-add-quest" class="btn-action-quest flex items-center gap-1 sm:gap-1.5 px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo việc mới (Phím tắt: Q)">
           <span class="text-sm">⚔️</span>
-          <span>Thêm Việc Mới</span>
-          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
+          <span class="hidden xl:inline">Thêm Việc Mới</span>
+          <span class="xl:hidden">Việc Mới</span>
+          <kbd class="hidden xl:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
         </button>
-        <button id="btn-open-add-reward-nav" class="btn-action-reward flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition" title="Tạo phần thưởng mới (Phím tắt: R)">
+        <button id="btn-open-add-reward-nav" class="btn-action-reward flex items-center gap-1 sm:gap-1.5 px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="text-sm">🎁</span>
-          <span>Thêm Phần Thưởng</span>
-          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
+          <span class="hidden xl:inline">Thêm Phần Thưởng</span>
+          <span class="xl:hidden">Phần Thưởng</span>
+          <kbd class="hidden xl:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
         </button>
       </div>
     </div>
@@ -209,10 +214,10 @@
     <!-- ACTIVE FOCUS STATION (Persistent Banner Across Tabs When Running)       -->
     <!-- ======================================================================= -->
     <div id="active-focus-banner" class="hidden mb-6 rpg-panel-gold rounded-2xl p-3.5 sm:p-4 border border-amber-500/40 shadow-xl transition-all">
-      <div class="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
 
         <!-- Left: Circular Progress Ring & Quest Info -->
-        <div class="flex items-center gap-3 w-full lg:w-auto">
+        <div class="flex items-center gap-3 w-full md:w-auto">
           <!-- Circular Progress Ring (SVG) -->
           <div class="relative w-12 h-12 shrink-0 flex items-center justify-center">
             <svg class="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
@@ -238,7 +243,7 @@
         </div>
 
         <!-- Right: Time Display, Quick Adjust, & Actions -->
-        <div class="flex flex-wrap items-center justify-between lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto">
+        <div class="flex flex-wrap items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
 
           <!-- Clickable Time Display (opens edit dialog) -->
           <button id="btn-open-edit-timer" class="flex items-center gap-1.5 group px-2.5 py-1 rounded-xl hover:bg-amber-500/10 transition" title="Nhấp để chỉnh thời gian">
@@ -282,7 +287,7 @@
       </div>
 
       <!-- Quests Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) -->
-      <div id="quests-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+      <div id="quests-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
         <!-- Quests will be rendered dynamically -->
       </div>
 
@@ -325,14 +330,14 @@
 
       <!-- Subtab Pane 1: Shop Items Grid -->
       <div id="subtab-pane-shop" class="block">
-        <div id="shop-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        <div id="shop-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
           <!-- Shop items rendered dynamically -->
         </div>
       </div>
 
       <!-- Subtab Pane 2: Inventory Grid & Empty State -->
       <div id="subtab-pane-inventory" class="hidden">
-        <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
           <!-- Inventory items rendered dynamically -->
         </div>
 
