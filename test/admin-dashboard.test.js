@@ -611,6 +611,7 @@ function testFrontendDomAndClientFunctions() {
 
   // Kiểm tra Javascript functions trong app.js
   assert.ok(appJs.includes('function updateAdminNavVisibility()'), 'Phải có hàm updateAdminNavVisibility');
+  assert.ok(appJs.includes("mobileNavAdmin.classList.toggle('flex', isAdmin)"), 'updateAdminNavVisibility phải toggle class flex để nút không bị nằm ngang trên mobile');
   assert.ok(appJs.includes('async function fetchAdminUsers()'), 'Phải có hàm fetchAdminUsers');
   assert.ok(appJs.includes('function renderAdminDashboard()'), 'Phải có hàm renderAdminDashboard');
   assert.ok(appJs.includes('function openAdminEditUserModal('), 'Phải có hàm openAdminEditUserModal');

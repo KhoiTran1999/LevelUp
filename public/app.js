@@ -3583,9 +3583,11 @@ function updateAdminNavVisibility() {
   const mobileNavAdmin = document.getElementById('mobile-nav-admin');
   if (navAdmin) {
     navAdmin.classList.toggle('hidden', !isAdmin);
+    navAdmin.classList.toggle('flex', isAdmin);
   }
   if (mobileNavAdmin) {
     mobileNavAdmin.classList.toggle('hidden', !isAdmin);
+    mobileNavAdmin.classList.toggle('flex', isAdmin);
   }
 }
 
@@ -5090,12 +5092,12 @@ function switchTab(tabId) {
     const isAdminBtn = b.id === 'mobile-nav-admin' || b.dataset.tab === 'admin';
 
     if (isAdminBtn && !isAdmin) {
-      b.className = 'mobile-nav-btn hidden flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition';
+      b.className = 'mobile-nav-btn hidden flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition';
       return;
     }
 
     if (isAdminBtn) {
-      b.className = `mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition ${
+      b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
         isActive
           ? 'active text-purple-600 dark:text-purple-400 font-bold'
           : 'text-purple-500/70 dark:text-purple-400/70 font-medium'
@@ -5103,7 +5105,7 @@ function switchTab(tabId) {
       return;
     }
 
-    b.className = `mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition ${
+    b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
       isActive
         ? 'active text-amber-600 dark:text-amber-400 font-bold'
         : 'text-slate-500 dark:text-slate-400 font-medium'
