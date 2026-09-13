@@ -7,35 +7,35 @@ const TOUR_STEPS = [
     title: 'Hồ Sơ & Trạng Thái Hiệp Sĩ',
     icon: '🛡️',
     tab: 'quests',
-    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (💰) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
+    desc: 'Theo dõi Cấp độ, EXP và Vàng tích lũy. Dữ liệu tự động đồng bộ qua Google. Nhấn vào đây để đổi Avatar, biệt danh hoặc xem lịch sử giao dịch.'
   },
   {
     id: 'add-quest',
-    title: 'Thêm Việc & Nhận Nhiệm Vụ',
+    title: 'Giao Việc & Trọng Tài AI',
     icon: '⚔️',
     tab: 'quests',
-    desc: 'Nhấn vào đây (hoặc phím tắt Q) để tạo việc cần làm. Trọng tài AI nghiêm khắc sẽ tự động định giá Rank S/A/B/C/D và đặt mức thưởng Vàng tương xứng!'
+    desc: 'Tạo việc cần làm (phím tắt Q). Trọng tài AI sẽ tự động định Rank (S/A/B/C/D), thưởng Vàng và EXP tương xứng với độ khó công việc.'
   },
   {
     id: 'focus-timer',
-    title: 'Bộ Đếm Tập Trung (Pomodoro)',
+    title: 'Bấm Giờ Tập Trung (Pomodoro)',
     icon: '⏱️',
     tab: 'quests',
-    desc: 'Kích hoạt đồng hồ tập trung khi làm việc để tăng tối đa năng suất. Có chế độ Zen Mode toàn màn hình giúp bạn dập tắt hoàn toàn các xao nhãng xung quanh!'
+    desc: 'Bấm "Bắt Đầu" trên việc bất kỳ để chạy đếm giờ Pomodoro. Kích hoạt Zen Mode toàn màn hình giúp tập trung tối đa và loại bỏ xao nhãng.'
   },
   {
     id: 'shop',
-    title: 'Cửa Hàng Phần Thưởng Thực Tế',
+    title: 'Cửa Hàng & Kho Phần Thưởng',
     icon: '🎁',
     tab: 'shop',
-    desc: 'Dùng Vàng kiếm được để mở khóa những điều bạn yêu thích: 30 phút chơi game, 1 tập phim anime, cà phê... Tận hưởng trọn vẹn mà không còn một chút cảm giác tội lỗi!'
+    desc: 'Dùng Vàng đổi các phần thưởng giải trí yêu thích (chơi game, xem phim, cà phê...). Bấm "Dùng Quà" để đếm ngược thời gian thư giãn mà không sợ quá đà.'
   },
   {
     id: 'leaderboard',
-    title: 'Bảng Xếp Hạng & Sẵn Sàng',
+    title: 'Bảng Xếp Hạng Hiệp Sĩ',
     icon: '🏆',
     tab: 'leaderboard',
-    desc: 'Cạnh tranh vị trí Top hiệp sĩ chăm chỉ nhất cùng cộng đồng LevelUp. Hãy bắt đầu tạo nhiệm vụ đầu tiên và nâng cấp bản thân ngay hôm nay!'
+    desc: 'Vinh danh Top người chăm chỉ nhất dựa trên Cấp độ và EXP kiếm được. Hãy hoàn thành nhiệm vụ hàng ngày để thăng hạng và vươn lên dẫn đầu!'
   }
 ];
 
