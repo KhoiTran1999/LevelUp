@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>LevelUp — RPG Productivity & Habit Guild</title>
+  <title>LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
 
   <!-- Preconnect to Google Fonts for Fast Typography -->
@@ -71,9 +71,9 @@
         <div>
           <div class="flex items-center gap-1.5 sm:gap-2">
             <h1 class="font-rpg-title font-extrabold text-base sm:text-lg text-amber-600 dark:text-amber-400 tracking-tight">LEVELUP</h1>
-            <span class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30">AI ARBITER</span>
+            <span class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30">AI GIÁM ĐỊNH</span>
           </div>
-          <p class="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">Đấu trường Năng suất & Chống lạm phát</p>
+          <p class="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">Rèn luyện thói quen & Hoàn thành mục tiêu mỗi ngày</p>
         </div>
       </div>
 
@@ -81,16 +81,16 @@
       <div class="flex items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2.5 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors">
 
         <!-- Avatar & Nickname Button -->
-        <button id="open-profile-btn" class="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-xl px-1.5 sm:px-2 py-0.5 sm:py-1 transition group" title="Cài đặt hồ sơ & đồng bộ Cloud">
+        <button id="open-profile-btn" class="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-xl px-1.5 sm:px-2 py-0.5 sm:py-1 transition group" title="Hồ sơ cá nhân & Mã tài khoản">
           <div id="hero-avatar" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-base sm:text-lg group-hover:scale-110 transition shadow-sm">
             ⚔️
           </div>
           <div class="max-w-[80px] sm:max-w-[120px] truncate">
             <div class="flex items-center gap-1">
-              <span id="hero-nickname" class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Hiệp Sĩ</span>
+              <span id="hero-nickname" class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Thành Viên</span>
               <span id="sync-indicator" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Đã đồng bộ"></span>
             </div>
-            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate" id="hero-title">Tập sự Cấp 1</div>
+            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate" id="hero-title">Tân Binh Cấp 1</div>
           </div>
         </button>
 
@@ -146,26 +146,26 @@
       <div class="flex items-center gap-2">
         <button data-tab="quests" class="nav-tab active flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
           <span>📜</span>
-          <span>Bảng Nhiệm Vụ</span>
+          <span>Nhiệm Vụ</span>
           <span id="badge-active-quests" class="text-xs px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">0</span>
         </button>
         <button data-tab="shop" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
           <span>🏪</span>
-          <span>Tiệm Phần Thưởng</span>
+          <span>Đổi Thưởng</span>
           <span id="badge-shop-count" class="text-xs px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">0</span>
         </button>
         <button data-tab="inventory" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
           <span>🎒</span>
-          <span>Chiến Lợi Phẩm</span>
+          <span>Kho Quà Của Tôi</span>
           <span id="badge-inventory-count" class="text-xs px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">0</span>
         </button>
         <button data-tab="leaderboard" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
           <span>🏆</span>
-          <span>Đấu Trường</span>
+          <span>Bảng Xếp Hạng</span>
         </button>
         <button data-tab="ledger" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent">
           <span>📖</span>
-          <span>Nhật Ký</span>
+          <span>Lịch Sử Vàng</span>
         </button>
       </div>
 
@@ -173,11 +173,11 @@
       <div class="flex items-center gap-2 shrink-0">
         <button id="btn-suggest-quests" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition shadow-sm">
           <span>✨</span>
-          <span>Gợi Ý Quest (AI)</span>
+          <span>AI Gợi Ý Việc</span>
         </button>
         <button id="btn-open-add-quest" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition hover:scale-[1.02]">
-          <span>⚔️</span>
-          <span>Đệ Trình Quest</span>
+          <span>+</span>
+          <span>Thêm Việc Mới</span>
         </button>
       </div>
     </div>
@@ -189,11 +189,11 @@
   <div class="md:hidden max-w-6xl mx-auto px-3 mt-3 flex items-center justify-between gap-2">
     <button id="btn-suggest-quests-mobile" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm transition active:scale-95">
       <span>✨</span>
-      <span>Gợi Ý Quest</span>
+      <span>AI Gợi Ý Việc</span>
     </button>
     <button id="btn-open-add-quest-mobile" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95">
-      <span>⚔️</span>
-      <span>Đệ Trình Quest</span>
+      <span>+</span>
+      <span>Thêm Việc Mới</span>
     </button>
   </div>
 
@@ -209,13 +209,13 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div class="flex items-center gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <button data-filter="all" class="quest-filter active px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">Tất cả</button>
-          <button data-filter="active" class="quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đang làm</button>
+          <button data-filter="active" class="quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Chưa xong</button>
           <button data-filter="completed" class="quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đã xong</button>
         </div>
 
         <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <span>⚖️</span>
-          <span>Việc học bắt buộc đo <strong>Focus Timer</strong> • Thẩm phán kiểm định chống lạm phát</span>
+          <span>💡</span>
+          <span>Việc cần tập trung có <strong>đồng hồ bấm giờ</strong> • AI tự động tính mức thưởng Vàng hợp lý</span>
         </div>
       </div>
 
@@ -228,7 +228,7 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-[10px] sm:text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG TẬP TRUNG CAO ĐỘ</span>
+                <span class="text-[10px] sm:text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG BẤM GIỜ TẬP TRUNG</span>
                 <span id="timer-quest-rank" class="rank-badge-B text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">RANK B</span>
               </div>
               <h3 id="timer-quest-title" class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">Học bài tập trung</h3>
@@ -262,14 +262,14 @@
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
           📜
         </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Chưa có nhiệm vụ nào trên Bảng!</h3>
-        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Đệ trình việc bạn cần làm để Thẩm Phán AI định giá tiền thưởng công bằng, hoặc nhận quest gợi ý.</p>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa có việc nào cần làm!</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy thêm việc bạn cần hoàn thành hôm nay để nhận thưởng Vàng, hoặc nhờ AI gợi ý nhiệm vụ phù hợp.</p>
         <div class="flex justify-center gap-3">
           <button onclick="document.getElementById('btn-suggest-quests').click()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm transition">
-            ✨ Gợi Ý Quest
+            ✨ AI Gợi Ý Việc
           </button>
           <button onclick="document.getElementById('btn-open-add-quest').click()" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-            ⚔️ Đệ Trình Nhiệm Vụ
+            + Thêm Việc Mới
           </button>
         </div>
       </div>
@@ -280,12 +280,12 @@
     <section id="tab-shop" class="tab-pane hidden">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
-          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">TIỆM PHẦN THƯỞNG</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Nơi biến mồ hôi công sức thành niềm vui xứng đáng. AI kiểm soát giá chống lạm phát!</p>
+          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">CỬA HÀNG ĐỔI THƯỞNG</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Dùng số Vàng bạn kiếm được từ công việc để tự thưởng cho bản thân!</p>
         </div>
         <button id="btn-open-add-reward" class="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
           <span>+</span>
-          <span>Thêm Quà Tặng Mới (AI Định Giá)</span>
+          <span>Thêm Phần Thưởng Mới</span>
         </button>
       </div>
 
@@ -298,8 +298,8 @@
     <!-- ==================== TAB 3: INVENTORY ==================== -->
     <section id="tab-inventory" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">CHIẾN LỢI PHẨM ĐÃ ĐỔI</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Những món quà bạn đã tích lũy đủ vàng để mua. Hãy sử dụng và tận hưởng không chút tội lỗi!</p>
+        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">KHO QUÀ CỦA BẠN</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Những phần thưởng bạn đã đổi thành công. Hãy sử dụng và tận hưởng niềm vui sau khi đã nỗ lực!</p>
       </div>
 
       <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
@@ -310,10 +310,10 @@
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
           🎒
         </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Túi đồ đang trống!</h3>
-        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Hãy hoàn thành các nhiệm vụ khó khăn để kiếm vàng và tự thưởng cho mình trong Tiệm.</p>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa đổi phần thưởng nào!</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Hãy hoàn thành các nhiệm vụ để kiếm Vàng, sau đó ghé Cửa Hàng để tự thưởng cho mình nhé.</p>
         <button onclick="switchTab('shop')" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-          Ghé Tiệm Phần Thưởng
+          Ghé Cửa Hàng Đổi Quà
         </button>
       </div>
     </section>
@@ -321,8 +321,8 @@
     <!-- ==================== TAB 4: LEADERBOARD ==================== -->
     <section id="tab-leaderboard" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG HỘI THỢ SĂN</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Những mạo hiểm giả kiên cường nhất trên toàn cõi LevelUp (Đồng bộ qua Redis Cloud).</p>
+        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ và tích lũy được nhiều Vàng nhất (Đồng bộ trực tuyến).</p>
       </div>
 
       <div class="rpg-panel rounded-2xl p-2 sm:p-4 overflow-hidden">
@@ -331,10 +331,10 @@
             <thead class="text-[10px] sm:text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800 font-mono">
               <tr>
                 <th class="py-2.5 sm:py-3 px-2.5 sm:px-4">Hạng</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4">Mạo hiểm giả</th>
+                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4">Thành viên</th>
                 <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 hidden sm:table-cell">Danh hiệu</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right">Cấp</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right">Tổng Vàng</th>
+                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right">Cấp độ</th>
+                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right">Tổng Vàng Kiếm Được</th>
               </tr>
             </thead>
             <tbody id="leaderboard-tbody" class="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
@@ -348,8 +348,8 @@
     <!-- ==================== TAB 5: LEDGER ==================== -->
     <section id="tab-ledger" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">SỔ THU CHI MINH BẠCH</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các giao dịch vàng và nỗ lực của bạn.</p>
+        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">LỊCH SỬ THU CHI VÀNG</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng và đổi quà.</p>
       </div>
 
       <div class="rpg-panel rounded-2xl p-3 sm:p-4">
@@ -372,19 +372,19 @@
       </button>
       <button data-tab="shop" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
         <span class="text-lg leading-none">🏪</span>
-        <span class="text-[10px]">Tiệm Quà</span>
+        <span class="text-[10px]">Đổi Thưởng</span>
       </button>
       <button data-tab="inventory" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
         <span class="text-lg leading-none">🎒</span>
-        <span class="text-[10px]">Túi Đồ</span>
+        <span class="text-[10px]">Kho Quà</span>
       </button>
       <button data-tab="leaderboard" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
         <span class="text-lg leading-none">🏆</span>
-        <span class="text-[10px]">Đấu Trường</span>
+        <span class="text-[10px]">Xếp Hạng</span>
       </button>
       <button data-tab="ledger" class="mobile-nav-btn flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
         <span class="text-lg leading-none">📖</span>
-        <span class="text-[10px]">Nhật Ký</span>
+        <span class="text-[10px]">Lịch Sử</span>
       </button>
     </div>
   </nav>
@@ -400,10 +400,10 @@
       <!-- Modal Header -->
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
-          <span class="text-xl">⚖️</span>
+          <span class="text-xl">✨</span>
           <div>
-            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">PHÒNG PHÁN XỬ THẨM PHÁN AI</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Đệ trình công việc để chống lạm phát tiền thưởng</p>
+            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng</p>
           </div>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
@@ -412,25 +412,25 @@
       <!-- Step 1: Input Form -->
       <div id="quest-form-step" class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tên Nhiệm Vụ *</label>
-          <input id="input-quest-title" type="text" placeholder="VD: Giải 10 bài tập xác suất thống kê / Học 20 từ vựng" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tên Việc Cần Làm *</label>
+          <input id="input-quest-title" type="text" placeholder="VD: Giải 10 bài tập Toán / Học 20 từ vựng tiếng Anh / Đọc 1 chương sách" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Chi Tiết / Mục Tiêu Đạt Được</label>
-          <textarea id="input-quest-desc" rows="2" placeholder="Ghi rõ chi tiết để Thẩm Phán đánh giá đúng khối lượng công sức..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mô Tả Chi Tiết (Tùy chọn)</label>
+          <textarea id="input-quest-desc" rows="2" placeholder="Ghi rõ chi tiết công việc để AI gợi ý thời gian và tính thưởng chính xác hơn..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Số Vàng Bạn Tự Ước Tính (Tham khảo)</label>
-          <input id="input-quest-estimate" type="number" placeholder="VD: 15 (Thẩm phán sẽ xem xét và quyết định)" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-mono">
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mức Vàng Bạn Muốn Đề Xuất (Tùy chọn)</label>
+          <input id="input-quest-estimate" type="number" placeholder="VD: 15 (Để trống nếu muốn AI tự tính toán)" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-mono">
         </div>
 
         <div class="pt-2 flex justify-end gap-2.5 sm:gap-3">
           <button class="modal-close px-4 py-2.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">Hủy</button>
           <button id="btn-submit-to-ai" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95">
-            <span>⚖️</span>
-            <span>Thỉnh Cầu Phán Quyết</span>
+            <span>🤖</span>
+            <span>Để AI Tính Thưởng</span>
           </button>
         </div>
       </div>
@@ -438,11 +438,11 @@
       <!-- Step 2: AI Evaluating Spinner -->
       <div id="quest-evaluating-step" class="hidden p-8 text-center space-y-4">
         <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl animate-bounce">
-          ⚖️
+          🤖
         </div>
         <div>
-          <h4 class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">Thẩm Phán Đang Soi Xét...</h4>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Phân tích mức độ khó khăn, bẫy trì hoãn và tính toán tiền vàng công bằng...</p>
+          <h4 class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">AI Đang Phân Tích Nhiệm Vụ...</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Đang tính toán độ khó, thời gian cần tập trung và số Vàng thưởng công bằng...</p>
         </div>
       </div>
 
@@ -453,38 +453,38 @@
           <div class="flex items-center justify-between">
             <span id="verdict-rank" class="rank-badge-C text-xs font-mono font-black px-2.5 py-1 rounded-lg">RANK C</span>
             <div class="flex items-center gap-2">
-              <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏳ FOCUS TIMER</span>
+              <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏱️ BẤM GIỜ TẬP TRUNG</span>
               <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono">🪙 15 Vàng</span>
             </div>
           </div>
 
           <div>
-            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-1">Lời Phán Quyết Của Thẩm Phán:</div>
+            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-1">Nhận xét từ Trợ lý AI:</div>
             <p id="verdict-speech" class="text-xs sm:text-sm text-amber-900 dark:text-amber-200/95 italic bg-amber-50/70 dark:bg-slate-950/80 p-3 rounded-lg border border-amber-200/60 dark:border-slate-800 leading-relaxed font-serif">
               "Phán quyết..."
             </p>
           </div>
 
           <div id="verdict-target-time-box" class="flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800/80 px-3 py-2 rounded-lg">
-            <span class="text-slate-600 dark:text-slate-400">Thời gian bắt buộc tập trung:</span>
+            <span class="text-slate-600 dark:text-slate-400">Thời gian cần tập trung:</span>
             <span id="verdict-minutes" class="font-bold text-cyan-700 dark:text-cyan-300 font-mono">25 Phút</span>
           </div>
 
           <div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5 pt-1">
             <span>💡</span>
-            <span id="verdict-advice">Mẹo từ Thẩm phán</span>
+            <span id="verdict-advice">Mẹo từ AI</span>
           </div>
         </div>
 
         <!-- Debate Sub-box (Toggleable) -->
         <div id="debate-container" class="hidden p-3 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
           <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
-            <span>🗣️ Phiên Kháng Cáo</span>
-            <span class="text-[10px] text-slate-500">Thuyết phục Thẩm phán bằng lý do chính đáng</span>
+            <span>💬 Thương Lượng Mức Thưởng</span>
+            <span class="text-[10px] text-slate-500">Giải thích nếu việc này tốn nhiều công sức hơn</span>
           </div>
           <div id="debate-chat-logs" class="max-h-36 overflow-y-auto space-y-2 text-xs pr-1"></div>
           <div class="flex gap-2">
-            <input id="input-debate-arg" type="text" placeholder="Lý do muốn tăng thưởng (VD: Đề thi tiếng Anh rất khó)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
+            <input id="input-debate-arg" type="text" placeholder="Nhập lý do muốn tăng thưởng (VD: Đề thi tiếng Anh rất dài và khó)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
             <button id="btn-send-debate" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 dark:bg-slate-700 hover:bg-slate-600 transition shrink-0">Gửi</button>
           </div>
         </div>
@@ -492,12 +492,12 @@
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 pt-2">
           <button id="btn-open-debate" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold self-start sm:self-auto">
-            ⚖️ Kháng cáo nếu thấy chưa công bằng
+            💬 Muốn tăng thưởng? Thương lượng với AI
           </button>
           <div class="flex gap-2 w-full sm:w-auto justify-end">
             <button class="modal-close px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Hủy</button>
             <button id="btn-accept-verdict" class="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
-              ⚔️ Chấp Thuận & Nhận Quest
+              ✓ Đồng Ý & Thêm Nhiệm Vụ
             </button>
           </div>
         </div>
@@ -512,10 +512,10 @@
     <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
-          <span class="text-xl">🏪</span>
+          <span class="text-xl">🎁</span>
           <div>
-            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">ĐỊNH GIÁ PHẦN THƯỞNG</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">AI tính giá để bạn chỉ hưởng thụ khi nỗ lực xứng đáng</p>
+            <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">THÊM PHẦN THƯỞNG MỚI</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực</p>
           </div>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
@@ -524,12 +524,12 @@
       <div class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tên Phần Thưởng Bạn Muốn *</label>
-          <input id="input-reward-name" type="text" placeholder="VD: Uống 1 ly trà sữa / Xem 1 tập phim anime" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
+          <input id="input-reward-name" type="text" placeholder="VD: Uống 1 ly trà sữa / Xem 1 tập phim / 30 phút chơi game" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mô Tả Cám Dỗ</label>
-          <textarea id="input-reward-desc" rows="2" placeholder="VD: Trà sữa size L trân châu hoàng kim, cực kỳ hấp dẫn..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mô Tả Chi Tiết (Tùy chọn)</label>
+          <textarea id="input-reward-desc" rows="2" placeholder="VD: Trà sữa trân châu hoàng kim size L, tự thưởng sau khi học xong..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm"></textarea>
         </div>
 
         <!-- AI Pricing Result Box (Dynamic) -->
@@ -539,17 +539,17 @@
             <span id="eval-price" class="text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">🪙 35 Vàng</span>
           </div>
           <p id="eval-verdict" class="text-xs text-amber-900 dark:text-amber-200/90 italic bg-amber-50/70 dark:bg-slate-950/70 p-2.5 rounded-lg border border-amber-200/60 dark:border-slate-800">
-            "Lời bình phẩm của Chủ Tiệm..."
+            "Lời nhận xét từ AI..."
           </p>
         </div>
 
         <div class="pt-2 flex justify-end gap-2">
           <button class="modal-close px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Hủy</button>
           <button id="btn-eval-reward" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition active:scale-95">
-            ⚖️ Thẩm Định Giá
+            🤖 AI Định Giá Vàng
           </button>
           <button id="btn-save-reward" class="hidden px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
-            🏪 Bày Bán Vào Shop
+            + Thêm Vào Cửa Hàng
           </button>
         </div>
       </div>
@@ -560,14 +560,14 @@
   <div id="modal-profile" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
-        <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">HỒ SƠ MẠO HIỂM GIẢ & ĐỒNG BỘ</h3>
+        <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">HỒ SƠ CÁ NHÂN & ĐỒNG BỘ</h3>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
       </div>
 
       <div class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <!-- Choose Avatar -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Chọn Biểu Tượng Lớp Nhân Vật</label>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Đại Diện (Avatar)</label>
           <div class="flex gap-2 justify-center py-1" id="avatar-selector">
             <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="⚔️">⚔️</button>
             <button class="avatar-opt text-2xl p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-500/10 border border-slate-200 dark:border-slate-700 shadow-sm transition" data-avatar="🧙‍♂️">🧙‍♂️</button>
@@ -580,53 +580,53 @@
 
         <!-- Nickname Input -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Nickname Của Bạn (Định danh duy nhất trên Cloud)</label>
-          <input id="input-hero-nickname" type="text" placeholder="Nhập nickname không dấu (VD: anhduc_ueh)" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-mono">
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Mỗi nickname là duy nhất và được bảo vệ quyền sở hữu bằng Mã định danh (Token).</p>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">2. Tên Hiển Thị (Nickname)</label>
+          <input id="input-hero-nickname" type="text" placeholder="Nhập nickname không dấu (VD: quang_anh, minh_duc)" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-mono">
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Tên này dùng để hiển thị trên Bảng Xếp Hạng. Được bảo vệ bằng Mã Tài Khoản (Token).</p>
         </div>
 
         <!-- Role & Ownership Badge -->
         <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <span class="text-slate-500">Vai trò tài khoản:</span>
-          <span id="profile-role-badge" class="font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">⚔️ Mạo Hiểm Giả</span>
+          <span id="profile-role-badge" class="font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">⭐ Thành Viên</span>
         </div>
 
         <!-- Token Ownership Box -->
         <div class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
           <div class="flex justify-between items-center">
-            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mã Sở Hữu (Token)</label>
+            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mã Tài Khoản Bí Mật (Token)</label>
             <div class="flex gap-2">
-              <button id="btn-toggle-token-edit" type="button" class="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">✏️ Dán/Nhập mã mới</button>
-              <button id="btn-copy-token" type="button" class="text-[11px] text-amber-600 dark:text-amber-400 font-bold hover:underline">📋 Sao chép</button>
+              <button id="btn-toggle-token-edit" type="button" class="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">✏️ Nhập mã khác</button>
+              <button id="btn-copy-token" type="button" class="text-[11px] text-amber-600 dark:text-amber-400 font-bold hover:underline">📋 Sao chép mã</button>
             </div>
           </div>
           <div class="flex gap-1.5">
-            <input id="input-hero-token" type="text" class="w-full rpg-input rounded-lg px-3 py-1.5 text-xs font-mono select-all bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300" placeholder="Dán Token vào đây để chuyển tài khoản...">
-            <button id="btn-switch-by-token" type="button" class="shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition" title="Chuyển sang tài khoản ứng với Token này">🔄 Chuyển</button>
+            <input id="input-hero-token" type="text" class="w-full rpg-input rounded-lg px-3 py-1.5 text-xs font-mono select-all bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300" placeholder="Dán mã Token vào đây để chuyển tài khoản...">
+            <button id="btn-switch-by-token" type="button" class="shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition" title="Đăng nhập vào tài khoản ứng với mã Token này">🔄 Đổi tài khoản</button>
           </div>
-          <p class="text-[10px] text-slate-500 dark:text-slate-400">Dán Token của bạn vào đây: Hệ thống sẽ tự động nhận diện và chuyển sang tài khoản đó.</p>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">💡 Mã Token giống như mật khẩu bí mật giúp bạn chuyển tài khoản sang thiết bị khác hoặc khôi phục dữ liệu.</p>
         </div>
 
         <!-- Sync Status info -->
         <div id="sync-status-box" class="p-3 rounded-xl sub-panel text-xs space-y-1">
           <div class="flex justify-between">
-            <span class="text-slate-500">Trạng thái Cloud:</span>
-            <span id="modal-sync-state" class="text-emerald-600 dark:text-emerald-400 font-medium">Sẵn sàng</span>
+            <span class="text-slate-500">Trạng thái đám mây:</span>
+            <span id="modal-sync-state" class="text-emerald-600 dark:text-emerald-400 font-medium">Đã sẵn sàng</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-slate-500">Lần đồng bộ cuối:</span>
+            <span class="text-slate-500">Lần lưu gần nhất:</span>
             <span id="modal-sync-time" class="text-slate-700 dark:text-slate-300 font-mono">-</span>
           </div>
         </div>
 
         <div class="pt-2 flex justify-between items-center">
           <button id="btn-force-cloud-load" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-medium">
-            📥 Tải lại từ Cloud
+            📥 Tải lại dữ liệu từ đám mây
           </button>
           <div class="flex gap-2">
             <button class="modal-close px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Đóng</button>
             <button id="btn-save-profile" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
-              Lưu & Đồng Bộ
+              Lưu Thay Đổi
             </button>
           </div>
         </div>
@@ -640,24 +640,24 @@
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="text-xl">✨</span>
-          <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">GỢI Ý NHIỆM VỤ TỪ TRƯỞNG HỘI (AI)</h3>
+          <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">GỢI Ý NHIỆM VỤ TỪ AI</h3>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none">&times;</button>
       </div>
 
       <div class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Chọn Lĩnh Vực Cần Cày Cuốc</label>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Chọn Lĩnh Vực Bạn Cần Rèn Luyện</label>
           <div class="grid grid-cols-2 gap-2" id="suggest-categories">
             <button data-cat="Học tập chuyên sâu & Ôn thi" class="cat-btn active p-2.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-left transition">📚 Học tập & Ôn thi</button>
-            <button data-cat="Lập trình & Kỹ năng số" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">💻 Lập trình & Tech</button>
+            <button data-cat="Lập trình & Kỹ năng số" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">💻 Lập trình & Kỹ năng số</button>
             <button data-cat="Rèn luyện thể lực & Sức khỏe" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">🏃 Thể lực & Sức khỏe</button>
-            <button data-cat="Kỷ luật hàng ngày & Dọn dẹp" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">🧹 Kỷ luật sinh hoạt</button>
+            <button data-cat="Kỷ luật hàng ngày & Dọn dẹp" class="cat-btn p-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition">🧹 Kỷ luật & Thói quen sống</button>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mục Tiêu Cá Nhân (Tùy chọn)</label>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Mục Tiêu Riêng Của Bạn (Tùy chọn)</label>
           <input id="input-suggest-goal" type="text" placeholder="VD: Đang chuẩn bị thi chứng chỉ IELTS / Tuần này cần làm đồ án..." class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2 text-xs">
         </div>
 
@@ -667,7 +667,7 @@
         <div class="pt-2 flex justify-end gap-2">
           <button class="modal-close px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Đóng</button>
           <button id="btn-generate-suggestions" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
-            ✨ Tạo Nhiệm Vụ Mới
+            ✨ Tạo Gợi Ý Mới
           </button>
         </div>
       </div>
@@ -679,17 +679,17 @@
     <div class="rpg-panel rounded-3xl w-full max-w-md border border-amber-500/40 overflow-hidden modal-fade shadow-2xl flex flex-col bg-slate-900">
       <div class="bg-gradient-to-r from-amber-600/20 via-slate-900 to-amber-600/20 px-6 py-5 border-b border-slate-800 text-center">
         <span class="text-3xl mb-1 block">⚔️</span>
-        <h3 class="font-rpg-title font-black text-lg text-amber-400 uppercase tracking-wide">ĐẤU TRƯỜNG LEVELUP RPG</h3>
-        <p class="text-xs text-slate-400 mt-1">Hệ thống Năng suất & Cày cấp Thói quen có Trọng tài AI</p>
+        <h3 class="font-rpg-title font-black text-lg text-amber-400 uppercase tracking-wide">CHÀO MỪNG ĐẾN VỚI LEVELUP</h3>
+        <p class="text-xs text-slate-400 mt-1">Biến công việc và thói quen hàng ngày thành trò chơi để không còn trì hoãn</p>
       </div>
 
       <!-- Tab Switch: New vs Returning -->
       <div class="grid grid-cols-2 p-2 bg-slate-950/60 border-b border-slate-800 text-xs font-bold">
         <button id="btn-tab-welcome-new" type="button" class="py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm">
-          ✨ Người Mới
+          ✨ Tạo Tài Khoản Mới
         </button>
         <button id="btn-tab-welcome-returning" type="button" class="py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
-          🔑 Đã Có Token
+          🔑 Đã Có Mã Tài Khoản (Token)
         </button>
       </div>
 
@@ -697,7 +697,7 @@
         <!-- TAB 1: NEW USER -->
         <div id="welcome-panel-new" class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Lớp Nhân Vật</label>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Đại Diện (Avatar)</label>
             <div class="flex gap-2 justify-center py-1" id="welcome-avatar-selector">
               <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border-2 border-amber-500 bg-amber-500/20 shadow-sm transition" data-avatar="⚔️">⚔️</button>
               <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🧙‍♂️">🧙‍♂️</button>
@@ -709,30 +709,30 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">2. Đặt Nickname Của Bạn *</label>
-            <input id="input-welcome-nickname" type="text" placeholder="Nhập nickname không dấu (VD: quang_anh, hiepsi_it)" class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
-            <p class="text-[11px] text-slate-400 mt-1">Nickname là duy nhất. Hệ thống sẽ tự cấp một Mã Token bảo vệ quyền sở hữu của bạn.</p>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">2. Đặt Tên Của Bạn (Nickname) *</label>
+            <input id="input-welcome-nickname" type="text" placeholder="Nhập nickname không dấu (VD: quang_anh, minh_duc)" class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
+            <p class="text-[11px] text-slate-400 mt-1">Tên này sẽ hiển thị trên Bảng Xếp Hạng. Hệ thống sẽ tự cấp Mã Token để bạn đăng nhập sau này.</p>
           </div>
 
           <div id="welcome-new-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
 
           <button id="btn-welcome-create" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
-            🚀 Khởi Tạo Nhân Vật & Bắt Đầu
+            🚀 Bắt Đầu Hành Trình Ngay
           </button>
         </div>
 
         <!-- TAB 2: RETURNING USER WITH TOKEN -->
         <div id="welcome-panel-returning" class="hidden space-y-4">
           <div>
-            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Dán Mã Sở Hữu (Token) Của Bạn *</label>
-            <input id="input-welcome-token" type="text" placeholder="Dán mã Token 32 ký tự..." class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
-            <p class="text-[11px] text-slate-400 mt-1">Hệ thống sẽ tự động tìm hồ sơ của bạn trên Cloud và chuyển sang tài khoản đó.</p>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Dán Mã Tài Khoản (Token) Của Bạn *</label>
+            <input id="input-welcome-token" type="text" placeholder="Dán mã Token 32 ký tự vào đây..." class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
+            <p class="text-[11px] text-slate-400 mt-1">Hệ thống sẽ tự động tìm hồ sơ của bạn trên đám mây và khôi phục toàn bộ tiến trình.</p>
           </div>
 
           <div id="welcome-token-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
 
           <button id="btn-welcome-restore" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-lg shadow-purple-600/20 active:scale-95 flex items-center justify-center gap-2">
-            📥 Khôi Phục & Đăng Nhập Ngay
+            📥 Khôi Phục & Đăng Nhập
           </button>
         </div>
       </div>

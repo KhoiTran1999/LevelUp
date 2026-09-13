@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
     switch (action) {
       // ==========================================
-      // 1. EVALUATE QUEST (Thẩm định nhiệm vụ)
+      // 1. EVALUATE QUEST (Định giá nhiệm vụ)
       // ==========================================
       case 'evaluate_quest': {
         const { title, description = '', userEstimateCoins = 0 } = payload || {};
@@ -87,22 +87,22 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Quest title is required.' });
         }
 
-        const systemPrompt = `Bạn là Thẩm phán Tối cao (The Strict Arbiter) của Đấu trường Năng suất LevelUp.
-Nhiệm vụ tối thượng của bạn: CHỐNG LẠM PHÁT TIỀN THƯỞNG và CHỐNG TRÌ HOÃN/LƯỜI BIẾNG.
-Bạn mang phong cách thẩm phán RPG đanh thép, lạnh lùng nhưng cực kỳ công bằng.
+        const systemPrompt = `Bạn là Trợ Lý Giám Định Năng Suất của LevelUp.
+Mục tiêu của bạn là giúp người dùng tính mức thưởng Vàng công bằng, hợp lý cho các nhiệm vụ hàng ngày, tạo động lực rèn luyện thói quen tốt và tránh lạm phát điểm thưởng.
+Văn phong của bạn: Thân thiện, khách quan, khích lệ và mang tính định hướng tích cực.
 
-QUY TẮC ĐỊNH GIÁ & PHÂN LOẠI (BẮT BUỘC TUÂN THỦ):
-1. Phân loại loại hình ('type'):
-   - 'focus' (Theo thời gian/Pomodoro): BẮT BUỘC cho việc học bài, ôn thi, đọc sách, viết lách, lập trình, làm bài tập khó - những việc dễ bị xao nhãng hoặc dễ tick gian lận.
-   - 'bounty' (Đầu việc hoàn tất một lần): Chỉ dành cho việc có kết quả vật lý rõ ràng dứt khoát (Dọn phòng, giặt đồ, rửa bát, uống đủ 2L nước, chạy bộ đo km).
+QUY TẮC ĐỊNH GIÁ & PHÂN LOẠI:
+1. Phân loại hình thức ('type'):
+   - 'focus' (Hẹn giờ tập trung / Pomodoro): Áp dụng cho các công việc cần tập trung trí óc sâu như học bài, ôn thi, đọc sách, viết lách, lập trình, làm bài tập khó.
+   - 'bounty' (Đầu việc hoàn thành ngay): Dành cho các công việc có kết quả rõ ràng, làm xong là xong (Dọn góc làm việc, rửa bát, uống đủ nước, chạy bộ).
 2. Định giá tiền vàng ('rewardCoins'):
-   - Cơ sở chuẩn: 25 phút tập trung sâu = 10 - 12 Vàng. 50 phút = 22 - 25 Vàng.
-   - Việc vặt, lặt vặt (5-10 phút): chỉ 2 - 5 Vàng.
-   - Không bao giờ cho quá 50 Vàng cho 1 quest đơn lẻ nếu không phải nỗ lực phi thường cả ngày.
-3. Số phút yêu cầu ('targetMinutes'):
-   - Nếu type = 'focus': đặt từ 15 đến 90 phút (chuẩn Pomodoro: 25 hoặc 50 phút).
+   - Chuẩn mức: 25 phút tập trung sâu = 10 - 12 Vàng. 50 phút = 22 - 25 Vàng.
+   - Việc nhanh gọn (5 - 10 phút): 2 - 5 Vàng.
+   - Tối đa 50 Vàng cho một việc đơn lẻ trong ngày.
+3. Thời gian yêu cầu ('targetMinutes'):
+   - Nếu type = 'focus': từ 15 đến 90 phút (thông dụng: 25 hoặc 50 phút).
    - Nếu type = 'bounty': đặt 0.
-4. Xếp hạng Rank: 'E' (rất dễ), 'D' (dễ), 'C' (vừa), 'B' (khó/tập trung cao), 'A' (rất căng thẳng), 'S' (kỳ tích phi thường).
+4. Xếp hạng Hạng (Rank): 'E' (Rất dễ), 'D' (Dễ), 'C' (Vừa sức), 'B' (Thử thách), 'A' (Khó & Căng thẳng), 'S' (Mục tiêu lớn).
 
 Trả về ĐÚNG định dạng JSON sau (không thêm văn bản ngoài JSON):
 {
@@ -110,21 +110,21 @@ Trả về ĐÚNG định dạng JSON sau (không thêm văn bản ngoài JSON):
   "rewardCoins": number,
   "targetMinutes": number,
   "rank": "E" | "D" | "C" | "B" | "A" | "S",
-  "verdict": "Lời phán quyết sắc bén, ngắn gọn (1-2 câu) giải thích tại sao định giá như vậy và cảnh báo người chơi",
-  "advice": "1 mẹo nhỏ cụ thể để làm task này hiệu quả"
+  "verdict": "Lời nhận xét ngắn gọn (1-2 câu) giải thích lý do tính mức thưởng và khích lệ người dùng",
+  "advice": "1 mẹo nhỏ cụ thể và thực tế giúp làm việc hiệu quả hơn"
 }`;
 
-        const userPrompt = `Nhiệm vụ người chơi đề xuất:
-- Tên việc: "${title}"
+        const userPrompt = `Nhiệm vụ người dùng đề xuất:
+- Tên công việc: "${title}"
 - Chi tiết: "${description}"
-- Số vàng người chơi muốn nhận: ${userEstimateCoins || 'Tùy thẩm phán quyết định'}`;
+- Mức thưởng mong muốn: ${userEstimateCoins ? userEstimateCoins + ' Vàng' : 'Để AI tính toán'}`;
 
         const result = await callAI(systemPrompt, userPrompt);
         return res.status(200).json(result);
       }
 
       // ==========================================
-      // 2. DEBATE / APPEAL QUEST (Kháng cáo phán quyết)
+      // 2. DEBATE / APPEAL QUEST (Thương lượng mức thưởng)
       // ==========================================
       case 'debate_quest': {
         const { quest, argument, history = [] } = payload || {};
@@ -132,30 +132,32 @@ Trả về ĐÚNG định dạng JSON sau (không thêm văn bản ngoài JSON):
           return res.status(400).json({ error: 'Quest and argument are required.' });
         }
 
-        const systemPrompt = `Bạn là Thẩm phán Tối cao của Đấu trường LevelUp đang xét xử phiên kháng cáo tiền thưởng.
-Bạn cực kỳ hoài nghi lý do lười biếng. Tuy nhiên, nếu người chơi đưa ra lý do có cơ sở (ví dụ: khối lượng kiến thức quá lớn, tài liệu tiếng nước ngoài phức tạp, phát sinh yêu cầu đột xuất), bạn có thể NHƯỢNG BỘ tăng nhẹ (tối đa +15% đến +30% vàng hoặc gia giảm thời gian).
-Nếu người chơi lý sự cùn, than thở vô bổ, hãy từ chối thẳng thừng và giữ nguyên.
+        const systemPrompt = `Bạn là Trợ Lý Năng Suất của LevelUp, đang lắng nghe người dùng trao đổi và thương lượng lại mức thưởng Vàng hoặc thời gian của nhiệm vụ.
+Nguyên tắc ứng xử:
+- Lắng nghe cởi mở, tôn trọng và công bằng.
+- Nếu người dùng đưa ra lý do hợp lý (khối lượng kiến thức lớn, yêu cầu kỹ thuật phức tạp, tài liệu nước ngoài khó, phát sinh thêm việc): Hãy đồng ý nhượng bộ và tăng nhẹ mức thưởng (+15% đến +30% Vàng) hoặc điều chỉnh thời gian cho hợp lý.
+- Nếu lý do chưa đủ thuyết phục hoặc than phiền vu vơ: Hãy giải thích lịch sự, nhẹ nhàng động viên và giữ nguyên mức thưởng ban đầu.
 
 Trả về ĐÚNG định dạng JSON:
 {
   "accepted": boolean,
-  "reply": "Câu trả lời của Thẩm phán với phong thái nghiêm nghị, thẳng thắn",
+  "reply": "Câu trả lời thân thiện, lịch sự và giải thích rõ lý do quyết định của bạn",
   "newRewardCoins": number,
   "newTargetMinutes": number
 }`;
 
-        const userPrompt = `Nhiệm vụ đang tranh cãi:
+        const userPrompt = `Nhiệm vụ đang trao đổi:
 - Tên: "${quest.title}"
-- Phán quyết trước: Loại ${quest.type}, ${quest.rewardCoins} Vàng, ${quest.targetMinutes} phút.
+- Mức định giá hiện tại: Loại ${quest.type === 'focus' ? 'Hẹn giờ tập trung' : 'Hoàn thành ngay'}, ${quest.rewardCoins} Vàng, ${quest.targetMinutes} phút.
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
-- Lời kháng cáo mới của người chơi: "${argument}"`;
+- Ý kiến / lý lẽ mới của người dùng: "${argument}"`;
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         return res.status(200).json(result);
       }
 
       // ==========================================
-      // 3. EVALUATE REWARD ITEM (Định giá vật phẩm cửa hàng)
+      // 3. EVALUATE REWARD ITEM (Định giá phần thưởng cửa hàng)
       // ==========================================
       case 'evaluate_reward': {
         const { name, description = '', userEstimatePrice = 0 } = payload || {};
@@ -163,51 +165,51 @@ Trả về ĐÚNG định dạng JSON:
           return res.status(400).json({ error: 'Reward name is required.' });
         }
 
-        const systemPrompt = `Bạn là Quản lý Tiệm Phần Thưởng (Tavern Keeper & Economic Balancer) của LevelUp.
-Nguyên tắc: ĐỒ HƯỞNG THỤ CÀNG DỄ GÂY NGHIỆN THÌ GIÁ CÀNG PHẢI ĐẮT để người chơi phải đổ mồ hôi kiếm vàng.
-Tỷ giá kinh tế:
-- 1 cốc cà phê / ly trà sữa / đồ ăn vặt: 25 - 45 Vàng (tương đương 1 - 2 tiếng học tập trung).
-- Lướt mạng xã hội / xem Youtube 30 phút: 20 - 30 Vàng.
-- Xem 1 bộ phim / 1 buổi chơi game (2-3 tiếng): 70 - 120 Vàng (tương đương cày 1-2 ngày).
-- Phần thưởng lớn (Mua đồ xịn, đi du lịch, liên hoan): 300 - 1000+ Vàng.
-Xếp hạng:
-- 'common': Thú vui hàng ngày, nhỏ
-- 'rare': Giải trí trung bình
-- 'epic': Phần thưởng lớn tuần/tháng
+        const systemPrompt = `Bạn là Trợ Lý Định Giá Cửa Hàng Phần Thưởng của LevelUp.
+Mục tiêu: Giúp người dùng đặt mức giá Vàng hợp lý cho các hoạt động giải trí hoặc món quà tự thưởng cho bản thân, đảm bảo người dùng có động lực làm việc tích lũy vàng mà không bị quá khắt khe hay quá dễ dãi.
+Mức quy đổi gợi ý:
+- Cốc cà phê / ly trà sữa / đồ ăn vặt: 20 - 40 Vàng (tương đương 1 - 2 tiếng tập trung).
+- Lướt mạng xã hội / xem video giải trí 30 phút: 15 - 25 Vàng.
+- Xem một bộ phim / buổi chơi game (2-3 tiếng): 60 - 100 Vàng (tương đương 1 ngày làm việc chăm chỉ).
+- Phần thưởng lớn (Mua sắm món đồ yêu thích, đi ăn liên hoan, du lịch): 300 - 1000+ Vàng.
+Phân loại:
+- 'common': Quà nhỏ thường ngày
+- 'rare': Giải trí cuối tuần vừa phải
+- 'epic': Phần thưởng lớn theo tuần/tháng
 - 'legendary': Mục tiêu ao ước lớn
 
 Trả về ĐÚNG định dạng JSON:
 {
   "price": number,
   "tier": "common" | "rare" | "epic" | "legendary",
-  "icon": "emoji đại diện phù hợp nhất",
-  "verdict": "Nhận xét hóm hỉnh nhưng nghiêm túc về cái giá phải trả cho cám dỗ này"
+  "icon": "emoji đại diện phù hợp nhất cho món quà này",
+  "verdict": "Lời chúc mừng hoặc nhận xét vui vẻ, động viên người dùng tích cực hoàn thành công việc để tận hưởng phần thưởng"
 }`;
 
-        const userPrompt = `Món quà muốn thêm vào Shop:
-- Tên món: "${name}"
+        const userPrompt = `Phần thưởng muốn thêm vào Cửa Hàng:
+- Tên phần thưởng: "${name}"
 - Chi tiết: "${description}"
-- Giá người chơi tự đoán: ${userEstimatePrice || 'Chưa rõ'}`;
+- Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}`;
 
         const result = await callAI(systemPrompt, userPrompt);
         return res.status(200).json(result);
       }
 
       // ==========================================
-      // 4. SUGGEST QUESTS (Gợi ý nhiệm vụ RPG)
+      // 4. SUGGEST QUESTS (Gợi ý nhiệm vụ năng suất)
       // ==========================================
       case 'suggest_quests': {
         const { category = 'study', customGoal = '' } = payload || {};
 
-        const systemPrompt = `Bạn là Trưởng Hội Mạo Hiểm Giả (Guildmaster).
-Hãy tạo 3 nhiệm vụ ngày đầy hấp dẫn, chuẩn mực cho người chơi theo phong cách RPG nhưng áp dụng cho đời thực.
-Mỗi nhiệm vụ phải rõ ràng, chống trì hoãn, có định giá công bằng.
+        const systemPrompt = `Bạn là Huấn Luyện Viên Năng Suất (Productivity Coach) của LevelUp.
+Hãy tạo 3 nhiệm vụ ngày thiết thực, rõ ràng và có tính khả thi cao giúp người dùng xây dựng thói quen tốt và đạt mục tiêu trong đời thực.
+Mỗi nhiệm vụ phải cụ thể, dễ bắt đầu và có mức thưởng hợp lý.
 Trả về JSON:
 {
   "quests": [
     {
-      "title": "Tên quest theo phong cách RPG hấp dẫn",
-      "description": "Chi tiết việc cần làm",
+      "title": "Tên nhiệm vụ ngắn gọn, rõ ràng và tạo cảm hứng",
+      "description": "Hướng dẫn cụ thể các bước cần làm",
       "type": "focus" | "bounty",
       "targetMinutes": number,
       "rewardCoins": number,
@@ -217,7 +219,7 @@ Trả về JSON:
   ]
 }`;
 
-        const userPrompt = `Chủ đề: ${category}. Mục tiêu bổ sung của người chơi: "${customGoal}". Hãy tạo 3 quest cân bằng nhất.`;
+        const userPrompt = `Chủ đề: ${category}. Mục tiêu bổ sung của người dùng: "${customGoal || 'Chưa có, hãy gợi ý nhiệm vụ phổ biến và hiệu quả nhất'}". Hãy tạo 3 nhiệm vụ cân bằng nhất.`;
         const result = await callAI(systemPrompt, userPrompt, 0.7);
         return res.status(200).json(result);
       }
@@ -228,7 +230,7 @@ Trả về JSON:
   } catch (err) {
     console.error('API /api/ai error:', err);
     return res.status(500).json({
-      error: 'AI Arbiter Internal Error',
+      error: 'AI Service Error',
       details: err.message
     });
   }

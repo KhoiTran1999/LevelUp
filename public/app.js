@@ -108,7 +108,7 @@ const DEFAULT_STATE = {
     exp: 0,
     coins: 20,
     totalCoinsEarned: 20,
-    title: 'Tân Binh Đấu Trường',
+    title: 'Tân Binh Cấp 1',
     streak: 1,
     soundEnabled: true,
     theme: 'dark',
@@ -120,26 +120,26 @@ const DEFAULT_STATE = {
     {
       id: 'q_seed_1',
       title: 'Đọc 1 chương sách chuyên ngành',
-      description: 'Ghi chú ít nhất 3 ý cốt lõi, không chạm vào điện thoại',
+      description: 'Ghi chú ít nhất 3 ý chính, không dùng điện thoại',
       type: 'focus',
       rank: 'C',
       rewardCoins: 12,
       targetMinutes: 25,
-      advice: 'Bật chế độ Do Not Disturb trên điện thoại trước khi bấm giờ.',
-      verdict: '25 phút tập trung sâu là chuẩn mực. Không bấm giờ thì không có thưởng!',
+      advice: 'Bật chế độ Không làm phiền trên điện thoại trước khi bấm giờ.',
+      verdict: '25 phút tập trung sâu là khoảng thời gian chuẩn mực. Hãy hoàn thành đủ giờ để nhận thưởng!',
       status: 'active',
       createdAt: Date.now()
     },
     {
       id: 'q_seed_2',
       title: 'Dọn sạch góc bàn làm việc & rửa sạch cốc',
-      description: 'Môi trường ngăn nắp tăng 40% hiệu suất học',
+      description: 'Không gian ngăn nắp giúp tinh thần thoải mái và tập trung tốt hơn',
       type: 'bounty',
       rank: 'E',
       rewardCoins: 5,
       targetMinutes: 0,
-      advice: 'Làm dứt khoát trong 5 phút.',
-      verdict: 'Việc đơn giản có kết quả vật lý rõ ràng. Cho phép nhận theo đầu việc.',
+      advice: 'Làm dứt khoát trong 5 - 10 phút.',
+      verdict: 'Công việc nhanh gọn có kết quả rõ ràng. Đánh dấu xong để nhận ngay 5 Vàng!',
       status: 'active',
       createdAt: Date.now()
     }
@@ -148,29 +148,29 @@ const DEFAULT_STATE = {
     {
       id: 'shop_seed_1',
       name: '1 Ly Trà Sữa / Cà Phê Yêu Thích',
-      description: 'Tự thưởng một cốc đồ uống ngon lành sau buổi cày cuốc',
+      description: 'Tự thưởng một cốc đồ uống ngon lành sau buổi học tập, làm việc',
       price: 35,
       tier: 'rare',
       icon: '🧋',
-      verdict: 'Tương đương gần 2 tiếng rưỡi tập trung cao độ. Uống không thấy tội lỗi!'
+      verdict: 'Tương đương hơn 1 tiếng tập trung làm việc. Hãy thưởng thức thật ngon miệng!'
     },
     {
       id: 'shop_seed_2',
-      name: 'Lướt Mạng Xã Hội / Xem Youtube 30 Phút',
-      description: 'Giải trí tự do không cắn rứt lương tâm',
+      name: 'Lướt Mạng Xã Hội / Xem Video 30 Phút',
+      description: 'Giải trí thư giãn thoải mái sau khi hoàn thành mục tiêu',
       price: 20,
       tier: 'common',
       icon: '📱',
-      verdict: 'Cám dỗ lớn của thời đại! Phải trả ít nhất 20 Vàng để mua lại nửa tiếng tự do.'
+      verdict: 'Thư giãn hợp lý giúp nạp lại năng lượng cho những mục tiêu tiếp theo.'
     },
     {
       id: 'shop_seed_3',
-      name: 'Đi Xem Phim Chiếu Rạp Cuối Tuần',
-      description: 'Một buổi tối thư giãn trọn vẹn tại rạp',
+      name: 'Đi Xem Phim Rạp Cuối Tuần',
+      description: 'Một buổi tối thư giãn trọn vẹn tại rạp chiếu phim',
       price: 120,
       tier: 'epic',
       icon: '🍿',
-      verdict: 'Mục tiêu lớn! Cần hoàn thành chỉ tiêu cả tuần mới đủ vàng tận hưởng.'
+      verdict: 'Mục tiêu lớn! Cần hoàn thành đều đặn nhiệm vụ cả tuần để đổi lấy món quà này.'
     }
   ],
   inventory: [],
@@ -179,7 +179,7 @@ const DEFAULT_STATE = {
       id: 'led_1',
       type: 'earn',
       amount: 20,
-      description: 'Quà gia nhập Hội Mạo Hiểm Giả LevelUp',
+      description: 'Thưởng chào mừng gia nhập LevelUp',
       timestamp: Date.now()
     }
   ],
@@ -464,12 +464,12 @@ function addEXP(amount) {
 
 function updateTitleByLevel() {
   const lvl = appState.profile.level;
-  if (lvl >= 20) appState.profile.title = 'Đại Tướng Huyền Thoại';
-  else if (lvl >= 15) appState.profile.title = 'Đại Hiệp Sĩ Rồng';
-  else if (lvl >= 10) appState.profile.title = 'Thợ Săn Bậc Thầy';
-  else if (lvl >= 6) appState.profile.title = 'Chiến Binh Dũng Cảm';
-  else if (lvl >= 3) appState.profile.title = 'Thợ Săn Tinh Nhuệ';
-  else appState.profile.title = 'Tân Binh Đấu Trường';
+  if (lvl >= 20) appState.profile.title = 'Huyền Thoại Kỷ Luật';
+  else if (lvl >= 15) appState.profile.title = 'Bậc Thầy Năng Suất';
+  else if (lvl >= 10) appState.profile.title = 'Chuyên Gia Tập Trung';
+  else if (lvl >= 6) appState.profile.title = 'Chiến Binh Kiên Trì';
+  else if (lvl >= 3) appState.profile.title = 'Học Viên Chăm Chỉ';
+  else appState.profile.title = 'Tân Binh Cấp 1';
 }
 
 // =============================================================================
@@ -528,7 +528,7 @@ function updateTimerDisplay() {
   const secs = focusRemainingSeconds % 60;
   const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   if (display) display.textContent = timeStr;
-  document.title = isFocusRunning ? `(${timeStr}) ${activeFocusQuest?.title || 'LevelUp'}` : 'LevelUp — RPG Productivity';
+  document.title = isFocusRunning ? `(${timeStr}) ${activeFocusQuest?.title || 'LevelUp'}` : 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
 }
 
 function toggleFocusTimer() {
@@ -538,11 +538,11 @@ function toggleFocusTimer() {
 }
 
 function resetFocusTimer() {
-  if (confirm('Bạn có chắc muốn hủy phiên tập trung này? Thời gian đã trôi qua sẽ không được tính.')) {
+  if (confirm('Bạn có chắc muốn dừng phiên tập trung này? Thời gian đã đếm sẽ không được tính.')) {
     clearInterval(focusTimerInterval);
     activeFocusQuest = null;
     isFocusRunning = false;
-    document.title = 'LevelUp — RPG Productivity';
+    document.title = 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
     const banner = document.getElementById('active-focus-banner');
     if (banner) banner.classList.add('hidden');
   }
@@ -552,7 +552,7 @@ function focusTimerFinished() {
   sfx.playFanfare();
   sfx.playGong();
   document.title = '🎉 Hoàn thành tập trung!';
-  alert(`🔔 HẾT GIỜ TẬP TRUNG!\n\nChúc mừng bạn đã xuất sắc vượt qua ${activeFocusQuest.targetMinutes} phút tập trung cao độ! Hãy nhận phần thưởng xứng đáng.`);
+  alert(`🔔 HẾT GIỜ TẬP TRUNG!\n\nChúc mừng bạn đã xuất sắc hoàn thành ${activeFocusQuest.targetMinutes} phút tập trung cao độ! Vàng thưởng đã được cộng vào tài khoản của bạn.`);
 
   if (activeFocusQuest) {
     completeQuest(activeFocusQuest.id);
@@ -580,7 +580,7 @@ function completeQuest(questId) {
     id: 'led_' + Date.now(),
     type: 'earn',
     amount: quest.rewardCoins,
-    description: `Hoàn thành [Rank ${quest.rank}] ${quest.title}`,
+    description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}`,
     timestamp: Date.now()
   });
 
@@ -590,7 +590,7 @@ function completeQuest(questId) {
 }
 
 function deleteQuest(questId) {
-  if (!confirm('Bạn có chắc muốn hủy bỏ nhiệm vụ này khỏi Bảng săn tiền thưởng?')) return;
+  if (!confirm('Bạn có chắc muốn xóa nhiệm vụ này?')) return;
   appState.quests = appState.quests.filter(q => q.id !== questId);
   triggerSave(true);
   showToast('Đã xóa nhiệm vụ.', 'info');
@@ -604,11 +604,11 @@ function buyShopItem(itemId) {
   if (!item) return;
 
   if (appState.profile.coins < item.price) {
-    showToast(`Không đủ vàng! Bạn cần thêm ${item.price - appState.profile.coins} Vàng nữa. Hãy hoàn thành thêm quest!`, 'error');
+    showToast(`Chưa đủ vàng! Bạn cần thêm ${item.price - appState.profile.coins} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
     return;
   }
 
-  if (!confirm(`Bạn có chắc muốn dùng ${item.price} Vàng để mua "${item.name}"?`)) return;
+  if (!confirm(`Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`)) return;
 
   appState.profile.coins -= item.price;
 
@@ -627,12 +627,12 @@ function buyShopItem(itemId) {
     id: 'led_' + Date.now(),
     type: 'spend',
     amount: item.price,
-    description: `Đổi phần thưởng: ${item.name}`,
+    description: `Đổi quà: ${item.name}`,
     timestamp: Date.now()
   });
 
   sfx.playFanfare();
-  showToast(`Đã mua thành công! "${item.name}" đã được đưa vào Chiến Lợi Phẩm.`, 'success');
+  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà Của Tôi.`, 'success');
   triggerSave(true);
 }
 
@@ -640,11 +640,11 @@ function useInventoryItem(invId) {
   const item = appState.inventory.find(i => i.id === invId);
   if (!item || item.isUsed) return;
 
-  if (confirm(`Bạn chuẩn bị sử dụng "${item.name}" ngay bây giờ? Hãy tận hưởng trọn vẹn không chút tội lỗi!`)) {
+  if (confirm(`Bạn muốn sử dụng phần thưởng "${item.name}" bây giờ? Hãy tự thưởng cho bản thân thật vui vẻ nhé!`)) {
     item.isUsed = true;
     item.usedAt = Date.now();
     sfx.playClick();
-    showToast(`Đã sử dụng "${item.name}". Chúc bạn có khoảnh khắc thư giãn tuyệt vời!`, 'success');
+    showToast(`Đã dùng phần thưởng "${item.name}". Chúc bạn có thời gian thư giãn tuyệt vời!`, 'success');
     triggerSave(true);
   }
 }
@@ -695,14 +695,14 @@ async function submitQuestToAI() {
       rewardCoins: data.rewardCoins || 10,
       targetMinutes: data.targetMinutes || 25,
       rank: data.rank || calculateRank(data.rewardCoins || 10),
-      verdict: data.verdict || 'Thẩm phán đã phê duyệt.',
-      advice: data.advice || 'Tập trung làm hết sức mình.'
+      verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
+      advice: data.advice || 'Tập trung hoàn thành từng bước một.'
     };
     currentDebateHistory = [];
 
     renderVerdictStep();
   } catch (err) {
-    showToast('Lỗi gọi Thẩm Phán AI: ' + err.message, 'error');
+    showToast('Không thể kết nối với AI: ' + err.message, 'error');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-form-step').classList.remove('hidden');
   }
@@ -713,7 +713,7 @@ function renderVerdictStep() {
   document.getElementById('quest-verdict-step').classList.remove('hidden');
 
   const rankBadge = document.getElementById('verdict-rank');
-  rankBadge.textContent = `RANK ${currentPendingVerdict.rank}`;
+  rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
   rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
 
   const typeBadge = document.getElementById('verdict-type-badge');
@@ -721,12 +721,12 @@ function renderVerdictStep() {
   const minutesEl = document.getElementById('verdict-minutes');
 
   if (currentPendingVerdict.type === 'focus') {
-    typeBadge.textContent = '⏳ FOCUS TIMER';
+    typeBadge.textContent = '⏳ TẬP TRUNG (HẸN GIỜ)';
     typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30';
     timeBox.classList.remove('hidden');
     minutesEl.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
   } else {
-    typeBadge.textContent = '🗡️ BOUNTY (ĐẦU VIỆC)';
+    typeBadge.textContent = '✓ VIỆC HOÀN THÀNH NGAY';
     typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30';
     timeBox.classList.add('hidden');
   }
@@ -758,7 +758,7 @@ function acceptVerdictAndCreateQuest() {
 
   appState.quests.unshift(newQuest);
   sfx.playClick();
-  showToast(`Đã nhận nhiệm vụ [Rank ${newQuest.rank}]: "${newQuest.title}"!`, 'success');
+  showToast(`Đã thêm nhiệm vụ [Hạng ${newQuest.rank}]: "${newQuest.title}"!`, 'success');
   closeModal('modal-quest');
   triggerSave(true);
 }
@@ -779,7 +779,7 @@ async function sendDebateArgument() {
 
   const loadingBubble = document.createElement('div');
   loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
-  loadingBubble.textContent = 'Thẩm Phán đang cân nhắc lý lẽ của bạn...';
+  loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng của bạn...';
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTop = chatLogs.scrollHeight;
 
@@ -803,7 +803,7 @@ async function sendDebateArgument() {
 
     const aiBubble = document.createElement('div');
     aiBubble.className = `p-2 rounded-lg text-xs mr-4 sm:mr-6 border ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
-    aiBubble.innerHTML = `<strong>Thẩm Phán:</strong> ${data.reply}`;
+    aiBubble.innerHTML = `<strong>AI Phản Hồi:</strong> ${data.reply}`;
     chatLogs.appendChild(aiBubble);
     chatLogs.scrollTop = chatLogs.scrollHeight;
 
@@ -816,13 +816,13 @@ async function sendDebateArgument() {
 
       document.getElementById('verdict-coins').textContent = `🪙 ${currentPendingVerdict.rewardCoins} Vàng`;
       const rankBadge = document.getElementById('verdict-rank');
-      rankBadge.textContent = `RANK ${currentPendingVerdict.rank}`;
+      rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
       rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
-      showToast(`Kháng cáo thành công! Thưởng tăng lên ${data.newRewardCoins} Vàng!`, 'gold');
+      showToast(`Thương lượng thành công! Mức thưởng đã tăng lên ${data.newRewardCoins} Vàng!`, 'gold');
       sfx.playFanfare();
     }
   } catch (err) {
-    loadingBubble.textContent = 'Lỗi tranh biện: ' + err.message;
+    loadingBubble.textContent = 'Lỗi thương lượng: ' + err.message;
   }
 }
 
@@ -844,7 +844,7 @@ async function evaluateRewardItem() {
   const btnEval = document.getElementById('btn-eval-reward');
   const btnSave = document.getElementById('btn-save-reward');
 
-  btnEval.textContent = 'Đang thẩm định...';
+  btnEval.textContent = '⏳ AI đang định giá...';
   btnEval.disabled = true;
 
   try {
@@ -867,7 +867,7 @@ async function evaluateRewardItem() {
       price: data.price || 30,
       tier: data.tier || 'rare',
       icon: data.icon || '🎁',
-      verdict: data.verdict || 'Phần thưởng đã được định giá chuẩn mực.'
+      verdict: data.verdict || 'Phần thưởng đã được định giá phù hợp.'
     };
 
     evalBox.classList.remove('hidden');
@@ -880,7 +880,7 @@ async function evaluateRewardItem() {
     sfx.playClick();
   } catch (err) {
     showToast('Lỗi thẩm định: ' + err.message, 'error');
-    btnEval.textContent = '⚖️ Thẩm Định Giá';
+    btnEval.textContent = '🤖 AI Định Giá Vàng';
     btnEval.disabled = false;
   }
 }
@@ -889,7 +889,7 @@ function savePendingReward() {
   if (!currentPendingReward) return;
   appState.shopItems.unshift(currentPendingReward);
   sfx.playFanfare();
-  showToast(`Đã thêm món "${currentPendingReward.name}" vào Tiệm!`, 'success');
+  showToast(`Đã thêm món "${currentPendingReward.name}" vào Cửa Hàng!`, 'success');
   closeModal('modal-reward');
   triggerSave(true);
 }
@@ -905,8 +905,8 @@ async function generateQuestSuggestions() {
   const btnGen = document.getElementById('btn-generate-suggestions');
 
   btnGen.disabled = true;
-  btnGen.textContent = 'Trưởng Hội đang suy nghĩ...';
-  listEl.innerHTML = '<div class="text-center py-6 text-xs text-amber-600 dark:text-amber-300 animate-pulse font-medium">✨ Đang tạo nhiệm vụ cân bằng theo năng lực...</div>';
+  btnGen.textContent = 'AI đang suy nghĩ...';
+  listEl.innerHTML = '<div class="text-center py-6 text-xs text-amber-600 dark:text-amber-300 animate-pulse font-medium">✨ AI đang soạn danh sách nhiệm vụ phù hợp với bạn...</div>';
 
   try {
     const res = await fetch('/api/ai', {
@@ -932,18 +932,18 @@ async function generateQuestSuggestions() {
       card.innerHTML = `
         <div class="flex-1">
           <div class="flex items-center gap-1.5 mb-1">
-            <span class="rank-badge-${q.rank || 'C'} text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">RANK ${q.rank || 'C'}</span>
+            <span class="rank-badge-${q.rank || 'C'} text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">HẠNG ${q.rank || 'C'}</span>
             <span class="text-xs font-bold text-slate-900 dark:text-slate-200">${escapeHtml(q.title)}</span>
           </div>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">${escapeHtml(q.description)}</p>
           <div class="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-mono">
-            <span>${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Focus` : '🗡️ Đầu việc'}</span>
+            <span>${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Tập trung` : '✓ Làm ngay'}</span>
             <span>•</span>
             <span class="text-amber-600 dark:text-amber-400 font-bold">🪙 ${q.rewardCoins} Vàng</span>
           </div>
         </div>
         <button class="btn-accept-suggestion px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shrink-0 transition active:scale-95 shadow-sm">
-          Nhận
+          Nhận Việc
         </button>
       `;
 
@@ -956,14 +956,14 @@ async function generateQuestSuggestions() {
           rank: q.rank || 'C',
           rewardCoins: q.rewardCoins || 12,
           targetMinutes: q.targetMinutes || 25,
-          advice: 'Trưởng hội chúc bạn hoàn thành xuất sắc!',
-          verdict: 'Nhiệm vụ chuẩn mực từ Guildmaster.',
+          advice: 'Chúc bạn hoàn thành tốt nhiệm vụ này!',
+          verdict: 'Nhiệm vụ được AI gợi ý theo mục tiêu của bạn.',
           status: 'active',
           createdAt: Date.now()
         };
         appState.quests.unshift(newQuest);
         sfx.playClick();
-        showToast(`Đã nhận quest: "${q.title}"!`, 'success');
+        showToast(`Đã nhận nhiệm vụ: "${q.title}"!`, 'success');
         closeModal('modal-suggest');
         triggerSave(true);
       });
@@ -971,7 +971,7 @@ async function generateQuestSuggestions() {
       listEl.appendChild(card);
     });
 
-    btnGen.textContent = '✨ Tạo Lại Gợi Ý';
+    btnGen.textContent = '✨ Gợi Ý Thêm';
     btnGen.disabled = false;
   } catch (err) {
     listEl.innerHTML = `<div class="text-xs text-rose-500 text-center py-4">Lỗi: ${err.message}</div>`;
@@ -987,7 +987,7 @@ async function fetchLeaderboard() {
   const tbody = document.getElementById('leaderboard-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng từ Redis Cloud...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
 
   try {
     const res = await fetch('/api/sync?action=leaderboard');
@@ -996,7 +996,7 @@ async function fetchLeaderboard() {
     const list = data.leaderboard || [];
 
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Chưa có ai ghi danh trên Đấu Trường. Hãy đồng bộ nickname của bạn đầu tiên!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Chưa có ai trên Bảng Xếp Hạng. Hãy đồng bộ tên của bạn để là người đầu tiên!</td></tr>';
       return;
     }
 
@@ -1016,10 +1016,10 @@ async function fetchLeaderboard() {
             <span class="text-slate-900 dark:text-slate-100">${escapeHtml(u.nickname)}</span>
             ${u.role === 'admin' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold">👑 ADMIN</span>' : ''}
             ${isMe ? '<span class="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-bold">BẠN</span>' : ''}
-            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.nickname)}" title="Xóa tài khoản gian lận (Quyền Admin)">🗑️</button>` : ''}
+            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
           </div>
         </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell">${escapeHtml(u.title || 'Mạo hiểm giả')}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell">${escapeHtml(u.title || 'Thành viên')}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300">Lv. ${u.level || 1}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">🪙 ${u.totalCoinsEarned || 0}</td>
       `;
@@ -1031,7 +1031,7 @@ async function fetchLeaderboard() {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const target = btn.dataset.nick;
-          if (!confirm(`Trưởng Hội có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng xếp hạng?`)) return;
+          if (!confirm(`Bạn có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng Xếp Hạng?`)) return;
           try {
             const token = getOrCreateUserToken();
             const res = await fetch('/api/sync?action=admin_remove', {
@@ -1127,10 +1127,10 @@ function renderQuests() {
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between gap-2 mb-2.5">
-          <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">RANK ${q.rank}</span>
+          <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
           <div class="flex items-center gap-1.5">
             <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono">🪙 +${q.rewardCoins}</span>
-            <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition" title="Xóa quest">&times;</button>
+            <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition" title="Xóa nhiệm vụ">&times;</button>
           </div>
         </div>
 
@@ -1146,7 +1146,7 @@ function renderQuests() {
 
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2">
         <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
-          ${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Focus` : '🗡️ Đầu việc'}
+          ${q.type === 'focus' ? `⏳ ${q.targetMinutes}p Tập trung` : '✓ Làm ngay'}
         </span>
 
         ${isCompleted ? `
@@ -1156,12 +1156,12 @@ function renderQuests() {
         ` : q.type === 'focus' ? `
           <button class="btn-start-focus px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition flex items-center gap-1.5 shadow-md shadow-cyan-600/20 active:scale-95">
             <span>⏱️</span>
-            <span>Tập Trung</span>
+            <span>Bắt Đầu</span>
           </button>
         ` : `
           <button class="btn-complete-bounty px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
             <span>✓</span>
-            <span>Xong</span>
+            <span>Hoàn Thành</span>
           </button>
         `}
       </div>
@@ -1228,7 +1228,7 @@ function renderShop() {
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
         <span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400">🪙 ${item.price} Vàng</span>
         <button class="btn-buy-item px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 active:scale-95 ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}">
-          <span>Mua Ngay</span>
+          <span>${canAfford ? 'Đổi Quà' : 'Chưa Đủ Vàng'}</span>
         </button>
       </div>
     `;
@@ -1275,10 +1275,10 @@ function renderInventory() {
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
         <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">🪙 ${item.price} Vàng</span>
         ${item.isUsed ? `
-          <span class="text-xs font-semibold text-slate-500">Đã hưởng thụ</span>
+          <span class="text-xs font-semibold text-slate-500">Đã sử dụng</span>
         ` : `
           <button class="btn-use-inv px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 transition shadow-md shadow-emerald-500/20 active:scale-95">
-            Hưởng Thụ Ngay 🎉
+            Dùng Quà Ngay 🎉
           </button>
         `}
       </div>
@@ -1423,7 +1423,7 @@ function initWelcomeModal() {
     e.preventDefault();
     e.stopPropagation();
     openModal('modal-welcome');
-    showToast('Bạn bắt buộc phải tạo nhân vật hoặc nhập Token để sử dụng!', 'error');
+    showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'error');
   }, true);
 
   // Anti-DevTools 3: Chặn phím tắt gõ vào trang nếu chưa onboard
@@ -1493,11 +1493,11 @@ function initWelcomeModal() {
 
         if (!checkData.available) {
           if (errNew) {
-            errNew.textContent = `Nickname "${nick}" đã có người sử dụng. Vui lòng chọn nickname khác!`;
+            errNew.textContent = `Tên "${nick}" đã có người sử dụng. Vui lòng chọn tên khác!`;
             errNew.classList.remove('hidden');
           }
           btnCreate.disabled = false;
-          btnCreate.textContent = '🚀 Khởi Tạo Nhân Vật & Bắt Đầu';
+          btnCreate.textContent = '🚀 Bắt Đầu Ngay';
           return;
         }
 
@@ -1510,14 +1510,14 @@ function initWelcomeModal() {
 
         closeModal('modal-welcome');
         syncWithCloud(true);
-        showToast(`Chào mừng Hiệp sĩ "${nick}" đến với LevelUp RPG!`, 'success');
+        showToast(`Chào mừng "${nick}" đến với LevelUp!`, 'success');
       } catch (e) {
         if (errNew) {
           errNew.textContent = 'Lỗi kiểm tra: ' + e.message;
           errNew.classList.remove('hidden');
         }
         btnCreate.disabled = false;
-        btnCreate.textContent = '🚀 Khởi Tạo Nhân Vật & Bắt Đầu';
+        btnCreate.textContent = '🚀 Bắt Đầu Ngay';
       }
     });
   }
@@ -1529,7 +1529,7 @@ function initWelcomeModal() {
       const token = inputToken ? inputToken.value.trim() : '';
       if (!token) {
         if (errReturning) {
-          errReturning.textContent = 'Vui lòng nhập Mã Token của bạn!';
+          errReturning.textContent = 'Vui lòng nhập Mã Tài Khoản (Token) của bạn!';
           errReturning.classList.remove('hidden');
         }
         return;
@@ -1546,7 +1546,7 @@ function initWelcomeModal() {
           errReturning.classList.remove('hidden');
         }
         btnRestore.disabled = false;
-        btnRestore.textContent = '📥 Khôi Phục & Đăng Nhập Ngay';
+        btnRestore.textContent = '📥 Đăng Nhập Ngay';
       }
     });
   }
@@ -1618,7 +1618,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const roleBadge = document.getElementById('profile-role-badge');
     if (roleBadge) {
       const isAdmin = appState.profile.role === 'admin';
-      roleBadge.textContent = isAdmin ? '👑 Trưởng Hội (Admin)' : '⚔️ Mạo Hiểm Giả';
+      roleBadge.textContent = isAdmin ? '👑 Quản Trị Viên (Admin)' : '👤 Người Dùng';
       roleBadge.className = isAdmin
         ? 'font-bold px-2 py-0.5 rounded text-[11px] bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30'
         : 'font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30';
@@ -1631,7 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCopyToken.addEventListener('click', () => {
       const token = getOrCreateUserToken();
       navigator.clipboard.writeText(token).then(() => {
-        showToast('Đã sao chép Mã Sở Hữu (Token)!', 'success');
+        showToast('Đã sao chép Mã Tài Khoản (Token)!', 'success');
       }).catch(() => {
         showToast('Vui lòng chọn và sao chép thủ công từ ô nhập.', 'info');
       });
@@ -1647,7 +1647,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tokenInput.type = 'text';
       tokenInput.focus();
       tokenInput.select();
-      showToast('Dán Token mới vào ô này để chuyển sang tài khoản đó.', 'info');
+      showToast('Dán Mã Tài Khoản (Token) mới vào đây để đăng nhập vào tài khoản đó.', 'info');
     });
   }
 
@@ -1764,7 +1764,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('reward-eval-box').classList.add('hidden');
     document.getElementById('btn-eval-reward').classList.remove('hidden');
     document.getElementById('btn-eval-reward').disabled = false;
-    document.getElementById('btn-eval-reward').textContent = '⚖️ Thẩm Định Giá';
+    document.getElementById('btn-eval-reward').textContent = '🤖 AI Định Giá Vàng';
     document.getElementById('btn-save-reward').classList.add('hidden');
     openModal('modal-reward');
   });
@@ -1805,7 +1805,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target === modal) {
         if (modal.id === 'modal-welcome') {
           // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
-          showToast('Vui lòng tạo nhân vật hoặc nhập Mã Token để tiếp tục!', 'info');
+          showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'info');
           const panel = modal.querySelector('.rpg-panel');
           if (panel) {
             panel.classList.add('ring-4', 'ring-amber-500/60');
