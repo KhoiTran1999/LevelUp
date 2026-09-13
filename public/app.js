@@ -122,6 +122,7 @@ const DEFAULT_STATE = {
     googleEmail: '',
     googlePicture: '',
     googleToken: '',
+    sessionToken: '',
     hasOnboarded: false
   },
   quests: [
@@ -228,6 +229,12 @@ function toggleTheme() {
 }
 
 function getOrCreateUserToken() {
+  if (appState.profile.sessionToken && typeof appState.profile.sessionToken === 'string') {
+    return appState.profile.sessionToken;
+  }
+  if (appState.profile.googleToken && typeof appState.profile.googleToken === 'string') {
+    return appState.profile.googleToken;
+  }
   if (appState.profile.token && typeof appState.profile.token === 'string' && appState.profile.token.length >= 16) {
     return appState.profile.token;
   }
@@ -252,6 +259,75 @@ function normalizeObjectNFC(obj) {
   return obj;
 }
 
+// Anti-Cheat: Hàm băm chữ ký kiểm định tính toàn vẹn của số Vàng & EXP trong LocalStorage
+function computeStateIntegrity(profile) {
+  const salt = 'lvlup_vault_2026';
+  const str = `${salt}:${profile?.googleId || ''}:${profile?.coins ?? 0}:${profile?.totalCoinsEarned ?? 0}:${profile?.level ?? 1}:${profile?.exp ?? 0}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'sig_' + Math.abs(hash).toString(36);
+}
+
+// Anti-Cheat: Kiểm tra và tái tạo số dư Vàng hợp lệ dựa trên nhiệm vụ và kho đồ
+function deriveLegitimateBalance(state) {
+  const quests = Array.isArray(state?.quests) ? state.quests : [];
+  const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
+  const ledger = Array.isArray(state?.ledger) ? state.ledger : [];
+
+  let rawTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
+  let rawCoins = parseInt(state?.profile?.coins, 10);
+  if (isNaN(rawTotal)) rawTotal = 20;
+  if (isNaN(rawCoins)) rawCoins = rawTotal;
+
+  let tampered = false;
+
+  let questEarned = 20;
+  for (const q of quests) {
+    const reward = Math.max(1, parseInt(q.rewardCoins, 10) || 10);
+    const count = q.isRepeatable
+      ? Math.max(0, parseInt(q.completedCount, 10) || 0)
+      : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+    questEarned += reward * count;
+  }
+
+  let ledgerEarned = 0;
+  for (const entry of ledger) {
+    if (entry && entry.type === 'earn') {
+      ledgerEarned += Math.max(0, parseInt(entry.amount, 10) || 0);
+    }
+  }
+  const maxEarned = Math.max(questEarned, ledgerEarned, 20);
+
+  let totalSpent = 0;
+  for (const item of inventory) {
+    totalSpent += Math.max(0, parseInt(item.price, 10) || 0);
+  }
+
+  if (rawTotal > maxEarned + 500) {
+    rawTotal = maxEarned;
+    tampered = true;
+  }
+  if (rawTotal < 0) {
+    rawTotal = 0;
+    tampered = true;
+  }
+
+  const maxCurrent = Math.max(0, rawTotal - totalSpent);
+  if (rawCoins > maxCurrent) {
+    rawCoins = maxCurrent;
+    tampered = true;
+  }
+  if (rawCoins < 0) {
+    rawCoins = 0;
+    tampered = true;
+  }
+
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered };
+}
+
 function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -264,6 +340,18 @@ function loadLocalState() {
       };
       if (!appState.profile.avatar) {
         appState.profile.avatar = appState.profile.googlePicture || '⚔️';
+      }
+
+      // Anti-cheat: Phát hiện can thiệp sửa đổi Vàng trong LocalStorage DevTools
+      const expectedSig = computeStateIntegrity(appState.profile);
+      const isTampered = parsed._sig && parsed._sig !== expectedSig;
+      const balance = deriveLegitimateBalance(appState);
+
+      if (isTampered || balance.tampered) {
+        console.warn('Phát hiện dữ liệu Vàng bị can thiệp trên LocalStorage. Đang tự động khôi phục số dư chuẩn:', balance.coins);
+        appState.profile.coins = balance.coins;
+        appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
+        saveLocalState();
       }
     }
   } catch (e) {
@@ -287,6 +375,7 @@ function loadLocalState() {
         googleEmail: '',
         googlePicture: '',
         googleToken: '',
+        sessionToken: '',
         hasOnboarded: false
       }
     };
@@ -301,6 +390,7 @@ function loadLocalState() {
 
 function saveLocalState() {
   try {
+    appState._sig = computeStateIntegrity(appState.profile);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
     console.error('Failed to save to localStorage:', e);
@@ -321,7 +411,7 @@ async function syncWithCloud(isManual = false) {
     if (modalSyncState) modalSyncState.textContent = 'Chưa đăng nhập Google';
     return;
   }
-  const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
+  const token = appState.profile.sessionToken || appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
 
   try {
     const res = await fetch('/api/sync', {
@@ -343,6 +433,34 @@ async function syncWithCloud(isManual = false) {
       const data = await res.json();
       delete appState.pendingOldNickname;
       if (data.role) appState.profile.role = data.role;
+
+      // Xử lý xung đột đồng bộ đa thiết bị (Last-Write-Wins):
+      // Nếu Cloud chứa dữ liệu mới hơn (do thiết bị khác vừa làm nhiệm vụ), cập nhật ngay
+      if (data.conflict && data.state) {
+        appState = normalizeObjectNFC({
+          ...DEFAULT_STATE,
+          ...data.state,
+          profile: {
+            ...DEFAULT_STATE.profile,
+            ...(data.state.profile || {}),
+            sessionToken: appState.profile.sessionToken || data.state.profile?.sessionToken,
+            googleToken: appState.profile.googleToken || data.state.profile?.googleToken
+          }
+        });
+        const checked = deriveLegitimateBalance(appState);
+        appState.profile.coins = checked.coins;
+        appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
+        saveLocalState();
+        renderAll();
+        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+        if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
+        showToast('Đã tự động cập nhật dữ liệu mới nhất từ thiết bị khác!', 'info');
+        return;
+      }
+
+      if (data.coins !== undefined) appState.profile.coins = data.coins;
+      if (data.totalCoinsEarned !== undefined) appState.profile.totalCoinsEarned = data.totalCoinsEarned;
       appState.lastSyncedAt = data.syncedAt || Date.now();
       saveLocalState();
 
@@ -372,6 +490,14 @@ async function syncWithCloud(isManual = false) {
 }
 
 function triggerSave(needsCloud = true) {
+  // Anti-cheat check: Ngăn chặn sửa đổi biến global qua DevTools Console
+  const check = deriveLegitimateBalance(appState);
+  if (check.tampered) {
+    console.warn('Phát hiện can thiệp số Vàng. Đã tự động cân bằng về giá trị chuẩn:', check.coins);
+    appState.profile.coins = check.coins;
+    appState.profile.totalCoinsEarned = check.totalCoinsEarned;
+  }
+  appState.lastModified = Date.now();
   saveLocalState();
   renderAll();
 
@@ -383,41 +509,89 @@ function triggerSave(needsCloud = true) {
   }
 }
 
-async function loadFromCloud(tokenOverride = null) {
+async function hydrateFromCloud(isManual = false) {
+  const nick = appState.profile?.nickname;
+  const googleId = appState.profile?.googleId;
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token || getOrCreateUserToken();
+
+  if (!googleId || !nick || !token) return;
+
+  const syncDot = document.getElementById('sync-indicator');
+  const modalSyncState = document.getElementById('modal-sync-state');
+  const modalSyncTime = document.getElementById('modal-sync-time');
+
+  if (isManual) {
+    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+    if (modalSyncState) modalSyncState.textContent = 'Đang kiểm tra dữ liệu Cloud...';
+  }
+
   try {
-    showToast('Đang tải dữ liệu từ Cloud...', 'info');
-    const token = tokenOverride || appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
-    const res = await fetch(`/api/sync`, {
+    const res = await fetch('/api/sync', {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Không thể tải hồ sơ từ Cloud');
+
+    if (res.status === 401) {
+      if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+      if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
+      return;
     }
+
+    if (!res.ok) return;
+
     const result = await res.json();
-    if (result.found && result.data) {
+    if (!result.found || !result.data) {
+      // Cloud chưa có bản lưu -> đẩy bản local hiện tại lên
+      syncWithCloud(false);
+      return;
+    }
+
+    const cloudData = result.data;
+    const cloudTime = Number(cloudData.lastModified || cloudData.lastSyncedAt || 0);
+    const localTime = Number(appState.lastModified || appState.lastSyncedAt || 0);
+
+    // Nếu Cloud mới hơn (do làm nhiệm vụ trên máy khác): Đồng bộ nạp từ Cloud về
+    if (cloudTime > localTime) {
       appState = normalizeObjectNFC({
         ...DEFAULT_STATE,
-        ...result.data,
+        ...cloudData,
         profile: {
           ...DEFAULT_STATE.profile,
-          ...(result.data.profile || {}),
-          googleToken: appState.profile.googleToken || token
+          ...(cloudData.profile || {}),
+          sessionToken: appState.profile.sessionToken || cloudData.profile?.sessionToken,
+          googleToken: appState.profile.googleToken || cloudData.profile?.googleToken
         }
       });
+      const checked = deriveLegitimateBalance(appState);
+      appState.profile.coins = checked.coins;
+      appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
+
       saveLocalState();
       applyTheme(appState.profile.theme || 'dark');
       renderAll();
-      showToast(`Đã tải hồ sơ từ Cloud thành công!`, 'success');
+
+      if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật từ Cloud';
+      if (modalSyncTime) modalSyncTime.textContent = new Date(cloudData.lastSyncedAt || Date.now()).toLocaleTimeString();
+      if (isManual) showToast('Đã tải dữ liệu mới nhất từ thiết bị khác thành công!', 'success');
+    } else if (localTime > cloudTime) {
+      // Nếu máy hiện tại mới hơn (do vừa thao tác xong): Đẩy dữ liệu mới lên Cloud
+      syncWithCloud(false);
     } else {
-      showToast('Chưa có bản lưu nào trên Cloud. Đang bắt đầu với dữ liệu hiện tại.', 'info');
-      triggerSave(true);
+      if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+      if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
+      if (isManual) showToast('Dữ liệu đã ở trạng thái mới nhất!', 'info');
     }
-  } catch (e) {
-    showToast('Lỗi khi tải từ Cloud: ' + e.message, 'error');
+  } catch (err) {
+    console.warn('Hydrate from cloud failed:', err.message);
   }
+}
+
+async function loadFromCloud(tokenOverride = null) {
+  return hydrateFromCloud(true);
 }
 
 function logoutGoogle() {
@@ -428,6 +602,15 @@ function logoutGoogle() {
     icon: '🚪',
     btnColor: 'rose',
     onConfirm: () => {
+      const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+      if (token) {
+        try {
+          fetch('/api/sync?action=logout', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).catch(() => {});
+        } catch (_) {}
+      }
       if (window.google?.accounts?.id) {
         try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
       }
@@ -437,11 +620,12 @@ function logoutGoogle() {
         ...DEFAULT_STATE,
         profile: {
           ...DEFAULT_STATE.profile,
-          nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
+          nickname: '',
           googleId: '',
           googleEmail: '',
           googlePicture: '',
           googleToken: '',
+          sessionToken: '',
           hasOnboarded: false
         }
       };
@@ -463,6 +647,15 @@ function switchGoogleAccount() {
     icon: '🔄',
     btnColor: 'amber',
     onConfirm: () => {
+      const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+      if (token) {
+        try {
+          fetch('/api/sync?action=logout', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).catch(() => {});
+        } catch (_) {}
+      }
       if (window.google?.accounts?.id) {
         try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
       }
@@ -472,10 +665,12 @@ function switchGoogleAccount() {
         ...DEFAULT_STATE,
         profile: {
           ...DEFAULT_STATE.profile,
+          nickname: '',
           googleId: '',
           googleEmail: '',
           googlePicture: '',
           googleToken: '',
+          sessionToken: '',
           hasOnboarded: false
         }
       };
@@ -2983,7 +3178,7 @@ async function handleGoogleCredentialResponse(response) {
       return;
     }
 
-    const { isNew, role, googleUser, state } = data;
+    const { isNew, role, googleUser, state, sessionToken } = data;
 
     if (state) {
       appState = normalizeObjectNFC({
@@ -2996,6 +3191,7 @@ async function handleGoogleCredentialResponse(response) {
           googleEmail: googleUser.email,
           googlePicture: googleUser.picture || state.profile?.googlePicture || '',
           googleToken: idToken,
+          sessionToken: sessionToken || state.profile?.sessionToken || '',
           role: role || 'adventurer',
           hasOnboarded: true
         }
@@ -3008,6 +3204,7 @@ async function handleGoogleCredentialResponse(response) {
       appState.profile.googleEmail = googleUser.email;
       appState.profile.googlePicture = googleUser.picture;
       appState.profile.googleToken = idToken;
+      appState.profile.sessionToken = sessionToken || '';
       appState.profile.role = role || 'adventurer';
       appState.profile.hasOnboarded = true;
       if (!appState.profile.nickname) {
@@ -3566,10 +3763,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Khởi tạo các nút điều khiển Tour giới thiệu
   initTourControls();
 
-  // Background Cloud Sync on start
+  // Background Cloud Hydration on start (ưu tiên kéo dữ liệu mới nhất từ thiết bị khác về trước)
   if (appState.profile.googleId && appState.profile.nickname && localStorage.getItem('levelup_onboarded') === 'true') {
-    syncWithCloud(false);
+    hydrateFromCloud(false);
   }
+
+  // Tự động kiểm tra và đồng bộ khi người dùng quay lại tab hoặc mở lại ứng dụng trên máy khác
+  window.addEventListener('focus', () => {
+    if (appState.profile?.googleId && appState.profile?.nickname) {
+      hydrateFromCloud(false);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && appState.profile?.googleId && appState.profile?.nickname) {
+      hydrateFromCloud(false);
+    }
+  });
 
   // Navigation Tab buttons (Desktop & Mobile)
   document.querySelectorAll('.nav-tab, .mobile-nav-btn').forEach(btn => {

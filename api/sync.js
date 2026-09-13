@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
+import crypto from 'node:crypto';
 
 dotenv.config();
 
@@ -14,6 +15,77 @@ export function setRedisClientForTesting(client) {
 // ponytail: test hook for mocking Google Token Verification in unit tests
 export function setGoogleTokenVerifierForTesting(verifier) {
   googleTokenVerifierForTesting = verifier;
+}
+
+/**
+ * Anti-Cheat: Validate and derive legitimate coin balance from quests, ledger, and inventory
+ * Prevents client DevTools manipulation of gold values.
+ */
+export function deriveLegitimateBalance(state, existingState = null) {
+  const quests = Array.isArray(state?.quests) ? state.quests : [];
+  const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
+  const ledger = Array.isArray(state?.ledger) ? state.ledger : [];
+
+  let rawTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
+  let rawCoins = parseInt(state?.profile?.coins, 10);
+  if (isNaN(rawTotal)) rawTotal = 20;
+  if (isNaN(rawCoins)) rawCoins = rawTotal;
+
+  let tampered = false;
+
+  // 1. Quản lý tiền thưởng từ nhiệm vụ
+  let questEarned = 20; // Thưởng khởi đầu tân binh
+  for (const q of quests) {
+    const reward = Math.max(1, parseInt(q.rewardCoins, 10) || 10);
+    const count = q.isRepeatable
+      ? Math.max(0, parseInt(q.completedCount, 10) || 0)
+      : ((q.status === 'completed' || q.completed === true) ? 1 : 0);
+    questEarned += reward * count;
+  }
+
+  // 2. Kiểm tra nhật ký giao dịch ledger
+  let ledgerEarned = 0;
+  for (const entry of ledger) {
+    if (entry && entry.type === 'earn') {
+      ledgerEarned += Math.max(0, parseInt(entry.amount, 10) || 0);
+    }
+  }
+  const maxTrackedEarned = Math.max(questEarned, ledgerEarned, 20);
+
+  // 3. Tổng chi tiêu cho vật phẩm kho đồ
+  let totalSpent = 0;
+  for (const item of inventory) {
+    totalSpent += Math.max(0, parseInt(item.price, 10) || 0);
+  }
+
+  // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
+  // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng
+  const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
+  const maxAllowedCeiling = existingTotal > 0
+    ? Math.max(existingTotal + 500, maxTrackedEarned)
+    : Math.max(maxTrackedEarned, 1000);
+
+  if (rawTotal > maxAllowedCeiling) {
+    rawTotal = Math.max(maxTrackedEarned, existingTotal || 20);
+    tampered = true;
+  }
+  if (rawTotal < 0) {
+    rawTotal = 0;
+    tampered = true;
+  }
+
+  // Số coin hiện tại không thể lớn hơn (tổng kiếm được - tổng đã tiêu)
+  const maxCurrent = Math.max(0, rawTotal - totalSpent);
+  if (rawCoins > maxCurrent) {
+    rawCoins = maxCurrent;
+    tampered = true;
+  }
+  if (rawCoins < 0) {
+    rawCoins = 0;
+    tampered = true;
+  }
+
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered };
 }
 
 function getRedis() {
@@ -106,6 +178,48 @@ export async function verifyGoogleToken(idToken) {
   }
 }
 
+/**
+ * Universal authentication helper supporting:
+ * 1. Redis-backed persistent sessions (90-day validity across devices)
+ * 2. Fresh Google ID Tokens (OAuth JWT)
+ * 3. Master Admin tokens
+ */
+export async function authenticateCaller(token, redis, adminConfig) {
+  if (!token || typeof token !== 'string') return null;
+  const cleanToken = token.trim();
+
+  // 1. Kiểm tra session token trong Redis (session sống 90 ngày)
+  if (redis) {
+    try {
+      const sessionRaw = await redis.get(`levelup:session:${cleanToken}`);
+      if (sessionRaw) {
+        const sessionData = JSON.parse(sessionRaw);
+        if (sessionData && sessionData.sub) {
+          return sessionData;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Kiểm tra Google ID Token trực tiếp
+  const googleUser = await verifyGoogleToken(cleanToken);
+  if (googleUser) {
+    return googleUser;
+  }
+
+  // 3. Kiểm tra Admin Master Token
+  if (adminConfig && adminConfig.token && cleanToken === adminConfig.token) {
+    return {
+      sub: 'admin_master_sub',
+      email: adminConfig.emails[0] || 'admin@guildmaster.com',
+      name: 'Bang Chủ',
+      picture: ''
+    };
+  }
+
+  return null;
+}
+
 export default async function handler(req, res) {
   const { nicks: ADMIN_NICKS, emails: ADMIN_EMAILS, token: ADMIN_TOKEN } = getAdminConfig();
 
@@ -157,6 +271,10 @@ export default async function handler(req, res) {
       const isAdmin = ADMIN_EMAILS.includes(email) || (ADMIN_TOKEN && token === ADMIN_TOKEN);
       const userKey = `levelup:user:google:${sub}`;
 
+      // Cấp phát session token bền vững (90 ngày) để đồng bộ đa thiết bị không bị đứt quãng
+      const sessionToken = crypto.randomUUID();
+      await redis.set(`levelup:session:${sessionToken}`, JSON.stringify({ sub, email, name, picture }), 'EX', 90 * 24 * 3600);
+
       let rawData = await redis.get(userKey);
       let isNew = false;
       let userState = null;
@@ -198,6 +316,7 @@ export default async function handler(req, res) {
             description: 'Thưởng chào mừng hiệp sĩ Google',
             timestamp: Date.now()
           }],
+          lastModified: Date.now(),
           lastSyncedAt: Date.now()
         };
 
@@ -233,6 +352,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         isNew,
+        sessionToken,
         role: isAdmin ? 'admin' : (userState.profile?.role || 'adventurer'),
         googleUser: { sub, email, name, picture },
         state: userState
@@ -305,8 +425,8 @@ export default async function handler(req, res) {
 
         let callerSub = null;
         if (token) {
-          const verified = await verifyGoogleToken(token);
-          if (verified) callerSub = verified.sub;
+          const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+          if (caller) callerSub = caller.sub;
         }
 
         // Chặn đặt nickname quản trị bảo lưu nếu không phải Admin
@@ -339,18 +459,13 @@ export default async function handler(req, res) {
         });
       }
 
-      // 2.3 Tải hồ sơ người dùng theo Google ID Token
+      // 2.3 Tải hồ sơ người dùng theo Google ID Token hoặc Session Token
       if (!token) {
         return res.status(401).json({ error: 'Cần đăng nhập tài khoản Google để tải dữ liệu.' });
       }
 
-      const googleUser = await verifyGoogleToken(token);
-      let targetSub = googleUser ? googleUser.sub : null;
-
-      // Hỗ trợ legacy test token nếu là ADMIN_TOKEN hoặc token cũ
-      if (!targetSub && token === ADMIN_TOKEN) {
-        targetSub = 'admin_sub';
-      }
+      const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+      const targetSub = caller ? caller.sub : null;
 
       if (!targetSub) {
         return res.status(401).json({ error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.' });
@@ -382,9 +497,9 @@ export default async function handler(req, res) {
         if (token === ADMIN_TOKEN) {
           isCallerAdmin = true;
         } else if (token) {
-          const verified = await verifyGoogleToken(token);
-          if (verified) {
-            callerEmail = verified.email;
+          const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+          if (caller) {
+            callerEmail = caller.email || '';
             isCallerAdmin = ADMIN_EMAILS.includes(callerEmail);
           }
         }
@@ -410,26 +525,28 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, removed: targetSubToDelete });
       }
 
-      // 3.2 Đồng bộ dữ liệu người dùng (Cloud Sync)
+      // 3.2 Đăng xuất tài khoản (Xóa session token trên Redis)
+      if (action === 'logout') {
+        if (token) {
+          await redis.del(`levelup:session:${token}`);
+        }
+        return res.status(200).json({ success: true });
+      }
+
+      // 3.3 Đồng bộ dữ liệu người dùng (Cloud Sync)
       if (!token) {
         return res.status(401).json({ error: 'Cần đăng nhập Google để đồng bộ dữ liệu.' });
       }
 
-      const googleUser = await verifyGoogleToken(token);
-      let userSub = googleUser ? googleUser.sub : null;
-      let userEmail = googleUser ? googleUser.email : '';
-      let userName = googleUser ? googleUser.name : '';
-      let userPicture = googleUser ? googleUser.picture : '';
-
-      // Hỗ trợ kiểm thử hoặc ADMIN_TOKEN
-      if (!userSub && token === ADMIN_TOKEN) {
-        userSub = 'admin_master_sub';
-        userEmail = 'admin@guildmaster.com';
-      }
-
-      if (!userSub) {
+      const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+      if (!caller || !caller.sub) {
         return res.status(401).json({ error: 'Phiên Google không hợp lệ hoặc đã hết hạn.' });
       }
+
+      const userSub = caller.sub;
+      const userEmail = caller.email || '';
+      const userName = caller.name || '';
+      const userPicture = caller.picture || '';
 
       if (!state || typeof state !== 'object') {
         return res.status(400).json({ error: 'Payload state là bắt buộc.' });
@@ -467,37 +584,70 @@ export default async function handler(req, res) {
 
       const userRole = isAdmin ? 'admin' : 'adventurer';
       const serverTimestamp = Date.now();
+      const userKey = `levelup:user:google:${userSub}`;
+
+      let existingState = null;
+      const rawExisting = await redis.get(userKey);
+      if (rawExisting) {
+        try { existingState = JSON.parse(rawExisting); } catch (_) {}
+      }
+
+      // Anti-Cheat: Validate and derive legitimate coin balance from quest completions and inventory
+      const balanceCheck = deriveLegitimateBalance(state, existingState);
+
+      const incomingModified = Number(state.lastModified || state.lastSyncedAt || 0);
+      const existingModified = Number(existingState?.lastModified || existingState?.lastSyncedAt || 0);
+
+      // Conflict Resolution: If incoming state has timestamp and cloud state is strictly newer,
+      // return existing cloud state without overwriting it with stale data
+      if (existingState && incomingModified > 0 && existingModified > incomingModified) {
+        return res.status(200).json({
+          success: true,
+          conflict: true,
+          googleId: userSub,
+          nickname: existingState.profile?.nickname || nickname,
+          role: userRole,
+          syncedAt: existingState.lastSyncedAt || serverTimestamp,
+          state: existingState,
+          message: 'Dữ liệu trên Đám mây mới hơn. Thiết bị đã tự động cập nhật bản mới nhất!'
+        });
+      }
 
       const payloadToSave = {
         ...state,
         googleId: userSub,
+        lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),
           nickname: state.profile?.nickname || rawNick || userName || nickname,
           role: userRole,
           googleId: userSub,
           googleEmail: userEmail || state.profile?.googleEmail || '',
-          googlePicture: userPicture || state.profile?.googlePicture || ''
+          googlePicture: userPicture || state.profile?.googlePicture || '',
+          coins: balanceCheck.coins,
+          totalCoinsEarned: balanceCheck.totalCoinsEarned
         },
         lastSyncedAt: serverTimestamp
       };
 
-      const userKey = `levelup:user:google:${userSub}`;
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
 
-      // Cập nhật Leaderboard với userSub
+      // Cập nhật Leaderboard với userSub và điểm số chuẩn xác đã kiểm định
       const level = payloadToSave.profile?.level || 1;
-      const totalCoins = payloadToSave.profile?.totalCoinsEarned || 0;
+      const totalCoins = balanceCheck.totalCoinsEarned;
       const score = (level * 1000) + totalCoins;
 
       await redis.zadd('levelup:leaderboard', score, userSub);
 
       return res.status(200).json({
         success: true,
+        conflict: false,
         googleId: userSub,
         nickname: payloadToSave.profile.nickname,
         role: userRole,
-        syncedAt: serverTimestamp
+        syncedAt: serverTimestamp,
+        coins: balanceCheck.coins,
+        totalCoinsEarned: balanceCheck.totalCoinsEarned
       });
     }
 
