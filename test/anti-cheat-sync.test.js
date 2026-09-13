@@ -138,15 +138,15 @@ setGoogleTokenVerifierForTesting(async (token) => {
   // Quests earn: 20 (base) + 10 (q1) + 15*2 (q2) = 60
   // Inventory spent: 20
   // Legitimate base coins before penalty: 60 - 20 = 40
-  // Fine (50% penalty): Math.min(40, Math.max(20, Math.floor(40 * 0.5))) = 20
-  // Final coins after fine: 40 - 20 = 20
+  // Fine (100% penalty): 40 Vàng
+  // Final coins after fine: 0 Vàng
   const result = deriveLegitimateBalance(tamperedState);
   assert.strictEqual(result.tampered, true, 'Phải phát hiện can thiệp gian lận Vàng');
   assert.strictEqual(result.totalCoinsEarned, 60, 'Tổng Vàng tích lũy tối đa phải là 60');
-  assert.strictEqual(result.fine, 20, 'Phải phạt trừ 50% số Vàng hợp lệ (20 Vàng)');
-  assert.strictEqual(result.coins, 20, 'Số Vàng sau án phạt phải còn 20 Vàng');
+  assert.strictEqual(result.fine, 40, 'Phải phạt trừ 100% số Vàng hợp lệ (40 Vàng)');
+  assert.strictEqual(result.coins, 0, 'Số Vàng sau án phạt 100% phải về 0 Vàng');
   assert.strictEqual(result.title, 'Kẻ Gian Lận ⚠️', 'Phải bị tước danh hiệu thành Kẻ Gian Lận ⚠️');
-  console.log('✓ Test 1: Chặn đứng can thiệp sửa Vàng 999,999 và thi hành án phạt trừ 50% Vàng (còn 20 Vàng), tước danh hiệu.');
+  console.log('✓ Test 1: Chặn đứng can thiệp sửa Vàng 999,999 và thi hành án phạt trừ 100% Vàng (về 0 Vàng), tước danh hiệu.');
 }
 
 // Test 2: Integrity checksum signature calculation

@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import syncHandler, {
   setRedisClientForTesting,
   setGoogleTokenVerifierForTesting,
+  setMinRedemptionIntervalForTesting,
   deriveLegitimateBalance,
   checkRateLimit,
   getAdminConfig,
@@ -37,6 +38,11 @@ class MockRedis {
     return this.store.delete(key) ? 1 : 0;
   }
 
+  async keys(pattern) {
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    return Array.from(this.store.keys()).filter(k => regex.test(k));
+  }
+
   async zadd(key, score, member) {
     if (!this.sortedSets.has(key)) {
       this.sortedSets.set(key, new Map());
@@ -59,6 +65,21 @@ class MockRedis {
 
   async expire() {
     return 1;
+  }
+
+  async zrevrange(key, start, stop, withScores) {
+    const set = this.sortedSets.get(key);
+    if (!set) return [];
+    const entries = Array.from(set.entries()).sort((a, b) => b[1] - a[1]);
+    const sliced = entries.slice(start, stop === -1 ? undefined : stop + 1);
+    if (withScores) {
+      const result = [];
+      for (const [m, s] of sliced) {
+        result.push(m, s.toString());
+      }
+      return result;
+    }
+    return sliced.map(([m]) => m);
   }
 }
 
@@ -449,6 +470,7 @@ await mockRedis.set(
 // 12. Kiểm thử: Hướng A - Thử Thách Chuộc Tội (5 phiên tập trung)
 // ============================================================
 {
+  setMinRedemptionIntervalForTesting(0);
   const focusSig = signQuest('Đọc Sách Lập Trình 25p', 'focus', 25, 10);
   const validFocusQuest = {
     id: 'q_redemption_focus',
@@ -577,4 +599,140 @@ await mockRedis.set(
   console.log('✓ Test 13: Quản Trị Viên Ân Xá (Hướng B) hoạt động chuẩn xác: Phân quyền bảo mật 403, xóa án phạt, phục hồi danh dự ngay lập tức.');
 }
 
-console.log('\n🎉 TẤT CẢ 13/13 BẢN VÁ BẢO MẬT & CƠ CHẾ CHUỘC TỘI/ÂN XÁ ĐÃ HOÀN TẤT XUẤT SẮC!\n');
+// =============================================================================
+// TEST 14: Sổ Đen Kẻ Gian Lận (Hall of Shame) - GET /api/sync?action=cheaters
+// =============================================================================
+{
+  const cheaterSub = 'google_user_cheater_202';
+  const cheaterKey = `levelup:user:google:${cheaterSub}`;
+  const cheaterState = {
+    profile: {
+      googleId: cheaterSub,
+      nickname: 'KeGianLanKinhNien',
+      avatar: '🦹',
+      level: 4,
+      title: 'Kẻ Gian Lận ⚠️',
+      isCheater: true,
+      cheatStrikes: 2,
+      totalCoinsEarned: 250
+    },
+    ledger: []
+  };
+
+  await mockRedis.set(cheaterKey, JSON.stringify(cheaterState));
+  await mockRedis.zadd('levelup:cheaters', Date.now(), cheaterSub);
+
+  // 14.1 Lấy danh sách Sổ Đen Kẻ Gian Lận
+  const { req: getReq, res: getRes } = createMockReqRes('GET', {}, { action: 'cheaters' });
+  await syncHandler(getReq, getRes);
+
+  assert.strictEqual(getRes.statusCode, 200);
+  assert.strictEqual(getRes.body.count >= 1, true, 'Sổ đen phải có ít nhất 1 kẻ gian lận');
+  const found = getRes.body.cheaters.find(c => c.key === cheaterSub);
+  assert.ok(found, 'Phải tìm thấy KeGianLanKinhNien trong Sổ Đen');
+  assert.strictEqual(found.nickname, 'KeGianLanKinhNien');
+  assert.strictEqual(found.cheatStrikes, 2);
+  assert.strictEqual(found.title, 'Kẻ Gian Lận ⚠️');
+
+  // 14.2 Admin ân xá cho tài khoản này
+  process.env.ADMIN_EMAILS = 'admin_official@gmail.com';
+  const { req: pardonReq, res: pardonRes } = createMockReqRes(
+    'POST',
+    { targetSub: cheaterSub },
+    { action: 'admin_pardon' },
+    { authorization: 'Bearer valid_admin_token' }
+  );
+  await syncHandler(pardonReq, pardonRes);
+  assert.strictEqual(pardonRes.statusCode, 200);
+
+  // 14.3 Gọi lại GET cheaters -> Không còn trong Sổ Đen nữa
+  const { req: checkReq, res: checkRes } = createMockReqRes('GET', {}, { action: 'cheaters' });
+  await syncHandler(checkReq, checkRes);
+  assert.strictEqual(checkRes.statusCode, 200);
+  const stillFound = checkRes.body.cheaters.find(c => c.key === cheaterSub);
+  assert.strictEqual(stillFound, undefined, 'Sau khi ân xá, người dùng phải biến mất khỏi Sổ Đen');
+  console.log('✓ Test 14: Sổ Đen Kẻ Gian Lận (Hall of Shame API) hoạt động chính xác: Tra cứu danh sách vi phạm và tự động cập nhật sau khi ân xá.');
+}
+
+// =============================================================================
+// TEST 15: Chặn đứng hack tua thời gian & spam completedCount (Time Hack / Speedhack)
+// =============================================================================
+{
+  setMinRedemptionIntervalForTesting(24 * 60 * 1000); // 24 phút / phiên thực tế
+
+  const hackerSub = 'google_user_speedhacker_999';
+  const hackerKey = `levelup:user:google:${hackerSub}`;
+  const now = Date.now();
+
+  const hackerState = {
+    profile: {
+      googleId: hackerSub,
+      nickname: 'SpeedHacker007',
+      level: 2,
+      isCheater: true,
+      title: 'Kẻ Gian Lận ⚠️',
+      cheatStrikes: 1,
+      cheatedAt: now,
+      redemptionBaseline: 0,
+      totalCoinsEarned: 20,
+      coins: 0
+    },
+    quests: [],
+    inventory: [],
+    ledger: []
+  };
+  await mockRedis.set(hackerKey, JSON.stringify(hackerState));
+  await mockRedis.set(`levelup:session:hacker_session_token`, JSON.stringify({ sub: hackerSub, email: 'hacker@speed.net', name: 'SpeedHacker007' }));
+  await mockRedis.zadd('levelup:cheaters', now, hackerSub);
+
+  // Kẻ gian dùng script Tampermonkey gửi 5 phiên completed sau 0 giây:
+  const focusSig = signQuest('Đọc Sách Lập Trình 25p', 'focus', 25, 10);
+  const spoofedFocusQuest = {
+    id: 'q_speed_focus',
+    title: 'Đọc Sách Lập Trình 25p',
+    type: 'focus',
+    targetMinutes: 25,
+    rewardCoins: 10,
+    isRepeatable: true,
+    completedCount: 5, // Tự động nhảy lên 5 phiên
+    signature: focusSig
+  };
+
+  const payload = {
+    ...hackerState,
+    quests: [spoofedFocusQuest]
+  };
+
+  const { req, res } = createMockReqRes(
+    'POST',
+    {
+      nickname: 'SpeedHacker007',
+      token: 'hacker_session_token',
+      state: payload
+    },
+    {},
+    { authorization: 'Bearer hacker_session_token' }
+  );
+
+  await syncHandler(req, res);
+
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(res.body.isCheater, true, 'Server phải chặn đứng chuộc tội và duy trì cờ gian lận');
+  assert.strictEqual(res.body.title, 'Kẻ Gian Lận ⚠️', 'Vẫn bị giam trong danh hiệu Kẻ Gian Lận');
+  assert.notStrictEqual(res.body.redeemed, true, 'Không được phép chuộc tội thành công');
+  assert.strictEqual(mockRedis.sortedSets.get('levelup:leaderboard')?.has(hackerSub), false, 'Không được phép lên Leaderboard');
+  assert.strictEqual(mockRedis.sortedSets.get('levelup:cheaters')?.has(hackerSub), true, 'Vẫn phải bị cách ly trong Sổ Đen');
+
+  // Kiểm tra sổ cái ghi nhận án phạt phát hiện tua thời gian
+  const savedRaw = await mockRedis.get(hackerKey);
+  const savedState = JSON.parse(savedRaw);
+  assert.ok(savedState.ledger.length > 0, 'Phải ghi án phạt tua thời gian vào sổ cái');
+  assert.match(savedState.ledger[0].description, /PHÁT HIỆN TUA THỜI GIAN/i, 'Phải có thông báo phạt tua thời gian');
+
+  // Dọn dẹp cấu hình test
+  setMinRedemptionIntervalForTesting(0);
+  console.log('✓ Test 15: Chặn đứng hack tua thời gian & spam completedCount trong Thử Thách Chuộc Tội (Server Wall-Clock Enforcement) thành công.');
+}
+
+console.log('\n🎉 TẤT CẢ 15/15 BẢN VÁ BẢO MẬT, CHỐNG TUA THỜI GIAN & SỔ ĐEN GIAN LẬN ĐÃ HOÀN TẤT XUẤT SẮC!\n');
+

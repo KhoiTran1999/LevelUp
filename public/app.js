@@ -2558,14 +2558,141 @@ async function fetchLeaderboard() {
       });
     }
 
-    const adminPardonBtn = document.getElementById('btn-admin-pardon');
-    if (adminPardonBtn) {
-      if (appState.profile.role === 'admin') {
-        adminPardonBtn.classList.remove('hidden');
-        adminPardonBtn.classList.add('inline-flex');
-        adminPardonBtn.onclick = async () => {
-          const target = prompt('👑 QUYỀN QUẢN TRỊ VIÊN:\nNhập Nickname hoặc Google ID của tài khoản cần ân xá (xóa cờ Kẻ Gian Lận, khôi phục danh hiệu & Leaderboard):');
-          if (!target || !target.trim()) return;
+    updateCheatersBadge();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
+  }
+}
+
+// =============================================================================
+// 10.1 CHEATERS HALL OF SHAME FETCHER & SUB-TABS
+// =============================================================================
+async function updateCheatersBadge() {
+  const badge = document.getElementById('badge-cheaters-count');
+  if (!badge) return;
+  try {
+    const res = await fetch('/api/sync?action=cheaters');
+    if (!res.ok) return;
+    const data = await res.json();
+    const count = data.count ?? (data.cheaters ? data.cheaters.length : 0);
+    badge.textContent = count;
+    if (count > 0) {
+      badge.classList.remove('hidden');
+      badge.classList.add('inline-flex');
+    } else {
+      badge.classList.add('hidden');
+      badge.classList.remove('inline-flex');
+    }
+  } catch (e) {}
+}
+
+async function fetchCheaters() {
+  const tbody = document.getElementById('cheaters-tbody');
+  const badge = document.getElementById('badge-cheaters-count');
+  const thAdmin = document.getElementById('th-admin-actions');
+  const isAdmin = appState.profile.role === 'admin';
+  const colSpan = isAdmin ? 5 : 4;
+
+  if (thAdmin) {
+    if (isAdmin) {
+      thAdmin.classList.remove('hidden');
+    } else {
+      thAdmin.classList.add('hidden');
+    }
+  }
+
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách vi phạm...</td></tr>`;
+
+  try {
+    const res = await fetch('/api/sync?action=cheaters');
+    if (!res.ok) throw new Error('API Error');
+    const data = await res.json();
+    const list = data.cheaters || [];
+
+    if (badge) {
+      badge.textContent = list.length;
+      if (list.length > 0) {
+        badge.classList.remove('hidden');
+        badge.classList.add('inline-flex');
+      } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('inline-flex');
+      }
+    }
+
+    if (list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs font-medium">🕊️ Không có tài khoản nào trong Sổ Đen. Toàn thể hiệp sĩ đều giữ vững kỷ luật và danh dự!</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    list.forEach(c => {
+      const isMe = (appState.profile.googleId && (c.key === appState.profile.googleId || c.googleId === appState.profile.googleId)) ||
+                   (c.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
+      const tr = document.createElement('tr');
+      tr.className = `hover:bg-rose-500/5 transition ${isMe ? 'bg-rose-500/10 font-bold' : ''}`;
+
+      const avatarHtml = isAvatarUrl(c.avatar)
+        ? `<img referrerpolicy="no-referrer" src="${escapeHtml(c.avatar)}" alt="${escapeHtml(c.nickname || 'Avatar')}" class="w-6 h-6 rounded-full object-cover shrink-0 border border-rose-500/30 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚠️</span>'">`
+        : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(c.avatar || '⚠️')}</span>`;
+
+      const formattedTime = c.cheatedAt
+        ? new Date(c.cheatedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : 'Gần đây';
+
+      const adminActionHtml = isAdmin ? `
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center whitespace-nowrap">
+          <button type="button" class="btn-pardon-row inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-sm" data-nick="${escapeHtml(c.nickname || c.key)}" data-key="${escapeHtml(c.key || c.nickname)}" title="Ân xá cho tài khoản này">
+            <span>🕊️</span>
+            <span>Ân Xá</span>
+          </button>
+        </td>
+      ` : '';
+
+      tr.innerHTML = `
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${avatarHtml}
+            <div class="min-w-0 flex items-center flex-wrap gap-1.5">
+              <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[130px] sm:max-w-[200px]">${escapeHtml(c.nickname)}</span>
+              ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500 text-white font-bold whitespace-nowrap">BẠN</span>' : ''}
+            </div>
+          </div>
+        </td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs whitespace-nowrap">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            ${escapeHtml(c.title || 'Kẻ Gian Lận ⚠️')}
+          </span>
+        </td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center font-mono text-xs font-bold text-rose-500 whitespace-nowrap">
+          ${c.cheatStrikes || 1} lần
+        </td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          ${formattedTime}
+        </td>
+        ${adminActionHtml}
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if (isAdmin) {
+      tbody.querySelectorAll('.btn-pardon-row').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const targetNick = btn.dataset.nick;
+          const targetKey = btn.dataset.key || targetNick;
+          const ok = await confirmAction({
+            title: 'Ân Xá Tài Khoản Gian Lận',
+            message: `Bạn có muốn ân xá cho hiệp sĩ "${targetNick}" không?`,
+            detail: 'Tài khoản sẽ được xóa trạng thái Kẻ Gian Lận, khôi phục danh hiệu hiệp sĩ và được phép xuất hiện lại trên Bảng Xếp Hạng.',
+            confirmText: 'Ân Xá Ngay',
+            cancelText: 'Hủy',
+            icon: '🕊️',
+            btnColor: 'purple'
+          });
+          if (!ok) return;
+
           try {
             const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
             const res = await fetch('/api/sync?action=admin_pardon', {
@@ -2574,28 +2701,60 @@ async function fetchLeaderboard() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify({ targetNickname: target.trim() })
+              body: JSON.stringify({
+                targetNickname: targetNick,
+                targetSub: targetKey
+              })
             });
             const data = await res.json();
             if (res.ok && data.success) {
-              showToast(data.message || 'Ân xá tài khoản thành công!', 'success');
+              showToast(data.message || `Đã ân xá cho hiệp sĩ "${targetNick}"!`, 'success');
+              await fetchCheaters();
               fetchLeaderboard();
             } else {
               showToast(data.error || 'Không thể ân xá cho tài khoản này', 'error');
             }
           } catch (err) {
-            showToast('Lỗi: ' + err.message, 'error');
+            showToast('Lỗi kết nối: ' + err.message, 'error');
           }
-        };
-      } else {
-        adminPardonBtn.classList.add('hidden');
-        adminPardonBtn.classList.remove('inline-flex');
-      }
+        });
+      });
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối danh sách Sổ Đen (${err.message}).</td></tr>`;
   }
 }
+
+function switchLeaderboardSubtab(subtab) {
+  const btnRanking = document.getElementById('btn-subtab-ranking');
+  const btnCheaters = document.getElementById('btn-subtab-cheaters');
+  const viewRanking = document.getElementById('view-leaderboard-ranking');
+  const viewCheaters = document.getElementById('view-leaderboard-cheaters');
+
+  if (subtab === 'cheaters') {
+    if (btnRanking) {
+      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-500/20 hover:text-amber-500 flex items-center gap-1.5';
+    }
+    if (btnCheaters) {
+      btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-rose-500 text-white shadow-sm flex items-center gap-1.5';
+    }
+    if (viewRanking) viewRanking.classList.add('hidden');
+    if (viewCheaters) viewCheaters.classList.remove('hidden');
+    fetchCheaters();
+  } else {
+    if (btnRanking) {
+      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5';
+    }
+    if (btnCheaters) {
+      btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5';
+    }
+    if (viewRanking) viewRanking.classList.remove('hidden');
+    if (viewCheaters) viewCheaters.classList.add('hidden');
+    fetchLeaderboard();
+  }
+}
+window.switchLeaderboardSubtab = switchLeaderboardSubtab;
+window.fetchCheaters = fetchCheaters;
 
 // =============================================================================
 // 12. RENDER FUNCTIONS (Theme-aware & High Contrast)
@@ -3070,7 +3229,13 @@ function switchTab(tabId) {
   }
 
   if (tabId === 'leaderboard') {
-    fetchLeaderboard();
+    const viewCheaters = document.getElementById('view-leaderboard-cheaters');
+    if (viewCheaters && !viewCheaters.classList.contains('hidden')) {
+      fetchCheaters();
+    } else {
+      fetchLeaderboard();
+    }
+    updateCheatersBadge();
   }
 }
 
@@ -3805,6 +3970,22 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTab(btn.dataset.tab);
     });
   });
+
+  // Leaderboard Sub-tabs (Bảng Hiệp Sĩ & Sổ Đen Gian Lận)
+  const btnSubtabRanking = document.getElementById('btn-subtab-ranking');
+  if (btnSubtabRanking) {
+    btnSubtabRanking.addEventListener('click', () => {
+      sfx.playClick();
+      switchLeaderboardSubtab('ranking');
+    });
+  }
+  const btnSubtabCheaters = document.getElementById('btn-subtab-cheaters');
+  if (btnSubtabCheaters) {
+    btnSubtabCheaters.addEventListener('click', () => {
+      sfx.playClick();
+      switchLeaderboardSubtab('cheaters');
+    });
+  }
 
   // Quest filters
   document.querySelectorAll('.quest-filter').forEach(btn => {

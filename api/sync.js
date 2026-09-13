@@ -6,6 +6,7 @@ dotenv.config();
 
 let redisClient = null;
 let googleTokenVerifierForTesting = null;
+let minRedemptionIntervalMs = 24 * 60 * 1000;
 
 // ponytail: test hook for hermetic in-memory mock testing without network
 export function setRedisClientForTesting(client) {
@@ -15,6 +16,11 @@ export function setRedisClientForTesting(client) {
 // ponytail: test hook for mocking Google Token Verification in unit tests
 export function setGoogleTokenVerifierForTesting(verifier) {
   googleTokenVerifierForTesting = verifier;
+}
+
+// ponytail: test hook for mocking minimum redemption interval in unit tests
+export function setMinRedemptionIntervalForTesting(ms) {
+  minRedemptionIntervalMs = ms;
 }
 
 const HMAC_SECRET = process.env.APP_SECRET || process.env.REDIS_URL || 'levelup_vault_secret_2026';
@@ -40,7 +46,12 @@ export function signQuest(title, type, targetMinutes, rewardCoins) {
 
 export function verifyQuestSignature(q) {
   if (!q || typeof q !== 'object') return false;
-  if (q.id === 'q_seed_1' || q.id === 'q_seed_2') return true;
+  if (q.id === 'q_seed_1') {
+    return (parseInt(q.rewardCoins, 10) || 0) === 12 && (parseInt(q.targetMinutes, 10) || 0) === 25 && q.type === 'focus';
+  }
+  if (q.id === 'q_seed_2') {
+    return (parseInt(q.rewardCoins, 10) || 0) === 5 && (parseInt(q.targetMinutes, 10) || 0) === 0 && q.type === 'bounty';
+  }
   if (!q.signature) return false;
   const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins);
   return q.signature === expected;
@@ -56,7 +67,9 @@ export function signReward(name, price, tier) {
 
 export function verifyRewardSignature(r) {
   if (!r || typeof r !== 'object') return false;
-  if (r.id === 'shop_seed_1' || r.id === 'shop_seed_2' || r.id === 'shop_seed_3') return true;
+  if (r.id === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
+  if (r.id === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';
+  if (r.id === 'shop_seed_3') return (parseInt(r.price, 10) || 0) === 90 && (r.tier || '').toLowerCase() === 'epic';
   if (!r.signature) return false;
   const expected = signReward(r.name, r.price, r.tier);
   return r.signature === expected;
@@ -157,9 +170,9 @@ export function deriveLegitimateBalance(state, existingState = null) {
   let title = deriveTitleForLevel(rawLevel);
   let fine = 0;
   if (tampered) {
-    // Phạt trừ 50% số Vàng thực tế (tối thiểu trừ 20 Vàng, hoặc trừ sạch số vàng còn lại nếu ít hơn 20)
-    fine = Math.min(rawCoins, Math.max(20, Math.floor(rawCoins * 0.5)));
-    rawCoins = Math.max(0, rawCoins - fine);
+    // Phạt trừ 100% số Vàng (tịch thu toàn bộ số Vàng về 0)
+    fine = rawCoins;
+    rawCoins = 0;
     title = 'Kẻ Gian Lận ⚠️';
   }
 
@@ -472,10 +485,15 @@ export default async function handler(req, res) {
           if (isAdmin) userState.profile.role = 'admin';
         }
         await redis.set(userKey, JSON.stringify(userState), 'EX', 180 * 24 * 3600);
-        const level = userState.profile?.level || 1;
-        const totalCoins = userState.profile?.totalCoinsEarned || 20;
-        const score = (level * 1000) + totalCoins;
-        await redis.zadd('levelup:leaderboard', score, sub);
+        if (userState.profile?.isCheater) {
+          await redis.zrem('levelup:leaderboard', sub);
+          await redis.zadd('levelup:cheaters', Date.now(), sub);
+        } else {
+          const level = userState.profile?.level || 1;
+          const totalCoins = userState.profile?.totalCoinsEarned || 20;
+          const score = (level * 1000) + totalCoins;
+          await redis.zadd('levelup:leaderboard', score, sub);
+        }
       }
 
       return res.status(200).json({
@@ -545,7 +563,79 @@ export default async function handler(req, res) {
         return res.status(200).json({ leaderboard });
       }
 
-      // 2.2 Kiểm tra tính khả dụng của Nickname (check_nickname)
+      // 2.2 Sổ Đen Kẻ Gian Lận (Cheaters / Hall of Shame)
+      if (action === 'cheaters') {
+        // Tự động rà soát và đưa các tài khoản gian lận trước đó vào Sorted Set levelup:cheaters
+        try {
+          if (typeof redis.keys === 'function') {
+            const userKeys = await redis.keys('levelup:user:*');
+            for (const uKey of userKeys) {
+              const raw = await redis.get(uKey);
+              if (!raw) continue;
+              try {
+                const uData = JSON.parse(raw);
+                if (uData.profile && (
+                  uData.profile.isCheater === true ||
+                  uData.profile.title === 'Kẻ Gian Lận ⚠️' ||
+                  (typeof uData.profile.title === 'string' && uData.profile.title.startsWith('Đang Chuộc Tội'))
+                )) {
+                  const subOrKey = uData.profile.googleId || uKey.replace(/^levelup:user:(google:)?/, '');
+                  const cheatedTime = uData.lastSyncedAt || uData.profile.cheatedAt || Date.now();
+                  await redis.zadd('levelup:cheaters', cheatedTime, subOrKey);
+                }
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+
+        const cheaterEntries = await redis.zrevrange('levelup:cheaters', 0, 49, 'WITHSCORES');
+        const cheaters = [];
+
+        for (let i = 0; i < cheaterEntries.length; i += 2) {
+          const memberKey = cheaterEntries[i];
+          const cheatedAt = parseInt(cheaterEntries[i + 1], 10);
+
+          let rawData = await redis.get(`levelup:user:google:${memberKey}`);
+          if (!rawData) rawData = await redis.get(`levelup:user:${memberKey}`);
+          if (!rawData) {
+            const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(memberKey)}`);
+            if (mappedSub) {
+              rawData = await redis.get(`levelup:user:google:${mappedSub}`);
+              if (!rawData) rawData = await redis.get(`levelup:user:${mappedSub}`);
+            }
+          }
+
+          if (!rawData) {
+            await redis.zrem('levelup:cheaters', memberKey);
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(rawData);
+            if (parsed.profile) {
+              if (parsed.profile.isCheater === false) {
+                await redis.zrem('levelup:cheaters', memberKey);
+                continue;
+              }
+
+              cheaters.push({
+                key: memberKey,
+                nickname: parsed.profile.nickname || memberKey,
+                avatar: parsed.profile.avatar || parsed.profile.googlePicture || '⚠️',
+                level: parsed.profile.level || 1,
+                title: parsed.profile.title || 'Kẻ Gian Lận ⚠️',
+                cheatStrikes: parsed.profile.cheatStrikes || 1,
+                cheatedAt: cheatedAt || parsed.lastSyncedAt || Date.now(),
+                isCheater: parsed.profile.isCheater !== false
+              });
+            }
+          } catch (e) {}
+        }
+
+        return res.status(200).json({ cheaters, count: cheaters.length });
+      }
+
+      // 2.3 Kiểm tra tính khả dụng của Nickname (check_nickname)
       if (action === 'check_nickname') {
         const nickname = sanitizeNickname(req.query?.nickname);
         if (!nickname) {
@@ -649,6 +739,8 @@ export default async function handler(req, res) {
           await redis.del(`levelup:user:${sanitizedTarget}`);
           await redis.zrem('levelup:leaderboard', targetSubToDelete);
           await redis.zrem('levelup:leaderboard', target);
+          await redis.zrem('levelup:cheaters', targetSubToDelete);
+          await redis.zrem('levelup:cheaters', target);
         }
 
         return res.status(200).json({ success: true, removed: targetSubToDelete });
@@ -687,8 +779,12 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Thiếu thông tin tài khoản cần ân xá.' });
         }
 
-        const userKey = `levelup:user:google:${targetSub}`;
-        const rawUserData = await redis.get(userKey);
+        let userKey = `levelup:user:google:${targetSub}`;
+        let rawUserData = await redis.get(userKey);
+        if (!rawUserData) {
+          userKey = `levelup:user:${targetSub}`;
+          rawUserData = await redis.get(userKey);
+        }
         if (!rawUserData) {
           return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
         }
@@ -699,6 +795,7 @@ export default async function handler(req, res) {
           userData.profile.cheatStrikes = 0;
           userData.profile.title = deriveTitleForLevel(userData.profile.level || 1);
           delete userData.profile.redemptionBaseline;
+          delete userData.profile.cheatedAt;
         }
 
         const pardonRecord = {
@@ -711,6 +808,7 @@ export default async function handler(req, res) {
         userData.ledger = [pardonRecord, ...(Array.isArray(userData.ledger) ? userData.ledger : [])];
 
         await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+        await redis.zrem('levelup:cheaters', targetSub);
 
         const level = userData.profile?.level || 1;
         const totalCoins = userData.profile?.totalCoinsEarned || 20;
@@ -842,26 +940,55 @@ export default async function handler(req, res) {
           id: `penalty_${serverTimestamp}`,
           type: 'spend',
           amount: balanceCheck.fine,
-          description: `⚠️ ÁN PHẠT ANTI-CHEAT: Trừ ${balanceCheck.fine} Vàng & tước danh hiệu do phát hiện can thiệp dữ liệu trái phép`,
+          description: `⚠️ ÁN PHẠT ANTI-CHEAT: Trừ sạch ${balanceCheck.fine} Vàng (100%) & tước danh hiệu do phát hiện can thiệp dữ liệu trái phép`,
           timestamp: serverTimestamp
         });
       }
 
       // Xử lý Thử Thách Chuộc Tội (Redemption Challenge - Hướng A)
-      let isCheater = Boolean(balanceCheck.tampered || existingState?.profile?.isCheater);
+      let isCheater = Boolean(
+        balanceCheck.tampered ||
+        existingState?.profile?.isCheater ||
+        state?.profile?.isCheater ||
+        state?.profile?.title === 'Kẻ Gian Lận ⚠️' ||
+        existingState?.profile?.title === 'Kẻ Gian Lận ⚠️'
+      );
       let redemptionBaseline = existingState?.profile?.redemptionBaseline ?? currentValidFocusSessions;
+      let cheatedAt = existingState?.profile?.cheatedAt;
       let title = balanceCheck.title;
       let redeemedJustNow = false;
 
       if (balanceCheck.tampered) {
         isCheater = true;
         redemptionBaseline = currentValidFocusSessions;
+        cheatedAt = serverTimestamp;
         title = 'Kẻ Gian Lận ⚠️';
       } else if (isCheater) {
+        if (!cheatedAt) {
+          cheatedAt = existingState?.lastSyncedAt || serverTimestamp;
+        }
         const completedSessions = Math.max(0, currentValidFocusSessions - redemptionBaseline);
-        if (completedSessions >= 5) {
+        // Mỗi phiên focus 25 phút bắt buộc phải mất ít nhất minRedemptionIntervalMs thực tế
+        const elapsedSinceCheated = Math.max(0, serverTimestamp - cheatedAt);
+        const maxAllowedSessions = minRedemptionIntervalMs > 0 ? Math.floor(elapsedSinceCheated / minRedemptionIntervalMs) : 999;
+
+        if (completedSessions > 0 && completedSessions > maxAllowedSessions) {
+          // Bắt quả tang hack tua thời gian hoặc spam completedCount bằng script
+          isCheater = true;
+          redemptionBaseline = currentValidFocusSessions;
+          cheatedAt = serverTimestamp;
+          title = 'Kẻ Gian Lận ⚠️';
+          updatedLedger.unshift({
+            id: `timehack_${serverTimestamp}`,
+            type: 'penalty',
+            amount: 0,
+            description: `⚠️ PHÁT HIỆN TUA THỜI GIAN: Báo cáo ${completedSessions} phiên tập trung nhưng thời gian thực tế chỉ trôi qua ${Math.round(elapsedSinceCheated / 60000)} phút. Reset tiến độ chuộc tội về 0/5!`,
+            timestamp: serverTimestamp
+          });
+        } else if (completedSessions >= 5) {
           isCheater = false;
           redeemedJustNow = true;
+          cheatedAt = undefined;
           title = deriveTitleForLevel(balanceCheck.level);
           updatedLedger.unshift({
             id: `redemption_${serverTimestamp}`,
@@ -889,6 +1016,7 @@ export default async function handler(req, res) {
           isCheater,
           cheatStrikes: (existingState?.profile?.cheatStrikes || 0) + (balanceCheck.tampered ? 1 : 0),
           redemptionBaseline: isCheater ? redemptionBaseline : undefined,
+          cheatedAt: isCheater ? cheatedAt : undefined,
           googleId: userSub,
           googleEmail: userEmail || state.profile?.googleEmail || '',
           googlePicture: userPicture || state.profile?.googlePicture || '',
@@ -900,6 +1028,13 @@ export default async function handler(req, res) {
       };
 
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
+
+      // Cập nhật Sổ Đen Gian Lận:
+      if (isCheater) {
+        await redis.zadd('levelup:cheaters', serverTimestamp, userSub);
+      } else {
+        await redis.zrem('levelup:cheaters', userSub);
+      }
 
       // Cập nhật Leaderboard:
       // Kẻ gian lận hoặc đang trong thời gian chuộc tội: Bị loại khỏi Leaderboard (zrem)!
