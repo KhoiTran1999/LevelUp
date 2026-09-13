@@ -274,4 +274,48 @@ html.dark .rank-badge-S {
   backdrop-filter: blur(10px);
 }
 
+/* ==========================================================================
+   Interactive Onboarding Tour (Spotlight & Tooltip Popover)
+   ========================================================================== */
+@keyframes tourPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4), 0 0 20px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.15), 0 0 32px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.tour-target-pulse {
+  animation: tourPulse 2s infinite ease-in-out;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: rgba(148, 163, 184, 0.4);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tour-dot.active {
+  width: 16px;
+  background-color: #f59e0b;
+}
+
+.tour-arrow-indicator {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  transform: rotate(45deg);
+  z-index: 109;
+}
+
+html.dark .tour-arrow-indicator {
+  background-color: #0f172a;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
 

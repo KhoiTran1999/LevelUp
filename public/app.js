@@ -2811,30 +2811,49 @@ function initWelcomeModal() {
     e.stopPropagation();
   }, true);
 
+  const tabIntro = document.getElementById('btn-tab-welcome-intro');
   const tabNew = document.getElementById('btn-tab-welcome-new');
   const tabReturning = document.getElementById('btn-tab-welcome-returning');
+  const panelIntro = document.getElementById('welcome-panel-intro');
   const panelNew = document.getElementById('welcome-panel-new');
   const panelReturning = document.getElementById('welcome-panel-returning');
+  const btnGotoNickname = document.getElementById('btn-welcome-goto-nickname');
   const errNew = document.getElementById('welcome-new-error');
   const errReturning = document.getElementById('welcome-token-error');
 
-  let selectedAvatar = '⚔️';
+  function setWelcomeTab(tab) {
+    const tabs = [
+      { id: 'intro', tabEl: tabIntro, panelEl: panelIntro },
+      { id: 'new', tabEl: tabNew, panelEl: panelNew },
+      { id: 'returning', tabEl: tabReturning, panelEl: panelReturning }
+    ];
 
-  if (tabNew && tabReturning && panelNew && panelReturning) {
-    tabNew.addEventListener('click', () => {
-      tabNew.className = 'py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm';
-      tabReturning.className = 'py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
-      panelNew.classList.remove('hidden');
-      panelReturning.classList.add('hidden');
+    tabs.forEach(t => {
+      if (!t.tabEl || !t.panelEl) return;
+      if (t.id === tab) {
+        t.tabEl.className = 'py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm font-bold';
+        t.panelEl.classList.remove('hidden');
+      } else {
+        t.tabEl.className = 'py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200 font-bold';
+        t.panelEl.classList.add('hidden');
+      }
     });
 
-    tabReturning.addEventListener('click', () => {
-      tabReturning.className = 'py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm';
-      tabNew.className = 'py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
-      panelReturning.classList.remove('hidden');
-      panelNew.classList.add('hidden');
-    });
+    if (tab === 'new') {
+      const input = document.getElementById('input-welcome-nickname');
+      if (input) setTimeout(() => input.focus(), 50);
+    } else if (tab === 'returning') {
+      const input = document.getElementById('input-welcome-token');
+      if (input) setTimeout(() => input.focus(), 50);
+    }
   }
+
+  if (tabIntro) tabIntro.addEventListener('click', () => setWelcomeTab('intro'));
+  if (tabNew) tabNew.addEventListener('click', () => setWelcomeTab('new'));
+  if (tabReturning) tabReturning.addEventListener('click', () => setWelcomeTab('returning'));
+  if (btnGotoNickname) btnGotoNickname.addEventListener('click', () => setWelcomeTab('new'));
+
+  let selectedAvatar = '⚔️';
 
   document.querySelectorAll('.welcome-avatar-opt').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2888,6 +2907,11 @@ function initWelcomeModal() {
         closeModal('modal-welcome');
         syncWithCloud(true);
         showToast(`Chào mừng "${nick}" đến với LevelUp!`, 'success');
+
+        // Khởi động Tour giới thiệu tương tác sau khi tạo xong nickname
+        setTimeout(() => {
+          startInteractiveTour(true);
+        }, 350);
       } catch (e) {
         if (errNew) {
           errNew.textContent = 'Lỗi kiểm tra: ' + e.message;
@@ -2930,6 +2954,385 @@ function initWelcomeModal() {
 }
 
 // =============================================================================
+// 13.5. ONBOARDING INTERACTIVE TOUR ENGINE
+// =============================================================================
+let currentTourStep = 0;
+let isTourActive = false;
+let tourResizeScrollHandler = null;
+let tourKeydownHandler = null;
+
+const TOUR_STEPS = [
+  {
+    id: 'profile',
+    title: 'Hồ Sơ & Trạng Thái Hiệp Sĩ',
+    icon: '🛡️',
+    tab: 'quests',
+    getTarget: () => document.getElementById('open-profile-btn'),
+    desc: 'Thanh trạng thái nhân vật của bạn. Xem Cấp độ (Level), thanh Kinh Nghiệm (EXP) và số Vàng (🪙) bạn tích lũy từ công việc. Nhấn vào đây để xem Hồ Sơ, đổi danh hiệu và sao chép Mã Token bí mật.'
+  },
+  {
+    id: 'add-quest',
+    title: 'Thêm Việc & Nhận Nhiệm Vụ',
+    icon: '⚔️',
+    tab: 'quests',
+    getTarget: () => {
+      const mobBtn = document.getElementById('btn-open-add-quest-mobile');
+      if (window.innerWidth < 768 && mobBtn && mobBtn.offsetParent !== null) return mobBtn;
+      return document.getElementById('btn-open-add-quest');
+    },
+    desc: 'Nhấn vào đây (hoặc phím tắt Q) để tạo việc cần làm. Trọng tài AI nghiêm khắc sẽ tự động định giá Rank S/A/B/C/D và đặt mức thưởng Vàng tương xứng!'
+  },
+  {
+    id: 'focus-timer',
+    title: 'Bộ Đếm Tập Trung (Pomodoro)',
+    icon: '⏱️',
+    tab: 'quests',
+    getTarget: () => {
+      const banner = document.getElementById('active-focus-banner');
+      if (banner && !banner.classList.contains('hidden') && banner.offsetParent !== null) return banner;
+      const questList = document.getElementById('quest-list');
+      if (questList && questList.offsetParent !== null) return questList;
+      return document.getElementById('tab-quests');
+    },
+    desc: 'Kích hoạt đồng hồ tập trung khi làm việc để tăng tối đa năng suất. Có chế độ Zen Mode toàn màn hình giúp bạn dập tắt hoàn toàn các xao nhãng xung quanh!'
+  },
+  {
+    id: 'shop',
+    title: 'Cửa Hàng Phần Thưởng Thực Tế',
+    icon: '🎁',
+    tab: 'shop',
+    getTarget: () => {
+      if (window.innerWidth < 768) {
+        return document.querySelector('.mobile-nav-btn[data-tab="shop"]');
+      }
+      return document.querySelector('.nav-tab[data-tab="shop"]');
+    },
+    desc: 'Dùng Vàng kiếm được để mở khóa những điều bạn yêu thích: 30 phút chơi game, 1 tập phim anime, cà phê... Tận hưởng trọn vẹn mà không còn một chút cảm giác tội lỗi!'
+  },
+  {
+    id: 'leaderboard',
+    title: 'Bảng Xếp Hạng & Sẵn Sàng',
+    icon: '🏆',
+    tab: 'leaderboard',
+    getTarget: () => {
+      if (window.innerWidth < 768) {
+        return document.querySelector('.mobile-nav-btn[data-tab="leaderboard"]');
+      }
+      return document.querySelector('.nav-tab[data-tab="leaderboard"]');
+    },
+    desc: 'Cạnh tranh vị trí Top hiệp sĩ chăm chỉ nhất cùng cộng đồng LevelUp. Hãy bắt đầu tạo nhiệm vụ đầu tiên và nâng cấp bản thân ngay hôm nay!'
+  }
+];
+
+function updateTourPosition() {
+  if (!isTourActive) return;
+  const overlay = document.getElementById('tour-overlay');
+  const card = document.getElementById('tour-card');
+  const targetBox = document.getElementById('tour-target-box');
+  const tourHole = document.getElementById('tour-hole');
+  const tourArrow = document.getElementById('tour-arrow');
+  if (!overlay || !card || !targetBox || !tourHole) return;
+
+  const step = TOUR_STEPS[currentTourStep];
+  if (!step) return;
+
+  const targetEl = step.getTarget ? step.getTarget() : null;
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+
+  if (targetEl && targetEl.offsetParent !== null) {
+    const rect = targetEl.getBoundingClientRect();
+    const pad = 6;
+    const tTop = Math.max(0, rect.top - pad);
+    const tLeft = Math.max(0, rect.left - pad);
+    const tWidth = Math.min(viewportW - tLeft, rect.width + pad * 2);
+    const tHeight = Math.min(viewportH - tTop, rect.height + pad * 2);
+
+    // Cập nhật lỗ cắt spotlight trên mặt nạ SVG
+    tourHole.setAttribute('x', tLeft);
+    tourHole.setAttribute('y', tTop);
+    tourHole.setAttribute('width', tWidth);
+    tourHole.setAttribute('height', tHeight);
+    tourHole.setAttribute('rx', '14');
+
+    // Cập nhật khung viền phát sáng bám theo phần tử
+    targetBox.style.display = 'block';
+    targetBox.style.top = `${tTop}px`;
+    targetBox.style.left = `${tLeft}px`;
+    targetBox.style.width = `${tWidth}px`;
+    targetBox.style.height = `${tHeight}px`;
+
+    // Định vị hộp thoại popover card
+    const cardW = Math.min(viewportW - 32, 420);
+    card.style.width = `${cardW}px`;
+    const cardH = card.offsetHeight || 220;
+
+    const spaceBelow = viewportH - (tTop + tHeight);
+    const spaceAbove = tTop;
+
+    let cardTop = 0;
+    let cardLeft = 0;
+    let arrowPlacement = 'top';
+
+    if (viewportW < 640) {
+      cardLeft = Math.max(16, (viewportW - cardW) / 2);
+      if (spaceBelow >= cardH + 16) {
+        cardTop = tTop + tHeight + 12;
+        arrowPlacement = 'top';
+      } else if (spaceAbove >= cardH + 16) {
+        cardTop = Math.max(16, tTop - cardH - 12);
+        arrowPlacement = 'bottom';
+      } else {
+        cardTop = Math.max(16, (viewportH - cardH) / 2);
+        arrowPlacement = 'none';
+      }
+    } else {
+      if (spaceBelow >= cardH + 20) {
+        cardTop = tTop + tHeight + 14;
+        arrowPlacement = 'top';
+      } else if (spaceAbove >= cardH + 20) {
+        cardTop = Math.max(16, tTop - cardH - 14);
+        arrowPlacement = 'bottom';
+      } else {
+        cardTop = Math.max(20, (viewportH - cardH) / 2);
+        arrowPlacement = 'none';
+      }
+
+      const targetCenter = tLeft + tWidth / 2;
+      cardLeft = targetCenter - cardW / 2;
+      cardLeft = Math.max(16, Math.min(viewportW - cardW - 16, cardLeft));
+    }
+
+    cardTop = Math.max(16, Math.min(viewportH - cardH - 16, cardTop));
+    card.style.top = `${cardTop}px`;
+    card.style.left = `${cardLeft}px`;
+
+    if (tourArrow) {
+      if (arrowPlacement === 'top') {
+        tourArrow.classList.remove('hidden');
+        tourArrow.style.top = '-6px';
+        tourArrow.style.bottom = 'auto';
+        const arrowLeft = Math.max(16, Math.min(cardW - 24, (tLeft + tWidth / 2) - cardLeft - 6));
+        tourArrow.style.left = `${arrowLeft}px`;
+      } else if (arrowPlacement === 'bottom') {
+        tourArrow.classList.remove('hidden');
+        tourArrow.style.bottom = '-6px';
+        tourArrow.style.top = 'auto';
+        const arrowLeft = Math.max(16, Math.min(cardW - 24, (tLeft + tWidth / 2) - cardLeft - 6));
+        tourArrow.style.left = `${arrowLeft}px`;
+      } else {
+        tourArrow.classList.add('hidden');
+      }
+    }
+  } else {
+    tourHole.setAttribute('width', '0');
+    tourHole.setAttribute('height', '0');
+    targetBox.style.display = 'none';
+    if (tourArrow) tourArrow.classList.add('hidden');
+
+    const cardW = Math.min(viewportW - 32, 420);
+    card.style.width = `${cardW}px`;
+    const cardH = card.offsetHeight || 220;
+    card.style.top = `${Math.max(20, (viewportH - cardH) / 2)}px`;
+    card.style.left = `${Math.max(16, (viewportW - cardW) / 2)}px`;
+  }
+}
+
+function renderTourStep(index) {
+  if (index < 0 || index >= TOUR_STEPS.length) {
+    finishTour(true);
+    return;
+  }
+
+  currentTourStep = index;
+  const step = TOUR_STEPS[index];
+
+  if (step.tab) {
+    switchTab(step.tab);
+  }
+
+  const pill = document.getElementById('tour-step-pill');
+  if (pill) pill.textContent = `Bước ${index + 1} / ${TOUR_STEPS.length}`;
+
+  const icon = document.getElementById('tour-step-icon');
+  if (icon) icon.textContent = step.icon;
+
+  const title = document.getElementById('tour-step-title');
+  if (title) title.textContent = step.title;
+
+  const desc = document.getElementById('tour-step-desc');
+  if (desc) desc.textContent = step.desc;
+
+  const dotsContainer = document.getElementById('tour-dots');
+  if (dotsContainer) {
+    dotsContainer.innerHTML = '';
+    TOUR_STEPS.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = `tour-dot ${i === index ? 'active' : ''}`;
+      dot.setAttribute('title', `Bước ${i + 1}: ${TOUR_STEPS[i].title}`);
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renderTourStep(i);
+      });
+      dotsContainer.appendChild(dot);
+    });
+  }
+
+  const prevBtn = document.getElementById('btn-tour-prev');
+  if (prevBtn) {
+    if (index > 0) {
+      prevBtn.classList.remove('hidden');
+    } else {
+      prevBtn.classList.add('hidden');
+    }
+  }
+
+  const nextBtnText = document.getElementById('btn-tour-next-text');
+  const nextBtnIcon = document.getElementById('btn-tour-next-icon');
+  if (nextBtnText) {
+    nextBtnText.textContent = (index === TOUR_STEPS.length - 1) ? 'Bắt Đầu Ngay' : 'Tiếp theo';
+  }
+  if (nextBtnIcon) {
+    nextBtnIcon.textContent = (index === TOUR_STEPS.length - 1) ? '🚀' : '➡️';
+  }
+
+  requestAnimationFrame(() => {
+    const targetEl = step.getTarget ? step.getTarget() : null;
+    if (targetEl && targetEl.offsetParent !== null) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+    setTimeout(updateTourPosition, 120);
+  });
+}
+
+function startInteractiveTour(force = false) {
+  if (!force && localStorage.getItem('levelup_tour_completed') === 'true') {
+    return;
+  }
+
+  const welcomeModal = document.getElementById('modal-welcome');
+  if (welcomeModal && !welcomeModal.classList.contains('hidden')) {
+    return;
+  }
+
+  document.querySelectorAll('.fixed:not(#modal-welcome):not(#tour-overlay):not(.hidden)').forEach(m => m.classList.add('hidden'));
+
+  const overlay = document.getElementById('tour-overlay');
+  if (!overlay) return;
+
+  isTourActive = true;
+  currentTourStep = 0;
+  overlay.classList.remove('hidden');
+
+  renderTourStep(0);
+
+  if (!tourResizeScrollHandler) {
+    let ticking = false;
+    tourResizeScrollHandler = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateTourPosition();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('resize', tourResizeScrollHandler, { passive: true });
+    window.addEventListener('scroll', tourResizeScrollHandler, { passive: true });
+  }
+
+  if (!tourKeydownHandler) {
+    tourKeydownHandler = (e) => {
+      if (!isTourActive) return;
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault();
+        nextTourStep();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevTourStep();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        finishTour(false);
+      }
+    };
+    window.addEventListener('keydown', tourKeydownHandler);
+  }
+}
+
+function nextTourStep() {
+  if (!isTourActive) return;
+  sfx.playClick();
+  if (currentTourStep < TOUR_STEPS.length - 1) {
+    renderTourStep(currentTourStep + 1);
+  } else {
+    finishTour(true);
+  }
+}
+
+function prevTourStep() {
+  if (!isTourActive) return;
+  sfx.playClick();
+  if (currentTourStep > 0) {
+    renderTourStep(currentTourStep - 1);
+  }
+}
+
+function finishTour(completed = true) {
+  if (!isTourActive) return;
+  isTourActive = false;
+
+  const overlay = document.getElementById('tour-overlay');
+  if (overlay) overlay.classList.add('hidden');
+
+  if (tourResizeScrollHandler) {
+    window.removeEventListener('resize', tourResizeScrollHandler);
+    window.removeEventListener('scroll', tourResizeScrollHandler);
+    tourResizeScrollHandler = null;
+  }
+
+  if (tourKeydownHandler) {
+    window.removeEventListener('keydown', tourKeydownHandler);
+    tourKeydownHandler = null;
+  }
+
+  switchTab('quests');
+
+  localStorage.setItem('levelup_tour_completed', 'true');
+
+  if (completed) {
+    if (sfx && typeof sfx.playLevelUp === 'function') {
+      sfx.playLevelUp();
+    }
+    showToast('🎉 Chúc mừng bạn đã hoàn thành tour giới thiệu! Hãy tạo nhiệm vụ đầu tiên nào!', 'success');
+  } else {
+    showToast('Bạn có thể xem lại tour hướng dẫn bất kỳ lúc nào trong Hồ Sơ (Profile).', 'info');
+  }
+}
+
+function initTourControls() {
+  const nextBtn = document.getElementById('btn-tour-next');
+  if (nextBtn) nextBtn.addEventListener('click', nextTourStep);
+
+  const prevBtn = document.getElementById('btn-tour-prev');
+  if (prevBtn) prevBtn.addEventListener('click', prevTourStep);
+
+  const skipBtn = document.getElementById('btn-tour-skip');
+  if (skipBtn) skipBtn.addEventListener('click', () => finishTour(false));
+
+  const skipTopBtn = document.getElementById('btn-tour-skip-top');
+  if (skipTopBtn) skipTopBtn.addEventListener('click', () => finishTour(false));
+
+  const replayBtn = document.getElementById('btn-replay-tour');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => {
+      closeModal('modal-profile');
+      startInteractiveTour(true);
+    });
+  }
+}
+
+// =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -2939,6 +3342,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Kiểm tra onboarding: Bắt buộc nhập nickname hoặc nhập token nếu là người cũ
   initWelcomeModal();
+
+  // Khởi tạo các nút điều khiển Tour giới thiệu
+  initTourControls();
 
   // Background Cloud Sync on start
   if (appState.profile.nickname && (localStorage.getItem('levelup_onboarded') === 'true' || appState.profile.hasOnboarded)) {
@@ -3332,6 +3738,10 @@ document.addEventListener('DOMContentLoaded', () => {
           closeConfirmDialog(false);
           return;
         }
+        if (modal.id === 'tour-overlay') {
+          // Không tắt tour khi chạm vào vùng overlay (tránh bấm nhầm)
+          return;
+        }
         if (modal.id === 'modal-welcome') {
           // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
           showToast('Vui lòng tạo tài khoản hoặc nhập Mã Token để tiếp tục!', 'info');
@@ -3347,9 +3757,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu; đóng modal-confirm an toàn
+  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu; đóng tour và modal-confirm an toàn
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (isTourActive) {
+        e.preventDefault();
+        finishTour(false);
+        return;
+      }
       const confirmModal = document.getElementById('modal-confirm');
       if (confirmModal && !confirmModal.classList.contains('hidden')) {
         e.preventDefault();
@@ -3362,7 +3777,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         return;
       }
-      document.querySelectorAll('.fixed:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
+      document.querySelectorAll('.fixed:not(#modal-welcome):not(#tour-overlay):not(.hidden)').forEach(m => m.classList.add('hidden'));
     }
   });
 });

@@ -760,6 +760,15 @@
           </div>
         </div>
 
+        <!-- Replay Tour Button -->
+        <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-slate-500">Hướng dẫn sử dụng:</span>
+          <button id="btn-replay-tour" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition border border-amber-500/30">
+            <span>🎓</span>
+            <span>Xem Lại Tour Giới Thiệu</span>
+          </button>
+        </div>
+
         <div class="pt-2 flex justify-between items-center">
           <button id="btn-force-cloud-load" class="text-xs text-amber-600 dark:text-amber-400 hover:underline font-medium">
             📥 Tải lại dữ liệu từ đám mây
@@ -784,19 +793,72 @@
         <p class="text-xs text-slate-400 mt-1">Biến công việc và thói quen hàng ngày thành trò chơi để không còn trì hoãn</p>
       </div>
 
-      <!-- Tab Switch: New vs Returning -->
-      <div class="grid grid-cols-2 p-2 bg-slate-950/60 border-b border-slate-800 text-xs font-bold">
-        <button id="btn-tab-welcome-new" type="button" class="py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm">
-          ✨ Tạo Tài Khoản Mới
+      <!-- Tab Switch: Intro vs New vs Returning -->
+      <div class="grid grid-cols-3 p-1.5 sm:p-2 bg-slate-950/60 border-b border-slate-800 text-[11px] sm:text-xs font-bold gap-1">
+        <button id="btn-tab-welcome-intro" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
+          📖 Giới Thiệu
         </button>
-        <button id="btn-tab-welcome-returning" type="button" class="py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
-          🔑 Đã Có Mã Tài Khoản (Token)
+        <button id="btn-tab-welcome-new" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm">
+          ✨ Đặt Tên Mới
+        </button>
+        <button id="btn-tab-welcome-returning" type="button" class="py-2 sm:py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
+          🔑 Đã Có Token
         </button>
       </div>
 
-      <div class="p-6 space-y-4">
+      <div class="p-5 sm:p-6 space-y-4 max-h-[78vh] overflow-y-auto">
+        <!-- TAB 0: INTRO OVERVIEW (CÁCH CHƠI LEVELUP) -->
+        <div id="welcome-panel-intro" class="hidden space-y-3">
+          <div class="text-center pb-1">
+            <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Vòng lặp Gamification 3 bước</h4>
+            <p class="text-[11px] text-slate-400 mt-0.5">Xóa tan trì hoãn, làm việc tập trung và tận hưởng phần thưởng</p>
+          </div>
+
+          <div class="space-y-2.5 text-left">
+            <div class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg shrink-0">
+                ⚔️
+              </div>
+              <div class="text-xs">
+                <div class="font-bold text-slate-200">1. Nhiệm Vụ & Bấm Giờ Tập Trung</div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">Giao việc thật cho bản thân và bật bộ đếm Pomodoro. Chế độ Zen Mode giúp loại bỏ xao nhãng hoàn toàn.</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-lg shrink-0">
+                ⚖️
+              </div>
+              <div class="text-xs">
+                <div class="font-bold text-slate-200">2. Trọng Tài AI Thẩm Định Rank</div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">AI đánh giá độ khó khách quan (Rank S, A, B, C, D) và thưởng Vàng 🪙, EXP 🌟 xứng đáng với công sức bỏ ra.</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+                🎁
+              </div>
+              <div class="text-xs">
+                <div class="font-bold text-slate-200">3. Tự Thưởng Quà Thật Không Tội Lỗi</div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">Dùng Vàng mua giờ chơi game, xem phim, cà phê... Tận hưởng trọn vẹn giải trí vì bạn đã tự trả công bằng lao động thật.</div>
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-welcome-goto-nickname" type="button" class="w-full mt-2 py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
+            <span>Tiếp Tục: Chọn Avatar & Đặt Tên</span>
+            <span>➡️</span>
+          </button>
+        </div>
+
         <!-- TAB 1: NEW USER -->
         <div id="welcome-panel-new" class="space-y-4">
+          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300/90 flex items-center gap-2">
+            <span>💡</span>
+            <span>Sau khi tạo nickname, hệ thống sẽ mở <strong>Tour hướng dẫn tương tác</strong> ngay trên màn hình!</span>
+          </div>
+
           <div>
             <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Đại Diện (Avatar)</label>
             <div class="flex gap-2 justify-center py-1" id="welcome-avatar-selector">
@@ -976,8 +1038,79 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container (Positioned above mobile bottom bar) -->
-  <div id="toast-container" class="fixed bottom-20 md:bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <!-- ======================================================================= -->
+  <!-- ONBOARDING INTERACTIVE TOUR (SPOTLIGHT WALKTHROUGH)                      -->
+  <!-- ======================================================================= -->
+  <div id="tour-overlay" class="fixed inset-0 z-[105] hidden transition-opacity duration-300 pointer-events-auto" role="dialog" aria-modal="true" aria-label="Tour hướng dẫn LevelUp">
+    <!-- Dark Backdrop with SVG spotlight cutout -->
+    <svg id="tour-spotlight-svg" class="absolute inset-0 w-full h-full pointer-events-none transition-all duration-300">
+      <defs>
+        <mask id="tour-mask">
+          <rect width="100%" height="100%" fill="white" />
+          <rect id="tour-hole" x="0" y="0" width="0" height="0" rx="14" fill="black" />
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="rgba(2, 6, 23, 0.78)" mask="url(#tour-mask)" />
+    </svg>
+
+    <!-- Glowing Target Border Box around focused element -->
+    <div id="tour-target-box" class="absolute pointer-events-none rounded-2xl border-2 border-amber-400 transition-all duration-300 ease-out z-[106] tour-target-pulse"></div>
+
+    <!-- Floating Popover Tooltip Card -->
+    <div id="tour-card" class="fixed z-[108] w-[calc(100vw-32px)] max-w-sm sm:max-w-md rpg-panel rounded-2xl border border-amber-500/50 shadow-2xl p-4 sm:p-5 modal-fade transition-all duration-300 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+      <!-- Pointer arrow -->
+      <div id="tour-arrow" class="tour-arrow-indicator hidden"></div>
+
+      <!-- Header: Step pill & close button -->
+      <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-slate-200/80 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <span id="tour-step-pill" class="text-[10px] sm:text-[11px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+            Bước 1 / 5
+          </span>
+          <div id="tour-dots" class="flex items-center gap-1.5">
+            <!-- Dynamic step indicator dots -->
+          </div>
+        </div>
+        <button id="btn-tour-skip-top" type="button" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition text-sm leading-none rounded-lg" title="Bỏ qua hướng dẫn">
+          ✕
+        </button>
+      </div>
+
+      <!-- Content: Icon + Title + Body -->
+      <div class="flex items-start gap-3 my-2.5">
+        <div id="tour-step-icon" class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xl shrink-0">
+          🛡️
+        </div>
+        <div class="space-y-1 min-w-0 flex-1">
+          <h4 id="tour-step-title" class="font-rpg-title font-black text-sm sm:text-base text-amber-600 dark:text-amber-400 leading-snug">
+            Hồ Sơ & Cấp Độ Của Bạn
+          </h4>
+          <p id="tour-step-desc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Nơi hiển thị cấp bậc, lượng EXP và Vàng kiếm được. Bạn có thể nhấn vào đây để xem lại Mã Token bí mật bất kỳ lúc nào.
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer Controls -->
+      <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/80 dark:border-slate-800 gap-2">
+        <button id="btn-tour-skip" type="button" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition font-medium px-2 py-1.5 rounded-lg">
+          Bỏ qua
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btn-tour-prev" type="button" class="hidden px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            Quay lại
+          </button>
+          <button id="btn-tour-next" type="button" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 flex items-center gap-1 active:scale-95">
+            <span id="btn-tour-next-text">Tiếp theo</span>
+            <span id="btn-tour-next-icon">➡️</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container (Positioned above mobile bottom bar & tour) -->
+  <div id="toast-container" class="fixed bottom-20 md:bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-[130] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic -->
   <script src="app.js"></script>
