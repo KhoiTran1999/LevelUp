@@ -178,14 +178,14 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     verdict = 'Việc dọn dẹp nhanh gọn, chuyển sang Hoàn thành ngay với mức thưởng 3-5 Vàng chuẩn.';
   }
 
-  // Pattern detection for overloaded multi-chapter or crammed requests
-  const hasMultiChapterInOrig = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(fullMatchText);
-  const hasMultiChapterInTitle = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(`${title} ${stripDiacritics(title)}`);
-  const mentionsOverload = /nhồi nhét|nhoi nhet|ảo tưởng|ao tuong|chia nhỏ|chia nho|quá tải|qua tai|lạm phát|lam phat|tẩu hỏa|tau hoa|phi thực tế|phi thuc te|bất khả thi|bat kha thi|không thể xong|khong the xong|quá nhiều|qua nhieu/i.test(
+  // Pattern detection for overloaded multi-chapter or crammed requests (strictly for study/work)
+  const hasMultiChapterInOrig = isStudyOrWork && /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(fullMatchText);
+  const hasMultiChapterInTitle = isStudyOrWork && /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(`${title} ${stripDiacritics(title)}`);
+  const mentionsOverload = isStudyOrWork && /nhồi nhét|nhoi nhet|ảo tưởng|ao tuong|chia nhỏ|chia nho|quá tải|qua tai|lạm phát|lam phat|tẩu hỏa|tau hoa|phi thực tế|phi thuc te|bất khả thi|bat kha thi|không thể xong|khong the xong|quá nhiều|qua nhieu/i.test(
     `${verdict} ${modificationReason} ${result.chunkingPlan || ''} ${stripDiacritics(verdict + ' ' + modificationReason)}`
   );
   // ponytail: only chunk into Chapter 1 if input is actually a multi-chapter study task; upgrade if supporting other curriculum formats
-  const isCrammedStudy = hasMultiChapterInOrig || hasMultiChapterInTitle || ((Boolean(result.isOverloaded) || mentionsOverload) && /(chương|chuong|sách|sach|giáo\s*trình|giao\s*trinh|môn\s*học|mon\s*hoc)/i.test(fullMatchText));
+  const isCrammedStudy = isStudyOrWork && (hasMultiChapterInOrig || hasMultiChapterInTitle || Boolean(result.isOverloaded) || mentionsOverload);
 
   if (isCrammedStudy) {
     // If title still has multi-chapter wording or is identical to original crammed title
@@ -281,6 +281,16 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   };
 }
 
+// Fallback categorizer for reward unit test mock payloads lacking LLM semantic category
+// ponytail: fallback heuristic only; live AI responses supply result.category directly from LLM
+function resolveRewardCategory(origName, name, origDesc, desc) {
+  const raw = `${origName} ${name} ${origDesc} ${desc}`.toLowerCase();
+  const text = `${raw} ${stripDiacritics(raw)}`;
+  if (/(say\s*x[ỉi]n|u[ốo]ng.*(bia|r[ượ]u)|h[úu]t\s*thu[ốo]c|th[âa]u\s*[đd][êe]m|c[ờo]\s*b[ạa]c|c[áa]\s*[đd][ộo]|nh[ậa]u|\d+\s*(lon|chai)\s*(bia|r[ượ]u))/i.test(text)) return 'harmful';
+  if (/(ch[ơo]i\s*game|l[ướ][ớo]t\s*(tiktok|facebook|fb|reels|shorts|m[ạa]ng|web)|xem\s*(phim|youtube|anime)|netflix)/i.test(text)) return 'entertainment';
+  return 'general';
+}
+
 // Programmatic Arbiter Sanitizer for Rewards
 export function sanitizeEvaluatedReward(result, originalName = '', originalDesc = '') {
   if (!result || typeof result !== 'object') return result;
@@ -294,16 +304,12 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
-  // Composite search text for reward
-  const rawRewardMatch = `${normOrig} ${name} ${originalDesc} ${description} ${verdict} ${modificationReason}`.toLowerCase();
-  const rewardMatchText = `${rawRewardMatch} ${stripDiacritics(rawRewardMatch)}`;
+  // Semantic category classification (AI-first, deterministic clamping in code)
+  const category = (result.category || '').toLowerCase() || resolveRewardCategory(normOrig, name, originalDesc, description);
+  const isHarmful = category === 'harmful';
+  const isEntertainment = category === 'entertainment';
 
-  // Pattern detection for harmful / excessive alcohol / bingeing
-  const hasHarmfulReward = /(say\s*xỉn|say\s*xin|uống.*bia|uong.*bia|uống.*rượu|uong.*ruou|hút\s*thuốc|hut\s*thuoc|thâu\s*đêm|thau\s*dem|cờ\s*bạc|co\s*bac|cá\s*độ|ca\s*do|tiêu\s*sạch|tieu\s*sach|nhậu\s*nhẹt|nhau\s*nhet|\d+\s*(lon|chai|ly)\s*(bia|rượu|ruou))/i.test(
-    rewardMatchText
-  );
-
-  if (hasHarmfulReward && (name.toLowerCase() === normOrig.toLowerCase() || /say\s*xỉn|say\s*xin|\d+\s*(lon|chai)\s*(bia|rượu|ruou)/i.test(name + ' ' + stripDiacritics(name)))) {
+  if (isHarmful && (name.toLowerCase() === normOrig.toLowerCase() || /(say\s*x[ỉi]n|\d+\s*(lon|chai)\s*(bia|r[ượ]u))/i.test(name + ' ' + stripDiacritics(name)))) {
     name = 'Thưởng thức 1 ly đồ uống thư giãn cùng bạn bè';
     description = 'Tự thưởng thức đồ uống có chừng mực sau thời gian tập trung làm việc.';
     isModified = true;
@@ -313,12 +319,7 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     }
   }
 
-  // Pattern detection for cheap dopamine / addictive activities (game, tiktok, phim, lướt net...)
-  const isAddictiveDopamine = /(chơi\s*game|choi\s*game|lướt\s*(tiktok|facebook|fb|reels|shorts|mạng|mang|web)|luot\s*(tiktok|facebook|fb|reels|shorts|mạng|mang|web)|xem\s*(phim|youtube|anime)|netflix)/i.test(
-    rewardMatchText
-  );
-
-  if (isAddictiveDopamine && price < 35) {
+  if (isEntertainment && price < 35) {
     price = 35;
     isModified = true;
     verdict = 'Định giá 35 Vàng cho hoạt động giải trí để đảm bảo nỗ lực tương xứng.';
@@ -346,6 +347,7 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     ...result,
     name,
     description,
+    category,
     price,
     tier,
     icon,
@@ -663,6 +665,12 @@ QUY TẮC ĐỊNH GIÁ & QUY ĐỔI CÔNG SỨC:
    - 'rare': Giải trí cuối tuần vừa phải (30 - 60 Vàng)
    - 'epic': Phần thưởng lớn theo tuần/tháng (70 - 250 Vàng)
    - 'legendary': Mục tiêu ao ước lớn (300+ Vàng)
+4. PHÂN LOẠI DANH MỤC ('category'):
+   - "entertainment": Chơi game, xem phim, anime, lướt mạng xã hội (TikTok, Facebook, Reels, Shorts), giải trí số (giá tối thiểu 35 Vàng).
+   - "treat": Cà phê, trà sữa, ăn uống liên hoan, đồ ăn vặt.
+   - "item": Sách vở, dụng cụ học tập, thời trang, đồ dùng cá nhân.
+   - "milestone": Du lịch, kỳ nghỉ, mục tiêu lớn dài hạn.
+   - "harmful": Hành vi độc hại, chất kích thích, tổn hại sức khỏe (uống say xỉn, thuốc lá, cờ bạc, thâu đêm...). BẮT BUỘC AI đổi tên sang món quà lành mạnh tương đương!
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
@@ -674,6 +682,7 @@ QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 
 Trả về ĐÚNG định dạng JSON:
 {
+  "category": "entertainment" | "treat" | "item" | "milestone" | "harmful",
   "name": "BẮT BUỘC là tên phần thưởng đã được tinh chỉnh lành mạnh nếu bản gốc tiêu cực/bất hợp lý, hoặc tên gốc nếu đã hoàn toàn hợp lý",
   "description": "Mô tả phần thưởng (giữ nguyên hoặc đã được AI bổ sung/chỉnh sửa)",
   "isModified": boolean,
@@ -743,6 +752,7 @@ Trả về ĐÚNG định dạng JSON:
   "reply": "Lời phản hồi tự nhiên, chuẩn mực chăm sóc khách hàng, tâm lý, lịch thiệp và mang tính hỗ trợ cao",
   "newName": "Tên phần thưởng sau khi chốt (nếu không đổi thì giữ nguyên tên cũ)",
   "newDescription": "Mô tả phần thưởng sau khi chốt (nếu không đổi thì giữ nguyên)",
+  "newCategory": "entertainment" | "treat" | "item" | "milestone" | "harmful",
   "newPrice": number,
   "newTier": "common" | "rare" | "epic" | "legendary"
 }`;
@@ -765,6 +775,7 @@ Trả về ĐÚNG định dạng JSON:
           const rawDebate = {
             name: result.newName || reward.name,
             description: result.newDescription !== undefined ? result.newDescription : (reward.description || ''),
+            category: result.newCategory || reward.category,
             price: result.newPrice !== undefined ? result.newPrice : reward.price,
             tier: result.newTier || reward.tier
           };

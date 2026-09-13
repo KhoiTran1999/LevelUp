@@ -467,4 +467,42 @@ const unaccentedHarmful = sanitizeEvaluatedReward({
 assert.strictEqual(unaccentedHarmful.isModified, true);
 assert.ok(!unaccentedHarmful.name.includes('say xin'));
 
+// ==========================================
+// Test 20: Semantic category eliminates false positives on Vietnamese homographs (bia, web, phim, trọng tâm)
+// ==========================================
+// 20.1 Innocent reward with "web" (lập trình web) or "bia" (bia mộ)
+const innocentWebBookReward = sanitizeEvaluatedReward({
+  category: 'item',
+  name: 'Mua sách Lập trình Web Frontend',
+  description: 'Sách tự học công nghệ',
+  price: 50,
+  tier: 'rare'
+}, 'Mua sách Lập trình Web Frontend');
+assert.strictEqual(innocentWebBookReward.name, 'Mua sách Lập trình Web Frontend');
+assert.ok(!innocentWebBookReward.modificationReason.includes('giải trí'), 'Innocent book must not be flagged as dopamine gaming/entertainment');
+
+const tombstoneHistoryReward = sanitizeEvaluatedReward({
+  category: 'item',
+  name: 'Mua vé tham quan khu bia mộ lịch sử',
+  description: 'Tìm hiểu văn hóa',
+  price: 40,
+  tier: 'rare'
+}, 'Mua vé tham quan khu bia mộ lịch sử');
+assert.strictEqual(tombstoneHistoryReward.name, 'Mua vé tham quan khu bia mộ lịch sử');
+assert.ok(!tombstoneHistoryReward.name.includes('đồ uống'), 'Historical stele (bia mộ) must not be confused with beer');
+
+// 20.2 Study task with "trọng tâm" and multi-chapter isolation
+const macroQuest = sanitizeEvaluatedQuest({
+  category: 'study',
+  title: 'Đọc kỹ & tóm tắt Chương 1 môn Kinh tế Vĩ mô',
+  description: 'Ghi chú các công thức và thuật ngữ trọng tâm.',
+  type: 'focus',
+  targetMinutes: 50,
+  rewardCoins: 20
+}, 'Đọc hết toàn bộ 10 chương môn kinh tế vĩ mô', 'Ghi chú các công thức và thuật ngữ trọng tâm.');
+assert.strictEqual(macroQuest.type, 'focus');
+assert.strictEqual(macroQuest.targetMinutes, 50);
+assert.strictEqual(macroQuest.rewardCoins, 20);
+assert.strictEqual(macroQuest.requiresProof, true);
+
 console.log('✓ All AI-only locking, negotiation, bidirectional context, strictness, markdown rendering, and prompt injection defense tests passed successfully.');
