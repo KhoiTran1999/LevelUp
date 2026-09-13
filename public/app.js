@@ -2968,7 +2968,7 @@ function renderShop() {
       <div>
         <div class="flex items-center justify-between gap-2 mb-2.5">
           <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-sm">
-            ${item.icon || '🎁'}
+            ${escapeHtml(item.icon || '🎁')}
           </div>
           <div class="flex items-center gap-1.5">
             <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold border ${tierColors[item.tier] || tierColors.rare}">
@@ -3034,7 +3034,7 @@ function renderInventory() {
       <div>
         <div class="flex items-center justify-between gap-2 mb-2">
           <div class="flex items-center gap-3">
-            <span class="text-3xl">${item.icon || '🎁'}</span>
+            <span class="text-3xl">${escapeHtml(item.icon || '🎁')}</span>
             <div>
               <div class="flex items-center gap-1.5 flex-wrap">
                 <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100 ${item.isUsed && !isThisActiveReward ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>

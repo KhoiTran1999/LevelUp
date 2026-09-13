@@ -90,6 +90,20 @@ export function calculateRank(coins) {
   return 'E';
 }
 
+// ponytail: clamp input strings to prevent prompt stuffing / token drain DoS
+function clampStr(str, max = 500) {
+  return typeof str === 'string' ? str.trim().slice(0, max) : '';
+}
+
+// ponytail: native stdlib accent stripper for robust regex matching across dialects and accentless inputs
+function stripDiacritics(str) {
+  if (!str) return '';
+  return str.normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[đĐ]/g, d => d === 'đ' ? 'd' : 'D')
+    .toLowerCase();
+}
+
 // Programmatic Arbiter Sanitizer: Enforces chunking on overloaded tasks even if LLM has title inertia
 export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc = '') {
   if (!result || typeof result !== 'object') return result;
@@ -106,8 +120,12 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
+  // Composite search text (original + result + unaccented) to prevent context-wrapping bypasses
+  const rawMatch = `${normOrig} ${title} ${originalDesc} ${description}`.toLowerCase();
+  const matchText = `${rawMatch} ${stripDiacritics(rawMatch)}`;
+
   // Pattern detection for trivial / biological / routine tasks
-  const isTrivialTask = /(đánh\s*răng|rửa\s*mặt|\bthở\b|uống\s*nước|thức\s*dậy|ngủ\s*dậy|đi\s*ngủ|gấp\s*chăn|mở\s*mắt|bật\s*quạt|bật\s*máy\s*tính|ăn\s*cơm|đi\s*vệ\s*sinh|đi\s*tất|mặc\s*quần\s*áo)/i.test(normOrig);
+  const isTrivialTask = /(đánh\s*răng|danh\s*rang|chải\s*răng|chai\s*rang|rửa\s*mặt|rua\s*mat|tắm\s*(rửa)?|tam\s*(rua)?|gội\s*đầu|goi\s*dau|cắt\s*móng|cat\s*mong|\bthở\b|\btho\b|hít\s*thở|hit\s*tho|uống\s*nước|uong\s*nuoc|thức\s*dậy|thuc\s*day|ngủ\s*dậy|ngu\s*day|đi\s*ngủ|di\s*ngu|thức\s*giấc|thuc\s*giac|chợp\s*mắt|chop\s*mat|gấp\s*chăn|gap\s*chan|dọn\s*giường|don\s*giuong|mở\s*mắt|mo\s*mat|chớp\s*mắt|chop\s*mat|bật\s*quạt|bat\s*quat|tắt\s*quạt|tat\s*quat|bật\s*máy(\s*tính)?|bat\s*may(\s*tinh)?|tắt\s*máy|tat\s*may|bật\s*đèn|bat\s*den|tắt\s*đèn|tat\s*den|ăn\s*(cơm|sáng|trưa|tối|vặt)|an\s*(com|sang|trua|toi|vat)|đi\s*vệ\s*sinh|di\s*ve\s*sinh|rửa\s*tay|rua\s*tay|đi\s*tất|di\s*tat|mặc\s*quần\s*áo|mac\s*quan\s*ao|thay\s*đồ|thay\s*do)/i.test(matchText);
 
   if (isTrivialTask) {
     targetMinutes = 0;
@@ -119,8 +137,8 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   }
 
   // Pattern detection for quick household chores (anti-padding)
-  const isQuickChore = /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi)|quét\s*nhà|đổ\s*rác|lau\s*bàn|dọn\s*bàn|lau\s*nhà|vứt\s*rác|dọn\s*phòng)/i.test(normOrig);
-  if (isQuickChore && (targetMinutes > 15 || rewardCoins > 8 || type === 'focus')) {
+  const isQuickChore = /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa)|lau\s*(ban|nha|bep|kinh|cua)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(matchText);
+  if (isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 5);
     type = 'bounty';
@@ -130,13 +148,13 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   }
 
   // Pattern detection for overloaded multi-chapter or crammed requests
-  const hasMultiChapterInOrig = /(\b([2-9]|\d{2,})\s*chương\b|toàn bộ.*chương|hết.*chương|tất cả.*chương)/i.test(normOrig);
-  const hasMultiChapterInTitle = /(\b([2-9]|\d{2,})\s*chương\b|toàn bộ.*chương|hết.*chương|tất cả.*chương)/i.test(title);
-  const mentionsOverload = /nhồi nhét|ảo tưởng|chia nhỏ|quá tải|lạm phát|tẩu hỏa|phi thực tế|bất khả thi|không thể xong|quá nhiều/i.test(
-    `${verdict} ${modificationReason} ${result.chunkingPlan || ''}`
+  const hasMultiChapterInOrig = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(matchText);
+  const hasMultiChapterInTitle = /(\b([2-9]|\d{2,})\s*(chương|chuong|chap|bài|bai|đề|de)\b|(toàn\s*bộ|toan\s*bo|hết|het|tất\s*cả|tat\s*ca|cả\s*cuốn|ca\s*cuon|nguyên\s*cuốn)\s*(sách|sach|chương|chuong|giáo\s*trình|giao\s*trinh|đề\s*cương|de\s*cuong))/i.test(`${title} ${stripDiacritics(title)}`);
+  const mentionsOverload = /nhồi nhét|nhoi nhet|ảo tưởng|ao tuong|chia nhỏ|chia nho|quá tải|qua tai|lạm phát|lam phat|tẩu hỏa|tau hoa|phi thực tế|phi thuc te|bất khả thi|bat kha thi|không thể xong|khong the xong|quá nhiều|qua nhieu/i.test(
+    `${verdict} ${modificationReason} ${result.chunkingPlan || ''} ${stripDiacritics(verdict + ' ' + modificationReason)}`
   );
   // ponytail: only chunk into Chapter 1 if input is actually a multi-chapter study task; upgrade if supporting other curriculum formats
-  const isCrammedStudy = hasMultiChapterInOrig || hasMultiChapterInTitle || ((Boolean(result.isOverloaded) || mentionsOverload) && /(chương|sách|giáo trình|môn\s*học)/i.test(`${normOrig} ${title}`));
+  const isCrammedStudy = hasMultiChapterInOrig || hasMultiChapterInTitle || ((Boolean(result.isOverloaded) || mentionsOverload) && /(chương|chuong|sách|sach|giáo\s*trình|giao\s*trinh|môn\s*học|mon\s*hoc)/i.test(matchText));
 
   if (isCrammedStudy) {
     // If title still has multi-chapter wording or is identical to original crammed title
@@ -178,6 +196,16 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     }
   }
 
+  // ponytail: enforce hard economic boundaries against prompt injection / jailbreak
+  if (type === 'bounty') {
+    targetMinutes = 0;
+    rewardCoins = Math.min(rewardCoins, 10);
+  } else {
+    targetMinutes = Math.max(15, Math.min(180, targetMinutes));
+    const maxCoinsByTime = targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : 40);
+    rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
+  }
+
   return {
     ...result,
     title,
@@ -205,12 +233,16 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
+  // Composite search text for reward
+  const rawRewardMatch = `${normOrig} ${name} ${originalDesc} ${description} ${verdict} ${modificationReason}`.toLowerCase();
+  const rewardMatchText = `${rawRewardMatch} ${stripDiacritics(rawRewardMatch)}`;
+
   // Pattern detection for harmful / excessive alcohol / bingeing
-  const hasHarmfulReward = /say xỉn|uống\s+\d+\s*(lon|chai|ly)\s*bia|hút thuốc|thâu đêm|cờ bạc|tiêu sạch/i.test(
-    `${normOrig} ${name} ${verdict} ${modificationReason}`
+  const hasHarmfulReward = /(say\s*xỉn|say\s*xin|uống.*bia|uong.*bia|uống.*rượu|uong.*ruou|hút\s*thuốc|hut\s*thuoc|thâu\s*đêm|thau\s*dem|cờ\s*bạc|co\s*bac|cá\s*độ|ca\s*do|tiêu\s*sạch|tieu\s*sach|nhậu\s*nhẹt|nhau\s*nhet|\d+\s*(lon|chai|ly)\s*(bia|rượu|ruou))/i.test(
+    rewardMatchText
   );
 
-  if (hasHarmfulReward && (name.toLowerCase() === normOrig.toLowerCase() || /say xỉn|\d+\s*(lon|chai)\s*bia/i.test(name))) {
+  if (hasHarmfulReward && (name.toLowerCase() === normOrig.toLowerCase() || /say\s*xỉn|say\s*xin|\d+\s*(lon|chai)\s*(bia|rượu|ruou)/i.test(name + ' ' + stripDiacritics(name)))) {
     name = 'Thưởng thức 1 ly đồ uống thư giãn cùng bạn bè';
     description = 'Tự thưởng thức đồ uống có chừng mực sau thời gian tập trung làm việc.';
     isModified = true;
@@ -221,8 +253,8 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
   }
 
   // Pattern detection for cheap dopamine / addictive activities (game, tiktok, phim, lướt net...)
-  const isAddictiveDopamine = /chơi\s*game|lướt\s*(tiktok|facebook|fb|reels|shorts|mạng\s*xã\s*hội|web)|xem\s*phim|xem\s*youtube|anime/i.test(
-    `${normOrig} ${name}`
+  const isAddictiveDopamine = /(chơi\s*game|choi\s*game|lướt\s*(tiktok|facebook|fb|reels|shorts|mạng|mang|web)|luot\s*(tiktok|facebook|fb|reels|shorts|mạng|mang|web)|xem\s*(phim|youtube|anime)|netflix)/i.test(
+    rewardMatchText
   );
 
   if (isAddictiveDopamine && price < 35) {
@@ -241,11 +273,21 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     }
   }
 
+  // ponytail: enforce price floor by tier to prevent prompt injection devaluation
+  const validTiers = ['common', 'rare', 'epic', 'legendary'];
+  const tier = validTiers.includes((result.tier || '').toLowerCase()) ? result.tier.toLowerCase() : 'common';
+  const tierMin = { common: 15, rare: 30, epic: 70, legendary: 250 };
+  price = Math.max(tierMin[tier] || 15, Math.min(5000, price));
+  // ponytail: strip HTML tags from icon to prevent stored XSS via AI output
+  const icon = (result.icon || '🎁').replace(/<[^>]*>/g, '').trim().slice(0, 10) || '🎁';
+
   return {
     ...result,
     name,
     description,
     price,
+    tier,
+    icon,
     isModified,
     modificationReason
   };
@@ -295,7 +337,11 @@ export default async function handler(req, res) {
       // 1. EVALUATE QUEST (Định giá nhiệm vụ)
       // ==========================================
       case 'evaluate_quest': {
-        const { title, description = '', userEstimateCoins = 0, currentRewards = [], userCoins = 0 } = payload || {};
+        const title = clampStr(payload?.title, 150);
+        const description = clampStr(payload?.description, 1000);
+        const userEstimateCoins = parseInt(payload?.userEstimateCoins, 10) || 0;
+        const currentRewards = Array.isArray(payload?.currentRewards) ? payload.currentRewards.slice(0, 5) : [];
+        const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!title) {
           return res.status(400).json({ error: 'Quest title is required.' });
         }
@@ -372,7 +418,11 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
       // 2. DEBATE / APPEAL QUEST (Thương lượng nhiệm vụ)
       // ==========================================
       case 'debate_quest': {
-        const { quest, argument, history = [], currentRewards = [], userCoins = 0 } = payload || {};
+        const { quest } = payload || {};
+        const argument = clampStr(payload?.argument, 1000);
+        const history = Array.isArray(payload?.history) ? payload.history.slice(-6) : [];
+        const currentRewards = Array.isArray(payload?.currentRewards) ? payload.currentRewards.slice(0, 5) : [];
+        const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!quest || !argument) {
           return res.status(400).json({ error: 'Quest and argument are required.' });
         }
@@ -438,11 +488,22 @@ Trả về ĐÚNG định dạng JSON:
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         if (result.accepted) {
-          const title = result.newTitle || quest.title;
-          const minutes = result.newTargetMinutes !== undefined ? result.newTargetMinutes : (quest.targetMinutes || 0);
-          const type = result.newType || (minutes > 0 ? 'focus' : 'bounty');
-          const coins = result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins;
-          result.signature = signQuest(title, type, minutes, coins);
+          const rawDebate = {
+            title: result.newTitle || quest.title,
+            description: result.newDescription !== undefined ? result.newDescription : (quest.description || ''),
+            type: result.newType || (result.newTargetMinutes > 0 ? 'focus' : quest.type || 'focus'),
+            targetMinutes: result.newTargetMinutes !== undefined ? result.newTargetMinutes : quest.targetMinutes,
+            rewardCoins: result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins,
+            rank: result.newRank
+          };
+          const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
+          result.newTitle = clean.title;
+          result.newDescription = clean.description;
+          result.newType = clean.type;
+          result.newTargetMinutes = clean.targetMinutes;
+          result.newRewardCoins = clean.rewardCoins;
+          result.newRank = clean.rank;
+          result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins);
         }
         return res.status(200).json(result);
       }
@@ -451,7 +512,11 @@ Trả về ĐÚNG định dạng JSON:
       // 3. EVALUATE REWARD ITEM (Định giá phần thưởng cửa hàng)
       // ==========================================
       case 'evaluate_reward': {
-        const { name, description = '', userEstimatePrice = 0, currentQuests = [], userCoins = 0 } = payload || {};
+        const name = clampStr(payload?.name, 150);
+        const description = clampStr(payload?.description, 1000);
+        const userEstimatePrice = parseInt(payload?.userEstimatePrice, 10) || 0;
+        const currentQuests = Array.isArray(payload?.currentQuests) ? payload.currentQuests.slice(0, 5) : [];
+        const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!name) {
           return res.status(400).json({ error: 'Reward name is required.' });
         }
@@ -519,7 +584,11 @@ Trả về ĐÚNG định dạng JSON:
       // 4. DEBATE / APPEAL REWARD (Thương lượng phần thưởng)
       // ==========================================
       case 'debate_reward': {
-        const { reward, argument, history = [], currentQuests = [], userCoins = 0 } = payload || {};
+        const { reward } = payload || {};
+        const argument = clampStr(payload?.argument, 1000);
+        const history = Array.isArray(payload?.history) ? payload.history.slice(-6) : [];
+        const currentQuests = Array.isArray(payload?.currentQuests) ? payload.currentQuests.slice(0, 5) : [];
+        const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!reward || !argument) {
           return res.status(400).json({ error: 'Reward and argument are required.' });
         }
@@ -567,10 +636,18 @@ Trả về ĐÚNG định dạng JSON:
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         if (result.accepted) {
-          const name = result.newName || reward.name;
-          const price = result.newPrice !== undefined ? result.newPrice : reward.price;
-          const tier = result.newTier || reward.tier;
-          result.signature = signReward(name, price, tier);
+          const rawDebate = {
+            name: result.newName || reward.name,
+            description: result.newDescription !== undefined ? result.newDescription : (reward.description || ''),
+            price: result.newPrice !== undefined ? result.newPrice : reward.price,
+            tier: result.newTier || reward.tier
+          };
+          const clean = sanitizeEvaluatedReward(rawDebate, reward.name, reward.description);
+          result.newName = clean.name;
+          result.newDescription = clean.description;
+          result.newPrice = clean.price;
+          result.newTier = clean.tier;
+          result.signature = signReward(clean.name, clean.price, clean.tier);
         }
         return res.status(200).json(result);
       }

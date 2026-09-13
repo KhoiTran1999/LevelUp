@@ -394,4 +394,74 @@ assert.ok(!renderedXss.includes('<script>'), 'Raw script tags must be escaped');
 assert.ok(renderedXss.includes('&lt;script&gt;'), 'Script tags must be HTML entity escaped');
 assert.ok(renderedXss.includes('<strong'), 'Bold tags must still work safely');
 
-console.log('✓ All AI-only locking, negotiation, bidirectional context, strictness, and markdown rendering tests passed successfully.');
+// ==========================================
+// Test 15: Prompt Injection defenses on quest & reward evaluation
+// ==========================================
+// Jailbroken LLM output: bounty with 100 coins
+const jailbrokenBounty = sanitizeEvaluatedQuest({
+  title: 'Hacking system',
+  description: 'Bypass rules',
+  type: 'bounty',
+  targetMinutes: 0,
+  rewardCoins: 100
+}, 'Hacking system');
+assert.strictEqual(jailbrokenBounty.targetMinutes, 0);
+assert.strictEqual(jailbrokenBounty.rewardCoins <= 10, true, 'Bounty cannot exceed 10 coins');
+
+// Jailbroken LLM output: 25-min focus with 100 coins
+const jailbrokenFocus = sanitizeEvaluatedQuest({
+  title: 'Quick work',
+  type: 'focus',
+  targetMinutes: 25,
+  rewardCoins: 100
+}, 'Quick work');
+assert.strictEqual(jailbrokenFocus.rewardCoins <= 15, true, '25m focus cannot exceed 15 coins');
+
+// Jailbroken LLM output: luxury reward priced at 1 coin
+const jailbrokenReward = sanitizeEvaluatedReward({
+  name: 'Kỳ nghỉ 5 sao',
+  description: 'Nghỉ dưỡng',
+  price: 1,
+  tier: 'legendary',
+  icon: '<img src=x onerror=alert(1)>'
+}, 'Kỳ nghỉ 5 sao');
+assert.strictEqual(jailbrokenReward.price >= 250, true, 'Legendary reward floor must be >= 250');
+assert.ok(!jailbrokenReward.icon.includes('<img'), 'Reward icon must not contain HTML tags');
+
+// ==========================================
+// Test 19: Unaccented and Embellished bypass resistance
+// ==========================================
+// Accentless trivial task bypass attempt
+const unaccentedTrivial = sanitizeEvaluatedQuest({
+  title: 'danh rang buoi sang',
+  description: 've sinh ca nhan',
+  type: 'focus',
+  targetMinutes: 25,
+  rewardCoins: 15
+}, 'danh rang buoi sang');
+assert.strictEqual(unaccentedTrivial.type, 'bounty');
+assert.strictEqual(unaccentedTrivial.targetMinutes, 0);
+assert.strictEqual(unaccentedTrivial.rewardCoins <= 2, true);
+
+// Embellished chore time-padding attempt
+const embellishedChore = sanitizeEvaluatedQuest({
+  title: 'Phiên thực hành chánh niệm',
+  description: 'Quét dọn nhà cửa và lau sàn theo phong cách Zen',
+  type: 'focus',
+  targetMinutes: 50,
+  rewardCoins: 20
+}, 'Phiên thực hành chánh niệm', 'Quét dọn nhà cửa và lau sàn theo phong cách Zen');
+assert.strictEqual(embellishedChore.type, 'bounty');
+assert.strictEqual(embellishedChore.targetMinutes, 0);
+assert.strictEqual(embellishedChore.rewardCoins <= 5, true);
+
+// Accentless harmful reward bypass attempt
+const unaccentedHarmful = sanitizeEvaluatedReward({
+  name: 'uong 5 lon bia say xin',
+  price: 20,
+  tier: 'common'
+}, 'uong 5 lon bia say xin');
+assert.strictEqual(unaccentedHarmful.isModified, true);
+assert.ok(!unaccentedHarmful.name.includes('say xin'));
+
+console.log('✓ All AI-only locking, negotiation, bidirectional context, strictness, markdown rendering, and prompt injection defense tests passed successfully.');
