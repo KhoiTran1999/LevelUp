@@ -202,6 +202,7 @@ const DEFAULT_STATE = {
 // =============================================================================
 // 3. STORAGE, THEME & SYNC MANAGER
 // =============================================================================
+const CACHE_STORAGE_KEY = 'levelup_user_cache_v1';
 let appState = { ...DEFAULT_STATE };
 let syncTimeout = null;
 
@@ -209,6 +210,49 @@ function clearLegacyLocalStorage() {
   try {
     localStorage.removeItem('levelup_state_v1');
     localStorage.removeItem('levelup_onboarded');
+  } catch (e) {}
+}
+
+function saveLocalCache() {
+  try {
+    if (!checkIsOnboarded()) return;
+    appState._sig = computeStateIntegrity(appState.profile);
+    localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(appState));
+  } catch (e) {}
+}
+
+function loadLocalCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.profile?.googleId || !parsed.profile?.nickname) {
+      return null;
+    }
+    const expectedSig = computeStateIntegrity(parsed.profile);
+    const isTampered = parsed._sig && parsed._sig !== expectedSig;
+    const balance = deriveLegitimateBalance(parsed);
+
+    if (isTampered || balance.tampered) {
+      parsed.profile.coins = balance.coins;
+      parsed.profile.totalCoinsEarned = balance.totalCoinsEarned;
+    }
+    return normalizeObjectNFC({
+      ...DEFAULT_STATE,
+      ...parsed,
+      profile: {
+        ...DEFAULT_STATE.profile,
+        ...(parsed.profile || {})
+      }
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearLocalCache() {
+  try {
+    localStorage.removeItem(CACHE_STORAGE_KEY);
   } catch (e) {}
 }
 
@@ -404,6 +448,7 @@ async function syncWithCloud(isManual = false) {
         const checked = deriveLegitimateBalance(appState);
         appState.profile.coins = checked.coins;
         appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
+        saveLocalCache();
         renderAll();
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
@@ -417,6 +462,7 @@ async function syncWithCloud(isManual = false) {
       if (data.level !== undefined) appState.profile.level = data.level;
       if (data.title) appState.profile.title = data.title;
       appState.lastSyncedAt = data.syncedAt || Date.now();
+      saveLocalCache();
 
       if (data.penalty) {
         showToast(data.penalty, 'error');
@@ -464,6 +510,7 @@ function triggerSave(needsCloud = true) {
     appState.profile.totalCoinsEarned = check.totalCoinsEarned;
   }
   appState.lastModified = Date.now();
+  saveLocalCache();
   renderAll();
 
   if (needsCloud) {
@@ -535,6 +582,7 @@ async function hydrateFromCloud(isManual = false) {
       appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
 
       applyTheme(appState.profile.theme || 'dark');
+      saveLocalCache();
       renderAll();
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
@@ -584,6 +632,7 @@ async function logoutGoogle() {
   if (window.google?.accounts?.id) {
     try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
   }
+  clearLocalCache();
   clearLegacyLocalStorage();
   clearFocusTimerSession();
   appState = {
@@ -633,6 +682,7 @@ async function switchGoogleAccount() {
   if (window.google?.accounts?.id) {
     try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
   }
+  clearLocalCache();
   clearLegacyLocalStorage();
   clearFocusTimerSession();
   appState = {
@@ -3408,6 +3458,7 @@ async function handleGoogleCredentialResponse(response) {
     }
 
     clearLegacyLocalStorage();
+    saveLocalCache();
     applyTheme(appState.profile.theme || 'dark');
     renderAll();
     closeModal('modal-welcome');
@@ -3938,8 +3989,15 @@ function initTourControls() {
 
 async function initStartupFlow() {
   clearLegacyLocalStorage();
-  applyTheme(appState.profile.theme || 'dark');
-  renderAll();
+
+  const cached = loadLocalCache();
+  if (cached) {
+    appState = cached;
+    applyTheme(appState.profile.theme || 'dark');
+    renderAll();
+    closeModal('modal-welcome');
+  }
+
   restoreFocusTimer();
   initWelcomeModal();
   initTourControls();
@@ -3964,18 +4022,32 @@ async function initStartupFlow() {
         const balance = deriveLegitimateBalance(appState);
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
+        saveLocalCache();
         applyTheme(appState.profile.theme || 'dark');
         closeModal('modal-welcome');
         renderAll();
         return;
       }
+    } else if (res.status === 401) {
+      clearLocalCache();
+      appState = { ...DEFAULT_STATE };
+      applyTheme(appState.profile.theme || 'dark');
+      renderAll();
+      openModal('modal-welcome');
+      renderGoogleSignInButton();
+      return;
     }
   } catch (err) {
     console.warn('Startup sync check failed:', err.message);
+    if (cached) return;
   }
 
-  openModal('modal-welcome');
-  renderGoogleSignInButton();
+  if (!cached) {
+    applyTheme(appState.profile.theme || 'dark');
+    renderAll();
+    openModal('modal-welcome');
+    renderGoogleSignInButton();
+  }
 }
 
 // =============================================================================

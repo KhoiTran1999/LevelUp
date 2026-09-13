@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Kiểm thử Đăng Xuất & Đổi Tài Khoản Google (Auth Logout & Switch Account) ===\n');
 
 // 1. Kiểm tra mã nguồn public/app.js đảm bảo logoutGoogle và switchGoogleAccount được gắn đúng và hoạt động bất đồng bộ
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
 
 assert.ok(
   appJs.includes('async function logoutGoogle()'),
@@ -239,4 +239,92 @@ function createConfirmEngine() {
   console.log('✓ Test 5: Luồng Đổi Tài Khoản (Switch Account) đưa người dùng về màn hình chọn tài khoản Google mới.');
 }
 
-console.log('\n🎉 TẤT CẢ 5/5 KIỂM THỬ ĐĂNG XUẤT & ĐỔI TÀI KHOẢN GOOGLE ĐÃ VƯỢT QUA XUẤT SẮC!');
+// 7. Kiểm tra sự tồn tại và liên kết của hệ thống State Cache trong public/app.js
+{
+  assert.ok(appJs.includes('const CACHE_STORAGE_KEY = \'levelup_user_cache_v1\';'), 'Phải định nghĩa CACHE_STORAGE_KEY');
+  assert.ok(appJs.includes('function saveLocalCache()'), 'Phải có hàm saveLocalCache');
+  assert.ok(appJs.includes('function loadLocalCache()'), 'Phải có hàm loadLocalCache');
+  assert.ok(appJs.includes('function clearLocalCache()'), 'Phải có hàm clearLocalCache');
+  assert.ok(appJs.includes('clearLocalCache();\n  clearLegacyLocalStorage();'), 'logoutGoogle và switchGoogleAccount phải dọn dẹp local cache');
+
+  console.log('✓ Test 6: Hệ thống Local Cache chống chớp nháy (Anti-FOUC) được tích hợp đầy đủ vào app.js.');
+}
+
+// 8. Mô phỏng cơ chế chống chớp nháy tài khoản mặc định (Anti-FOUC) khi reload trang
+{
+  const mockStorage = new Map();
+  const CACHE_KEY = 'levelup_user_cache_v1';
+
+  function mockSaveLocalCache(state) {
+    if (!state.profile?.hasOnboarded) return;
+    mockStorage.set(CACHE_KEY, JSON.stringify(state));
+  }
+
+  function mockLoadLocalCache() {
+    const raw = mockStorage.get(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.profile?.googleId || !parsed?.profile?.nickname) return null;
+    return parsed;
+  }
+
+  function mockClearLocalCache() {
+    mockStorage.delete(CACHE_KEY);
+  }
+
+  const DEFAULT_STATE = {
+    profile: {
+      nickname: 'HiepSi_Default',
+      googleId: '',
+      coins: 20,
+      hasOnboarded: false
+    }
+  };
+
+  const USER_STATE = {
+    profile: {
+      nickname: 'ProPlayer',
+      googleId: 'google_user_999',
+      coins: 150,
+      hasOnboarded: true
+    }
+  };
+
+  // 1. Khi người dùng đang đăng nhập, cache được lưu
+  mockSaveLocalCache(USER_STATE);
+  assert.ok(mockStorage.has(CACHE_KEY), 'Cache phải được lưu vào storage');
+
+  // 2. Reload: khởi tạo flow với cache có sẵn
+  let renderedState = null;
+  let modalWelcomeOpen = true;
+
+  function simulateStartupFlow() {
+    const cached = mockLoadLocalCache();
+    if (cached) {
+      renderedState = cached;
+      modalWelcomeOpen = false;
+    } else {
+      renderedState = { ...DEFAULT_STATE };
+      modalWelcomeOpen = true;
+    }
+  }
+
+  simulateStartupFlow();
+
+  assert.strictEqual(renderedState.profile.nickname, 'ProPlayer', 'Phải render ngay lập tức dữ liệu của người dùng thật');
+  assert.strictEqual(renderedState.profile.coins, 150, 'Số vàng phải hiển thị ngay từ cache, không hiện 20 vàng default');
+  assert.strictEqual(modalWelcomeOpen, false, 'Modal welcome phải được đóng ngay, không chớp nháy');
+
+  // 3. Khi người dùng đăng xuất, cache phải được xóa sạch
+  mockClearLocalCache();
+  assert.strictEqual(mockStorage.has(CACHE_KEY), false, 'Cache phải bị xóa khi logout');
+
+  // 4. Reload sau khi đăng xuất: hiện màn hình chào và default state cho người mới
+  simulateStartupFlow();
+  assert.strictEqual(renderedState.profile.nickname, 'HiepSi_Default');
+  assert.strictEqual(modalWelcomeOpen, true, 'Sau khi logout, reload phải hiển thị modal welcome để đăng nhập');
+
+  console.log('✓ Test 7: Mô phỏng chu trình tải trang chống chớp nháy: dữ liệu người dùng render tức thì không độ trễ.');
+}
+
+console.log('\n🎉 TẤT CẢ 7/7 KIỂM THỬ ĐĂNG XUẤT, ĐỔI TÀI KHOẢN & CHỐNG CHỚP NHÁY STATE ĐÃ VƯỢT QUA XUẤT SẮC!');
