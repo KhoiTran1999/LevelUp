@@ -1394,11 +1394,44 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
+function checkIsOnboarded() {
+  return localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile && appState.profile.hasOnboarded && appState.profile.nickname);
+}
+
 function initWelcomeModal() {
-  const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || appState.profile.hasOnboarded;
-  if (isOnboarded) return;
+  if (checkIsOnboarded()) return;
 
   openModal('modal-welcome');
+
+  // Anti-DevTools 1: MutationObserver theo dõi thời gian thực nếu modal bị xóa class hidden bằng F12
+  const welcomeModal = document.getElementById('modal-welcome');
+  if (welcomeModal && window.MutationObserver) {
+    const observer = new MutationObserver(() => {
+      if (!checkIsOnboarded() && welcomeModal.classList.contains('hidden')) {
+        welcomeModal.classList.remove('hidden');
+      }
+    });
+    observer.observe(welcomeModal, { attributes: true, attributeFilter: ['class', 'style'] });
+  }
+
+  // Anti-DevTools 2: Event Capture toàn trang - Chặn đứng mọi cú click vào ứng dụng nếu chưa onboard
+  document.addEventListener('click', (e) => {
+    if (checkIsOnboarded()) return;
+    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    openModal('modal-welcome');
+    showToast('Bạn bắt buộc phải tạo nhân vật hoặc nhập Token để sử dụng!', 'error');
+  }, true);
+
+  // Anti-DevTools 3: Chặn phím tắt gõ vào trang nếu chưa onboard
+  document.addEventListener('keydown', (e) => {
+    if (checkIsOnboarded()) return;
+    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
 
   const tabNew = document.getElementById('btn-tab-welcome-new');
   const tabReturning = document.getElementById('btn-tab-welcome-returning');
