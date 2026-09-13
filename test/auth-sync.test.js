@@ -294,7 +294,37 @@ async function runAuthTests() {
     console.log('✓ Test 11 Passed: Bảo vệ toàn diện biệt danh quản trị viên khỏi bị đăng ký trái phép.');
   }
 
-  console.log('\n🎉 TẤT CẢ 11 TEST PHÂN QUYỀN VÀ BẢO VỆ DỮ LIỆU ĐÃ VƯỢT QUA TOÀN DIỆN!');
+  // Test 12: Bảo toàn tên hiển thị có dấu / viết hoa khi khôi phục bằng Token trên thiết bị mới
+  {
+    const tokenC = 'token_user_c_abcdef1234567890';
+    const originalNick = 'Hiệp Sĩ Đấu Trường';
+
+    // Đăng ký tài khoản với tên có dấu tiếng Việt
+    const { req: reqRegister, res: resRegister } = createMockReqRes(
+      'POST',
+      { nickname: originalNick, state: { profile: { nickname: originalNick, level: 5, coins: 100 } } },
+      {},
+      { authorization: `Bearer ${tokenC}` }
+    );
+    await handler(reqRegister, resRegister);
+    assert.strictEqual(resRegister.statusCode, 200, 'Đăng ký tên tiếng Việt có dấu phải thành công');
+
+    // Khôi phục bằng Token trên thiết bị mới (action: find_by_token)
+    const { req: reqRecover, res: resRecover } = createMockReqRes(
+      'GET',
+      {},
+      { action: 'find_by_token' },
+      { authorization: `Bearer ${tokenC}` }
+    );
+    await handler(reqRecover, resRecover);
+    assert.strictEqual(resRecover.statusCode, 200);
+    assert.strictEqual(resRecover.body.found, true);
+    assert.strictEqual(resRecover.body.nickname, originalNick, 'Tên trả về từ find_by_token phải giữ nguyên gốc tiếng Việt có dấu, không bị méo mó');
+    assert.strictEqual(resRecover.body.data.profile.nickname, originalNick, 'Tên trong profile state cũng phải giữ nguyên');
+    console.log('✓ Test 12 Passed: Khôi phục bằng Token bảo toàn chính xác 100% tên tài khoản có dấu / viết hoa.');
+  }
+
+  console.log('\n🎉 TẤT CẢ 12 TEST PHÂN QUYỀN VÀ BẢO VỆ DỮ LIỆU ĐÃ VƯỢT QUA TOÀN DIỆN!');
 }
 
 runAuthTests().catch(err => {

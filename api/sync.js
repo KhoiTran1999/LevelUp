@@ -26,8 +26,14 @@ function getRedis() {
 
 function sanitizeNickname(raw) {
   if (!raw || typeof raw !== 'string') return '';
-  // Normalize: alphanumeric, underscores, hyphens, lowercase, max 30 chars
-  return raw.trim().toLowerCase().replace(/[^a-z0-9_\-\.]/gi, '').slice(0, 30);
+  // Normalize Vietnamese accents and special characters to clean ASCII for Redis key indexing
+  const normalized = raw
+    .trim()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd');
+  return normalized.toLowerCase().replace(/[^a-z0-9_\-\.]/gi, '').slice(0, 30);
 }
 
 function extractToken(req) {
@@ -127,11 +133,19 @@ export default async function handler(req, res) {
         }
         const { ownerToken, ...safeData } = data;
         const isAdmin = ADMIN_NICKS.includes(targetNick) && (!ADMIN_TOKEN || token === ADMIN_TOKEN);
+        const displayNickname = data.profile?.nickname || targetNick;
         return res.status(200).json({
           found: true,
-          nickname: targetNick,
+          nickname: displayNickname,
+          targetNick,
           role: isAdmin ? 'admin' : 'adventurer',
-          data: safeData
+          data: {
+            ...safeData,
+            profile: {
+              ...(safeData.profile || {}),
+              nickname: displayNickname
+            }
+          }
         });
       }
 
@@ -299,6 +313,7 @@ export default async function handler(req, res) {
         ownerToken: token,
         profile: {
           ...(state.profile || {}),
+          nickname: state.profile?.nickname || rawNick || nickname,
           role: userRole
         },
         lastSyncedAt: serverTimestamp

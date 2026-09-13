@@ -375,14 +375,15 @@ async function switchAccountByToken(token) {
       return { success: false, error: errMsg };
     }
 
-    // Cập nhật toàn bộ dữ liệu người dùng
+    // Cập nhật toàn bộ dữ liệu người dùng (giữ nguyên tên hiển thị gốc nếu có)
+    const displayNickname = resData.data?.profile?.nickname || resData.nickname;
     appState = {
       ...DEFAULT_STATE,
       ...resData.data,
       profile: {
         ...DEFAULT_STATE.profile,
         ...(resData.data.profile || {}),
-        nickname: resData.nickname,
+        nickname: displayNickname,
         role: resData.role || 'adventurer',
         token: cleanToken,
         hasOnboarded: true
@@ -395,8 +396,8 @@ async function switchAccountByToken(token) {
 
     closeModal('modal-welcome');
     closeModal('modal-profile');
-    showToast(`Đã tự động chuyển sang tài khoản "${resData.nickname}"!`, 'success');
-    return { success: true, nickname: resData.nickname };
+    showToast(`Đã tự động chuyển sang tài khoản "${displayNickname}"!`, 'success');
+    return { success: true, nickname: displayNickname };
   } catch (err) {
     showToast('Lỗi khi chuyển tài khoản: ' + err.message, 'error');
     return { success: false, error: err.message };
@@ -1642,6 +1643,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnToggleTokenEdit.addEventListener('click', () => {
       const tokenInput = document.getElementById('input-hero-token');
       if (!tokenInput) return;
+      tokenInput.readOnly = false;
+      tokenInput.type = 'text';
       tokenInput.focus();
       tokenInput.select();
       showToast('Dán Token mới vào ô này để chuyển sang tài khoản đó.', 'info');
@@ -1685,9 +1688,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const tokenInput = document.getElementById('input-hero-token');
-    if (tokenInput && tokenInput.value.trim()) {
-      appState.profile.token = tokenInput.value.trim();
+    const enteredToken = tokenInput ? tokenInput.value.trim() : '';
+    // Nếu người dùng nhập mã Token khác với tài khoản hiện tại -> chuyển tài khoản an toàn thay vì ghi đè
+    if (enteredToken && enteredToken !== appState.profile.token && enteredToken.length >= 8) {
+      const switchResult = await switchAccountByToken(enteredToken);
+      if (switchResult.success) return;
     }
+
     const token = getOrCreateUserToken();
     const currentNick = appState.profile.nickname;
 
