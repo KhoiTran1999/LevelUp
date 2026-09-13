@@ -15,6 +15,7 @@ const actionableModals = [
   'modal-quest',
   'modal-reward',
   'modal-profile',
+  'modal-level-info',
   'modal-edit-focus-timer',
   'modal-focus-complete',
   'modal-confirm'

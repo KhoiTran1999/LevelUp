@@ -519,8 +519,8 @@ export default async function handler(req, res) {
           await redis.zadd('levelup:cheaters', Date.now(), sub);
         } else {
           const level = userState.profile?.level || 1;
-          const totalCoins = userState.profile?.totalCoinsEarned || 20;
-          const score = (level * 1000) + totalCoins;
+          const currentCoins = typeof userState.profile?.coins === 'number' ? userState.profile.coins : (userState.profile?.totalCoinsEarned || 20);
+          const score = (level * 1000) + currentCoins;
           await redis.zadd('levelup:leaderboard', score, sub);
         }
       }
@@ -574,6 +574,7 @@ export default async function handler(req, res) {
                 level: parsed.profile.level || 1,
                 title: parsed.profile.title || 'Tập sự',
                 role: isAdminMember ? 'admin' : (parsed.profile.role || 'adventurer'),
+                coins: typeof parsed.profile.coins === 'number' ? parsed.profile.coins : (parsed.profile.totalCoinsEarned || 0),
                 totalCoinsEarned: parsed.profile.totalCoinsEarned || score
               };
             }
@@ -840,8 +841,8 @@ export default async function handler(req, res) {
         await redis.zrem('levelup:cheaters', targetSub);
 
         const level = userData.profile?.level || 1;
-        const totalCoins = userData.profile?.totalCoinsEarned || 20;
-        const score = (level * 1000) + totalCoins;
+        const currentCoins = typeof userData.profile?.coins === 'number' ? userData.profile.coins : (userData.profile?.totalCoinsEarned || 20);
+        const score = (level * 1000) + currentCoins;
         await redis.zadd('levelup:leaderboard', score, targetSub);
 
         return res.status(200).json({
@@ -1097,8 +1098,8 @@ export default async function handler(req, res) {
         await redis.zrem('levelup:leaderboard', userSub);
       } else {
         const level = balanceCheck.level;
-        const totalCoins = balanceCheck.totalCoinsEarned;
-        const score = (level * 1000) + totalCoins;
+        const currentCoins = balanceCheck.coins;
+        const score = (level * 1000) + currentCoins;
         await redis.zadd('levelup:leaderboard', score, userSub);
       }
 

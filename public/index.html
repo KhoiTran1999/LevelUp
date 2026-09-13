@@ -92,15 +92,15 @@
       <div class="flex items-center gap-1.5 sm:gap-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors shrink-0">
 
         <!-- Level & EXP (Compact on mobile, expanded on tablet/desktop) -->
-        <div class="flex flex-col justify-center shrink-0">
+        <button id="btn-level-info" type="button" class="flex flex-col justify-center shrink-0 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-lg px-1 sm:px-1.5 py-0.5 transition cursor-pointer text-left group" title="Xem thông tin Cấp độ & Cách tăng LV">
           <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-mono leading-tight">
-            <span class="text-amber-600 dark:text-amber-400 font-bold" id="hero-level-badge">LV. 1</span>
+            <span class="text-amber-600 dark:text-amber-400 font-bold group-hover:underline flex items-center gap-0.5" id="hero-level-badge">LV. 1</span>
             <span class="hidden sm:inline text-slate-500 dark:text-slate-400" id="hero-exp-text">0/100</span>
           </div>
           <div class="hidden sm:block w-14 sm:w-16 md:w-20 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-0.5">
             <div id="hero-exp-bar" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
-        </div>
+        </button>
 
         <!-- Vertical Divider -->
         <div class="h-4 sm:h-6 w-px bg-slate-300 dark:bg-slate-800 shrink-0"></div>
@@ -359,7 +359,7 @@
     <section id="tab-leaderboard" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
         <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ và tích lũy được nhiều Vàng nhất (Đồng bộ trực tuyến).</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ với số Vàng hiện có nhiều nhất (Đồng bộ trực tuyến).</p>
       </div>
 
       <div class="flex items-center gap-2 mb-4">
@@ -384,7 +384,7 @@
                 <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 whitespace-nowrap">Thành viên</th>
                 <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 hidden sm:table-cell whitespace-nowrap">Danh hiệu</th>
                 <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Cấp độ</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Tổng Vàng</th>
+                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Vàng Hiện Có</th>
               </tr>
             </thead>
             <tbody id="leaderboard-tbody" class="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
@@ -851,6 +851,21 @@
           <span id="profile-role-badge" class="font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">⭐ Thành Viên</span>
         </div>
 
+        <!-- Level & EXP Summary inside Profile Modal -->
+        <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⭐</span>
+            <div>
+              <div class="font-bold text-slate-800 dark:text-slate-200" id="profile-modal-level-title">LV. 1 • Tân Binh Cấp 1</div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono" id="profile-modal-exp-text">0/100 EXP</div>
+            </div>
+          </div>
+          <button id="btn-open-level-info-from-profile" type="button" class="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer">
+            <span>Cách tăng LV</span>
+            <span>ℹ️</span>
+          </button>
+        </div>
+
         <!-- Sound Effect Toggle inside Profile Modal -->
         <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <span class="text-slate-500">Âm thanh 8-bit:</span>
@@ -919,6 +934,111 @@
               Lưu Thay Đổi
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LEVEL & EXP GUIDE -->
+  <div id="modal-level-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-level-title">
+    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">⭐</span>
+          <h3 id="modal-level-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">CẤP ĐỘ & KINH NGHIỆM (EXP)</h3>
+        </div>
+        <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
+        <!-- Current Progress Card -->
+        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2.5">
+          <div class="flex justify-between items-center">
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Cấp độ hiện tại</div>
+              <div class="text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400" id="modal-level-current-badge">LV. 1</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Danh hiệu</div>
+              <div class="text-xs font-bold text-slate-800 dark:text-slate-200" id="modal-level-current-title">Tân Binh Cấp 1</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] font-mono mb-1">
+              <span class="text-slate-500 dark:text-slate-400">Tiến trình EXP:</span>
+              <span class="font-bold text-amber-600 dark:text-amber-400" id="modal-level-exp-ratio">0/100 EXP</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+              <div id="modal-level-exp-bar" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 text-right" id="modal-level-needed-text">
+              Cần thêm 100 EXP nữa để lên LV. 2
+            </div>
+          </div>
+        </div>
+
+        <!-- How to Level Up Guide -->
+        <div class="space-y-2">
+          <div class="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs uppercase tracking-wide">
+            <span>🎯</span>
+            <span>Làm sao để tăng Cấp độ?</span>
+          </div>
+          <div class="space-y-2 text-[11px] leading-relaxed">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">1. Hoàn thành Nhiệm Vụ:</div>
+              <div>Mỗi khi làm xong một nhiệm vụ, bạn nhận được điểm EXP tương ứng với độ khó:</div>
+              <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">1 Vàng thưởng = +3 EXP 🌟</div>
+              <div class="text-slate-500 text-[10px] mt-0.5">(Ví dụ: Nhiệm vụ thưởng 15 Vàng sẽ cho bạn +45 EXP).</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">2. Công thức thăng cấp:</div>
+              <div>Điểm EXP cần để lên cấp tiếp theo tăng dần theo cấp bậc:</div>
+              <div class="font-mono font-bold text-slate-800 dark:text-slate-200 mt-1">EXP cần = Cấp độ hiện tại × 100</div>
+              <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-500 dark:text-slate-400 text-[10px]">
+                <li>Từ Lv. 1 lên Lv. 2: cần 100 EXP (~34 Vàng)</li>
+                <li>Từ Lv. 2 lên Lv. 3: cần 200 EXP (~67 Vàng)</li>
+                <li>Từ Lv. 3 lên Lv. 4: cần 300 EXP (~100 Vàng)</li>
+              </ul>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">3. Lợi ích khi lên cấp:</div>
+              <ul class="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-400">
+                <li><strong class="text-slate-800 dark:text-slate-200">Đứng đầu Bảng Xếp Hạng:</strong> Cấp độ là tiêu chí ưu tiên cao nhất khi xếp thứ hạng.</li>
+                <li><strong class="text-slate-800 dark:text-slate-200">Mở khóa Danh hiệu:</strong> Nâng cấp danh xưng hiển thị bên cạnh tên hiệp sĩ.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Title milestones table -->
+        <div>
+          <div class="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs uppercase tracking-wide mb-1.5">
+            <span>👑</span>
+            <span>Hệ Thống Danh Hiệu Theo Cấp Độ</span>
+          </div>
+          <div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden text-[11px]">
+            <div class="grid grid-cols-2 p-2 font-bold bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <span>Cấp Độ</span>
+              <span>Danh Hiệu</span>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <div class="grid grid-cols-2 p-2"><span>Lv. 1 - 2</span><span class="font-medium text-slate-600 dark:text-slate-400">Tân Binh Cấp 1</span></div>
+              <div class="grid grid-cols-2 p-2"><span>Lv. 3 - 5</span><span class="font-medium text-amber-600 dark:text-amber-400">Học Viên Chăm Chỉ</span></div>
+              <div class="grid grid-cols-2 p-2"><span>Lv. 6 - 9</span><span class="font-medium text-emerald-600 dark:text-emerald-400">Chiến Binh Kiên Trì</span></div>
+              <div class="grid grid-cols-2 p-2"><span>Lv. 10 - 14</span><span class="font-medium text-blue-600 dark:text-blue-400">Chuyên Gia Tập Trung</span></div>
+              <div class="grid grid-cols-2 p-2"><span>Lv. 15 - 19</span><span class="font-medium text-purple-600 dark:text-purple-400">Bậc Thầy Năng Suất</span></div>
+              <div class="grid grid-cols-2 p-2"><span>Lv. 20+</span><span class="font-medium text-amber-500 font-bold">Huyền Thoại Kỷ Luật 👑</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer">
+            Đã Hiểu
+          </button>
         </div>
       </div>
     </div>

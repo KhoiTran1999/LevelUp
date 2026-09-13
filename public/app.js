@@ -3315,6 +3315,8 @@ async function fetchLeaderboard() {
         ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚔️</span>'">`
         : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
 
+      const displayCoins = isMe ? (appState.profile?.coins ?? 0) : (typeof u.coins === 'number' ? u.coins : (u.totalCoinsEarned || 0));
+
       tr.innerHTML = `
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono whitespace-nowrap ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
@@ -3330,7 +3332,7 @@ async function fetchLeaderboard() {
         </td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell whitespace-nowrap">${escapeHtml(u.title || 'Thành viên')}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Lv. ${u.level || 1}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"><span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${u.totalCoinsEarned || 0}</span></td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"><span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${displayCoins}</span></td>
       `;
       tbody.appendChild(tr);
     });
@@ -3620,6 +3622,11 @@ function renderHeader() {
   if (syncTime && appState.lastSyncedAt) {
     syncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
   }
+
+  const profLevelTitle = document.getElementById('profile-modal-level-title');
+  if (profLevelTitle) profLevelTitle.textContent = `LV. ${p.level} • ${p.title || 'Tân Binh Cấp 1'}`;
+  const profExpText = document.getElementById('profile-modal-exp-text');
+  if (profExpText) profExpText.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
 }
 
 function renderQuests() {
@@ -4159,6 +4166,31 @@ function switchRewardSubtab(subtab) {
   }
 }
 window.switchRewardSubtab = switchRewardSubtab;
+
+function openLevelInfoModal() {
+  const p = appState.profile;
+  const expNeeded = p.level * 100;
+  const expRemaining = Math.max(0, expNeeded - p.exp);
+  const pct = Math.min(100, Math.round((p.exp / expNeeded) * 100));
+
+  const curBadge = document.getElementById('modal-level-current-badge');
+  const curTitle = document.getElementById('modal-level-current-title');
+  const expRatio = document.getElementById('modal-level-exp-ratio');
+  const expBar = document.getElementById('modal-level-exp-bar');
+  const neededText = document.getElementById('modal-level-needed-text');
+
+  if (curBadge) curBadge.textContent = `LV. ${p.level}`;
+  if (curTitle) curTitle.textContent = p.title || 'Tân Binh Cấp 1';
+  if (expRatio) expRatio.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
+  if (expBar) expBar.style.width = `${pct}%`;
+  if (neededText) {
+    neededText.textContent = `Cần thêm ${expRemaining} EXP nữa để lên LV. ${p.level + 1}`;
+  }
+
+  const modal = document.getElementById('modal-level-info');
+  if (modal) modal.classList.remove('hidden');
+}
+window.openLevelInfoModal = openLevelInfoModal;
 
 function switchTab(tabId) {
   // Graceful fallback / redirect for legacy 'inventory' tab links
@@ -5142,6 +5174,23 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         b.classList.add('border-slate-200', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-800');
       }
+    });
+  }
+
+  // Level & EXP Info Modal Triggers
+  const btnLevelInfo = document.getElementById('btn-level-info');
+  if (btnLevelInfo) {
+    btnLevelInfo.addEventListener('click', () => {
+      sfx.playClick();
+      openLevelInfoModal();
+    });
+  }
+
+  const btnLevelFromProfile = document.getElementById('btn-open-level-info-from-profile');
+  if (btnLevelFromProfile) {
+    btnLevelFromProfile.addEventListener('click', () => {
+      sfx.playClick();
+      openLevelInfoModal();
     });
   }
 

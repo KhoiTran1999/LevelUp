@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/security-fixes.test.js && node test/anti-cheat-sync.test.js && node test/auth-logout-switch.test.js && node test/card-renegotiate.test.js && node test/ai-eval-refine.test.js && node test/negotiate-chat-ux.test.js && node test/quest-repeat.test.js && node test/quest-proof-verify.test.js"
+    "test": "node test/security-fixes.test.js && node test/anti-cheat-sync.test.js && node test/auth-logout-switch.test.js && node test/card-renegotiate.test.js && node test/ai-eval-refine.test.js && node test/negotiate-chat-ux.test.js && node test/quest-repeat.test.js && node test/quest-proof-verify.test.js && node test/header-vs-leaderboard-coins.test.js && node test/level-exp-system.test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
