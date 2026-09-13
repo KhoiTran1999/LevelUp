@@ -202,9 +202,15 @@ const DEFAULT_STATE = {
 // =============================================================================
 // 3. STORAGE, THEME & SYNC MANAGER
 // =============================================================================
-const STORAGE_KEY = 'levelup_state_v1';
 let appState = { ...DEFAULT_STATE };
 let syncTimeout = null;
+
+function clearLegacyLocalStorage() {
+  try {
+    localStorage.removeItem('levelup_state_v1');
+    localStorage.removeItem('levelup_onboarded');
+  } catch (e) {}
+}
 
 function applyTheme(theme) {
   const root = document.documentElement;
@@ -242,7 +248,6 @@ function getOrCreateUserToken() {
   crypto.getRandomValues(array);
   const token = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
   appState.profile.token = token;
-  saveLocalState();
   return token;
 }
 
@@ -328,75 +333,6 @@ function deriveLegitimateBalance(state) {
   return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered };
 }
 
-function loadLocalState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      appState = {
-        ...DEFAULT_STATE,
-        ...parsed,
-        profile: { ...DEFAULT_STATE.profile, ...(parsed.profile || {}) }
-      };
-      if (!appState.profile.avatar) {
-        appState.profile.avatar = appState.profile.googlePicture || '⚔️';
-      }
-
-      // Anti-cheat: Phát hiện can thiệp sửa đổi Vàng trong LocalStorage DevTools
-      const expectedSig = computeStateIntegrity(appState.profile);
-      const isTampered = parsed._sig && parsed._sig !== expectedSig;
-      const balance = deriveLegitimateBalance(appState);
-
-      if (isTampered || balance.tampered) {
-        console.warn('Phát hiện dữ liệu Vàng bị can thiệp trên LocalStorage. Đang tự động khôi phục số dư chuẩn:', balance.coins);
-        appState.profile.coins = balance.coins;
-        appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
-        saveLocalState();
-      }
-    }
-  } catch (e) {
-    console.error('Failed to parse localStorage:', e);
-  }
-  appState = normalizeObjectNFC(appState);
-
-  // Bắt buộc tài khoản phải đăng nhập Google:
-  // Nếu profile không có googleId -> cưỡng chế đăng xuất về trạng thái mặc định
-  if (!appState.profile?.googleId) {
-    localStorage.removeItem('levelup_onboarded');
-    if (typeof clearFocusTimerSession === 'function') {
-      try { clearFocusTimerSession(); } catch (_) {}
-    }
-    appState = {
-      ...DEFAULT_STATE,
-      profile: {
-        ...DEFAULT_STATE.profile,
-        nickname: '',
-        googleId: '',
-        googleEmail: '',
-        googlePicture: '',
-        googleToken: '',
-        sessionToken: '',
-        hasOnboarded: false
-      }
-    };
-    saveLocalState();
-  }
-
-  getOrCreateUserToken();
-  // Initialize theme
-  const initialTheme = appState.profile.theme || 'dark';
-  applyTheme(initialTheme);
-}
-
-function saveLocalState() {
-  try {
-    appState._sig = computeStateIntegrity(appState.profile);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-  } catch (e) {
-    console.error('Failed to save to localStorage:', e);
-  }
-}
-
 async function syncWithCloud(isManual = false) {
   const syncDot = document.getElementById('sync-indicator');
   const modalSyncState = document.getElementById('modal-sync-state');
@@ -416,9 +352,10 @@ async function syncWithCloud(isManual = false) {
   try {
     const res = await fetch('/api/sync', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
         nickname: nick,
@@ -450,7 +387,6 @@ async function syncWithCloud(isManual = false) {
         const checked = deriveLegitimateBalance(appState);
         appState.profile.coins = checked.coins;
         appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
-        saveLocalState();
         renderAll();
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
@@ -462,7 +398,6 @@ async function syncWithCloud(isManual = false) {
       if (data.coins !== undefined) appState.profile.coins = data.coins;
       if (data.totalCoinsEarned !== undefined) appState.profile.totalCoinsEarned = data.totalCoinsEarned;
       appState.lastSyncedAt = data.syncedAt || Date.now();
-      saveLocalState();
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
@@ -498,7 +433,6 @@ function triggerSave(needsCloud = true) {
     appState.profile.totalCoinsEarned = check.totalCoinsEarned;
   }
   appState.lastModified = Date.now();
-  saveLocalState();
   renderAll();
 
   if (needsCloud) {
@@ -528,6 +462,7 @@ async function hydrateFromCloud(isManual = false) {
   try {
     const res = await fetch('/api/sync', {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -568,7 +503,6 @@ async function hydrateFromCloud(isManual = false) {
       appState.profile.coins = checked.coins;
       appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
 
-      saveLocalState();
       applyTheme(appState.profile.theme || 'dark');
       renderAll();
 
@@ -603,18 +537,18 @@ function logoutGoogle() {
     btnColor: 'rose',
     onConfirm: () => {
       const token = appState.profile?.sessionToken || appState.profile?.googleToken;
-      if (token) {
-        try {
-          fetch('/api/sync?action=logout', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).catch(() => {});
-        } catch (_) {}
-      }
+      try {
+        fetch('/api/sync?action=logout', {
+          method: 'POST',
+          credentials: 'include',
+          ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+        }).catch(() => {});
+      } catch (_) {}
+
       if (window.google?.accounts?.id) {
         try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
       }
-      localStorage.removeItem('levelup_onboarded');
+      clearLegacyLocalStorage();
       clearFocusTimerSession();
       appState = {
         ...DEFAULT_STATE,
@@ -629,7 +563,6 @@ function logoutGoogle() {
           hasOnboarded: false
         }
       };
-      saveLocalState();
       closeModal('modal-profile');
       renderAll();
       openModal('modal-welcome');
@@ -648,18 +581,18 @@ function switchGoogleAccount() {
     btnColor: 'amber',
     onConfirm: () => {
       const token = appState.profile?.sessionToken || appState.profile?.googleToken;
-      if (token) {
-        try {
-          fetch('/api/sync?action=logout', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).catch(() => {});
-        } catch (_) {}
-      }
+      try {
+        fetch('/api/sync?action=logout', {
+          method: 'POST',
+          credentials: 'include',
+          ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+        }).catch(() => {});
+      } catch (_) {}
+
       if (window.google?.accounts?.id) {
         try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
       }
-      localStorage.removeItem('levelup_onboarded');
+      clearLegacyLocalStorage();
       clearFocusTimerSession();
       appState = {
         ...DEFAULT_STATE,
@@ -674,7 +607,6 @@ function switchGoogleAccount() {
           hasOnboarded: false
         }
       };
-      saveLocalState();
       closeModal('modal-profile');
       renderAll();
       openModal('modal-welcome');
@@ -3120,9 +3052,7 @@ function renderMarkdown(text) {
 }
 
 function checkIsOnboarded() {
-  const hasLocal = localStorage.getItem('levelup_onboarded') === 'true';
-  const hasGoogleProfile = Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
-  return hasLocal && hasGoogleProfile;
+  return Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
 }
 
 let googleClientIdCache = null;
@@ -3162,6 +3092,7 @@ async function handleGoogleCredentialResponse(response) {
   try {
     const res = await fetch('/api/sync?action=google_auth', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken })
     });
@@ -3215,8 +3146,7 @@ async function handleGoogleCredentialResponse(response) {
       }
     }
 
-    localStorage.setItem('levelup_onboarded', 'true');
-    saveLocalState();
+    clearLegacyLocalStorage();
     applyTheme(appState.profile.theme || 'dark');
     renderAll();
     closeModal('modal-welcome');
@@ -3302,11 +3232,6 @@ async function renderGoogleSignInButton() {
 }
 
 function initWelcomeModal() {
-  if (checkIsOnboarded()) return;
-
-  openModal('modal-welcome');
-  renderGoogleSignInButton();
-
   // Anti-DevTools 1: MutationObserver theo dõi thời gian thực nếu modal bị xóa class hidden bằng F12
   const welcomeModal = document.getElementById('modal-welcome');
   if (welcomeModal && window.MutationObserver) {
@@ -3749,24 +3674,53 @@ function initTourControls() {
   }
 }
 
+async function initStartupFlow() {
+  clearLegacyLocalStorage();
+  applyTheme(appState.profile.theme || 'dark');
+  renderAll();
+  restoreFocusTimer();
+  initWelcomeModal();
+  initTourControls();
+
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (res.status === 200) {
+      const result = await res.json().catch(() => ({}));
+      if (result.found && result.data) {
+        appState = normalizeObjectNFC({
+          ...DEFAULT_STATE,
+          ...result.data,
+          profile: {
+            ...DEFAULT_STATE.profile,
+            ...(result.data.profile || {})
+          }
+        });
+        const balance = deriveLegitimateBalance(appState);
+        appState.profile.coins = balance.coins;
+        appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
+        applyTheme(appState.profile.theme || 'dark');
+        closeModal('modal-welcome');
+        renderAll();
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn('Startup sync check failed:', err.message);
+  }
+
+  openModal('modal-welcome');
+  renderGoogleSignInButton();
+}
+
 // =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  loadLocalState();
-  renderAll();
-  restoreFocusTimer();
-
-  // Kiểm tra onboarding: Bắt buộc nhập nickname hoặc nhập token nếu là người cũ
-  initWelcomeModal();
-
-  // Khởi tạo các nút điều khiển Tour giới thiệu
-  initTourControls();
-
-  // Background Cloud Hydration on start (ưu tiên kéo dữ liệu mới nhất từ thiết bị khác về trước)
-  if (appState.profile.googleId && appState.profile.nickname && localStorage.getItem('levelup_onboarded') === 'true') {
-    hydrateFromCloud(false);
-  }
+  initStartupFlow();
 
   // Tự động kiểm tra và đồng bộ khi người dùng quay lại tab hoặc mở lại ứng dụng trên máy khác
   window.addEventListener('focus', () => {
@@ -4252,7 +4206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const welcome = document.getElementById('modal-welcome');
-      const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile.hasOnboarded && appState.profile.nickname);
+      const isOnboarded = checkIsOnboarded();
       if (!isOnboarded && welcome && !welcome.classList.contains('hidden')) {
         e.preventDefault();
         return;

@@ -115,6 +115,13 @@ export function sanitizeNickname(raw) {
 }
 
 function extractToken(req) {
+  const cookieHeader = req.headers?.cookie || req.headers?.Cookie;
+  if (cookieHeader && typeof cookieHeader === 'string') {
+    const match = cookieHeader.match(/(?:^|;\s*)levelup_session=([^;]+)/);
+    if (match && match[1].trim()) {
+      return decodeURIComponent(match[1]).trim();
+    }
+  }
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
   if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     return authHeader.slice(7).trim();
@@ -223,8 +230,15 @@ export async function authenticateCaller(token, redis, adminConfig) {
 export default async function handler(req, res) {
   const { nicks: ADMIN_NICKS, emails: ADMIN_EMAILS, token: ADMIN_TOKEN } = getAdminConfig();
 
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS Headers (credentials compatible)
+  const origin = req.headers?.origin || req.headers?.Origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -274,6 +288,17 @@ export default async function handler(req, res) {
       // Cấp phát session token bền vững (90 ngày) để đồng bộ đa thiết bị không bị đứt quãng
       const sessionToken = crypto.randomUUID();
       await redis.set(`levelup:session:${sessionToken}`, JSON.stringify({ sub, email, name, picture }), 'EX', 90 * 24 * 3600);
+
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieFlags = [
+        `levelup_session=${sessionToken}`,
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Lax',
+        'Max-Age=7776000',
+        isProd ? 'Secure' : ''
+      ].filter(Boolean).join('; ');
+      res.setHeader('Set-Cookie', cookieFlags);
 
       let rawData = await redis.get(userKey);
       let isNew = false;
@@ -525,11 +550,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, removed: targetSubToDelete });
       }
 
-      // 3.2 Đăng xuất tài khoản (Xóa session token trên Redis)
+      // 3.2 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
       if (action === 'logout') {
         if (token) {
           await redis.del(`levelup:session:${token}`);
         }
+        res.setHeader('Set-Cookie', 'levelup_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
         return res.status(200).json({ success: true });
       }
 

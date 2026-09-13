@@ -52,22 +52,14 @@
     }
   </script>
 
-  <!-- Prevent FOUC: Fast theme restore script before paint -->
+  <!-- Clear legacy storage & default to dark RPG theme before paint -->
   <script>
     (function() {
       try {
-        const stored = localStorage.getItem('levelup_state_v1');
-        const theme = stored ? JSON.parse(stored)?.profile?.theme : null;
-        if (theme === 'light') {
-          document.documentElement.classList.remove('dark');
-        } else if (theme === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.add('dark'); // Default to dark RPG vibe
-        }
-      } catch (e) {
-        document.documentElement.classList.add('dark');
-      }
+        localStorage.removeItem('levelup_state_v1');
+        localStorage.removeItem('levelup_onboarded');
+      } catch (e) {}
+      document.documentElement.classList.add('dark');
     })();
   </script>
 
