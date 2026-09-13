@@ -111,7 +111,10 @@ const DEFAULT_STATE = {
     title: 'Tân Binh Đấu Trường',
     streak: 1,
     soundEnabled: true,
-    theme: 'dark'
+    theme: 'dark',
+    role: 'adventurer',
+    token: '',
+    hasOnboarded: false
   },
   quests: [
     {
@@ -212,6 +215,18 @@ function toggleTheme() {
   showToast(newTheme === 'dark' ? 'Chế độ Tối (Dark Mode)' : 'Chế độ Sáng (Light Mode)', 'info');
 }
 
+function getOrCreateUserToken() {
+  if (appState.profile.token && typeof appState.profile.token === 'string' && appState.profile.token.length >= 16) {
+    return appState.profile.token;
+  }
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  const token = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+  appState.profile.token = token;
+  saveLocalState();
+  return token;
+}
+
 function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -226,6 +241,7 @@ function loadLocalState() {
   } catch (e) {
     console.error('Failed to parse localStorage:', e);
   }
+  getOrCreateUserToken();
   // Initialize theme
   const initialTheme = appState.profile.theme || 'dark';
   applyTheme(initialTheme);
@@ -249,19 +265,27 @@ async function syncWithCloud(isManual = false) {
 
   const nick = appState.profile.nickname;
   if (!nick) return;
+  const token = getOrCreateUserToken();
 
   try {
     const res = await fetch('/api/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         nickname: nick,
+        oldNickname: appState.pendingOldNickname,
+        token: token,
         state: appState
       })
     });
 
     if (res.ok) {
       const data = await res.json();
+      delete appState.pendingOldNickname;
+      if (data.role) appState.profile.role = data.role;
       appState.lastSyncedAt = data.syncedAt || Date.now();
       saveLocalState();
 
@@ -270,7 +294,14 @@ async function syncWithCloud(isManual = false) {
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
       if (isManual) showToast('Đồng bộ Cloud thành công!', 'success');
     } else {
-      throw new Error('Sync endpoint failed');
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 409 || res.status === 403) {
+        showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
+        if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
+        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+      } else {
+        throw new Error(errData.error || 'Sync endpoint failed');
+      }
     }
   } catch (err) {
     console.warn('Sync failed (offline or redis unavailable):', err.message);
@@ -291,28 +322,84 @@ function triggerSave(needsCloud = true) {
   }
 }
 
-async function loadFromCloud(nickname) {
+async function loadFromCloud(nickname, tokenOverride = null) {
   try {
     showToast('Đang tải dữ liệu từ Cloud...', 'info');
-    const res = await fetch(`/api/sync?nickname=${encodeURIComponent(nickname)}`);
-    if (!res.ok) throw new Error('API fetch error');
+    const token = tokenOverride || getOrCreateUserToken();
+    const res = await fetch(`/api/sync?nickname=${encodeURIComponent(nickname)}&token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Không thể tải hồ sơ');
+    }
     const result = await res.json();
-    if (result.found && result.data) {
+    if (result.found && result.isOwner && result.data) {
       appState = {
         ...DEFAULT_STATE,
         ...result.data,
-        profile: { ...DEFAULT_STATE.profile, ...(result.data.profile || {}) }
+        profile: {
+          ...DEFAULT_STATE.profile,
+          ...(result.data.profile || {}),
+          token // retain device token
+        }
       };
       saveLocalState();
       applyTheme(appState.profile.theme || 'dark');
       renderAll();
       showToast(`Đã tải hồ sơ "${nickname}" từ Cloud!`, 'success');
+    } else if (result.found && !result.isOwner) {
+      showToast('Bạn không sở hữu tài khoản này! Cần nhập đúng Mã Token để tải dữ liệu.', 'error');
     } else {
       showToast(`Không tìm thấy hồ sơ cũ, bắt đầu mới với "${nickname}"`, 'info');
       triggerSave(true);
     }
   } catch (e) {
     showToast('Lỗi khi tải từ Cloud: ' + e.message, 'error');
+  }
+}
+
+async function switchAccountByToken(token) {
+  const cleanToken = (token || '').trim();
+  if (!cleanToken || cleanToken.length < 8) {
+    showToast('Mã Token không hợp lệ!', 'error');
+    return { success: false, error: 'Mã Token không hợp lệ' };
+  }
+
+  showToast('Đang nhận diện Token và chuyển tài khoản...', 'info');
+
+  try {
+    const res = await fetch(`/api/sync?action=find_by_token&token=${encodeURIComponent(cleanToken)}`);
+    const resData = await res.json().catch(() => ({}));
+    if (!res.ok || !resData.found) {
+      const errMsg = resData.error || 'Không tìm thấy tài khoản tương ứng với Token này.';
+      showToast(errMsg, 'error');
+      return { success: false, error: errMsg };
+    }
+
+    // Cập nhật toàn bộ dữ liệu người dùng
+    appState = {
+      ...DEFAULT_STATE,
+      ...resData.data,
+      profile: {
+        ...DEFAULT_STATE.profile,
+        ...(resData.data.profile || {}),
+        nickname: resData.nickname,
+        role: resData.role || 'adventurer',
+        token: cleanToken,
+        hasOnboarded: true
+      }
+    };
+    localStorage.setItem('levelup_onboarded', 'true');
+    saveLocalState();
+    applyTheme(appState.profile.theme || 'dark');
+    renderAll();
+
+    closeModal('modal-welcome');
+    closeModal('modal-profile');
+    showToast(`Đã tự động chuyển sang tài khoản "${resData.nickname}"!`, 'success');
+    return { success: true, nickname: resData.nickname };
+  } catch (err) {
+    showToast('Lỗi khi chuyển tài khoản: ' + err.message, 'error');
+    return { success: false, error: err.message };
   }
 }
 
@@ -926,7 +1013,9 @@ async function fetchLeaderboard() {
           <span class="text-base sm:text-lg">${u.avatar || '⚔️'}</span>
           <div>
             <span class="text-slate-900 dark:text-slate-100">${escapeHtml(u.nickname)}</span>
+            ${u.role === 'admin' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold">👑 ADMIN</span>' : ''}
             ${isMe ? '<span class="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-bold">BẠN</span>' : ''}
+            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.nickname)}" title="Xóa tài khoản gian lận (Quyền Admin)">🗑️</button>` : ''}
           </div>
         </td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell">${escapeHtml(u.title || 'Mạo hiểm giả')}</td>
@@ -935,6 +1024,39 @@ async function fetchLeaderboard() {
       `;
       tbody.appendChild(tr);
     });
+
+    if (appState.profile.role === 'admin') {
+      tbody.querySelectorAll('.btn-admin-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const target = btn.dataset.nick;
+          if (!confirm(`Trưởng Hội có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng xếp hạng?`)) return;
+          try {
+            const token = getOrCreateUserToken();
+            const res = await fetch('/api/sync?action=admin_remove', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                nickname: appState.profile.nickname,
+                targetNickname: target
+              })
+            });
+            if (res.ok) {
+              showToast(`Đã xóa "${target}" khỏi hệ thống!`, 'success');
+              fetchLeaderboard();
+            } else {
+              const err = await res.json().catch(() => ({}));
+              showToast(err.error || 'Lỗi khi xóa tài khoản', 'error');
+            }
+          } catch (err) {
+            showToast('Lỗi: ' + err.message, 'error');
+          }
+        });
+      });
+    }
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
   }
@@ -1268,6 +1390,130 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
+function initWelcomeModal() {
+  const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || appState.profile.hasOnboarded;
+  if (isOnboarded) return;
+
+  openModal('modal-welcome');
+
+  const tabNew = document.getElementById('btn-tab-welcome-new');
+  const tabReturning = document.getElementById('btn-tab-welcome-returning');
+  const panelNew = document.getElementById('welcome-panel-new');
+  const panelReturning = document.getElementById('welcome-panel-returning');
+  const errNew = document.getElementById('welcome-new-error');
+  const errReturning = document.getElementById('welcome-token-error');
+
+  let selectedAvatar = '⚔️';
+
+  if (tabNew && tabReturning && panelNew && panelReturning) {
+    tabNew.addEventListener('click', () => {
+      tabNew.className = 'py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm';
+      tabReturning.className = 'py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
+      panelNew.classList.remove('hidden');
+      panelReturning.classList.add('hidden');
+    });
+
+    tabReturning.addEventListener('click', () => {
+      tabReturning.className = 'py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm';
+      tabNew.className = 'py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200';
+      panelReturning.classList.remove('hidden');
+      panelNew.classList.add('hidden');
+    });
+  }
+
+  document.querySelectorAll('.welcome-avatar-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.welcome-avatar-opt').forEach(b => {
+        b.className = 'welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition';
+      });
+      btn.className = 'welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border-2 border-amber-500 bg-amber-500/20 shadow-sm transition';
+      selectedAvatar = btn.dataset.avatar;
+    });
+  });
+
+  const btnCreate = document.getElementById('btn-welcome-create');
+  if (btnCreate) {
+    btnCreate.addEventListener('click', async () => {
+      const inputNick = document.getElementById('input-welcome-nickname');
+      const nick = inputNick ? inputNick.value.trim() : '';
+      if (!nick) {
+        if (errNew) {
+          errNew.textContent = 'Nickname không được để trống!';
+          errNew.classList.remove('hidden');
+        }
+        return;
+      }
+
+      btnCreate.disabled = true;
+      btnCreate.textContent = '⏳ Đang kiểm tra...';
+      if (errNew) errNew.classList.add('hidden');
+
+      try {
+        const token = getOrCreateUserToken();
+        const checkRes = await fetch(`/api/sync?action=check_nickname&nickname=${encodeURIComponent(nick)}&token=${encodeURIComponent(token)}`);
+        const checkData = await checkRes.json().catch(() => ({}));
+
+        if (!checkData.available) {
+          if (errNew) {
+            errNew.textContent = `Nickname "${nick}" đã có người sử dụng. Vui lòng chọn nickname khác!`;
+            errNew.classList.remove('hidden');
+          }
+          btnCreate.disabled = false;
+          btnCreate.textContent = '🚀 Khởi Tạo Nhân Vật & Bắt Đầu';
+          return;
+        }
+
+        appState.profile.nickname = nick;
+        appState.profile.avatar = selectedAvatar;
+        appState.profile.hasOnboarded = true;
+        localStorage.setItem('levelup_onboarded', 'true');
+        saveLocalState();
+        renderAll();
+
+        closeModal('modal-welcome');
+        syncWithCloud(true);
+        showToast(`Chào mừng Hiệp sĩ "${nick}" đến với LevelUp RPG!`, 'success');
+      } catch (e) {
+        if (errNew) {
+          errNew.textContent = 'Lỗi kiểm tra: ' + e.message;
+          errNew.classList.remove('hidden');
+        }
+        btnCreate.disabled = false;
+        btnCreate.textContent = '🚀 Khởi Tạo Nhân Vật & Bắt Đầu';
+      }
+    });
+  }
+
+  const btnRestore = document.getElementById('btn-welcome-restore');
+  if (btnRestore) {
+    btnRestore.addEventListener('click', async () => {
+      const inputToken = document.getElementById('input-welcome-token');
+      const token = inputToken ? inputToken.value.trim() : '';
+      if (!token) {
+        if (errReturning) {
+          errReturning.textContent = 'Vui lòng nhập Mã Token của bạn!';
+          errReturning.classList.remove('hidden');
+        }
+        return;
+      }
+
+      btnRestore.disabled = true;
+      btnRestore.textContent = '⏳ Đang khôi phục...';
+      if (errReturning) errReturning.classList.add('hidden');
+
+      const result = await switchAccountByToken(token);
+      if (!result.success) {
+        if (errReturning) {
+          errReturning.textContent = result.error || 'Không tìm thấy tài khoản tương ứng với Token này.';
+          errReturning.classList.remove('hidden');
+        }
+        btnRestore.disabled = false;
+        btnRestore.textContent = '📥 Khôi Phục & Đăng Nhập Ngay';
+      }
+    });
+  }
+}
+
 // =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT
 // =============================================================================
@@ -1275,8 +1521,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLocalState();
   renderAll();
 
+  // Kiểm tra onboarding: Bắt buộc nhập nickname hoặc nhập token nếu là người cũ
+  initWelcomeModal();
+
   // Background Cloud Sync on start
-  if (appState.profile.nickname) {
+  if (appState.profile.nickname && (localStorage.getItem('levelup_onboarded') === 'true' || appState.profile.hasOnboarded)) {
     syncWithCloud(false);
   }
 
@@ -1322,8 +1571,66 @@ document.addEventListener('DOMContentLoaded', () => {
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn').addEventListener('click', () => {
     document.getElementById('input-hero-nickname').value = appState.profile.nickname;
+    const tokenInput = document.getElementById('input-hero-token');
+    if (tokenInput) {
+      tokenInput.value = getOrCreateUserToken();
+      tokenInput.readOnly = true;
+      tokenInput.type = 'password';
+    }
+    const roleBadge = document.getElementById('profile-role-badge');
+    if (roleBadge) {
+      const isAdmin = appState.profile.role === 'admin';
+      roleBadge.textContent = isAdmin ? '👑 Trưởng Hội (Admin)' : '⚔️ Mạo Hiểm Giả';
+      roleBadge.className = isAdmin
+        ? 'font-bold px-2 py-0.5 rounded text-[11px] bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+        : 'font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30';
+    }
     openModal('modal-profile');
   });
+
+  const btnCopyToken = document.getElementById('btn-copy-token');
+  if (btnCopyToken) {
+    btnCopyToken.addEventListener('click', () => {
+      const token = getOrCreateUserToken();
+      navigator.clipboard.writeText(token).then(() => {
+        showToast('Đã sao chép Mã Sở Hữu (Token)!', 'success');
+      }).catch(() => {
+        showToast('Vui lòng chọn và sao chép thủ công từ ô nhập.', 'info');
+      });
+    });
+  }
+
+  const btnToggleTokenEdit = document.getElementById('btn-toggle-token-edit');
+  if (btnToggleTokenEdit) {
+    btnToggleTokenEdit.addEventListener('click', () => {
+      const tokenInput = document.getElementById('input-hero-token');
+      if (!tokenInput) return;
+      tokenInput.focus();
+      tokenInput.select();
+      showToast('Dán Token mới vào ô này để chuyển sang tài khoản đó.', 'info');
+    });
+  }
+
+  const heroTokenInput = document.getElementById('input-hero-token');
+  if (heroTokenInput) {
+    // Tự động nhận diện khi người dùng paste Token vào ô Mã sở hữu
+    heroTokenInput.addEventListener('paste', (e) => {
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (pasted && pasted.length >= 16 && pasted !== appState.profile.token) {
+        setTimeout(() => {
+          switchAccountByToken(pasted);
+        }, 80);
+      }
+    });
+  }
+
+  const btnSwitchByToken = document.getElementById('btn-switch-by-token');
+  if (btnSwitchByToken) {
+    btnSwitchByToken.addEventListener('click', () => {
+      const val = heroTokenInput ? heroTokenInput.value.trim() : '';
+      if (val) switchAccountByToken(val);
+    });
+  }
 
   document.querySelectorAll('.avatar-opt').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1333,12 +1640,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  document.getElementById('btn-save-profile').addEventListener('click', () => {
+  document.getElementById('btn-save-profile').addEventListener('click', async () => {
     const nick = document.getElementById('input-hero-nickname').value.trim();
     if (!nick) {
       showToast('Nickname không được để trống!', 'error');
       return;
     }
+
+    const tokenInput = document.getElementById('input-hero-token');
+    if (tokenInput && tokenInput.value.trim()) {
+      appState.profile.token = tokenInput.value.trim();
+    }
+    const token = getOrCreateUserToken();
+    const currentNick = appState.profile.nickname;
+
+    // Kiểm tra tính khả dụng của nickname nếu người dùng đổi sang tên mới
+    if (currentNick && currentNick !== nick) {
+      try {
+        const checkRes = await fetch(`/api/sync?action=check_nickname&nickname=${encodeURIComponent(nick)}&token=${encodeURIComponent(token)}`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (!checkData.available) {
+            showToast(`Nickname "${nick}" đã có người sở hữu. Vui lòng chọn tên khác!`, 'error');
+            return;
+          }
+        }
+      } catch (e) {
+        // Tiếp tục nếu offline
+      }
+      appState.pendingOldNickname = appState.pendingOldNickname || currentNick;
+    }
+
+    if (nick === appState.pendingOldNickname) {
+      delete appState.pendingOldNickname;
+    }
+
     appState.profile.nickname = nick;
     closeModal('modal-profile');
     showToast('Đã lưu hồ sơ và bắt đầu đồng bộ...', 'info');

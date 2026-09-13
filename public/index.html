@@ -580,9 +580,31 @@
 
         <!-- Nickname Input -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Nickname Của Bạn (Phân biệt trên Cloud)</label>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Nickname Của Bạn (Định danh duy nhất trên Cloud)</label>
           <input id="input-hero-nickname" type="text" placeholder="Nhập nickname không dấu (VD: anhduc_ueh)" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-mono">
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Dữ liệu được lưu song song ở LocalStorage máy bạn và đồng bộ lên Redis Cloud.</p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Mỗi nickname là duy nhất và được bảo vệ quyền sở hữu bằng Mã định danh (Token).</p>
+        </div>
+
+        <!-- Role & Ownership Badge -->
+        <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-slate-500">Vai trò tài khoản:</span>
+          <span id="profile-role-badge" class="font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">⚔️ Mạo Hiểm Giả</span>
+        </div>
+
+        <!-- Token Ownership Box -->
+        <div class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mã Sở Hữu (Token)</label>
+            <div class="flex gap-2">
+              <button id="btn-toggle-token-edit" type="button" class="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">✏️ Dán/Nhập mã mới</button>
+              <button id="btn-copy-token" type="button" class="text-[11px] text-amber-600 dark:text-amber-400 font-bold hover:underline">📋 Sao chép</button>
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <input id="input-hero-token" type="text" class="w-full rpg-input rounded-lg px-3 py-1.5 text-xs font-mono select-all bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300" placeholder="Dán Token vào đây để chuyển tài khoản...">
+            <button id="btn-switch-by-token" type="button" class="shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition" title="Chuyển sang tài khoản ứng với Token này">🔄 Chuyển</button>
+          </div>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">Dán Token của bạn vào đây: Hệ thống sẽ tự động nhận diện và chuyển sang tài khoản đó.</p>
         </div>
 
         <!-- Sync Status info -->
@@ -646,6 +668,71 @@
           <button class="modal-close px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Đóng</button>
           <button id="btn-generate-suggestions" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
             ✨ Tạo Nhiệm Vụ Mới
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: WELCOME / ONBOARDING (MANDATORY FOR NEW VISITORS) -->
+  <div id="modal-welcome" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+    <div class="rpg-panel rounded-3xl w-full max-w-md border border-amber-500/40 overflow-hidden modal-fade shadow-2xl flex flex-col bg-slate-900">
+      <div class="bg-gradient-to-r from-amber-600/20 via-slate-900 to-amber-600/20 px-6 py-5 border-b border-slate-800 text-center">
+        <span class="text-3xl mb-1 block">⚔️</span>
+        <h3 class="font-rpg-title font-black text-lg text-amber-400 uppercase tracking-wide">ĐẤU TRƯỜNG LEVELUP RPG</h3>
+        <p class="text-xs text-slate-400 mt-1">Hệ thống Năng suất & Cày cấp Thói quen có Trọng tài AI</p>
+      </div>
+
+      <!-- Tab Switch: New vs Returning -->
+      <div class="grid grid-cols-2 p-2 bg-slate-950/60 border-b border-slate-800 text-xs font-bold">
+        <button id="btn-tab-welcome-new" type="button" class="py-2.5 rounded-xl text-center transition bg-amber-500 text-slate-950 shadow-sm">
+          ✨ Người Mới
+        </button>
+        <button id="btn-tab-welcome-returning" type="button" class="py-2.5 rounded-xl text-center transition text-slate-400 hover:text-slate-200">
+          🔑 Đã Có Token
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <!-- TAB 1: NEW USER -->
+        <div id="welcome-panel-new" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">1. Chọn Biểu Tượng Lớp Nhân Vật</label>
+            <div class="flex gap-2 justify-center py-1" id="welcome-avatar-selector">
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border-2 border-amber-500 bg-amber-500/20 shadow-sm transition" data-avatar="⚔️">⚔️</button>
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🧙‍♂️">🧙‍♂️</button>
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🏹">🏹</button>
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🛡️">🛡️</button>
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="🥷">🥷</button>
+              <button type="button" class="welcome-avatar-opt text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-amber-500/10 shadow-sm transition" data-avatar="👑">👑</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">2. Đặt Nickname Của Bạn *</label>
+            <input id="input-welcome-nickname" type="text" placeholder="Nhập nickname không dấu (VD: quang_anh, hiepsi_it)" class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
+            <p class="text-[11px] text-slate-400 mt-1">Nickname là duy nhất. Hệ thống sẽ tự cấp một Mã Token bảo vệ quyền sở hữu của bạn.</p>
+          </div>
+
+          <div id="welcome-new-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
+
+          <button id="btn-welcome-create" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2">
+            🚀 Khởi Tạo Nhân Vật & Bắt Đầu
+          </button>
+        </div>
+
+        <!-- TAB 2: RETURNING USER WITH TOKEN -->
+        <div id="welcome-panel-returning" class="hidden space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Dán Mã Sở Hữu (Token) Của Bạn *</label>
+            <input id="input-welcome-token" type="text" placeholder="Dán mã Token 32 ký tự..." class="w-full rpg-input rounded-xl px-4 py-2.5 text-sm font-mono bg-slate-950 border border-slate-700 text-slate-100">
+            <p class="text-[11px] text-slate-400 mt-1">Hệ thống sẽ tự động tìm hồ sơ của bạn trên Cloud và chuyển sang tài khoản đó.</p>
+          </div>
+
+          <div id="welcome-token-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
+
+          <button id="btn-welcome-restore" type="button" class="w-full py-3 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-lg shadow-purple-600/20 active:scale-95 flex items-center justify-center gap-2">
+            📥 Khôi Phục & Đăng Nhập Ngay
           </button>
         </div>
       </div>
