@@ -1376,6 +1376,10 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  if (id === 'modal-welcome') {
+    const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile.hasOnboarded && appState.profile.nickname);
+    if (!isOnboarded) return;
+  }
   const modal = document.getElementById(id);
   if (modal) modal.classList.add('hidden');
 }
@@ -1758,7 +1762,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.fixed').forEach(modal => {
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.add('hidden');
+      if (e.target === modal) {
+        if (modal.id === 'modal-welcome') {
+          // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
+          showToast('Vui lòng tạo nhân vật hoặc nhập Mã Token để tiếp tục!', 'info');
+          const panel = modal.querySelector('.rpg-panel');
+          if (panel) {
+            panel.classList.add('ring-4', 'ring-amber-500/60');
+            setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
+          }
+          return;
+        }
+        modal.classList.add('hidden');
+      }
     });
+  });
+
+  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const welcome = document.getElementById('modal-welcome');
+      const isOnboarded = localStorage.getItem('levelup_onboarded') === 'true' || Boolean(appState.profile.hasOnboarded && appState.profile.nickname);
+      if (!isOnboarded && welcome && !welcome.classList.contains('hidden')) {
+        e.preventDefault();
+        return;
+      }
+      document.querySelectorAll('.fixed:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
+    }
   });
 });
