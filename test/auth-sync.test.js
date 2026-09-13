@@ -411,7 +411,22 @@ async function runGoogleAuthTests() {
     console.log('✓ Test 13 Passed: Bảng xếp hạng Leaderboard sắp xếp đúng điểm và thông tin hiển thị.');
   }
 
-  console.log('\n🎉 TẤT CẢ 13/13 TEST GOOGLE AUTHENTICATION & SYNC ĐÃ VƯỢT QUA XUẤT SẮC!');
+  // Test 14: Leaderboard hỗ trợ hiển thị mở rộng (vượt mốc 10 thành viên)
+  {
+    for (let i = 1; i <= 15; i++) {
+      await mockRedis.set(`levelup:user:google:sub_extra_${i}`, JSON.stringify({
+        profile: { nickname: `Extra_${i}`, level: 1, totalCoinsEarned: 10 }
+      }));
+      await mockRedis.zadd('levelup:leaderboard', 1010, `sub_extra_${i}`);
+    }
+    const { req: reqLbWide, res: resLbWide } = createMockReqRes('GET', {}, { action: 'leaderboard' });
+    await handler(reqLbWide, resLbWide);
+    assert.strictEqual(resLbWide.statusCode, 200);
+    assert.ok(resLbWide.body.leaderboard.length > 10, 'Leaderboard phải cho phép hiển thị trên 10 thành viên');
+    console.log('✓ Test 14 Passed: Leaderboard hiển thị mở rộng trên 10 thành viên không bị giới hạn cứng.');
+  }
+
+  console.log('\n🎉 TẤT CẢ 14/14 TEST GOOGLE AUTHENTICATION & SYNC ĐÃ VƯỢT QUA XUẤT SẮC!');
 }
 
 runGoogleAuthTests().catch((err) => {

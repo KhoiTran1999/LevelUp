@@ -2253,7 +2253,8 @@ async function fetchLeaderboard() {
 
     tbody.innerHTML = '';
     list.forEach((u, idx) => {
-      const isMe = u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase();
+      const isMe = (appState.profile.googleId && (u.key === appState.profile.googleId || u.googleId === appState.profile.googleId)) ||
+                   (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
       const tr = document.createElement('tr');
       tr.className = `hover:bg-slate-100/80 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-amber-500/10 font-bold' : ''}`;
 
@@ -2263,19 +2264,21 @@ async function fetchLeaderboard() {
         : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
 
       tr.innerHTML = `
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 flex items-center gap-2">
-          ${avatarHtml}
-          <div>
-            <span class="text-slate-900 dark:text-slate-100">${escapeHtml(u.nickname)}</span>
-            ${u.role === 'admin' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold">👑 ADMIN</span>' : ''}
-            ${isMe ? '<span class="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-bold">BẠN</span>' : ''}
-            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono whitespace-nowrap ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${avatarHtml}
+            <div class="min-w-0 flex items-center flex-wrap gap-1.5">
+              <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[130px] sm:max-w-[200px]">${escapeHtml(u.nickname)}</span>
+              ${u.role === 'admin' ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold whitespace-nowrap">👑 ADMIN</span>' : ''}
+              ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>' : ''}
+              ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-1 text-xs" data-nick="${escapeHtml(u.nickname || u.key)}" data-key="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+            </div>
           </div>
         </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell">${escapeHtml(u.title || 'Thành viên')}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300">Lv. ${u.level || 1}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">🪙 ${u.totalCoinsEarned || 0}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell whitespace-nowrap">${escapeHtml(u.title || 'Thành viên')}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Lv. ${u.level || 1}</td>
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">🪙 ${u.totalCoinsEarned || 0}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -2284,10 +2287,11 @@ async function fetchLeaderboard() {
       tbody.querySelectorAll('.btn-admin-del').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const target = btn.dataset.nick;
+          const targetNick = btn.dataset.nick;
+          const targetKey = btn.dataset.key || targetNick;
           const ok = await confirmAction({
             title: 'Xóa Tài Khoản Leaderboard',
-            message: `Bạn có chắc chắn muốn xóa tài khoản "${target}" khỏi Bảng Xếp Hạng?`,
+            message: `Bạn có chắc chắn muốn xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
             detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
             confirmText: 'Xóa Vĩnh Viễn',
             cancelText: 'Giữ Lại',
@@ -2305,12 +2309,12 @@ async function fetchLeaderboard() {
               },
               body: JSON.stringify({
                 nickname: appState.profile.nickname,
-                targetNickname: target,
-                targetSub: u.key || target
+                targetNickname: targetNick,
+                targetSub: targetKey
               })
             });
             if (res.ok) {
-              showToast(`Đã xóa "${target}" khỏi hệ thống!`, 'success');
+              showToast(`Đã xóa "${targetNick}" khỏi hệ thống!`, 'success');
               fetchLeaderboard();
             } else {
               const err = await res.json().catch(() => ({}));
@@ -2918,6 +2922,7 @@ async function handleGoogleCredentialResponse(response) {
     applyTheme(appState.profile.theme || 'dark');
     renderAll();
     closeModal('modal-welcome');
+    fetchLeaderboard();
 
     if (loadingEl) loadingEl.classList.add('hidden');
 

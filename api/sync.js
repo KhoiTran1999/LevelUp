@@ -223,6 +223,11 @@ export default async function handler(req, res) {
           }
           if (isAdmin) userState.profile.role = 'admin';
         }
+        await redis.set(userKey, JSON.stringify(userState), 'EX', 180 * 24 * 3600);
+        const level = userState.profile?.level || 1;
+        const totalCoins = userState.profile?.totalCoinsEarned || 20;
+        const score = (level * 1000) + totalCoins;
+        await redis.zadd('levelup:leaderboard', score, sub);
       }
 
       return res.status(200).json({
@@ -238,7 +243,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // 2.1 Bảng xếp hạng (Leaderboard)
       if (action === 'leaderboard') {
-        const topUsers = await redis.zrevrange('levelup:leaderboard', 0, 19, 'WITHSCORES');
+        // ponytail: top 50 entries ceiling; upgrade to cursor pagination when player count > 1000
+        const topUsers = await redis.zrevrange('levelup:leaderboard', 0, 49, 'WITHSCORES');
         const leaderboard = [];
         const seenSubs = new Set();
 
@@ -284,7 +290,7 @@ export default async function handler(req, res) {
           seenSubs.add(subId);
 
           leaderboard.push({ ...profile, key: memberKey, score });
-          if (leaderboard.length >= 10) break;
+          if (leaderboard.length >= 50) break;
         }
 
         return res.status(200).json({ leaderboard });
