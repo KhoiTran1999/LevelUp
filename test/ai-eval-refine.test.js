@@ -315,6 +315,7 @@ assert.ok(!sanitizedChore.title.includes('Chương 1'), 'Chores must not be tran
 assert.strictEqual(sanitizedChore.type, 'bounty');
 assert.strictEqual(sanitizedChore.targetMinutes, 0);
 assert.strictEqual(sanitizedChore.rewardCoins <= 5, true);
+assert.ok(!sanitizedChore.modificationReason.includes('bounty'), 'Chore reason must not contain technical term bounty');
 
 // Quick chore alias: "Rửa chén" (Southern dialect) must retain title and become bounty
 const sanitizedRuaChen = sanitizeEvaluatedQuest(
@@ -348,6 +349,8 @@ const sanitizedGameReward = sanitizeEvaluatedReward(
 assert.strictEqual(sanitizedGameReward.isModified, true);
 assert.strictEqual(sanitizedGameReward.price >= 35, true, 'Addictive game reward must be at least 35 coins');
 assert.ok(sanitizedGameReward.modificationReason.length > 0);
+assert.ok(!sanitizedGameReward.modificationReason.includes('dopamine'), 'Reward reason must not contain technical term dopamine');
+assert.ok(!sanitizedGameReward.modificationReason.includes('3:1'), 'Reward reason must not contain ratio jargon 3:1');
 
 // ==========================================
 // Test 14: Safe Markdown rendering in AI debate responses

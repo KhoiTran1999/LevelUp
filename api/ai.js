@@ -143,7 +143,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     rewardCoins = Math.min(rewardCoins, 5);
     type = 'bounty';
     isModified = true;
-    modificationReason = 'Việc dọn dẹp thường ngày là việc nhanh gọn, AI chuyển sang dạng Hoàn thành ngay (bounty) với mức thưởng 3-5 Vàng chuẩn.';
+    modificationReason = 'Việc dọn dẹp thường ngày là việc nhanh gọn, AI chuyển sang việc Hoàn thành ngay với mức thưởng 3-5 Vàng chuẩn.';
     verdict = 'Việc dọn dẹp nhanh gọn, chuyển sang Hoàn thành ngay với mức thưởng 3-5 Vàng chuẩn.';
   }
 
@@ -262,7 +262,7 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     isModified = true;
     verdict = 'Định giá 35 Vàng cho hoạt động giải trí để đảm bảo nỗ lực tương xứng.';
     if (!modificationReason) {
-      modificationReason = 'AI đã nâng giá món quà giải trí lên mức chuẩn (tối thiểu 35 Vàng) để bảo vệ tỷ lệ nỗ lực 3:1 và chống lạm dụng dopamine dễ dãi.';
+      modificationReason = 'AI đã nâng giá món quà giải trí lên mức 35 Vàng để tương xứng với công sức bạn bỏ ra.';
     }
   }
 
@@ -376,9 +376,10 @@ QUY TẮC THẨM ĐỊNH & PHÂN LOẠI KỶ LUẬT:
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
+- DÙNG TỪ NGỮ ĐƠN GIẢN, DỄ HIỂU: Tuyệt đối không dùng các thuật ngữ kỹ thuật như "Pomodoro", "bounty", "focus", "lạm phát". Giải thích đơn giản, tự nhiên bằng tiếng Việt thông thường.
 - CHỈ GIỮ LẠI THÔNG TIN HỮU ÍCH:
-  1. Phân loại công việc (Việc nhà làm xong ngay / Phiên tập trung Pomodoro / Thói quen sinh hoạt cơ bản).
-  2. Cơ sở định giá mức thưởng Vàng hoặc thời gian (Ví dụ: "Định mức chuẩn 4 Vàng cho việc dọn dẹp hàng ngày." hoặc "Phiên tập trung 25 phút Pomodoro nhận 10 Vàng chuẩn.").
+  1. Phân loại công việc (Việc nhà làm xong ngay / Việc hẹn giờ tập trung / Thói quen sinh hoạt cơ bản).
+  2. Cơ sở định giá mức thưởng Vàng hoặc thời gian (Ví dụ: "Định mức chuẩn 4 Vàng cho việc dọn dẹp hàng ngày." hoặc "Phiên tập trung 25 phút nhận 10 Vàng chuẩn.").
 - TUYỆT ĐỐI KHÔNG chào hỏi ("Chào bạn...", "Xin chào..."), không khen ngợi hoa mỹ, không văn mẫu lê thê, không lôi thôi kéo dài.
 
 Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' và 'isModified' TRƯỚC khi viết 'title'):
@@ -437,10 +438,10 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
      * Đặc điểm: KHÔNG HẸN GIỜ (targetMinutes = 0). Người dùng làm xong thì bấm nút "Hoàn thành" nhận thưởng ngay.
      * TUYỆT ĐỐI KHÔNG tự bịa ra "25 phút", "35 phút" hay thời gian đếm ngược trong câu trả lời khi thảo luận về việc nhà/việc vặt.
      * Khung thưởng chuẩn: 3 - 5 Vàng. Tối đa cho việc nhà là 5 Vàng.
-     * NGUYÊN TẮC DUYỆT THƯƠNG LƯỢNG CHO VIỆC NHÀ: Nếu người dùng xin mức thưởng trong khung 3 - 5 Vàng (Ví dụ: từ 4 Vàng xin lên 5 Vàng vì rửa nhiều chén đĩa dầu mỡ mệt mỏi): BẮT BUỘC BẠN ĐỒNG Ý NGAY ("accepted": true, "newRewardCoins": 5, "newType": "bounty", "newTargetMinutes": 0). Tuyệt đối không từ chối vô lý hoặc ép người dùng vào hẹn giờ Pomodoro!
+     * NGUYÊN TẮC DUYỆT THƯƠNG LƯỢNG CHO VIỆC NHÀ: Nếu người dùng xin mức thưởng trong khung 3 - 5 Vàng (Ví dụ: từ 4 Vàng xin lên 5 Vàng vì rửa nhiều chén đĩa dầu mỡ mệt mỏi): BẮT BUỘC BẠN ĐỒNG Ý NGAY ("accepted": true, "newRewardCoins": 5, "newType": "bounty", "newTargetMinutes": 0). Tuyệt đối không từ chối vô lý hoặc ép người dùng vào hẹn giờ!
    - BẤM GIỜ TẬP TRUNG (type: 'focus'):
      * Dành cho: Học tập, đọc sách, viết code, làm dự án trí óc.
-     * Đặc điểm: CÓ ĐỒNG HỒ ĐẾM NGƯỢC Pomodoro (targetMinutes = 15, 25, 50 phút).
+     * Đặc điểm: CÓ ĐỒNG HỒ ĐẾM NGƯỢC (targetMinutes = 15, 25, 50 phút).
      * Mức thưởng: 8 - 10 Vàng (25p), 18 - 20 Vàng (50p).
    - CHUYỂN ĐỔI LOẠI:
      * Nếu người dùng chủ động muốn chuyển việc vặt sang bấm giờ tập trung sâu (hoặc ngược lại), cập nhật cả 'newType' và 'newTargetMinutes'.
@@ -454,8 +455,13 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
    - Khi yêu cầu vô lý hoặc vượt khung (VD: việc nhà đòi 50 Vàng):
      * Đặt "accepted": false, giải thích nhẹ nhàng vì sao không thể duyệt và giữ nguyên thông số.
 
-PHONG CÁCH PHẢN HỒI — CHUẨN MỰC CHĂM SÓC KHÁCH HÀNG, TỰ NHIÊN & THÂN THIỆN:
-- Giọng điệu: Lịch thiệp, ấm áp, thấu hiểu, ân cần và giàu tính xây dựng. Xưng hô "mình" - "bạn" gần gũi.
+PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
+- TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
+  * KHÔNG dùng từ "Pomodoro" -> chỉ gọi đơn giản là "tập trung 25 phút", "hẹn giờ", "phiên làm việc".
+  * KHÔNG dùng các từ tiếng Anh: "bounty", "focus", "type", "rank", "tier", "anti-padding", "anti-trivial". Chỉ gọi là "việc làm xong ngay" hoặc "việc hẹn giờ tập trung".
+  * KHÔNG dùng các khái niệm như "lạm phát điểm thưởng", "cơ chế RPG", "hệ sinh thái", "tham số".
+- GIẢI THÍCH ĐƠN GIẢN, DỄ HIỂU & ĐỜI THƯỜNG: Chỉ cần giải thích ngắn gọn, tự nhiên như trò chuyện với bạn bè (Ví dụ: "Việc này tốn nhiều công sức hơn nên mình tăng thưởng cho bạn lên 5 Vàng nhé!", hoặc "Bài học này hơi dài nên bạn chia làm 2 lần học sẽ đỡ mệt hơn nhé!").
+- Giọng điệu: Thân thiện, ấm áp, thấu hiểu, ân cần và lịch thiệp. Xưng hô "mình" - "bạn" gần gũi.
 - TUYỆT ĐỐI KHÔNG dùng từ ngữ cộc cằn, gay gắt, mỉa mai hay nạt nộ.
 - TRÌNH BÀY MẠCH LẠC: Chia câu trả lời thành các đoạn ngắn bằng dấu xuống dòng để người dùng dễ đọc.
 
@@ -473,7 +479,7 @@ Trả về ĐÚNG định dạng JSON:
 
         let rewardContext = '';
         if (Array.isArray(currentRewards) && currentRewards.length > 0) {
-          const rewardList = currentRewards.slice(0, 5).map(r => `  + "${r.name}" (Giá: ${r.price} Vàng, Hạng: ${r.tier || 'common'})`).join('\n');
+          const rewardList = currentRewards.slice(0, 5).map(r => `  + "${r.name}" (Giá: ${r.price} Vàng)`).join('\n');
           rewardContext = `\n- Các phần thưởng mục tiêu trong Cửa Hàng:\n${rewardList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 
@@ -481,8 +487,8 @@ Trả về ĐÚNG định dạng JSON:
         const userPrompt = `Nhiệm vụ đang thương lượng:
 - Tên hiện tại: "${quest.title}"
 - Chi tiết hiện tại: "${quest.description || ''}"
-- Loại nhiệm vụ: ${currentType === 'focus' ? 'Hẹn giờ tập trung (Pomodoro)' : 'Việc hoàn thành ngay (Bounty - Không hẹn giờ, làm xong bấm nút Hoàn thành)'}
-- Định giá hiện tại: ${quest.rewardCoins} Vàng, ${currentType === 'focus' ? (quest.targetMinutes || 25) + ' phút tập trung' : '0 phút (Làm xong bấm nút Hoàn thành)'}, Hạng ${quest.rank || 'C'}.${rewardContext}
+- Loại nhiệm vụ: ${currentType === 'focus' ? 'Việc hẹn giờ tập trung' : 'Việc hoàn thành ngay (không hẹn giờ, làm xong bấm nút Hoàn thành)'}
+- Định giá hiện tại: ${quest.rewardCoins} Vàng, ${currentType === 'focus' ? (quest.targetMinutes || 25) + ' phút tập trung' : '0 phút (Làm xong bấm nút Hoàn thành)'}.${rewardContext}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
@@ -546,8 +552,9 @@ QUY TẮC ĐỊNH GIÁ & QUY ĐỔI CÔNG SỨC:
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
+- DÙNG TỪ NGỮ ĐƠN GIẢN, DỄ HIỂU: Tuyệt đối không dùng các thuật ngữ như "dopamine", "tỷ lệ 3:1", "RPG", "tier", "Pomodoro". Giải thích đơn giản, dễ hiểu bằng tiếng Việt thông thường.
 - CHỈ GIỮ LẠI THÔNG TIN HỮU ÍCH:
-  1. Phân loại món quà và cơ sở định giá mức Vàng (Ví dụ: "Phần thưởng giải trí mức giá 35 Vàng tương xứng với nỗ lực 2 phiên Pomodoro.").
+  1. Phân loại món quà và cơ sở định giá mức Vàng (Ví dụ: "Phần thưởng giải trí mức giá 35 Vàng phù hợp với công sức bỏ ra.").
   2. Nếu điều chỉnh hành vi tiêu cực: nêu ngắn gọn lý do bảo vệ sức khỏe.
 - TUYỆT ĐỐI KHÔNG chào hỏi ("Chào bạn...", "Xin chào..."), không khen ngợi hoa mỹ, không văn mẫu lê thê.
 
@@ -596,7 +603,12 @@ Trả về ĐÚNG định dạng JSON:
         const systemPrompt = `Bạn là Trợ Lý Cửa Hàng & Định Giá Phần Thưởng của LevelUp.
 CHỈ CÓ BẠN mới có thẩm quyền chốt: Tên phần thưởng, Mô tả chi tiết, Giá Vàng và Phân loại (Tier). Người dùng không thể tự ý sửa đổi ngoài việc thương lượng với bạn.
 
-PHONG CÁCH PHẢN HỒI — CHUẨN MỰC CHĂM SÓC KHÁCH HÀNG (CUSTOMER SERVICE), TỰ NHIÊN & THÂN THIỆN:
+PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
+- TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
+  * KHÔNG dùng các từ như: "dopamine" hay "dopamine giá rẻ / dễ dãi", "tỷ lệ nỗ lực 3:1", "cân bằng kinh tế RPG", "lạm phát điểm".
+  * KHÔNG dùng các từ tiếng Anh: "tier", "common", "rare", "epic", "legendary", "Pomodoro".
+- GIẢI THÍCH ĐƠN GIẢN, DỄ HIỂU & ĐỜI THƯỜNG:
+  * Giải thích ngắn gọn, tự nhiên như một người bạn (Ví dụ: "Món quà này lớn nên cần nhiều công sức một chút, để khi nhận bạn sẽ thấy thật xứng đáng và vui hơn nhé!").
 - Giọng điệu: Lịch thiệp, vui tươi, tâm lý, ân cần và giàu tính xây dựng. Xưng hô "mình" - "bạn" gần gũi.
 - TUYỆT ĐỐI KHÔNG dùng từ ngữ cộc cằn, khó chịu hay trách móc (NGHIÊM CẤM các câu như "Từ chối thẳng thừng!", "Lười làm đòi ăn nhiều", "Đừng mặc cả phá giá...").
 - TRÌNH BÀY MẠCH LẠC & XUỐNG DÒNG RÕ RÀNG:
@@ -605,9 +617,9 @@ PHONG CÁCH PHẢN HỒI — CHUẨN MỰC CHĂM SÓC KHÁCH HÀNG (CUSTOMER SER
   * Có thể in đậm các từ khóa quan trọng (như **30 phút**, **25 Vàng**) để làm nổi bật phương án cho bạn ấy.
 - KHI TỪ CHỐI GIẢM GIÁ (accepted: false):
   1. Thấu hiểu tâm lý: Thể hiện sự đồng cảm (Ví dụ: "Mình rất hiểu bạn đang rất háo hức muốn trải nghiệm món quà này và muốn đổi được sớm nè...").
-  2. Giải thích giá trị phần thưởng một cách tinh tế: Nhẹ nhàng giải thích vì sao món quà giữ mức giá đó để duy trì cảm giác tự hào và xứng đáng khi đạt được ("Tuy nhiên, rất tiếc là mình chưa thể hạ giá món này được, vì khi bạn hoàn thành đủ các phiên làm việc và đổi được món quà này, cảm giác tự hào sẽ tuyệt vời hơn rất nhiều!").
-  3. Đưa ra phương án thay thế/giải pháp: "Nếu bạn muốn đổi quà nhanh hơn với số Vàng hiện tại, mình gợi ý bạn có thể thử phiên bản mini (như chơi game 30 phút hoặc 1 ly đồ uống tự pha) thì mức giá sẽ nhẹ nhàng hơn rất nhiều đấy!".
-  4. Động viên tích cực: "Cố lên bạn ơi, hoàn thành thêm 1-2 nhiệm vụ nữa là bạn đã hoàn toàn tự tin rước phần thưởng này về rồi! ✨".
+  2. Giải thích giá trị phần thưởng một cách tinh tế, giản dị: "Tuy nhiên, món quà này hơi tốn công một chút nên mình giữ mức giá này nhé. Khi bạn hoàn thành xong công việc và đổi được quà, cảm giác sẽ rất đã và xứng đáng luôn!".
+  3. Đưa ra phương án thay thế/giải pháp đơn giản: "Nếu bạn muốn đổi quà nhanh hơn với số Vàng hiện tại, mình gợi ý bạn có thể thử một món nhỏ hơn (như chơi game 30 phút hoặc 1 ly đồ uống tự pha) thì mức giá sẽ nhẹ nhàng hơn rất nhiều đấy!".
+  4. Động viên tích cực: "Cố lên bạn ơi, hoàn thành thêm 1-2 việc nữa là bạn đã hoàn toàn tự tin rước phần thưởng này về rồi! ✨".
 - KHI CHẤP THUẬN (accepted: true):
   - Nhiệt tình, vui vẻ duyệt khi người dùng chủ động điều chỉnh quy mô phần thưởng phù hợp hoặc giải thích hợp lý. Cập nhật 'newName', 'newDescription', 'newPrice', 'newTier'.
 
@@ -630,7 +642,7 @@ Trả về ĐÚNG định dạng JSON:
         const userPrompt = `Phần thưởng đang thương lượng:
 - Tên hiện tại: "${reward.name}"
 - Chi tiết: "${reward.description || ''}"
-- Giá hiện tại: ${reward.price} Vàng (${reward.tier})${questContext}
+- Giá hiện tại: ${reward.price} Vàng${questContext}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
