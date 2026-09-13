@@ -1358,6 +1358,26 @@ function renderShop() {
   if (countBadge) countBadge.textContent = appState.shopItems.length;
 
   grid.innerHTML = '';
+
+  if (appState.shopItems.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center py-12 sm:py-16 px-4">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
+          🎁
+        </div>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Cửa hàng chưa có phần thưởng nào!</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy tạo những phần thưởng bạn yêu thích (ly cà phê, xem phim, mua sách...) và để AI định giá Vàng hợp lý nhé.</p>
+        <div class="flex justify-center">
+          <button onclick="document.getElementById('btn-open-add-reward').click()" class="btn-action-reward flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
+            <span class="text-sm">🎁</span>
+            <span>+ Thêm Phần Thưởng Ngay</span>
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   appState.shopItems.forEach(item => {
     const canAfford = appState.profile.coins >= item.price;
     const card = document.createElement('div');
@@ -1917,6 +1937,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Open Quest Modal (Desktop & Mobile buttons)
   const openQuestHandler = () => {
+    sfx.playClick();
     document.getElementById('quest-form-step').classList.remove('hidden');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-verdict-step').classList.add('hidden');
@@ -1927,7 +1948,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modNotice) modNotice.classList.add('hidden');
     openModal('modal-quest');
   };
-  document.getElementById('btn-open-add-quest').addEventListener('click', openQuestHandler);
+  const desktopAddQuestBtn = document.getElementById('btn-open-add-quest');
+  if (desktopAddQuestBtn) desktopAddQuestBtn.addEventListener('click', openQuestHandler);
   const mobileAddQuestBtn = document.getElementById('btn-open-add-quest-mobile');
   if (mobileAddQuestBtn) mobileAddQuestBtn.addEventListener('click', openQuestHandler);
 
@@ -1944,8 +1966,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') sendDebateArgument();
   });
 
-  // Open Shop Reward Modal
-  document.getElementById('btn-open-add-reward').addEventListener('click', () => {
+  // Open Shop Reward Modal (Desktop & Mobile buttons)
+  const openRewardHandler = () => {
+    sfx.playClick();
     document.getElementById('input-reward-name').value = '';
     document.getElementById('input-reward-desc').value = '';
     document.getElementById('reward-eval-box').classList.add('hidden');
@@ -1961,6 +1984,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-eval-reward').textContent = '🤖 AI Định Giá Vàng';
     document.getElementById('btn-save-reward').classList.add('hidden');
     openModal('modal-reward');
+  };
+  const shopAddRewardBtn = document.getElementById('btn-open-add-reward');
+  if (shopAddRewardBtn) shopAddRewardBtn.addEventListener('click', openRewardHandler);
+  const navAddRewardBtn = document.getElementById('btn-open-add-reward-nav');
+  if (navAddRewardBtn) navAddRewardBtn.addEventListener('click', openRewardHandler);
+  const mobileAddRewardBtn = document.getElementById('btn-open-add-reward-mobile');
+  if (mobileAddRewardBtn) mobileAddRewardBtn.addEventListener('click', openRewardHandler);
+
+  // Power User Keyboard Shortcuts: [Q] to Add Quest, [R] to Add Reward
+  document.addEventListener('keydown', (e) => {
+    const activeTag = document.activeElement?.tagName;
+    const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || document.activeElement?.isContentEditable;
+    const isModalOpen = Boolean(document.querySelector('.fixed.inset-0:not(.hidden)'));
+    if (isEditing || isModalOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    if (e.key === 'q' || e.key === 'Q') {
+      e.preventDefault();
+      openQuestHandler();
+    } else if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      openRewardHandler();
+    }
   });
 
   document.getElementById('btn-eval-reward').addEventListener('click', evaluateRewardItem);

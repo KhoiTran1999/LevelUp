@@ -154,9 +154,15 @@
 
       <!-- Desktop Quick Action Buttons -->
       <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-open-add-quest" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition hover:scale-[1.02]">
-          <span>+</span>
+        <button id="btn-open-add-quest" class="btn-action-quest flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition" title="Tạo việc mới (Phím tắt: Q)">
+          <span class="text-sm">⚔️</span>
           <span>Thêm Việc Mới</span>
+          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
+        </button>
+        <button id="btn-open-add-reward-nav" class="btn-action-reward flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition" title="Tạo phần thưởng mới (Phím tắt: R)">
+          <span class="text-sm">🎁</span>
+          <span>Thêm Phần Thưởng</span>
+          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
         </button>
       </div>
     </div>
@@ -166,10 +172,22 @@
   <!-- MOBILE ACTION STRIP (Visible only on phone/tablet top)                  -->
   <!-- ======================================================================= -->
   <div class="md:hidden max-w-6xl mx-auto px-3 mt-3">
-    <button id="btn-open-add-quest-mobile" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95">
-      <span>+</span>
-      <span>Thêm Việc Mới</span>
-    </button>
+    <div class="grid grid-cols-2 gap-2.5">
+      <button id="btn-open-add-quest-mobile" class="btn-action-quest flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold shadow-md transition active:scale-95">
+        <span class="text-base">⚔️</span>
+        <div class="flex flex-col items-start text-left leading-tight">
+          <span class="text-[11px] font-black tracking-tight">Thêm Việc Mới</span>
+          <span class="text-[9px] opacity-80 font-medium">+ Kiếm Vàng</span>
+        </div>
+      </button>
+      <button id="btn-open-add-reward-mobile" class="btn-action-reward flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold shadow-md transition active:scale-95">
+        <span class="text-base">🎁</span>
+        <div class="flex flex-col items-start text-left leading-tight">
+          <span class="text-[11px] font-black tracking-tight">Thêm Thưởng</span>
+          <span class="text-[9px] opacity-85 font-medium">Đặt mục tiêu</span>
+        </div>
+      </button>
+    </div>
   </div>
 
   <!-- ======================================================================= -->
@@ -240,8 +258,9 @@
         <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa có việc nào cần làm!</h3>
         <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy thêm việc bạn cần hoàn thành hôm nay để nhận thưởng Vàng.</p>
         <div class="flex justify-center">
-          <button onclick="document.getElementById('btn-open-add-quest').click()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-            + Thêm Việc Mới
+          <button onclick="document.getElementById('btn-open-add-quest').click()" class="btn-action-quest flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
+            <span class="text-sm">⚔️</span>
+            <span>+ Thêm Việc Mới Ngay</span>
           </button>
         </div>
       </div>
@@ -255,8 +274,8 @@
           <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">CỬA HÀNG ĐỔI THƯỞNG</h2>
           <p class="text-xs text-slate-500 dark:text-slate-400">Dùng số Vàng bạn kiếm được từ công việc để tự thưởng cho bản thân!</p>
         </div>
-        <button id="btn-open-add-reward" class="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-          <span>+</span>
+        <button id="btn-open-add-reward" class="btn-action-reward self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-md" title="Tạo phần thưởng mới (Phím tắt: R)">
+          <span class="text-sm">🎁</span>
           <span>Thêm Phần Thưởng Mới</span>
         </button>
       </div>

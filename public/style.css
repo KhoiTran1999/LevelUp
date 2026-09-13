@@ -212,3 +212,45 @@ html.dark .rank-badge-S {
   from { opacity: 0; transform: scale(0.95) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* ==========================================================================
+   Primary Action Buttons (Quest & Reward Hero CTA)
+   ========================================================================== */
+.btn-action-quest {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #d97706 100%);
+  color: #0f172a;
+  border: 1px solid rgba(254, 240, 138, 0.6);
+  box-shadow: 0 4px 14px -1px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-action-quest:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 22px -2px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  filter: brightness(1.04);
+}
+.btn-action-quest:active {
+  transform: translateY(0.5px) scale(0.98);
+  box-shadow: 0 2px 8px -1px rgba(245, 158, 11, 0.4);
+}
+
+.btn-action-reward {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #7c3aed 100%);
+  color: #ffffff;
+  border: 1px solid rgba(233, 213, 255, 0.5);
+  box-shadow: 0 4px 14px -1px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-action-reward:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 22px -2px rgba(139, 92, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  filter: brightness(1.06);
+}
+.btn-action-reward:active {
+  transform: translateY(0.5px) scale(0.98);
+  box-shadow: 0 2px 8px -1px rgba(139, 92, 246, 0.4);
+}
+
