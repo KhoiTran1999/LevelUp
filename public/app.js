@@ -858,22 +858,21 @@ function clearFocusTimerSession() {
 function adjustTimer(deltaSec) {
   if (!activeFocusQuest && !isBreakMode) return;
 
-  // Anti-Cheat: Chặn hành vi giảm thời gian đối với nhiệm vụ tập trung do AI định giá
-  if (activeFocusQuest && deltaSec < 0) {
-    showToast('Nhiệm vụ tập trung yêu cầu hoàn thành đủ thời gian do AI phê duyệt, không thể giảm giờ!', 'error');
+  // Anti-Cheat: Chặn mọi hành vi giảm thời gian
+  if (deltaSec < 0) {
+    showToast('Không thể giảm thời gian! Hãy giữ vững kỷ luật.', 'error');
     sfx.playClick();
     return;
   }
 
-  focusRemainingSeconds = Math.max(0, focusRemainingSeconds + deltaSec);
-  if (deltaSec > 0 && focusRemainingSeconds > focusTotalSeconds) {
+  focusRemainingSeconds += deltaSec;
+  if (focusRemainingSeconds > focusTotalSeconds) {
     focusTotalSeconds = focusRemainingSeconds;
   }
   updateTimerDisplay();
   saveFocusTimerState();
   sfx.playClick();
-  const sign = deltaSec > 0 ? `+${deltaSec / 60}p` : `${deltaSec / 60}p`;
-  showToast(`Đã chỉnh thời gian: ${sign}`, 'info');
+  showToast(`Đã thêm thời gian: +${deltaSec / 60}p`, 'info');
 }
 
 function openEditTimerModal() {
