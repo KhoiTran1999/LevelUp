@@ -378,7 +378,7 @@ QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
 - DÙNG TỪ NGỮ ĐƠN GIẢN, DỄ HIỂU: Tuyệt đối không dùng các thuật ngữ kỹ thuật như "Pomodoro", "bounty", "focus", "lạm phát". Giải thích đơn giản, tự nhiên bằng tiếng Việt thông thường.
 - CHỈ GIỮ LẠI THÔNG TIN HỮU ÍCH:
-  1. Phân loại công việc (Việc nhà làm xong ngay / Việc hẹn giờ tập trung / Thói quen sinh hoạt cơ bản).
+  1. Phân loại công việc (Việc không cần bấm giờ / Việc hẹn giờ tập trung / Thói quen sinh hoạt cơ bản).
   2. Cơ sở định giá mức thưởng Vàng hoặc thời gian (Ví dụ: "Định mức chuẩn 4 Vàng cho việc dọn dẹp hàng ngày." hoặc "Phiên tập trung 25 phút nhận 10 Vàng chuẩn.").
 - TUYỆT ĐỐI KHÔNG chào hỏi ("Chào bạn...", "Xin chào..."), không khen ngợi hoa mỹ, không văn mẫu lê thê, không lôi thôi kéo dài.
 
@@ -433,18 +433,18 @@ CHỈ CÓ BẠN mới có quyền chốt: Tên việc cần làm, Mô tả chi t
 
 QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ):
 1. PHÂN BIỆT RÕ 2 LOẠI NHIỆM VỤ:
-   - VIỆC HOÀN THÀNH NGAY (type: 'bounty'):
+   - VIỆC KHÔNG CẦN BẤM GIỜ (type: 'bounty'):
      * Dành cho: Việc nhà (rửa chén/bát, quét nhà, đổ rác, lau dọn), việc sinh hoạt, việc vặt nhanh (5-15 phút).
      * Đặc điểm: KHÔNG HẸN GIỜ (targetMinutes = 0). Người dùng làm xong thì bấm nút "Hoàn thành" nhận thưởng ngay.
      * TUYỆT ĐỐI KHÔNG tự bịa ra "25 phút", "35 phút" hay thời gian đếm ngược trong câu trả lời khi thảo luận về việc nhà/việc vặt.
      * Khung thưởng chuẩn: 3 - 5 Vàng. Tối đa cho việc nhà là 5 Vàng.
      * NGUYÊN TẮC DUYỆT THƯƠNG LƯỢNG CHO VIỆC NHÀ: Nếu người dùng xin mức thưởng trong khung 3 - 5 Vàng (Ví dụ: từ 4 Vàng xin lên 5 Vàng vì rửa nhiều chén đĩa dầu mỡ mệt mỏi): BẮT BUỘC BẠN ĐỒNG Ý NGAY ("accepted": true, "newRewardCoins": 5, "newType": "bounty", "newTargetMinutes": 0). Tuyệt đối không từ chối vô lý hoặc ép người dùng vào hẹn giờ!
-   - BẤM GIỜ TẬP TRUNG (type: 'focus'):
+   - HẸN GIỜ TẬP TRUNG (type: 'focus'):
      * Dành cho: Học tập, đọc sách, viết code, làm dự án trí óc.
      * Đặc điểm: CÓ ĐỒNG HỒ ĐẾM NGƯỢC (targetMinutes = 15, 25, 50 phút).
      * Mức thưởng: 8 - 10 Vàng (25p), 18 - 20 Vàng (50p).
    - CHUYỂN ĐỔI LOẠI:
-     * Nếu người dùng chủ động muốn chuyển việc vặt sang bấm giờ tập trung sâu (hoặc ngược lại), cập nhật cả 'newType' và 'newTargetMinutes'.
+     * Nếu người dùng chủ động muốn chuyển việc vặt sang hẹn giờ tập trung sâu (hoặc ngược lại), cập nhật cả 'newType' và 'newTargetMinutes'.
 
 2. NGUYÊN TẮC CHỐT PHƯƠNG ÁN (QUYẾT ĐOÁN, ĐỒNG BỘ THÔNG SỐ):
    - Khi lý lẽ của người dùng hợp lý và mức đề xuất nằm trong khung chuẩn:
@@ -458,7 +458,7 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
 - TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
   * KHÔNG dùng từ "Pomodoro" -> chỉ gọi đơn giản là "tập trung 25 phút", "hẹn giờ", "phiên làm việc".
-  * KHÔNG dùng các từ tiếng Anh: "bounty", "focus", "type", "rank", "tier", "anti-padding", "anti-trivial". Chỉ gọi là "việc làm xong ngay" hoặc "việc hẹn giờ tập trung".
+  * KHÔNG dùng các từ tiếng Anh: "bounty", "focus", "type", "rank", "tier", "anti-padding", "anti-trivial". Chỉ gọi là "việc không cần bấm giờ" hoặc "việc hẹn giờ tập trung".
   * KHÔNG dùng các khái niệm như "lạm phát điểm thưởng", "cơ chế RPG", "hệ sinh thái", "tham số".
 - GIẢI THÍCH ĐƠN GIẢN, DỄ HIỂU & ĐỜI THƯỜNG: Chỉ cần giải thích ngắn gọn, tự nhiên như trò chuyện với bạn bè (Ví dụ: "Việc này tốn nhiều công sức hơn nên mình tăng thưởng cho bạn lên 5 Vàng nhé!", hoặc "Bài học này hơi dài nên bạn chia làm 2 lần học sẽ đỡ mệt hơn nhé!").
 - Giọng điệu: Thân thiện, ấm áp, thấu hiểu, ân cần và lịch thiệp. Xưng hô "mình" - "bạn" gần gũi.
@@ -487,8 +487,8 @@ Trả về ĐÚNG định dạng JSON:
         const userPrompt = `Nhiệm vụ đang thương lượng:
 - Tên hiện tại: "${quest.title}"
 - Chi tiết hiện tại: "${quest.description || ''}"
-- Loại nhiệm vụ: ${currentType === 'focus' ? 'Việc hẹn giờ tập trung' : 'Việc hoàn thành ngay (không hẹn giờ, làm xong bấm nút Hoàn thành)'}
-- Định giá hiện tại: ${quest.rewardCoins} Vàng, ${currentType === 'focus' ? (quest.targetMinutes || 25) + ' phút tập trung' : '0 phút (Làm xong bấm nút Hoàn thành)'}.${rewardContext}
+- Loại nhiệm vụ: ${currentType === 'focus' ? 'Việc hẹn giờ tập trung' : 'Việc không cần bấm giờ (làm xong bấm nút Hoàn thành)'}
+- Định giá hiện tại: ${quest.rewardCoins} Vàng, ${currentType === 'focus' ? (quest.targetMinutes || 25) + ' phút tập trung' : 'không bấm giờ (làm xong bấm nút Hoàn thành)'}.${rewardContext}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
@@ -572,7 +572,7 @@ Trả về ĐÚNG định dạng JSON:
 
         let questContext = '';
         if (Array.isArray(currentQuests) && currentQuests.length > 0) {
-          const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Làm xong ngay'})`).join('\n');
+          const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Không cần bấm giờ'})`).join('\n');
           questContext = `\n- Các nhiệm vụ người dùng đang thực hiện:\n${questList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 
@@ -635,7 +635,7 @@ Trả về ĐÚNG định dạng JSON:
 
         let questContext = '';
         if (Array.isArray(currentQuests) && currentQuests.length > 0) {
-          const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Làm xong ngay'})`).join('\n');
+          const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Không cần bấm giờ'})`).join('\n');
           questContext = `\n- Các nhiệm vụ người dùng đang thực hiện:\n${questList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 

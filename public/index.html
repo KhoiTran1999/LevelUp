@@ -547,7 +547,7 @@
           <div class="flex items-center justify-between">
             <span id="verdict-rank" class="rank-badge-C text-xs font-mono font-black px-2.5 py-1 rounded-lg">RANK C</span>
             <div class="flex items-center gap-2">
-              <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏱️ BẤM GIỜ TẬP TRUNG</span>
+              <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏳ HẸN GIỜ TẬP TRUNG</span>
               <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
             </div>
           </div>
@@ -615,18 +615,34 @@
         </div>
 
         <!-- Debate Sub-box (Toggleable) -->
-        <div id="debate-container" class="hidden p-3.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
-          <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+        <div id="debate-container" class="hidden p-3.5 sm:p-4 rounded-2xl bg-slate-100/90 dark:bg-slate-950 border border-amber-500/30 dark:border-slate-800 space-y-3 shadow-inner">
+          <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800/80">
             <span class="flex items-center gap-1.5">
               <span>💬</span>
               <span>Thương Lượng Với AI</span>
             </span>
-            <span class="text-[10px] text-slate-500">Đưa ra lý do để AI điều chỉnh thông số</span>
+            <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">Đưa ra lý do để AI điều chỉnh</span>
           </div>
-          <div id="debate-chat-logs" class="max-h-48 sm:max-h-56 overflow-y-auto space-y-2 text-xs pr-1"></div>
-          <div class="flex gap-2">
-            <input id="input-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng (VD: Đề tiếng Anh dài, xin đổi tên thành... hoặc xin tăng 30 Vàng)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
-            <button id="btn-send-debate" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 dark:bg-slate-700 hover:bg-slate-600 transition shrink-0">Gửi</button>
+
+          <!-- Chat logs container with smooth scroll -->
+          <div id="debate-chat-logs" class="relative min-h-[260px] max-h-80 sm:max-h-[380px] overflow-y-auto space-y-3 text-xs sm:text-[13px] pr-1.5"></div>
+
+          <!-- Quick Suggestion Chips -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+            <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
+            <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?">💰 Xin thêm Vàng</button>
+            <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn chia nhỏ việc này thành phiên tập trung ngắn hơn 25 phút để đỡ quá tải.">⏱️ Giảm thời gian</button>
+            <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Đây là việc mình làm xong lúc nào thì vào bấm nhận thưởng lúc đó, đổi sang không cần bấm giờ được không?">⚡ Không cần bấm giờ</button>
+            <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn điều chỉnh lại tên hoặc mô tả cho rõ ràng và dễ theo dõi hơn.">📝 Đổi tên/mô tả</button>
+          </div>
+
+          <!-- Chat Input Row -->
+          <div class="flex gap-2 items-center">
+            <input id="input-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng hoặc bấm gợi ý ở trên..." class="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed">
+            <button id="btn-send-debate" type="button" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer">
+              <span>Gửi</span>
+              <span class="text-[10px]">➤</span>
+            </button>
           </div>
         </div>
 
@@ -653,7 +669,7 @@
 
   <!-- MODAL 2: ADD SHOP REWARD (AI PRICING) -->
   <div id="modal-reward" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="text-xl">🎁</span>
@@ -726,18 +742,33 @@
           </div>
 
           <!-- Reward Debate Sub-box (Toggleable) -->
-          <div id="reward-debate-container" class="hidden p-3.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
-            <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+          <div id="reward-debate-container" class="hidden p-3.5 sm:p-4 rounded-2xl bg-slate-100/90 dark:bg-slate-950 border border-amber-500/30 dark:border-slate-800 space-y-3 shadow-inner">
+            <div class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800/80">
               <span class="flex items-center gap-1.5">
                 <span>💬</span>
                 <span>Thương Lượng Phần Thưởng</span>
               </span>
-              <span class="text-[10px] text-slate-500">Đưa ra lý do để AI điều chỉnh thông số</span>
+              <span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal">Đưa ra lý do để AI điều chỉnh</span>
             </div>
-            <div id="reward-debate-chat-logs" class="max-h-48 sm:max-h-56 overflow-y-auto space-y-2 text-xs pr-1"></div>
-            <div class="flex gap-2">
-              <input id="input-reward-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng (VD: Món quà nhỏ hơn, xin giảm xuống 20 Vàng)..." class="flex-1 rpg-input rounded-lg px-3 py-1.5 text-xs">
-              <button id="btn-send-reward-debate" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 dark:bg-slate-700 hover:bg-slate-600 transition shrink-0">Gửi</button>
+
+            <!-- Chat logs container with smooth scroll -->
+            <div id="reward-debate-chat-logs" class="relative min-h-[260px] max-h-80 sm:max-h-[380px] overflow-y-auto space-y-3 text-xs sm:text-[13px] pr-1.5"></div>
+
+            <!-- Quick Suggestion Chips -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+              <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
+              <button type="button" class="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Món này khá đơn giản và nhỏ, mình xin giảm giá Vàng một chút để dễ tự thưởng hơn.">📉 Giảm giá Vàng</button>
+              <button type="button" class="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Món quà này rất giá trị và đặc biệt, mình muốn nâng giá Vàng lên cho xứng đáng với nỗ lực.">💎 Nâng giá Vàng</button>
+              <button type="button" class="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn sửa lại tên phần thưởng cho cụ thể và đúng ý hơn.">✏️ Đổi tên quà</button>
+            </div>
+
+            <!-- Chat Input Row -->
+            <div class="flex gap-2 items-center">
+              <input id="input-reward-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng hoặc bấm gợi ý ở trên..." class="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed">
+              <button id="btn-send-reward-debate" type="button" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer">
+                <span>Gửi</span>
+                <span class="text-[10px]">➤</span>
+              </button>
             </div>
           </div>
 

@@ -224,6 +224,24 @@ html.dark .rank-badge-S {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* Chat Message Entrance */
+.message-fade-in {
+  animation: messageSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes messageSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hide scrollbar for clean chip rows */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ==========================================================================
    Primary Action Buttons (Quest & Reward Hero CTA)
    ========================================================================== */

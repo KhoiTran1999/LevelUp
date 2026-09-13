@@ -2153,7 +2153,7 @@ function updateVerdictDisplay() {
 
   if (currentPendingVerdict.type === 'focus') {
     if (typeBadge) {
-      typeBadge.textContent = '⏳ TẬP TRUNG (HẸN GIỜ)';
+      typeBadge.textContent = '⏳ HẸN GIỜ TẬP TRUNG';
       typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30';
     }
     if (timeBox) timeBox.classList.remove('hidden');
@@ -2161,7 +2161,7 @@ function updateVerdictDisplay() {
     if (lockedTimeBox) lockedTimeBox.classList.remove('hidden');
   } else {
     if (typeBadge) {
-      typeBadge.textContent = '✓ VIỆC HOÀN THÀNH NGAY';
+      typeBadge.textContent = '⚡ KHÔNG CẦN BẤM GIỜ';
       typeBadge.className = 'text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30';
     }
     if (timeBox) timeBox.classList.add('hidden');
@@ -2268,15 +2268,7 @@ function openQuestRenegotiateModal(questId) {
   const debateBox = document.getElementById('debate-container');
   if (debateBox) debateBox.classList.remove('hidden');
 
-  const chatLogs = document.getElementById('debate-chat-logs');
-  if (chatLogs) {
-    chatLogs.innerHTML = `
-      <div class="bg-amber-50 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 text-amber-900 dark:text-amber-200/90 p-2.5 rounded-lg text-xs leading-relaxed">
-        <strong class="font-bold block mb-1">🤖 Trọng Tài AI:</strong>
-        Bạn đang thương lượng lại nhiệm vụ <strong>"${escapeHtml(quest.title)}"</strong> (${quest.rewardCoins} Vàng, ${quest.type === 'focus' ? (quest.targetMinutes || 25) + 'p tập trung' : 'làm xong ngay'}). Hãy cho mình biết bạn muốn điều chỉnh thông số nào và lý do nhé!
-      </div>
-    `;
-  }
+  initQuestDebateChat(true);
 
   const argInput = document.getElementById('input-debate-arg');
   if (argInput) argInput.value = '';
@@ -2285,8 +2277,27 @@ function openQuestRenegotiateModal(questId) {
   if (argInput) setTimeout(() => argInput.focus(), 150);
 }
 
-function acceptVerdictAndCreateQuest() {
+async function acceptVerdictAndCreateQuest() {
   if (!currentPendingVerdict) return;
+
+  const isEditing = Boolean(currentEditingQuestId);
+  const questTitle = currentPendingVerdict.title || 'Nhiệm vụ mới';
+  const questCoins = currentPendingVerdict.rewardCoins || 10;
+  const questTime = currentPendingVerdict.type === 'focus' ? `${currentPendingVerdict.targetMinutes || 25}p tập trung` : 'Không cần bấm giờ';
+
+  const ok = await confirmAction({
+    title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
+    message: isEditing
+      ? `Bạn có chắc muốn lưu các thay đổi cho nhiệm vụ "${questTitle}"?`
+      : `Bạn có chắc chắn muốn nhận nhiệm vụ "${questTitle}" vào danh sách?`,
+    detail: `🪙 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}`,
+    confirmText: isEditing ? 'Cập Nhật' : 'Nhận Nhiệm Vụ',
+    cancelText: 'Xem Lại',
+    icon: '⚔️',
+    btnColor: 'amber'
+  });
+
+  if (!ok) return;
 
   if (currentEditingQuestId) {
     const targetQuest = appState.quests.find(q => q.id === currentEditingQuestId);
@@ -2342,25 +2353,179 @@ function acceptVerdictAndCreateQuest() {
   triggerSave(true);
 }
 
+// =============================================================================
+// AI NEGOTIATION CHAT UI HELPERS & STATE
+// =============================================================================
+let isDebatingQuest = false;
+let isDebatingReward = false;
+
+function renderUserMiniAvatar() {
+  const avatar = appState.profile?.avatar || '👤';
+  if (isAvatarUrl(avatar)) {
+    return `<img src="${escapeHtml(avatar)}" referrerpolicy="no-referrer" alt="Avatar" class="w-full h-full rounded-full object-cover">`;
+  }
+  return escapeHtml(avatar);
+}
+
+function appendUserChatBubble(container, text) {
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'flex justify-end items-end gap-2 message-fade-in';
+  row.innerHTML = `
+    <div class="max-w-[88%] sm:max-w-[90%] bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 font-medium px-4 py-2.5 sm:py-3 rounded-2xl rounded-tr-xs text-xs sm:text-[13px] shadow-sm whitespace-pre-wrap leading-relaxed">
+      ${escapeHtml(text)}
+    </div>
+    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs overflow-hidden select-none mb-0.5">
+      ${renderUserMiniAvatar()}
+    </div>
+  `;
+  container.appendChild(row);
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+function createDebateLoadingBubble(text = 'AI đang xem xét đề xuất thương lượng của bạn...') {
+  const row = document.createElement('div');
+  row.className = 'flex justify-start items-start gap-2 message-fade-in';
+  row.innerHTML = `
+    <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">🤖</div>
+    <div class="max-w-[88%] sm:max-w-[90%] bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs px-4 py-2.5 sm:py-3 text-xs sm:text-[13px] text-amber-700 dark:text-amber-300 shadow-xs flex items-center gap-2">
+      <span class="inline-flex gap-1 items-center shrink-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 0ms"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 150ms"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 300ms"></span>
+      </span>
+      <span class="italic text-[11px] sm:text-xs">${escapeHtml(text)}</span>
+    </div>
+  `;
+  return row;
+}
+
+function appendAiChatBubble(container, { reply, accepted, diffTags = [], botName = 'Trọng Tài AI', botIcon = '🤖' }) {
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'flex justify-start items-start gap-2 message-fade-in';
+
+  const statusBadge = accepted
+    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shrink-0">
+        <span>✓</span><span>ĐÃ ĐỒNG Ý & CẬP NHẬT</span>
+      </span>`
+    : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 shrink-0">
+        <span>⚖️</span><span>GIỮ NGUYÊN THÔNG SỐ</span>
+      </span>`;
+
+  let diffTagsHtml = '';
+  if (accepted && diffTags.length > 0) {
+    diffTagsHtml = `
+      <div class="mt-2 pt-2 border-t border-emerald-200/80 dark:border-emerald-900/60 flex flex-wrap gap-1.5">
+        ${diffTags.map(tag => `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-200 border border-emerald-400/50">${escapeHtml(tag)}</span>`).join('')}
+      </div>
+    `;
+  }
+
+  const bubbleThemeClass = accepted
+    ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-300/80 dark:border-emerald-800/60 text-slate-800 dark:text-slate-200'
+    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200';
+
+  row.innerHTML = `
+    <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${botIcon}</div>
+    <div class="max-w-[90%] sm:max-w-[92%] ${bubbleThemeClass} border rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] shadow-xs leading-relaxed space-y-2">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-bold text-xs sm:text-[13px] text-amber-600 dark:text-amber-400">${botName}</span>
+        ${statusBadge}
+      </div>
+      <div class="text-xs sm:text-[13px] leading-relaxed break-words">${renderMarkdown(reply)}</div>
+      ${diffTagsHtml}
+    </div>
+  `;
+  container.appendChild(row);
+
+  // Cuộn dừng ở ĐẦU tin nhắn của AI thay vì cuối tin nhắn để người đọc bắt đầu ngay từ dòng đầu
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const containerRect = container.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const targetTop = Math.max(0, rowRect.top - containerRect.top + container.scrollTop - 8);
+      container.scrollTo({ top: targetTop, behavior: 'smooth' });
+    }, 40);
+  });
+}
+
+function initQuestDebateChat(forceReset = false) {
+  const chatLogs = document.getElementById('debate-chat-logs');
+  if (!chatLogs) return;
+  if (!forceReset && chatLogs.children.length > 0) return;
+
+  const quest = currentPendingVerdict || {};
+  const modeText = quest.type === 'focus' ? `${quest.targetMinutes || 25}p tập trung` : 'không cần bấm giờ';
+  const isRenegotiate = Boolean(currentEditingQuestId);
+
+  chatLogs.innerHTML = `
+    <div class="flex justify-start items-start gap-2 message-fade-in">
+      <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">🤖</div>
+      <div class="max-w-[90%] sm:max-w-[92%] bg-amber-50/80 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] text-amber-950 dark:text-amber-200/90 shadow-xs leading-relaxed space-y-2">
+        <div class="font-bold text-xs sm:text-[13px] text-amber-600 dark:text-amber-400">Trọng Tài AI:</div>
+        <div>
+          ${isRenegotiate ? 'Bạn đang thương lượng lại nhiệm vụ' : 'Bạn đang xem xét nhiệm vụ'} <strong>"${escapeHtml(quest.title || 'Nhiệm vụ')}"</strong> (${quest.rewardCoins || 10} Vàng, ${modeText}).
+        </div>
+        <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+          💡 Chọn một gợi ý nhanh bên dưới hoặc nhập đề xuất để mình điều chỉnh thông số cho phù hợp nhé!
+        </div>
+      </div>
+    </div>
+  `;
+  chatLogs.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function initRewardDebateChat(forceReset = false) {
+  const chatLogs = document.getElementById('reward-debate-chat-logs');
+  if (!chatLogs) return;
+  if (!forceReset && chatLogs.children.length > 0) return;
+
+  const reward = currentPendingReward || {};
+  const isRenegotiate = Boolean(currentEditingRewardId);
+
+  chatLogs.innerHTML = `
+    <div class="flex justify-start items-start gap-2 message-fade-in">
+      <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">🎁</div>
+      <div class="max-w-[90%] sm:max-w-[92%] bg-amber-50/80 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] text-amber-950 dark:text-amber-200/90 shadow-xs leading-relaxed space-y-2">
+        <div class="font-bold text-xs sm:text-[13px] text-amber-600 dark:text-amber-400">Trợ Lý Cửa Hàng AI:</div>
+        <div>
+          ${isRenegotiate ? 'Bạn đang thương lượng lại phần thưởng' : 'Bạn đang xem xét phần thưởng'} <strong>"${escapeHtml(reward.name || 'Phần thưởng')}"</strong> (Giá: ${reward.price || 30} Vàng, Hạng: ${(reward.tier || 'rare').toUpperCase()}).
+        </div>
+        <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+          💡 Chọn một gợi ý nhanh bên dưới hoặc nhập đề xuất để mình điều chỉnh giá hoặc tên phần thưởng nhé!
+        </div>
+      </div>
+    </div>
+  `;
+  chatLogs.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function sendDebateArgument() {
+  if (isDebatingQuest) return;
+
   const argInput = document.getElementById('input-debate-arg');
-  const argument = argInput.value.trim();
+  const argument = argInput ? argInput.value.trim() : '';
   if (!argument) return;
 
   const chatLogs = document.getElementById('debate-chat-logs');
+  const btnSend = document.getElementById('btn-send-debate');
 
-  const userBubble = document.createElement('div');
-  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2.5 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm whitespace-pre-wrap leading-relaxed';
-  userBubble.textContent = `Bạn: ${argument}`;
-  chatLogs.appendChild(userBubble);
-  argInput.value = '';
-  chatLogs.scrollTop = chatLogs.scrollHeight;
+  isDebatingQuest = true;
+  if (argInput) {
+    argInput.disabled = true;
+    argInput.value = '';
+  }
+  if (btnSend) {
+    btnSend.disabled = true;
+    btnSend.innerHTML = `<span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 0ms"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 150ms"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 300ms"></span></span>`;
+  }
 
-  const loadingBubble = document.createElement('div');
-  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2.5 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
-  loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng của bạn...';
+  appendUserChatBubble(chatLogs, argument);
+
+  const loadingBubble = createDebateLoadingBubble('AI đang xem xét đề xuất thương lượng của bạn...');
   chatLogs.appendChild(loadingBubble);
-  chatLogs.scrollTop = chatLogs.scrollHeight;
+  chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
 
   try {
     const currentRewards = (appState.shopItems || []).slice(0, 10).map(item => ({
@@ -2368,6 +2533,8 @@ async function sendDebateArgument() {
       price: item.price,
       tier: item.tier
     }));
+
+    const prevVerdict = { ...currentPendingVerdict };
 
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -2388,11 +2555,29 @@ async function sendDebateArgument() {
     const data = await res.json();
     loadingBubble.remove();
 
-    const aiBubble = document.createElement('div');
-    aiBubble.className = `p-2.5 rounded-lg text-xs mr-4 sm:mr-6 border leading-relaxed ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
-    aiBubble.innerHTML = `<strong class="font-bold block mb-1">AI Phản Hồi:</strong><div class="leading-relaxed">${renderMarkdown(data.reply)}</div>`;
-    chatLogs.appendChild(aiBubble);
-    chatLogs.scrollTop = chatLogs.scrollHeight;
+    const diffTags = [];
+    if (data.accepted) {
+      if (data.newRewardCoins && data.newRewardCoins !== prevVerdict.rewardCoins) {
+        diffTags.push(`🪙 Thưởng: ${prevVerdict.rewardCoins} ➔ ${data.newRewardCoins} Vàng`);
+      }
+      if (data.newTargetMinutes !== undefined && Number(data.newTargetMinutes) !== Number(prevVerdict.targetMinutes)) {
+        diffTags.push(`⏱️ Thời gian: ${prevVerdict.targetMinutes || 0}p ➔ ${data.newTargetMinutes}p`);
+      }
+      if (data.newType && data.newType !== prevVerdict.type) {
+        diffTags.push(`⚡ Loại: ${prevVerdict.type === 'focus' ? 'Hẹn giờ' : 'Không bấm giờ'} ➔ ${data.newType === 'focus' ? 'Hẹn giờ' : 'Không bấm giờ'}`);
+      }
+      if (data.newTitle && data.newTitle !== prevVerdict.title) {
+        diffTags.push(`📝 Tên mới: "${data.newTitle}"`);
+      }
+    }
+
+    appendAiChatBubble(chatLogs, {
+      reply: data.reply,
+      accepted: data.accepted,
+      diffTags,
+      botName: 'Trọng Tài AI',
+      botIcon: '🤖'
+    });
 
     currentDebateHistory.push({ user: argument, arbiter: data.reply });
 
@@ -2416,7 +2601,28 @@ async function sendDebateArgument() {
       sfx.playFanfare();
     }
   } catch (err) {
-    loadingBubble.textContent = 'Lỗi thương lượng: ' + err.message;
+    loadingBubble.remove();
+    const errRow = document.createElement('div');
+    errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
+    errRow.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">⚠️</div>
+      <div class="max-w-[85%] bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl rounded-tl-xs p-3 text-xs text-rose-700 dark:text-rose-300 shadow-xs">
+        <strong>Lỗi thương lượng:</strong> ${escapeHtml(err.message || 'Không thể kết nối với AI. Vui lòng thử lại.')}
+      </div>
+    `;
+    chatLogs.appendChild(errRow);
+    chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
+    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+  } finally {
+    isDebatingQuest = false;
+    if (argInput) {
+      argInput.disabled = false;
+      argInput.focus();
+    }
+    if (btnSend) {
+      btnSend.disabled = false;
+      btnSend.innerHTML = `<span>Gửi</span><span class="text-[10px]">➤</span>`;
+    }
   }
 }
 
@@ -2536,24 +2742,30 @@ async function evaluateRewardItem() {
 }
 
 async function sendRewardDebateArgument() {
+  if (isDebatingReward) return;
+
   const argInput = document.getElementById('input-reward-debate-arg');
-  const argument = argInput.value.trim();
+  const argument = argInput ? argInput.value.trim() : '';
   if (!argument || !currentPendingReward) return;
 
   const chatLogs = document.getElementById('reward-debate-chat-logs');
+  const btnSend = document.getElementById('btn-send-reward-debate');
 
-  const userBubble = document.createElement('div');
-  userBubble.className = 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-2.5 rounded-lg text-xs ml-4 sm:ml-6 border border-slate-200 dark:border-slate-700 shadow-sm whitespace-pre-wrap leading-relaxed';
-  userBubble.textContent = `Bạn: ${argument}`;
-  chatLogs.appendChild(userBubble);
-  argInput.value = '';
-  chatLogs.scrollTop = chatLogs.scrollHeight;
+  isDebatingReward = true;
+  if (argInput) {
+    argInput.disabled = true;
+    argInput.value = '';
+  }
+  if (btnSend) {
+    btnSend.disabled = true;
+    btnSend.innerHTML = `<span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 0ms"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 150ms"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-950 animate-bounce" style="animation-delay: 300ms"></span></span>`;
+  }
 
-  const loadingBubble = document.createElement('div');
-  loadingBubble.className = 'bg-amber-50 dark:bg-slate-900 text-amber-700 dark:text-amber-300/90 p-2.5 rounded-lg text-xs mr-4 sm:mr-6 italic border border-amber-200 dark:border-slate-800';
-  loadingBubble.textContent = 'AI đang xem xét đề xuất thương lượng phần thưởng...';
+  appendUserChatBubble(chatLogs, argument);
+
+  const loadingBubble = createDebateLoadingBubble('AI đang xem xét đề xuất thương lượng phần thưởng...');
   chatLogs.appendChild(loadingBubble);
-  chatLogs.scrollTop = chatLogs.scrollHeight;
+  chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
 
   try {
     const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
@@ -2562,6 +2774,8 @@ async function sendRewardDebateArgument() {
       type: q.type,
       targetMinutes: q.targetMinutes
     }));
+
+    const prevReward = { ...currentPendingReward };
 
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -2582,11 +2796,26 @@ async function sendRewardDebateArgument() {
     const data = await res.json();
     loadingBubble.remove();
 
-    const aiBubble = document.createElement('div');
-    aiBubble.className = `p-2.5 rounded-lg text-xs mr-4 sm:mr-6 border leading-relaxed ${data.accepted ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500/40 text-amber-900 dark:text-amber-200 font-medium' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`;
-    aiBubble.innerHTML = `<strong class="font-bold block mb-1">AI Phản Hồi:</strong><div class="leading-relaxed">${renderMarkdown(data.reply)}</div>`;
-    chatLogs.appendChild(aiBubble);
-    chatLogs.scrollTop = chatLogs.scrollHeight;
+    const diffTags = [];
+    if (data.accepted) {
+      if (data.newPrice && data.newPrice !== prevReward.price) {
+        diffTags.push(`🪙 Giá: ${prevReward.price} ➔ ${data.newPrice} Vàng`);
+      }
+      if (data.newTier && data.newTier !== prevReward.tier) {
+        diffTags.push(`⭐ Hạng: ${(prevReward.tier || 'rare').toUpperCase()} ➔ ${(data.newTier || '').toUpperCase()}`);
+      }
+      if (data.newName && data.newName !== prevReward.name) {
+        diffTags.push(`🎁 Tên mới: "${data.newName}"`);
+      }
+    }
+
+    appendAiChatBubble(chatLogs, {
+      reply: data.reply,
+      accepted: data.accepted,
+      diffTags,
+      botName: 'Trợ Lý Cửa Hàng AI',
+      botIcon: '🎁'
+    });
 
     currentRewardDebateHistory.push({ user: argument, arbiter: data.reply });
 
@@ -2619,7 +2848,28 @@ async function sendRewardDebateArgument() {
       sfx.playFanfare();
     }
   } catch (err) {
-    loadingBubble.textContent = 'Lỗi thương lượng: ' + err.message;
+    loadingBubble.remove();
+    const errRow = document.createElement('div');
+    errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
+    errRow.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">⚠️</div>
+      <div class="max-w-[85%] bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl rounded-tl-xs p-3 text-xs text-rose-700 dark:text-rose-300 shadow-xs">
+        <strong>Lỗi thương lượng:</strong> ${escapeHtml(err.message || 'Không thể kết nối với AI. Vui lòng thử lại.')}
+      </div>
+    `;
+    chatLogs.appendChild(errRow);
+    chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
+    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+  } finally {
+    isDebatingReward = false;
+    if (argInput) {
+      argInput.disabled = false;
+      argInput.focus();
+    }
+    if (btnSend) {
+      btnSend.disabled = false;
+      btnSend.innerHTML = `<span>Gửi</span><span class="text-[10px]">➤</span>`;
+    }
   }
 }
 
@@ -2683,15 +2933,7 @@ function openRewardRenegotiateModal(itemId) {
   const debateBox = document.getElementById('reward-debate-container');
   if (debateBox) debateBox.classList.remove('hidden');
 
-  const chatLogs = document.getElementById('reward-debate-chat-logs');
-  if (chatLogs) {
-    chatLogs.innerHTML = `
-      <div class="bg-amber-50 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 text-amber-900 dark:text-amber-200/90 p-2.5 rounded-lg text-xs leading-relaxed">
-        <strong class="font-bold block mb-1">🎁 Trợ Lý Cửa Hàng AI:</strong>
-        Bạn đang thương lượng lại phần thưởng <strong>"${escapeHtml(item.name)}"</strong> (Giá hiện tại: ${item.price} Vàng, Hạng: ${(item.tier || 'rare').toUpperCase()}). Bạn muốn đề xuất thay đổi mức giá hoặc quy mô thế nào?
-      </div>
-    `;
-  }
+  initRewardDebateChat(true);
 
   const btnEval = document.getElementById('btn-eval-reward');
   if (btnEval) btnEval.classList.add('hidden');
@@ -3160,7 +3402,7 @@ function renderQuests() {
             ` : `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                Làm ngay
+                Không bấm giờ
               </span>
             `}
           </div>
@@ -4772,11 +5014,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // Quest Debate features
   document.getElementById('btn-open-debate').addEventListener('click', () => {
     const debateBox = document.getElementById('debate-container');
+    const isOpening = debateBox.classList.contains('hidden');
     debateBox.classList.toggle('hidden');
+    if (isOpening) {
+      initQuestDebateChat();
+      const argInput = document.getElementById('input-debate-arg');
+      if (argInput) {
+        setTimeout(() => {
+          argInput.focus();
+          debateBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+      }
+    }
   });
   document.getElementById('btn-send-debate').addEventListener('click', sendDebateArgument);
-  document.getElementById('input-debate-arg').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendDebateArgument();
+  const inputDebateArg = document.getElementById('input-debate-arg');
+  if (inputDebateArg) {
+    inputDebateArg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendDebateArgument();
+      }
+    });
+  }
+  document.querySelectorAll('.quick-suggest-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const suggestText = btn.getAttribute('data-suggest');
+      const input = document.getElementById('input-debate-arg');
+      if (input && suggestText) {
+        input.value = suggestText;
+        input.focus();
+        input.classList.add('ring-2', 'ring-amber-500');
+        setTimeout(() => input.classList.remove('ring-2', 'ring-amber-500'), 500);
+        sfx.playClick();
+      }
+    });
   });
 
   // Open Shop Reward Modal (Desktop, Mobile & Global)
@@ -4838,7 +5110,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnOpenRewardDebate) {
     btnOpenRewardDebate.addEventListener('click', () => {
       const debateBox = document.getElementById('reward-debate-container');
-      if (debateBox) debateBox.classList.toggle('hidden');
+      if (debateBox) {
+        const isOpening = debateBox.classList.contains('hidden');
+        debateBox.classList.toggle('hidden');
+        if (isOpening) {
+          initRewardDebateChat();
+          const argInput = document.getElementById('input-reward-debate-arg');
+          if (argInput) {
+            setTimeout(() => {
+              argInput.focus();
+              debateBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 120);
+          }
+        }
+      }
     });
   }
   const btnSendRewardDebate = document.getElementById('btn-send-reward-debate');
@@ -4848,9 +5133,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputRewardDebateArg = document.getElementById('input-reward-debate-arg');
   if (inputRewardDebateArg) {
     inputRewardDebateArg.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendRewardDebateArgument();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendRewardDebateArgument();
+      }
     });
   }
+  document.querySelectorAll('.quick-suggest-reward-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const suggestText = btn.getAttribute('data-suggest');
+      const input = document.getElementById('input-reward-debate-arg');
+      if (input && suggestText) {
+        input.value = suggestText;
+        input.focus();
+        input.classList.add('ring-2', 'ring-amber-500');
+        setTimeout(() => input.classList.remove('ring-2', 'ring-amber-500'), 500);
+        sfx.playClick();
+      }
+    });
+  });
 
   // Confirmation Dialog controls
   const btnConfirmOk = document.getElementById('btn-confirm-ok');

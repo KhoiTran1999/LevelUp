@@ -246,7 +246,7 @@ assert.ok(questPromptWithShop.includes('15 Vàng'), 'Prompt must include user cu
 function formatRewardUserPrompt(name, description, userEstimatePrice, currentQuests, userCoins) {
   let questContext = '';
   if (Array.isArray(currentQuests) && currentQuests.length > 0) {
-    const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Làm xong ngay'})`).join('\n');
+    const questList = currentQuests.slice(0, 5).map(q => `  + "${q.title}" (Thưởng ${q.rewardCoins} Vàng, ${q.type === 'focus' ? (q.targetMinutes || 25) + ' phút' : 'Không cần bấm giờ'})`).join('\n');
     questContext = `\n- Các nhiệm vụ người dùng đang thực hiện:\n${questList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
   }
   return `Phần thưởng muốn thêm vào Cửa Hàng:
