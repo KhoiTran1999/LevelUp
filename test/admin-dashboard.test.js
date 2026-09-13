@@ -609,6 +609,11 @@ function testFrontendDomAndClientFunctions() {
   assert.ok(html.includes('id="admin-ledger-bulk-bar"'), 'Phải có thanh tác vụ hàng loạt khi tích chọn');
   assert.ok(html.includes('id="btn-admin-delete-selected"'), 'Phải có nút xóa các mục đã chọn');
 
+  // Kiểm tra không có nút Đóng bị trùng lặp trong modal lịch sử
+  const ledgerModalSlice = html.substring(html.indexOf('id="modal-admin-user-ledger"'), html.indexOf('id="toast-container"'));
+  const closeBtnMatches = ledgerModalSlice.match(/Đóng/g) || [];
+  assert.strictEqual(closeBtnMatches.length, 1, 'Modal lịch sử thu chi chỉ được có đúng 1 nút Đóng');
+
   // Kiểm tra Javascript functions trong app.js
   assert.ok(appJs.includes('function updateAdminNavVisibility()'), 'Phải có hàm updateAdminNavVisibility');
   assert.ok(appJs.includes("mobileNavAdmin.classList.toggle('flex', isAdmin)"), 'updateAdminNavVisibility phải toggle class flex để nút không bị nằm ngang trên mobile');

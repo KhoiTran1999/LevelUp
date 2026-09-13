@@ -5066,12 +5066,12 @@ function switchTab(tabId) {
     const isAdminBtn = b.id === 'nav-tab-admin' || b.dataset.tab === 'admin';
 
     if (isAdminBtn && !isAdmin) {
-      b.className = 'nav-tab hidden items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap';
+      b.className = 'nav-tab hidden items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap';
       return;
     }
 
     if (isAdminBtn) {
-      b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
+      b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
         isActive
           ? 'active bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/40 shadow-xs'
           : 'hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-500/20'
@@ -5079,7 +5079,7 @@ function switchTab(tabId) {
       return;
     }
 
-    b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap ${
+    b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap ${
       isActive
         ? 'active bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
