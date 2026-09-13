@@ -190,6 +190,71 @@
   <!-- ======================================================================= -->
   <main class="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
 
+    <!-- ======================================================================= -->
+    <!-- ACTIVE FOCUS STATION (Persistent Banner Across Tabs When Running)       -->
+    <!-- ======================================================================= -->
+    <div id="active-focus-banner" class="hidden mb-6 rpg-panel-gold rounded-2xl p-3.5 sm:p-4 border border-amber-500/40 shadow-xl transition-all">
+      <div class="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
+
+        <!-- Left: Circular Progress Ring & Quest Info -->
+        <div class="flex items-center gap-3 w-full lg:w-auto">
+          <!-- Circular Progress Ring (SVG) -->
+          <div class="relative w-12 h-12 shrink-0 flex items-center justify-center">
+            <svg class="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3.5" class="text-amber-500/20 dark:text-amber-500/10 fill-none" />
+              <circle id="focus-progress-ring" cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="0" class="text-amber-500 fill-none transition-[stroke-dashoffset] duration-300" />
+            </svg>
+            <span id="focus-status-icon" class="absolute font-mono text-[9px] font-black text-amber-600 dark:text-amber-400">RUN</span>
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-0.5">
+              <span id="timer-mode-label" class="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG BẤM GIỜ TẬP TRUNG</span>
+              <span id="timer-quest-rank" class="rank-badge-B text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">RANK B</span>
+              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                <span>🪙</span><span id="timer-quest-coins">+15</span>
+              </span>
+              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
+                <span>🌟</span><span id="timer-quest-exp">+45</span>
+              </span>
+            </div>
+            <h3 id="timer-quest-title" class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">Học bài tập trung</h3>
+          </div>
+        </div>
+
+        <!-- Right: Time Display, Quick Adjust, & Actions -->
+        <div class="flex flex-wrap items-center justify-between lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto">
+
+          <!-- Clickable Time Display (opens edit dialog) -->
+          <button id="btn-open-edit-timer" class="flex items-center gap-1.5 group px-2.5 py-1 rounded-xl hover:bg-amber-500/10 transition" title="Nhấp để chỉnh thời gian">
+            <span id="timer-display" class="font-mono text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-300 tracking-wider">25:00</span>
+            <span class="text-xs text-slate-400 group-hover:text-amber-500 transition">✏️</span>
+          </button>
+
+          <!-- Quick Time Adjust Buttons -->
+          <div class="flex items-center gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
+            <button class="btn-timer-adjust px-2 py-1 text-[11px] font-mono font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="-300" title="Giảm 5 phút">-5m</button>
+            <button class="btn-timer-adjust px-2 py-1 text-[11px] font-mono font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="60" title="Thêm 1 phút">+1m</button>
+            <button class="btn-timer-adjust px-2 py-1 text-[11px] font-mono font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="300" title="Thêm 5 phút">+5m</button>
+          </div>
+
+          <!-- Primary Control Buttons: Toggle, Zen Mode, Cancel -->
+          <div class="flex items-center gap-1.5">
+            <button id="btn-timer-toggle" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95">
+              Tạm Dừng
+            </button>
+            <button id="btn-timer-zen" class="p-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center" title="Chế độ Tập trung toàn màn hình (Zen Mode)">
+              <span>🖥️</span>
+            </button>
+            <button id="btn-timer-reset" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 transition" title="Hủy phiên tập trung">
+              Hủy
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ==================== TAB 1: QUESTS ==================== -->
     <section id="tab-quests" class="tab-pane block">
 
@@ -204,39 +269,6 @@
         <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
           <span>💡</span>
           <span>Việc cần tập trung có <strong>đồng hồ bấm giờ</strong> • AI tự động tính mức thưởng Vàng hợp lý</span>
-        </div>
-      </div>
-
-      <!-- Active Focus Pomodoro Floating Banner (When running) -->
-      <div id="active-focus-banner" class="hidden mb-6 rpg-panel-gold rounded-2xl p-4 border border-amber-500/40 shadow-xl">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl animate-pulse">
-              ⏳
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] sm:text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG BẤM GIỜ TẬP TRUNG</span>
-                <span id="timer-quest-rank" class="rank-badge-B text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">RANK B</span>
-              </div>
-              <h3 id="timer-quest-title" class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">Học bài tập trung</h3>
-            </div>
-          </div>
-
-          <!-- Timer Countdown Display -->
-          <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
-            <div id="timer-display" class="font-mono text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-300 tracking-wider">
-              25:00
-            </div>
-            <div class="flex items-center gap-2">
-              <button id="btn-timer-toggle" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm">
-                Tạm Dừng
-              </button>
-              <button id="btn-timer-reset" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">
-                Hủy
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -805,6 +837,118 @@
             📥 Khôi Phục & Đăng Nhập
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: EDIT FOCUS TIMER (DIRECT ADJUSTMENT & PRESETS)                   -->
+  <!-- ======================================================================= -->
+  <div id="modal-edit-focus-timer" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="rpg-panel rounded-2xl w-full max-w-xs border border-amber-500/40 p-5 space-y-4 shadow-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 modal-fade">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2.5">
+        <h3 class="font-bold text-sm text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <span>⏱️</span>
+          <span>Điều Chỉnh Thời Gian</span>
+        </h3>
+        <button id="btn-close-edit-timer" class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl leading-none">&times;</button>
+      </div>
+
+      <div class="flex justify-center items-center gap-2 py-2">
+        <div class="flex flex-col items-center">
+          <label class="text-[10px] text-slate-500 mb-1 font-semibold">Phút</label>
+          <input type="number" id="input-edit-minutes" min="0" max="180" value="25" class="w-18 text-center font-mono text-2xl font-bold bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-2 text-amber-600 dark:text-amber-400" />
+        </div>
+        <span class="font-mono text-2xl text-slate-400 font-bold mt-4">:</span>
+        <div class="flex flex-col items-center">
+          <label class="text-[10px] text-slate-500 mb-1 font-semibold">Giây</label>
+          <input type="number" id="input-edit-seconds" min="0" max="59" value="00" class="w-18 text-center font-mono text-2xl font-bold bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-2 text-amber-600 dark:text-amber-400" />
+        </div>
+      </div>
+
+      <!-- Quick Preset Chips -->
+      <div class="grid grid-cols-4 gap-1.5">
+        <button type="button" class="btn-preset-time py-1.5 text-xs font-mono font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 transition" data-mins="15">15p</button>
+        <button type="button" class="btn-preset-time py-1.5 text-xs font-mono font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 transition" data-mins="25">25p</button>
+        <button type="button" class="btn-preset-time py-1.5 text-xs font-mono font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 transition" data-mins="45">45p</button>
+        <button type="button" class="btn-preset-time py-1.5 text-xs font-mono font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 transition" data-mins="60">60p</button>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+        <button id="btn-cancel-edit-timer" type="button" class="modal-close px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Đóng</button>
+        <button id="btn-save-edit-timer" type="button" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm">Lưu Thay Đổi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: FOCUS QUEST COMPLETE CELEBRATION                                 -->
+  <!-- ======================================================================= -->
+  <div id="modal-focus-complete" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+    <div class="rpg-panel rounded-3xl w-full max-w-sm border border-amber-500/50 p-6 space-y-4 shadow-2xl bg-white dark:bg-slate-900 text-center modal-fade">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-4xl animate-bounce">
+        🏆
+      </div>
+      <div>
+        <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">CHIẾN CÔNG RỰC RỠ</span>
+        <h3 class="font-rpg-title font-black text-lg sm:text-xl text-slate-900 dark:text-slate-100 mt-0.5">HOÀN THÀNH TẬP TRUNG!</h3>
+        <p id="focus-complete-desc" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Xuất sắc hoàn thành phiên tập trung cao độ.</p>
+      </div>
+
+      <!-- Reward Badges Row -->
+      <div class="flex justify-center items-center gap-3 py-2">
+        <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-sm">
+          <span>🪙</span>
+          <span id="focus-complete-coins">+0 VÀNG</span>
+        </div>
+        <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono font-black text-sm">
+          <span>🌟</span>
+          <span id="focus-complete-exp">+0 EXP</span>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button id="btn-focus-complete-break" type="button" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95">
+          <span>☕</span>
+          <span>Nghỉ Giải Lao 5 Phút (Pomodoro Break)</span>
+        </button>
+        <button id="btn-focus-complete-claim" type="button" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
+          ⚔️ Nhận Thưởng & Tiếp Tục
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- FULLSCREEN ZEN / AMOLED FOCUS OVERLAY                                   -->
+  <!-- ======================================================================= -->
+  <div id="focus-zen-overlay" class="fixed inset-0 z-[90] hidden bg-black flex flex-col items-center justify-center select-none text-white p-4">
+    <div class="relative flex flex-col items-center justify-center text-center space-y-6 max-w-md w-full">
+      <div class="flex items-center gap-2">
+        <span id="zen-quest-rank" class="rank-badge-B text-xs px-2.5 py-0.5 rounded font-bold font-mono">RANK B</span>
+        <h2 id="zen-quest-title" class="text-slate-300 text-sm sm:text-base font-semibold tracking-wide truncate max-w-xs">Học bài tập trung</h2>
+      </div>
+
+      <!-- Large Zen Progress Ring -->
+      <div class="relative w-64 h-64 sm:w-76 sm:h-76 flex items-center justify-center">
+        <svg class="w-full h-full -rotate-90" viewBox="0 0 240 240">
+          <circle cx="120" cy="120" r="105" stroke="#1e293b" stroke-width="6" class="fill-none" />
+          <circle id="zen-progress-ring" cx="120" cy="120" r="105" stroke="#f59e0b" stroke-width="6" stroke-linecap="round" stroke-dasharray="659.73" stroke-dashoffset="0" class="fill-none transition-[stroke-dashoffset] duration-300" />
+        </svg>
+        <div class="absolute flex flex-col items-center justify-center">
+          <div id="zen-timer-display" class="font-mono text-5xl sm:text-6xl font-black text-amber-400 tracking-wider">25:00</div>
+          <div id="zen-protocol-label" class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mt-2">FOCUS PROTOCOL</div>
+        </div>
+      </div>
+
+      <!-- Zen Controls -->
+      <div class="flex items-center gap-3">
+        <button id="btn-zen-toggle" type="button" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95">
+          Tạm Dừng
+        </button>
+        <button id="btn-zen-exit" type="button" class="px-4 py-2.5 rounded-xl font-medium text-xs bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition">
+          Thoát Toàn Màn Hình
+        </button>
       </div>
     </div>
   </div>

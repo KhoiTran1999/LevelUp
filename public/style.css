@@ -254,3 +254,24 @@ html.dark .rank-badge-S {
   box-shadow: 0 2px 8px -1px rgba(139, 92, 246, 0.4);
 }
 
+/* ==========================================================================
+   Focus Timer Station & Zen Mode Controls
+   ========================================================================== */
+#focus-progress-ring,
+#zen-progress-ring {
+  transition: stroke-dashoffset 0.35s ease-out;
+}
+
+.btn-timer-adjust {
+  cursor: pointer;
+  user-select: none;
+}
+.btn-timer-adjust:active {
+  transform: scale(0.92);
+}
+
+#focus-zen-overlay {
+  backdrop-filter: blur(10px);
+}
+
+

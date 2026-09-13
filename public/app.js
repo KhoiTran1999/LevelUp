@@ -19,6 +19,9 @@ class SoundFX {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) this.ctx = new AudioCtx();
     }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
   }
 
   playCoin() {
@@ -389,6 +392,9 @@ async function switchAccountByToken(token) {
       return { success: false, error: errMsg };
     }
 
+    // Dọn dẹp phiên tập trung của tài khoản cũ trước khi chuyển
+    clearFocusTimerSession();
+
     // Cập nhật toàn bộ dữ liệu người dùng (giữ nguyên tên hiển thị gốc nếu có)
     const displayNickname = resData.data?.profile?.nickname || resData.nickname;
     appState = normalizeObjectNFC({
@@ -487,12 +493,261 @@ function updateTitleByLevel() {
 }
 
 // =============================================================================
-// 5. FOCUS POMODORO COUNTDOWN TIMER
+// 5. FOCUS POMODORO COUNTDOWN TIMER (Delta-Time Engine, Wake Lock, Persistence)
 // =============================================================================
+const TIMER_STORAGE_KEY = 'levelup_focus_timer';
+
 let activeFocusQuest = null;
 let focusTimerInterval = null;
 let focusRemainingSeconds = 0;
+let focusTotalSeconds = 0;
 let isFocusRunning = false;
+let isBreakMode = false;
+let lastTickTime = Date.now();
+let wakeLock = null;
+let lastFormattedTitle = '';
+let actualFocusedSeconds = 0;
+
+// Screen Wake Lock API
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator) || !isFocusRunning || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+    });
+  } catch (_) {
+    wakeLock = null;
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && isFocusRunning) {
+    requestWakeLock();
+  }
+});
+
+// Web Notifications API
+function sendFocusNotification(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚔️</text></svg>'
+      });
+      if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
+    } catch (_) {}
+  }
+}
+
+// LocalStorage State Persistence
+function saveFocusTimerState() {
+  if (!activeFocusQuest && !isBreakMode) {
+    localStorage.removeItem(TIMER_STORAGE_KEY);
+    return;
+  }
+  const state = {
+    questId: activeFocusQuest ? activeFocusQuest.id : null,
+    questTitle: activeFocusQuest ? activeFocusQuest.title : null,
+    questRank: activeFocusQuest ? activeFocusQuest.rank : null,
+    rewardCoins: activeFocusQuest ? activeFocusQuest.rewardCoins : 0,
+    targetMinutes: activeFocusQuest ? activeFocusQuest.targetMinutes : 0,
+    remainingSeconds: focusRemainingSeconds,
+    totalSeconds: focusTotalSeconds,
+    actualFocusedSeconds: actualFocusedSeconds,
+    isRunning: isFocusRunning,
+    isBreakMode: isBreakMode,
+    lastTickTime: Date.now()
+  };
+  localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+}
+
+function restoreFocusTimer() {
+  const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const state = JSON.parse(raw);
+    if (!state) return;
+
+    if (state.isBreakMode) {
+      isBreakMode = true;
+      activeFocusQuest = null;
+    } else if (state.questId) {
+      const quest = appState.quests?.find(q => q.id === state.questId);
+      if (!quest || quest.status === 'completed') {
+        localStorage.removeItem(TIMER_STORAGE_KEY);
+        return;
+      }
+      activeFocusQuest = quest;
+      isBreakMode = false;
+    } else {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+      return;
+    }
+
+    focusTotalSeconds = state.totalSeconds || (activeFocusQuest?.targetMinutes || 25) * 60;
+    actualFocusedSeconds = state.actualFocusedSeconds || 0;
+    isFocusRunning = !!state.isRunning;
+
+    if (isFocusRunning) {
+      const elapsed = Math.max(0, (Date.now() - (state.lastTickTime || Date.now())) / 1000);
+      if (!isBreakMode) {
+        actualFocusedSeconds += elapsed;
+      }
+      focusRemainingSeconds = Math.max(0, (state.remainingSeconds || 0) - elapsed);
+
+      if (focusRemainingSeconds <= 0) {
+        updateTimerDisplay();
+        if (isBreakMode) {
+          breakTimerFinished();
+        } else {
+          focusTimerFinished();
+        }
+        return;
+      }
+
+      lastTickTime = Date.now();
+      requestWakeLock();
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = setInterval(tickFocusTimer, 500);
+    } else {
+      focusRemainingSeconds = Math.max(0, state.remainingSeconds || 0);
+    }
+
+    renderFocusStationUI();
+    updateTimerDisplay();
+  } catch (e) {
+    console.error('Failed to restore focus timer:', e);
+    localStorage.removeItem(TIMER_STORAGE_KEY);
+  }
+}
+
+// Delta-Time Tick Engine
+function tickFocusTimer() {
+  if (!isFocusRunning) return;
+  const now = Date.now();
+  const deltaSec = Math.max(0, (now - lastTickTime) / 1000);
+  lastTickTime = now;
+
+  if (focusRemainingSeconds > 0) {
+    if (!isBreakMode) {
+      actualFocusedSeconds += deltaSec;
+    }
+    focusRemainingSeconds = Math.max(0, focusRemainingSeconds - deltaSec);
+    updateTimerDisplay();
+    saveFocusTimerState();
+
+    if (focusRemainingSeconds <= 0) {
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = null;
+      releaseWakeLock();
+      if (isBreakMode) {
+        breakTimerFinished();
+      } else {
+        focusTimerFinished();
+      }
+    }
+  }
+}
+
+function updateTimerDisplay() {
+  const totalSecs = Math.max(0, Math.round(focusRemainingSeconds));
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  const display = document.getElementById('timer-display');
+  const zenDisplay = document.getElementById('zen-timer-display');
+  const statusIcon = document.getElementById('focus-status-icon');
+
+  if (display) display.textContent = timeStr;
+  if (zenDisplay) zenDisplay.textContent = timeStr;
+  if (statusIcon) {
+    statusIcon.textContent = isBreakMode ? 'BREAK' : (isFocusRunning ? 'RUN' : 'PAUSE');
+  }
+
+  // Circular progress ring (r=20, circumference = 2 * PI * 20 ≈ 125.66)
+  const ratio = focusTotalSeconds > 0 ? Math.max(0, Math.min(1, focusRemainingSeconds / focusTotalSeconds)) : 0;
+  const ring = document.getElementById('focus-progress-ring');
+  if (ring) {
+    ring.style.strokeDashoffset = String(125.66 * (1 - ratio));
+    if (isBreakMode) {
+      ring.classList.remove('text-amber-500');
+      ring.classList.add('text-emerald-500');
+    } else {
+      ring.classList.remove('text-emerald-500');
+      ring.classList.add('text-amber-500');
+    }
+  }
+
+  // Zen progress ring (r=105, circumference = 2 * PI * 105 ≈ 659.73)
+  const zenRing = document.getElementById('zen-progress-ring');
+  if (zenRing) {
+    zenRing.style.strokeDashoffset = String(659.73 * (1 - ratio));
+    zenRing.setAttribute('stroke', isBreakMode ? '#10b981' : '#f59e0b');
+  }
+
+  // Dynamic Browser Tab Title
+  const titlePrefix = isBreakMode ? '☕' : (isFocusRunning ? '▶' : '⏸');
+  const questName = activeFocusQuest ? activeFocusQuest.title : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung');
+  const newTitle = `${titlePrefix} (${timeStr}) ${questName} | LevelUp`;
+  if (newTitle !== lastFormattedTitle) {
+    lastFormattedTitle = newTitle;
+    document.title = newTitle;
+  }
+}
+
+function renderFocusStationUI() {
+  const station = document.getElementById('active-focus-banner');
+  if (!station) return;
+
+  if (!activeFocusQuest && !isBreakMode) {
+    station.classList.add('hidden');
+    return;
+  }
+
+  station.classList.remove('hidden');
+
+  const titleEl = document.getElementById('timer-quest-title');
+  const rankEl = document.getElementById('timer-quest-rank');
+  const modeLabel = document.getElementById('timer-mode-label');
+  const coinsEl = document.getElementById('timer-quest-coins');
+  const expEl = document.getElementById('timer-quest-exp');
+  const toggleBtn = document.getElementById('btn-timer-toggle');
+  const zenToggleBtn = document.getElementById('btn-zen-toggle');
+
+  if (isBreakMode) {
+    if (titleEl) titleEl.textContent = 'Nghỉ giải lao (Pomodoro Break)';
+    if (rankEl) {
+      rankEl.textContent = 'BREAK';
+      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+    }
+    if (modeLabel) modeLabel.textContent = 'ĐANG NGHỈ GIẢI LAO';
+    if (coinsEl) coinsEl.textContent = '+0';
+    if (expEl) expEl.textContent = '+0';
+  } else if (activeFocusQuest) {
+    if (titleEl) titleEl.textContent = activeFocusQuest.title;
+    if (rankEl) {
+      rankEl.textContent = `HẠNG ${activeFocusQuest.rank}`;
+      rankEl.className = `rank-badge-${activeFocusQuest.rank} text-[10px] px-1.5 py-0.5 rounded font-bold font-mono`;
+    }
+    if (modeLabel) modeLabel.textContent = 'ĐANG BẤM GIỜ TẬP TRUNG';
+    if (coinsEl) coinsEl.textContent = `+${activeFocusQuest.rewardCoins}`;
+    if (expEl) expEl.textContent = `+${activeFocusQuest.rewardCoins * 3}`;
+  }
+
+  const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
+  if (toggleBtn) toggleBtn.textContent = toggleText;
+  if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+}
 
 function startFocusTimer(quest) {
   if (activeFocusQuest && activeFocusQuest.id !== quest.id) {
@@ -501,79 +756,238 @@ function startFocusTimer(quest) {
     }
   }
 
-  activeFocusQuest = quest;
-  focusRemainingSeconds = (quest.targetMinutes || 25) * 60;
-  isFocusRunning = true;
-
-  const banner = document.getElementById('active-focus-banner');
-  const titleEl = document.getElementById('timer-quest-title');
-  const rankEl = document.getElementById('timer-quest-rank');
-  const toggleBtn = document.getElementById('btn-timer-toggle');
-
-  if (banner) banner.classList.remove('hidden');
-  if (titleEl) titleEl.textContent = quest.title;
-  if (rankEl) {
-    rankEl.textContent = `RANK ${quest.rank}`;
-    rankEl.className = `rank-badge-${quest.rank} text-[10px] px-1.5 py-0.5 rounded font-bold font-mono`;
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
   }
-  if (toggleBtn) toggleBtn.textContent = 'Tạm Dừng';
+
+  activeFocusQuest = quest;
+  isBreakMode = false;
+  focusTotalSeconds = (quest.targetMinutes || 25) * 60;
+  focusRemainingSeconds = focusTotalSeconds;
+  actualFocusedSeconds = 0;
+  isFocusRunning = true;
+  lastTickTime = Date.now();
+
+  renderFocusStationUI();
+  updateTimerDisplay();
+  saveFocusTimerState();
+  requestWakeLock();
 
   clearInterval(focusTimerInterval);
-  updateTimerDisplay();
-
-  focusTimerInterval = setInterval(() => {
-    if (!isFocusRunning) return;
-    focusRemainingSeconds--;
-    updateTimerDisplay();
-
-    if (focusRemainingSeconds <= 0) {
-      clearInterval(focusTimerInterval);
-      focusTimerFinished();
-    }
-  }, 1000);
+  focusTimerInterval = setInterval(tickFocusTimer, 500);
 
   sfx.playGong();
   showToast(`Bắt đầu đồng hồ tập trung: ${quest.targetMinutes} phút! Chúc bạn tập trung cao độ.`, 'info');
 }
 
-function updateTimerDisplay() {
-  const display = document.getElementById('timer-display');
-  const mins = Math.floor(focusRemainingSeconds / 60);
-  const secs = focusRemainingSeconds % 60;
-  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  if (display) display.textContent = timeStr;
-  document.title = isFocusRunning ? `(${timeStr}) ${activeFocusQuest?.title || 'LevelUp'}` : 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
+function startBreakTimer(breakMinutes = 5) {
+  isBreakMode = true;
+  activeFocusQuest = null;
+  focusTotalSeconds = breakMinutes * 60;
+  focusRemainingSeconds = focusTotalSeconds;
+  isFocusRunning = true;
+  lastTickTime = Date.now();
+
+  renderFocusStationUI();
+  updateTimerDisplay();
+  saveFocusTimerState();
+  requestWakeLock();
+
+  clearInterval(focusTimerInterval);
+  focusTimerInterval = setInterval(tickFocusTimer, 500);
+
+  sfx.playClick();
+  showToast(`Bắt đầu nghỉ giải lao ${breakMinutes} phút! Hãy vươn vai và uống nước nhé.`, 'info');
 }
 
 function toggleFocusTimer() {
   isFocusRunning = !isFocusRunning;
+  lastTickTime = Date.now();
+
   const toggleBtn = document.getElementById('btn-timer-toggle');
-  if (toggleBtn) toggleBtn.textContent = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
+  const zenToggleBtn = document.getElementById('btn-zen-toggle');
+  const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
+  if (toggleBtn) toggleBtn.textContent = toggleText;
+  if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+
+  if (isFocusRunning) {
+    requestWakeLock();
+    if (!focusTimerInterval) {
+      focusTimerInterval = setInterval(tickFocusTimer, 500);
+    }
+    sfx.playClick();
+  } else {
+    releaseWakeLock();
+    sfx.playClick();
+  }
+
+  updateTimerDisplay();
+  saveFocusTimerState();
 }
 
 function resetFocusTimer() {
-  if (confirm('Bạn có chắc muốn dừng phiên tập trung này? Thời gian đã đếm sẽ không được tính.')) {
-    clearInterval(focusTimerInterval);
-    activeFocusQuest = null;
-    isFocusRunning = false;
-    document.title = 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
-    const banner = document.getElementById('active-focus-banner');
-    if (banner) banner.classList.add('hidden');
+  const msg = isBreakMode
+    ? 'Bạn có chắc muốn kết thúc sớm giờ nghỉ giải lao?'
+    : 'Bạn có chắc muốn dừng phiên tập trung này? Thời gian đã đếm sẽ không được tính.';
+  if (confirm(msg)) {
+    clearFocusTimerSession();
+    showToast('Đã dừng phiên tập trung.', 'info');
+  }
+}
+
+function clearFocusTimerSession() {
+  clearInterval(focusTimerInterval);
+  focusTimerInterval = null;
+  releaseWakeLock();
+  activeFocusQuest = null;
+  isFocusRunning = false;
+  isBreakMode = false;
+  focusRemainingSeconds = 0;
+  focusTotalSeconds = 0;
+  actualFocusedSeconds = 0;
+  localStorage.removeItem(TIMER_STORAGE_KEY);
+  document.title = 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
+
+  const banner = document.getElementById('active-focus-banner');
+  if (banner) banner.classList.add('hidden');
+
+  const zenOverlay = document.getElementById('focus-zen-overlay');
+  if (zenOverlay) zenOverlay.classList.add('hidden');
+}
+
+function adjustTimer(deltaSec) {
+  if (!activeFocusQuest && !isBreakMode) return;
+
+  // Anti-Cheat: Chặn hành vi giảm thời gian đối với nhiệm vụ tập trung do AI định giá
+  if (activeFocusQuest && deltaSec < 0) {
+    showToast('Nhiệm vụ tập trung yêu cầu hoàn thành đủ thời gian do AI phê duyệt, không thể giảm giờ!', 'error');
+    sfx.playClick();
+    return;
+  }
+
+  focusRemainingSeconds = Math.max(0, focusRemainingSeconds + deltaSec);
+  if (deltaSec > 0 && focusRemainingSeconds > focusTotalSeconds) {
+    focusTotalSeconds = focusRemainingSeconds;
+  }
+  updateTimerDisplay();
+  saveFocusTimerState();
+  sfx.playClick();
+  const sign = deltaSec > 0 ? `+${deltaSec / 60}p` : `${deltaSec / 60}p`;
+  showToast(`Đã chỉnh thời gian: ${sign}`, 'info');
+}
+
+function openEditTimerModal() {
+  if (!activeFocusQuest && !isBreakMode) return;
+  const minInput = document.getElementById('input-edit-minutes');
+  const secInput = document.getElementById('input-edit-seconds');
+  if (minInput && secInput) {
+    const totalSecs = Math.round(focusRemainingSeconds);
+    minInput.value = Math.floor(totalSecs / 60);
+    secInput.value = totalSecs % 60;
+    minInput.min = activeFocusQuest ? (activeFocusQuest.targetMinutes || 1) : 1;
+  }
+  openModal('modal-edit-focus-timer');
+}
+
+function saveEditTimer(mins, secs) {
+  const total = Math.max(1, mins * 60 + secs);
+
+  // Anti-Cheat: Không cho phép đặt thời gian thấp hơn mức cam kết của nhiệm vụ
+  if (activeFocusQuest) {
+    const minRequiredSecs = (activeFocusQuest.targetMinutes || 1) * 60;
+    if (total < minRequiredSecs) {
+      showToast(`Không thể đặt thời gian ít hơn ${activeFocusQuest.targetMinutes} phút do AI đã phê duyệt!`, 'error');
+      return;
+    }
+  }
+
+  focusRemainingSeconds = total;
+  if (total > focusTotalSeconds) {
+    focusTotalSeconds = total;
+  }
+  updateTimerDisplay();
+  saveFocusTimerState();
+  sfx.playClick();
+  closeModal('modal-edit-focus-timer');
+  showToast(`Đã lưu thời gian: ${mins}p ${secs}s`, 'success');
+}
+
+function toggleZenMode(show) {
+  const overlay = document.getElementById('focus-zen-overlay');
+  if (!overlay) return;
+  if (show) {
+    overlay.classList.remove('hidden');
+    const zenTitle = document.getElementById('zen-quest-title');
+    const zenRank = document.getElementById('zen-quest-rank');
+    const zenProtocol = document.getElementById('zen-protocol-label');
+
+    if (isBreakMode) {
+      if (zenTitle) zenTitle.textContent = 'Nghỉ giải lao (Pomodoro Break)';
+      if (zenRank) {
+        zenRank.textContent = 'BREAK';
+        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      }
+      if (zenProtocol) zenProtocol.textContent = 'RELAX PROTOCOL';
+    } else if (activeFocusQuest) {
+      if (zenTitle) zenTitle.textContent = activeFocusQuest.title;
+      if (zenRank) {
+        zenRank.textContent = `HẠNG ${activeFocusQuest.rank}`;
+        zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono`;
+      }
+      if (zenProtocol) zenProtocol.textContent = 'FOCUS PROTOCOL';
+    }
+  } else {
+    overlay.classList.add('hidden');
   }
 }
 
 function focusTimerFinished() {
-  sfx.playFanfare();
-  sfx.playGong();
-  document.title = '🎉 Hoàn thành tập trung!';
-  alert(`🔔 HẾT GIỜ TẬP TRUNG!\n\nChúc mừng bạn đã xuất sắc hoàn thành ${activeFocusQuest.targetMinutes} phút tập trung cao độ! Vàng thưởng đã được cộng vào tài khoản của bạn.`);
+  const quest = activeFocusQuest;
+  const elapsed = actualFocusedSeconds;
+  clearFocusTimerSession();
 
-  if (activeFocusQuest) {
-    completeQuest(activeFocusQuest.id);
+  if (quest) {
+    // Anti-Cheat: Xác thực thời gian thực tế người dùng đã giữ timer chạy
+    const minRequired = (quest.targetMinutes || 1) * 60 - 5; // 5 giây dung sai
+    if (elapsed < minRequired) {
+      showToast(`⚠️ PHÁT HIỆN GIAN LẬN: Bạn mới chỉ chạy ${Math.floor(elapsed / 60)} phút trên ${quest.targetMinutes} phút cam kết. Không được nhận Vàng!`, 'error');
+      sfx.playGong();
+      return;
+    }
+
+    completeQuest(quest.id);
+    sfx.playFanfare();
+    sfx.playGong();
+
+    sendFocusNotification(
+      '🎉 HOÀN THÀNH TẬP TRUNG!',
+      `Chúc mừng bạn đã xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung: "${quest.title}"!`
+    );
+
+    openFocusCompleteModal(quest);
   }
-  const banner = document.getElementById('active-focus-banner');
-  if (banner) banner.classList.add('hidden');
-  activeFocusQuest = null;
+}
+
+function breakTimerFinished() {
+  clearFocusTimerSession();
+  sfx.playGong();
+  sendFocusNotification(
+    '☕ HẾT GIỜ NGHỈ GIẢI LAO!',
+    'Đã hết 5 phút nghỉ ngơi. Hãy sẵn sàng cho nhiệm vụ tiếp theo!'
+  );
+  showToast('Hết giờ giải lao! Chúc bạn tràn đầy năng lượng cho nhiệm vụ mới.', 'success');
+}
+
+function openFocusCompleteModal(quest) {
+  const descEl = document.getElementById('focus-complete-desc');
+  const coinsEl = document.getElementById('focus-complete-coins');
+  const expEl = document.getElementById('focus-complete-exp');
+
+  if (descEl) descEl.textContent = `Xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}"!`;
+  if (coinsEl) coinsEl.textContent = `+${quest.rewardCoins} VÀNG`;
+  if (expEl) expEl.textContent = `+${quest.rewardCoins * 3} EXP`;
+
+  openModal('modal-focus-complete');
 }
 
 // =============================================================================
@@ -605,6 +1019,9 @@ function completeQuest(questId) {
 
 function deleteQuest(questId) {
   if (!confirm('Bạn có chắc muốn xóa nhiệm vụ này?')) return;
+  if (activeFocusQuest && activeFocusQuest.id === questId) {
+    clearFocusTimerSession();
+  }
   appState.quests = appState.quests.filter(q => q.id !== questId);
   triggerSave(true);
   showToast('Đã xóa nhiệm vụ.', 'info');
@@ -1790,6 +2207,7 @@ function initWelcomeModal() {
 document.addEventListener('DOMContentLoaded', () => {
   loadLocalState();
   renderAll();
+  restoreFocusTimer();
 
   // Kiểm tra onboarding: Bắt buộc nhập nickname hoặc nhập token nếu là người cũ
   initWelcomeModal();
@@ -1840,9 +2258,101 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalSoundBtn = document.getElementById('modal-sound-btn');
   if (modalSoundBtn) modalSoundBtn.addEventListener('click', toggleSound);
 
-  // Pomodoro Banner buttons
-  document.getElementById('btn-timer-toggle').addEventListener('click', toggleFocusTimer);
-  document.getElementById('btn-timer-reset').addEventListener('click', resetFocusTimer);
+  // Pomodoro Banner & Focus Station controls
+  const btnTimerToggle = document.getElementById('btn-timer-toggle');
+  if (btnTimerToggle) btnTimerToggle.addEventListener('click', toggleFocusTimer);
+
+  const btnTimerReset = document.getElementById('btn-timer-reset');
+  if (btnTimerReset) btnTimerReset.addEventListener('click', resetFocusTimer);
+
+  // Quick adjust buttons (-5m, +1m, +5m)
+  document.querySelectorAll('.btn-timer-adjust').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.delta, 10) || 0;
+      adjustTimer(delta);
+    });
+  });
+
+  // Clickable time display to open direct editor
+  const btnOpenEditTimer = document.getElementById('btn-open-edit-timer');
+  if (btnOpenEditTimer) {
+    btnOpenEditTimer.addEventListener('click', openEditTimerModal);
+  }
+
+  // Preset time chips in edit modal
+  document.querySelectorAll('.btn-preset-time').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mins = parseInt(btn.dataset.mins, 10) || 25;
+      if (activeFocusQuest && mins < activeFocusQuest.targetMinutes) {
+        showToast(`Không thể chọn mốc thấp hơn ${activeFocusQuest.targetMinutes} phút do AI đã định giá!`, 'error');
+        sfx.playClick();
+        return;
+      }
+      const minInput = document.getElementById('input-edit-minutes');
+      const secInput = document.getElementById('input-edit-seconds');
+      if (minInput) minInput.value = mins;
+      if (secInput) secInput.value = 0;
+      sfx.playClick();
+    });
+  });
+
+  // Save button in edit modal
+  const btnSaveEdit = document.getElementById('btn-save-edit-timer');
+  if (btnSaveEdit) {
+    btnSaveEdit.addEventListener('click', () => {
+      const minInput = document.getElementById('input-edit-minutes');
+      const secInput = document.getElementById('input-edit-seconds');
+      const mins = Math.max(0, parseInt(minInput ? minInput.value : 25, 10) || 0);
+      const secs = Math.max(0, Math.min(59, parseInt(secInput ? secInput.value : 0, 10) || 0));
+      saveEditTimer(mins, secs);
+    });
+  }
+
+  // Fullscreen Zen Mode controls
+  const btnZen = document.getElementById('btn-timer-zen');
+  if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
+
+  const btnZenExit = document.getElementById('btn-zen-exit');
+  if (btnZenExit) btnZenExit.addEventListener('click', () => toggleZenMode(false));
+
+  const btnZenToggle = document.getElementById('btn-zen-toggle');
+  if (btnZenToggle) btnZenToggle.addEventListener('click', toggleFocusTimer);
+
+  // Focus Complete celebration modal actions
+  const btnCompleteClaim = document.getElementById('btn-focus-complete-claim');
+  if (btnCompleteClaim) {
+    btnCompleteClaim.addEventListener('click', () => {
+      closeModal('modal-focus-complete');
+    });
+  }
+
+  const btnCompleteBreak = document.getElementById('btn-focus-complete-break');
+  if (btnCompleteBreak) {
+    btnCompleteBreak.addEventListener('click', () => {
+      closeModal('modal-focus-complete');
+      startBreakTimer(5);
+    });
+  }
+
+  // Multi-tab Focus Timer Sync
+  window.addEventListener('storage', (e) => {
+    if (e.key === TIMER_STORAGE_KEY) {
+      if (!e.newValue) {
+        clearFocusTimerSession();
+      } else {
+        try {
+          const syncState = JSON.parse(e.newValue);
+          if (syncState) {
+            isFocusRunning = !!syncState.isRunning;
+            focusRemainingSeconds = Math.max(0, syncState.remainingSeconds || 0);
+            focusTotalSeconds = syncState.totalSeconds || focusTotalSeconds;
+            updateTimerDisplay();
+            renderFocusStationUI();
+          }
+        } catch (_) {}
+      }
+    }
+  });
 
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn').addEventListener('click', () => {
