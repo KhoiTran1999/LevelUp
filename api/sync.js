@@ -151,29 +151,45 @@ export default async function handler(req, res) {
 
       // 3. Lấy Bảng xếp hạng (leaderboard)
       if (action === 'leaderboard') {
-        const topUsers = await redis.zrevrange('levelup:leaderboard', 0, 9, 'WITHSCORES');
+        const topUsers = await redis.zrevrange('levelup:leaderboard', 0, 19, 'WITHSCORES');
         const leaderboard = [];
+        const seenTokens = new Set();
         for (let i = 0; i < topUsers.length; i += 2) {
           const nick = topUsers[i];
           const score = parseInt(topUsers[i + 1], 10);
           const rawData = await redis.get(`levelup:user:${nick}`);
-          let profile = { nickname: nick, level: 1, title: 'Tập sự' };
-          if (rawData) {
-            try {
-              const parsed = JSON.parse(rawData);
-              if (parsed.profile) {
-                profile = {
-                  nickname: parsed.profile.nickname || nick,
-                  avatar: parsed.profile.avatar || '⚔️',
-                  level: parsed.profile.level || 1,
-                  title: parsed.profile.title || 'Tập sự',
-                  role: ADMIN_NICKS.includes(nick) ? 'admin' : (parsed.profile.role || 'adventurer'),
-                  totalCoinsEarned: parsed.profile.totalCoinsEarned || score
-                };
-              }
-            } catch (e) {}
+          if (!rawData) {
+            await redis.zrem('levelup:leaderboard', nick);
+            continue;
           }
-          leaderboard.push({ ...profile, score });
+          let profile = { nickname: nick, level: 1, title: 'Tập sự' };
+          let ownerToken = null;
+          try {
+            const parsed = JSON.parse(rawData);
+            ownerToken = parsed.ownerToken;
+            if (parsed.profile) {
+              profile = {
+                nickname: parsed.profile.nickname || nick,
+                avatar: parsed.profile.avatar || '⚔️',
+                level: parsed.profile.level || 1,
+                title: parsed.profile.title || 'Tập sự',
+                role: ADMIN_NICKS.includes(nick) ? 'admin' : (parsed.profile.role || 'adventurer'),
+                totalCoinsEarned: parsed.profile.totalCoinsEarned || score
+              };
+            }
+          } catch (e) {}
+
+          // Loại bỏ bản ghi trùng nếu cùng một tài khoản (token)
+          if (ownerToken) {
+            if (seenTokens.has(ownerToken)) {
+              await redis.zrem('levelup:leaderboard', nick);
+              continue;
+            }
+            seenTokens.add(ownerToken);
+          }
+
+          leaderboard.push({ ...profile, key: nick, score });
+          if (leaderboard.length >= 10) break;
         }
         return res.status(200).json({ leaderboard });
       }
@@ -284,22 +300,24 @@ export default async function handler(req, res) {
         } catch (e) {}
       }
 
-      // 2. Kiểm tra quyền đổi tên: Nếu đổi từ oldNickname, chỉ chính chủ mới được đổi
+      // 2. Kiểm tra quyền đổi tên hoặc dọn dẹp key cũ liên kết với token này
       // ponytail: sequential del + zrem; upgrade to MULTI/EXEC pipeline if high-concurrency rename races occur
-      if (oldNickname && oldNickname !== nickname) {
-        const oldRaw = await redis.get(`levelup:user:${oldNickname}`);
+      const priorNick = await redis.get(`levelup:token:${token}`);
+      const effectiveOldNick = oldNickname || (priorNick && priorNick !== nickname ? priorNick : null);
+      if (effectiveOldNick && effectiveOldNick !== nickname) {
+        const oldRaw = await redis.get(`levelup:user:${effectiveOldNick}`);
         if (oldRaw) {
           try {
             const oldUser = JSON.parse(oldRaw);
             if (oldUser.ownerToken && oldUser.ownerToken !== token) {
               return res.status(403).json({
-                error: `Bạn không có quyền đổi tên cho tài khoản "${oldNickname}".`
+                error: `Bạn không có quyền đổi tên cho tài khoản "${effectiveOldNick}".`
               });
             }
           } catch (e) {}
         }
-        await redis.del(`levelup:user:${oldNickname}`);
-        await redis.zrem('levelup:leaderboard', oldNickname);
+        await redis.del(`levelup:user:${effectiveOldNick}`);
+        await redis.zrem('levelup:leaderboard', effectiveOldNick);
       }
 
       // 3. Gắn quyền role: Khóa chặt, không cho phép client tự leo thang đặc quyền

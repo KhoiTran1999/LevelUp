@@ -1177,7 +1177,7 @@ async function fetchLeaderboard() {
             <span class="text-slate-900 dark:text-slate-100">${escapeHtml(u.nickname)}</span>
             ${u.role === 'admin' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold">👑 ADMIN</span>' : ''}
             ${isMe ? '<span class="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-bold">BẠN</span>' : ''}
-            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+            ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-2 text-xs" data-nick="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
           </div>
         </td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell">${escapeHtml(u.title || 'Thành viên')}</td>

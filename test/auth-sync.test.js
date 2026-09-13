@@ -324,7 +324,38 @@ async function runAuthTests() {
     console.log('✓ Test 12 Passed: Khôi phục bằng Token bảo toàn chính xác 100% tên tài khoản có dấu / viết hoa.');
   }
 
-  console.log('\n🎉 TẤT CẢ 12 TEST PHÂN QUYỀN VÀ BẢO VỆ DỮ LIỆU ĐÃ VƯỢT QUA TOÀN DIỆN!');
+  // Test 13: Leaderboard loại bỏ duplicate do đổi tên hoặc key cũ, dọn sạch key mồ côi
+  {
+    const tokenD = 'token_user_d_dedup1234567890';
+    // Giả lập 2 key cũ và mới cùng trỏ về 1 token (như trường hợp sanitize đổi từ khitrn sang khoitran)
+    await mockRedis.set('levelup:user:khitrn_old', JSON.stringify({
+      ownerToken: tokenD,
+      profile: { nickname: 'Khôi Trần', level: 1, totalCoinsEarned: 20 }
+    }));
+    await mockRedis.set('levelup:user:khoitran_new', JSON.stringify({
+      ownerToken: tokenD,
+      profile: { nickname: 'Khôi Trần', level: 1, totalCoinsEarned: 30 }
+    }));
+    await mockRedis.zadd('levelup:leaderboard', 1030, 'khoitran_new');
+    await mockRedis.zadd('levelup:leaderboard', 1020, 'khitrn_old');
+
+    // Gọi API leaderboard
+    const { req: reqLb, res: resLb } = createMockReqRes('GET', {}, { action: 'leaderboard' });
+    await handler(reqLb, resLb);
+
+    assert.strictEqual(resLb.statusCode, 200);
+    const list = resLb.body.leaderboard;
+    const duplicates = list.filter(u => u.nickname === 'Khôi Trần');
+    assert.strictEqual(duplicates.length, 1, 'Bảng xếp hạng chỉ được giữ 1 bản ghi duy nhất có điểm cao nhất cho 1 tài khoản');
+    assert.strictEqual(duplicates[0].score, 1030, 'Bản ghi được giữ phải là bản ghi điểm cao nhất');
+
+    // Kiểm tra key cũ đã bị zrem khỏi leaderboard
+    const oldStillInLb = await mockRedis.zrem('levelup:leaderboard', 'khitrn_old');
+    assert.strictEqual(oldStillInLb, 0, 'Bản ghi cũ phải được tự động zrem dọn dẹp khỏi sorted set');
+    console.log('✓ Test 13 Passed: Tự động khử trùng lặp và dọn dẹp key mồ côi trên Bảng Xếp Hạng.');
+  }
+
+  console.log('\n🎉 TẤT CẢ 13 TEST PHÂN QUYỀN VÀ BẢO VỆ DỮ LIỆU ĐÃ VƯỢT QUA TOÀN DIỆN!');
 }
 
 runAuthTests().catch(err => {
