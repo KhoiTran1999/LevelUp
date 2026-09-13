@@ -559,92 +559,102 @@ async function loadFromCloud(tokenOverride = null) {
   return hydrateFromCloud(true);
 }
 
-function logoutGoogle() {
-  confirmAction({
+async function logoutGoogle() {
+  const ok = await confirmAction({
     title: 'ĐĂNG XUẤT TÀI KHOẢN',
     message: 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Google này? Dữ liệu đã đồng bộ trên đám mây sẽ được bảo toàn nguyên vẹn.',
     confirmText: 'Đăng Xuất',
     icon: '🚪',
-    btnColor: 'rose',
-    onConfirm: () => {
-      const token = appState.profile?.sessionToken || appState.profile?.googleToken;
-      try {
-        fetch('/api/sync?action=logout', {
-          method: 'POST',
-          credentials: 'include',
-          ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
-        }).catch(() => {});
-      } catch (_) {}
-
-      if (window.google?.accounts?.id) {
-        try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
-      }
-      clearLegacyLocalStorage();
-      clearFocusTimerSession();
-      appState = {
-        ...DEFAULT_STATE,
-        profile: {
-          ...DEFAULT_STATE.profile,
-          nickname: '',
-          googleId: '',
-          googleEmail: '',
-          googlePicture: '',
-          googleToken: '',
-          sessionToken: '',
-          hasOnboarded: false
-        }
-      };
-      closeModal('modal-profile');
-      renderAll();
-      openModal('modal-welcome');
-      renderGoogleSignInButton();
-      showToast('Đã đăng xuất tài khoản Google.', 'info');
-    }
+    btnColor: 'rose'
   });
+  if (!ok) return;
+
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+  try {
+    await fetch('/api/sync?action=logout', {
+      method: 'POST',
+      credentials: 'include',
+      ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+    });
+  } catch (_) {}
+
+  if (window.google?.accounts?.id) {
+    try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
+  }
+  clearLegacyLocalStorage();
+  clearFocusTimerSession();
+  appState = {
+    ...DEFAULT_STATE,
+    profile: {
+      ...DEFAULT_STATE.profile,
+      nickname: '',
+      googleId: '',
+      googleEmail: '',
+      googlePicture: '',
+      googleToken: '',
+      sessionToken: '',
+      hasOnboarded: false
+    }
+  };
+  closeModal('modal-profile');
+  renderAll();
+  openModal('modal-welcome');
+  const tabLogin = document.getElementById('btn-tab-welcome-login');
+  if (tabLogin) tabLogin.click();
+  else renderGoogleSignInButton();
+  showToast('Đã đăng xuất tài khoản Google.', 'info');
 }
 
-function switchGoogleAccount() {
-  confirmAction({
+async function switchGoogleAccount() {
+  const ok = await confirmAction({
     title: 'ĐỔI TÀI KHOẢN GOOGLE',
     message: 'Hệ thống sẽ đăng xuất tài khoản hiện tại và đưa bạn về màn hình đăng nhập Google để chọn tài khoản khác.',
     confirmText: 'Đổi Tài Khoản',
     icon: '🔄',
-    btnColor: 'amber',
-    onConfirm: () => {
-      const token = appState.profile?.sessionToken || appState.profile?.googleToken;
-      try {
-        fetch('/api/sync?action=logout', {
-          method: 'POST',
-          credentials: 'include',
-          ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
-        }).catch(() => {});
-      } catch (_) {}
-
-      if (window.google?.accounts?.id) {
-        try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
-      }
-      clearLegacyLocalStorage();
-      clearFocusTimerSession();
-      appState = {
-        ...DEFAULT_STATE,
-        profile: {
-          ...DEFAULT_STATE.profile,
-          nickname: '',
-          googleId: '',
-          googleEmail: '',
-          googlePicture: '',
-          googleToken: '',
-          sessionToken: '',
-          hasOnboarded: false
-        }
-      };
-      closeModal('modal-profile');
-      renderAll();
-      openModal('modal-welcome');
-      renderGoogleSignInButton();
-      showToast('Vui lòng đăng nhập tài khoản Google mới.', 'info');
-    }
+    btnColor: 'amber'
   });
+  if (!ok) return;
+
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+  try {
+    await fetch('/api/sync?action=logout', {
+      method: 'POST',
+      credentials: 'include',
+      ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+    });
+  } catch (_) {}
+
+  if (window.google?.accounts?.id) {
+    try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
+  }
+  clearLegacyLocalStorage();
+  clearFocusTimerSession();
+  appState = {
+    ...DEFAULT_STATE,
+    profile: {
+      ...DEFAULT_STATE.profile,
+      nickname: '',
+      googleId: '',
+      googleEmail: '',
+      googlePicture: '',
+      googleToken: '',
+      sessionToken: '',
+      hasOnboarded: false
+    }
+  };
+  closeModal('modal-profile');
+  renderAll();
+  openModal('modal-welcome');
+  const tabLogin = document.getElementById('btn-tab-welcome-login');
+  if (tabLogin) tabLogin.click();
+  else renderGoogleSignInButton();
+  showToast('Vui lòng đăng nhập tài khoản Google mới.', 'info');
 }
 
 // =============================================================================
@@ -660,7 +670,9 @@ function confirmAction({
   confirmText = 'Xác Nhận',
   cancelText = 'Hủy',
   icon = '❓',
-  btnColor = 'amber'
+  btnColor = 'amber',
+  onConfirm = null,
+  onCancel = null
 } = {}) {
   return new Promise((resolve) => {
     if (activeConfirmResolve) {
@@ -670,10 +682,20 @@ function confirmAction({
 
     const modal = document.getElementById('modal-confirm');
     if (!modal) {
-      return resolve(window.confirm(`${title}\n${message}`));
+      const res = window.confirm(`${title}\n${message}`);
+      if (res && typeof onConfirm === 'function') onConfirm();
+      if (!res && typeof onCancel === 'function') onCancel();
+      return resolve(res);
     }
 
-    activeConfirmResolve = resolve;
+    activeConfirmResolve = (result) => {
+      if (result && typeof onConfirm === 'function') {
+        try { onConfirm(); } catch (err) { console.error(err); }
+      } else if (!result && typeof onCancel === 'function') {
+        try { onCancel(); } catch (err) { console.error(err); }
+      }
+      resolve(result);
+    };
 
     const iconEl = document.getElementById('confirm-modal-icon');
     const titleEl = document.getElementById('confirm-modal-title');
