@@ -4401,33 +4401,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Global Close Modal on backdrop or close button
+  // ponytail: modal close strictly restricted to close button ('x'); upgrade to Esc/backdrop if user preferences requested
+  // Global Close Modal on close button (chỉ tắt khi nhấn dấu x)
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const modal = e.target.closest('.fixed');
-      if (modal) modal.classList.add('hidden');
-    });
-  });
-
-  document.querySelectorAll('.fixed').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
+      if (modal) {
         if (modal.id === 'modal-confirm') {
           closeConfirmDialog(false);
-          return;
-        }
-        if (modal.id === 'tour-overlay') {
-          // Không tắt tour khi chạm vào vùng overlay (tránh bấm nhầm)
-          return;
-        }
-        if (modal.id === 'modal-welcome') {
-          // Bắt buộc hoàn tất bước đầu tiên: không cho đóng khi click ra ngoài
-          showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
-          const panel = modal.querySelector('.rpg-panel');
-          if (panel) {
-            panel.classList.add('ring-4', 'ring-amber-500/60');
-            setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
-          }
           return;
         }
         modal.classList.add('hidden');
@@ -4435,7 +4416,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Chặn phím Escape đóng modal-welcome khi chưa hoàn tất bước đầu; đóng tour và modal-confirm an toàn
+  // Chặn đóng modal khi click ra ngoài backdrop; rung nhẹ viền panel báo hiệu chỉ tắt khi nhấn dấu x
+  document.querySelectorAll('.fixed').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        if (modal.id === 'tour-overlay') return;
+        if (modal.id === 'modal-welcome') {
+          showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
+        }
+        const panel = modal.querySelector('.rpg-panel');
+        if (panel) {
+          panel.classList.add('ring-4', 'ring-amber-500/60');
+          setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
+        }
+      }
+    });
+  });
+
+  // Chặn phím Escape đóng các modal - chỉ khi nhấn dấu x mới cho tắt
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isTourActive) {
@@ -4443,19 +4441,15 @@ document.addEventListener('DOMContentLoaded', () => {
         finishTour(false);
         return;
       }
-      const confirmModal = document.getElementById('modal-confirm');
-      if (confirmModal && !confirmModal.classList.contains('hidden')) {
+      const openModal = document.querySelector('.fixed[id^="modal-"]:not(.hidden)');
+      if (openModal) {
         e.preventDefault();
-        closeConfirmDialog(false);
-        return;
+        const panel = openModal.querySelector('.rpg-panel');
+        if (panel) {
+          panel.classList.add('ring-4', 'ring-amber-500/60');
+          setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
+        }
       }
-      const welcome = document.getElementById('modal-welcome');
-      const isOnboarded = checkIsOnboarded();
-      if (!isOnboarded && welcome && !welcome.classList.contains('hidden')) {
-        e.preventDefault();
-        return;
-      }
-      document.querySelectorAll('.fixed[id^="modal-"]:not(#modal-welcome):not(.hidden)').forEach(m => m.classList.add('hidden'));
     }
   });
 });

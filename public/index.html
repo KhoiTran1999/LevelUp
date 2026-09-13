@@ -1022,7 +1022,8 @@
   <!-- MODAL: FOCUS QUEST COMPLETE CELEBRATION                                 -->
   <!-- ======================================================================= -->
   <div id="modal-focus-complete" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-    <div class="rpg-panel rounded-3xl w-full max-w-sm border border-amber-500/50 p-6 space-y-4 shadow-2xl bg-white dark:bg-slate-900 text-center modal-fade">
+    <div class="rpg-panel rounded-3xl w-full max-w-sm border border-amber-500/50 p-6 space-y-4 shadow-2xl bg-white dark:bg-slate-900 text-center modal-fade relative">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none" aria-label="Đóng">&times;</button>
       <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-4xl animate-bounce">
         🏆
       </div>
@@ -1092,7 +1093,8 @@
 
   <!-- MODAL: CONFIRMATION DIALOG (Chung cho các thao tác Bắt đầu, Hoàn thành, Xóa, Hoàn tác, Đổi quà, Dừng timer) -->
   <div id="modal-confirm" class="fixed inset-0 z-[120] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="rpg-panel rounded-2xl w-full max-w-sm border border-amber-500/30 overflow-hidden modal-fade shadow-2xl flex flex-col p-5 sm:p-6 text-center">
+    <div class="rpg-panel rounded-2xl w-full max-w-sm border border-amber-500/30 overflow-hidden modal-fade shadow-2xl flex flex-col p-5 sm:p-6 text-center relative">
+      <button id="btn-confirm-close" class="modal-close absolute top-3.5 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-xl leading-none" aria-label="Đóng">&times;</button>
       <div id="confirm-modal-icon" class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl shadow-sm">
         ❓
       </div>
