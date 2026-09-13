@@ -483,7 +483,9 @@ export default async function handler(req, res) {
           ledger: [{
             id: 'led_google_welcome',
             type: 'earn',
+            category: 'bonus',
             amount: 20,
+            title: 'Thưởng chào mừng hiệp sĩ Google',
             description: 'Thưởng chào mừng hiệp sĩ Google',
             timestamp: Date.now()
           }],
@@ -831,11 +833,13 @@ export default async function handler(req, res) {
         const pardonRecord = {
           id: `pardon_${Date.now()}`,
           type: 'earn',
+          category: 'bonus',
           amount: 0,
+          title: 'Ân xá Quản Trị Viên',
           description: '🕊️ ÂN XÁ TỪ QUẢN TRỊ VIÊN: Tài khoản đã được xóa án phạt và khôi phục danh dự hiệp sĩ!',
           timestamp: Date.now()
         };
-        userData.ledger = [pardonRecord, ...(Array.isArray(userData.ledger) ? userData.ledger : [])];
+        userData.ledger = [pardonRecord, ...(Array.isArray(userData.ledger) ? userData.ledger : [])].slice(0, 100);
 
         await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
         await redis.zrem('levelup:cheaters', targetSub);
@@ -972,7 +976,9 @@ export default async function handler(req, res) {
         updatedLedger.unshift({
           id: `penalty_${serverTimestamp}`,
           type: 'spend',
+          category: 'penalty',
           amount: balanceCheck.fine,
+          title: 'Án phạt Anti-Cheat',
           description: `⚠️ ÁN PHẠT ANTI-CHEAT: Trừ sạch ${balanceCheck.fine} Vàng (100%) & tước danh hiệu do phát hiện can thiệp dữ liệu trái phép`,
           timestamp: serverTimestamp
         });
@@ -1060,7 +1066,8 @@ export default async function handler(req, res) {
       const payloadToSave = {
         ...state,
         shopItems: sanitizedShopItems,
-        ledger: updatedLedger,
+        // ponytail: Giới hạn lưu trữ tối đa 100 giao dịch ledger gần nhất trên Cloud/Redis
+        ledger: updatedLedger.slice(0, 100),
         googleId: userSub,
         lastModified: incomingModified || serverTimestamp,
         profile: {

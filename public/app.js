@@ -191,7 +191,9 @@ const DEFAULT_STATE = {
     {
       id: 'led_1',
       type: 'earn',
+      category: 'bonus',
       amount: 20,
+      title: 'Thưởng chào mừng gia nhập LevelUp',
       description: 'Thưởng chào mừng gia nhập LevelUp',
       timestamp: Date.now()
     }
@@ -214,45 +216,20 @@ function clearLegacyLocalStorage() {
 }
 
 function saveLocalCache() {
-  try {
-    if (!checkIsOnboarded()) return;
-    appState._sig = computeStateIntegrity(appState.profile);
-    localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(appState));
-  } catch (e) {}
+  // ponytail: Toàn bộ dữ liệu người dùng lưu trữ trực tiếp trên Redis, không lưu vào LocalStorage
+  clearLocalCache();
 }
 
 function loadLocalCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !parsed.profile?.googleId || !parsed.profile?.nickname) {
-      return null;
-    }
-    const expectedSig = computeStateIntegrity(parsed.profile);
-    const isTampered = parsed._sig && parsed._sig !== expectedSig;
-    const balance = deriveLegitimateBalance(parsed);
-
-    if (isTampered || balance.tampered) {
-      parsed.profile.coins = balance.coins;
-      parsed.profile.totalCoinsEarned = balance.totalCoinsEarned;
-    }
-    return normalizeObjectNFC({
-      ...DEFAULT_STATE,
-      ...parsed,
-      profile: {
-        ...DEFAULT_STATE.profile,
-        ...(parsed.profile || {})
-      }
-    });
-  } catch (e) {
-    return null;
-  }
+  // ponytail: Không đọc từ LocalStorage, toàn bộ dữ liệu tải trực tiếp từ Cloud/Redis
+  return null;
 }
 
 function clearLocalCache() {
   try {
     localStorage.removeItem(CACHE_STORAGE_KEY);
+    localStorage.removeItem('levelup_state_v1');
+    localStorage.removeItem('levelup_onboarded');
   } catch (e) {}
 }
 
@@ -1639,10 +1616,12 @@ async function completeQuest(questId, skipConfirm = false) {
     appState.profile.totalCoinsEarned += quest.rewardCoins;
     addEXP(quest.rewardCoins * 3);
 
-    appState.ledger.unshift({
+    addLedgerEntry({
       id: 'led_' + Date.now(),
       type: 'earn',
+      category: 'quest',
       amount: quest.rewardCoins,
+      title: quest.title,
       description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}${quest.isRepeatable ? ` (Lần ${quest.completedCount})` : ''}`,
       timestamp: Date.now()
     });
@@ -1690,10 +1669,12 @@ async function undoCompleteQuest(questId) {
   appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - quest.rewardCoins);
   appState.profile.exp = Math.max(0, appState.profile.exp - quest.rewardCoins * 3);
 
-  appState.ledger.unshift({
+  addLedgerEntry({
     id: 'led_' + Date.now(),
     type: 'spend',
+    category: 'quest',
     amount: quest.rewardCoins,
+    title: `Hoàn tác: ${quest.title}`,
     description: `Hoàn tác hoàn thành: ${quest.title}`,
     timestamp: Date.now()
   });
@@ -2040,10 +2021,12 @@ async function buyShopItem(itemId) {
 
   appState.inventory.unshift(newInvItem);
 
-  appState.ledger.unshift({
+  addLedgerEntry({
     id: 'led_' + Date.now(),
     type: 'spend',
+    category: 'reward',
     amount: item.price,
+    title: `Đổi quà: ${item.name}`,
     description: `Đổi quà: ${item.name}`,
     timestamp: Date.now()
   });
@@ -2085,10 +2068,12 @@ async function refundInventoryItem(invId, skipConfirm = false) {
   appState.profile.coins += item.price;
   appState.inventory = appState.inventory.filter(i => i.id !== invId);
 
-  appState.ledger.unshift({
+  addLedgerEntry({
     id: 'led_' + Date.now(),
     type: 'earn',
+    category: 'reward',
     amount: item.price,
+    title: `Hoàn trả quà: ${item.name}`,
     description: `Hoàn trả quà: ${item.name}`,
     timestamp: Date.now()
   });
@@ -4090,34 +4075,108 @@ function renderInventory() {
   });
 }
 
+function addLedgerEntry(entry) {
+  if (!Array.isArray(appState.ledger)) appState.ledger = [];
+  appState.ledger.unshift(entry);
+  // ponytail: Giới hạn 100 bản ghi để giữ payload đồng bộ < 50KB và tránh đầy localStorage
+  if (appState.ledger.length > 100) {
+    appState.ledger = appState.ledger.slice(0, 100);
+  }
+}
+
+let currentLedgerFilter = 'all';
+
+function setLedgerFilter(filter) {
+  currentLedgerFilter = filter;
+  const filterBtns = {
+    all: document.getElementById('ledger-filter-all'),
+    earn: document.getElementById('ledger-filter-earn'),
+    spend: document.getElementById('ledger-filter-spend')
+  };
+  Object.entries(filterBtns).forEach(([k, btn]) => {
+    if (!btn) return;
+    if (k === filter) {
+      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs';
+    } else {
+      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+    }
+  });
+  renderLedger();
+}
+window.setLedgerFilter = setLedgerFilter;
+
+function groupLedgerByDate(entries) {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+  return entries.reduce((groups, item) => {
+    const ts = parseInt(item.timestamp, 10) || Date.now();
+    const d = new Date(ts).toDateString();
+    const label = d === today ? 'Hôm nay' : (d === yesterday ? 'Hôm qua' : new Date(ts).toLocaleDateString('vi-VN'));
+    (groups[label] = groups[label] || []).push(item);
+    return groups;
+  }, {});
+}
+
 function renderLedger() {
   const list = document.getElementById('ledger-list');
-  if (appState.ledger.length === 0) {
+  if (!list) return;
+
+  const ledger = Array.isArray(appState.ledger) ? appState.ledger : [];
+
+  // 1. Cập nhật thống kê nhanh trong ngày
+  const todayStr = new Date().toDateString();
+  let todayEarn = 0;
+  let todaySpend = 0;
+  ledger.forEach(e => {
+    if (new Date(e.timestamp || 0).toDateString() === todayStr) {
+      const amt = Math.max(0, parseInt(e.amount, 10) || 0);
+      if (e.type === 'earn') todayEarn += amt;
+      else if (e.type === 'spend') todaySpend += amt;
+    }
+  });
+
+  const earnEl = document.getElementById('ledger-stat-earn');
+  const spendEl = document.getElementById('ledger-stat-spend');
+  if (earnEl) earnEl.innerHTML = `+${todayEarn} ${COIN_ICON_HTML}`;
+  if (spendEl) spendEl.innerHTML = `-${todaySpend} ${COIN_ICON_HTML}`;
+
+  // 2. Lọc theo danh mục (Tất cả / Thu / Chi)
+  const filtered = ledger.filter(e => currentLedgerFilter === 'all' || e.type === currentLedgerFilter);
+  if (filtered.length === 0) {
     list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch vàng nào được ghi nhận.</div>';
     return;
   }
 
-  list.innerHTML = '';
-  appState.ledger.slice(0, 50).forEach(entry => {
-    const isEarn = entry.type === 'earn';
-    const row = document.createElement('div');
-    row.className = 'p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs shadow-sm';
-
-    row.innerHTML = `
-      <div class="flex items-center gap-2.5">
-        <span class="text-base">${isEarn ? '📥' : '📤'}</span>
-        <div>
-          <div class="font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(entry.description)}</div>
-          <div class="text-[10px] text-slate-500 font-mono">${new Date(entry.timestamp).toLocaleString()}</div>
-        </div>
+  // 3. Gom nhóm theo ngày và hiển thị
+  const grouped = groupLedgerByDate(filtered);
+  list.innerHTML = Object.entries(grouped).map(([dateLabel, items]) => `
+    <div>
+      <div class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+        <span>📅</span> <span>${dateLabel}</span>
       </div>
-      <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
-        <span>${isEarn ? '+' : '-'}${entry.amount}</span> ${COIN_ICON_HTML}
+      <div class="space-y-2">
+        ${items.map(entry => {
+          const isEarn = entry.type === 'earn';
+          const timeStr = new Date(entry.timestamp || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          return `
+            <div class="p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs shadow-xs">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="text-base shrink-0">${isEarn ? '📥' : '📤'}</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(entry.description || '')}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">${timeStr}</div>
+                </div>
+              </div>
+              <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
+                <span>${isEarn ? '+' : '-'}${entry.amount || 0}</span> ${COIN_ICON_HTML}
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
-    `;
-
-    list.appendChild(row);
-  });
+    </div>
+  `).join('');
 }
 
 function renderAll() {
@@ -4126,6 +4185,74 @@ function renderAll() {
   renderShop();
   renderInventory();
   renderLedger();
+}
+
+function renderSkeletons() {
+  const heroAvatar = document.getElementById('hero-avatar');
+  const heroNick = document.getElementById('hero-nickname');
+  const heroTitle = document.getElementById('hero-title');
+  const heroLvl = document.getElementById('hero-level-badge');
+  const heroExp = document.getElementById('hero-exp-text');
+  const heroCoins = document.getElementById('hero-coins');
+
+  if (heroAvatar) heroAvatar.innerHTML = '<div class="w-full h-full bg-slate-200 dark:bg-slate-700 animate-pulse rounded-lg"></div>';
+  if (heroNick) heroNick.innerHTML = '<span class="inline-block w-16 h-3.5 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></span>';
+  if (heroTitle) heroTitle.innerHTML = '<span class="inline-block w-20 h-2.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
+  if (heroLvl) heroLvl.innerHTML = '<span class="inline-block w-8 h-3.5 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></span>';
+  if (heroExp) heroExp.innerHTML = '<span class="inline-block w-10 h-2.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
+  if (heroCoins) heroCoins.innerHTML = '<span class="inline-block w-8 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></span>';
+
+  const questList = document.getElementById('quest-list');
+  if (questList) {
+    questList.innerHTML = Array(4).fill(0).map(() => `
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-pulse space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded"></div>
+          <div class="h-5 w-12 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+        </div>
+        <div class="h-3 w-3/4 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div class="flex items-center justify-between pt-2">
+          <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+          <div class="h-8 w-20 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const shopList = document.getElementById('shop-list');
+  if (shopList) {
+    shopList.innerHTML = Array(2).fill(0).map(() => `
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-pulse space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded"></div>
+          <div class="h-5 w-14 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+        </div>
+        <div class="h-3 w-2/3 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div class="h-8 w-full bg-slate-200 dark:bg-slate-800 rounded-xl mt-2"></div>
+      </div>
+    `).join('');
+  }
+
+  const ledgerList = document.getElementById('ledger-list');
+  if (ledgerList) {
+    ledgerList.innerHTML = Array(3).fill(0).map(() => `
+      <div class="p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-pulse flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+          <div class="space-y-1.5">
+            <div class="h-3.5 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
+            <div class="h-2.5 w-16 bg-slate-200 dark:bg-slate-800 rounded"></div>
+          </div>
+        </div>
+        <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800 rounded"></div>
+      </div>
+    `).join('');
+  }
+
+  const earnEl = document.getElementById('ledger-stat-earn');
+  const spendEl = document.getElementById('ledger-stat-spend');
+  if (earnEl) earnEl.innerHTML = '<span class="inline-block w-12 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
+  if (spendEl) spendEl.innerHTML = '<span class="inline-block w-12 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
 }
 
 // =============================================================================
@@ -4908,14 +5035,10 @@ function initTourControls() {
 
 async function initStartupFlow() {
   clearLegacyLocalStorage();
+  clearLocalCache();
 
-  const cached = loadLocalCache();
-  if (cached) {
-    appState = cached;
-    applyTheme(appState.profile.theme || 'dark');
-    renderAll();
-    closeModal('modal-welcome');
-  }
+  // ponytail: Sử dụng skeleton loading khi chờ dữ liệu từ Redis thay vì load default data gây chớp nháy (Anti-FOUC)
+  renderSkeletons();
 
   restoreFocusTimer();
   initWelcomeModal();
@@ -4941,7 +5064,6 @@ async function initStartupFlow() {
         const balance = deriveLegitimateBalance(appState);
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
-        saveLocalCache();
         applyTheme(appState.profile.theme || 'dark');
         closeModal('modal-welcome');
         renderAll();
@@ -4958,15 +5080,12 @@ async function initStartupFlow() {
     }
   } catch (err) {
     console.warn('Startup sync check failed:', err.message);
-    if (cached) return;
   }
 
-  if (!cached) {
-    applyTheme(appState.profile.theme || 'dark');
-    renderAll();
-    openModal('modal-welcome');
-    renderGoogleSignInButton();
-  }
+  applyTheme(appState.profile.theme || 'dark');
+  renderAll();
+  openModal('modal-welcome');
+  renderGoogleSignInButton();
 }
 
 // =============================================================================
