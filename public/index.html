@@ -55,80 +55,63 @@
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen antialiased selection:bg-amber-500 selection:text-black pb-24 md:pb-12">
+<body class="min-h-screen antialiased selection:bg-amber-500 selection:text-black pb-24 md:pb-12 overflow-x-hidden">
 
   <!-- ======================================================================= -->
-  <!-- TOP HEADER / ADVENTURER CARD (Fully Responsive: Mobile -> iPad -> Desktop) -->
+  <!-- TOP HEADER / ADVENTURER CARD (Minimal & Clean: Profile & Stats) -->
   <!-- ======================================================================= -->
-  <header class="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/85 backdrop-blur-md transition-colors duration-200">
-    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
+  <header class="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/85 backdrop-blur-md transition-colors duration-200">
+    <div class="max-w-6xl mx-auto px-2.5 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
 
-      <!-- Brand & Guild Emblem -->
-      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 p-0.5 shadow-md shadow-amber-500/20 flex items-center justify-center text-lg sm:text-xl">
-          <span class="drop-shadow">⚔️</span>
+      <!-- Profile: Avatar & Nickname Button (Left) -->
+      <button id="open-profile-btn" class="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-100 dark:hover:bg-slate-900/80 rounded-xl px-2 py-1 transition group shrink-0" title="Hồ sơ cá nhân & Mã tài khoản">
+        <div id="hero-avatar" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm sm:text-base group-hover:scale-110 transition shadow-sm shrink-0">
+          ⚔️
         </div>
-        <div>
-          <div class="flex items-center gap-1.5 sm:gap-2">
-            <h1 class="font-rpg-title font-extrabold text-base sm:text-lg text-amber-600 dark:text-amber-400 tracking-tight">LEVELUP</h1>
-            <span class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30">AI GIÁM ĐỊNH</span>
+        <div class="max-w-[70px] sm:max-w-[120px] md:max-w-[160px] truncate">
+          <div class="flex items-center gap-1">
+            <span id="hero-nickname" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate">Thành Viên</span>
+            <span id="sync-indicator" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 shrink-0" title="Đã đồng bộ"></span>
           </div>
-          <p class="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">Rèn luyện thói quen & Hoàn thành mục tiêu mỗi ngày</p>
+          <div class="hidden sm:block text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate" id="hero-title">Tân Binh Cấp 1</div>
         </div>
-      </div>
+      </button>
 
-      <!-- Adventurer Stats Pill -->
-      <div class="flex items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2.5 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors">
-
-        <!-- Avatar & Nickname Button -->
-        <button id="open-profile-btn" class="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-xl px-1.5 sm:px-2 py-0.5 sm:py-1 transition group" title="Hồ sơ cá nhân & Mã tài khoản">
-          <div id="hero-avatar" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-base sm:text-lg group-hover:scale-110 transition shadow-sm">
-            ⚔️
-          </div>
-          <div class="max-w-[80px] sm:max-w-[120px] truncate">
-            <div class="flex items-center gap-1">
-              <span id="hero-nickname" class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Thành Viên</span>
-              <span id="sync-indicator" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Đã đồng bộ"></span>
-            </div>
-            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate" id="hero-title">Tân Binh Cấp 1</div>
-          </div>
-        </button>
-
-        <!-- Vertical Divider -->
-        <div class="h-6 w-px bg-slate-300 dark:bg-slate-800"></div>
+      <!-- Adventurer Stats Pill (Right) -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors shrink-0">
 
         <!-- Level & EXP (Compact on mobile, expanded on tablet/desktop) -->
-        <div class="flex flex-col justify-center min-w-[65px] sm:min-w-[90px]">
-          <div class="flex justify-between text-[9px] sm:text-[10px] mb-0.5 font-mono">
+        <div class="flex flex-col justify-center shrink-0">
+          <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-mono leading-tight">
             <span class="text-amber-600 dark:text-amber-400 font-bold" id="hero-level-badge">LV. 1</span>
-            <span class="text-slate-500 dark:text-slate-400" id="hero-exp-text">0/100</span>
+            <span class="hidden sm:inline text-slate-500 dark:text-slate-400" id="hero-exp-text">0/100</span>
           </div>
-          <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div class="hidden sm:block w-14 sm:w-16 md:w-20 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-0.5">
             <div id="hero-exp-bar" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
         </div>
 
         <!-- Vertical Divider -->
-        <div class="h-6 w-px bg-slate-300 dark:bg-slate-800"></div>
+        <div class="h-4 sm:h-6 w-px bg-slate-300 dark:bg-slate-800 shrink-0"></div>
 
         <!-- Gold Balance -->
-        <div class="flex items-center gap-1 sm:gap-1.5 px-0.5">
-          <span class="text-lg sm:text-xl coin-shine">🪙</span>
+        <div class="flex items-center gap-1 sm:gap-1.5 px-0.5 shrink-0">
+          <span class="text-sm sm:text-base coin-shine">🪙</span>
           <div class="flex flex-col">
-            <span class="hidden sm:inline text-[9px] text-slate-500 dark:text-slate-400 leading-none">Vàng</span>
+            <span class="hidden md:inline text-[9px] text-slate-500 dark:text-slate-400 leading-none">Vàng</span>
             <span id="hero-coins" class="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight leading-tight">0</span>
           </div>
         </div>
 
         <!-- Vertical Divider -->
-        <div class="h-6 w-px bg-slate-300 dark:bg-slate-800"></div>
+        <div class="h-4 sm:h-6 w-px bg-slate-300 dark:bg-slate-800 shrink-0"></div>
 
         <!-- Control Buttons: Theme Toggle & Sound Toggle -->
-        <div class="flex items-center gap-0.5">
-          <button id="toggle-theme-btn" class="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition" title="Chuyển chế độ Sáng / Tối">
+        <div class="flex items-center gap-0.5 shrink-0">
+          <button id="toggle-theme-btn" class="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm" title="Chuyển chế độ Sáng / Tối">
             🌙
           </button>
-          <button id="toggle-sound-btn" class="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition" title="Bật/Tắt âm thanh 8-bit">
+          <button id="toggle-sound-btn" class="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm" title="Bật/Tắt âm thanh 8-bit">
             🔊
           </button>
         </div>
@@ -589,6 +572,15 @@
         <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <span class="text-slate-500">Vai trò tài khoản:</span>
           <span id="profile-role-badge" class="font-bold px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">⭐ Thành Viên</span>
+        </div>
+
+        <!-- Sound Effect Toggle inside Profile Modal -->
+        <div class="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-slate-500">Âm thanh 8-bit:</span>
+          <button id="modal-sound-btn" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold text-xs bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-amber-500/20 transition">
+            <span id="modal-sound-icon">🔊</span>
+            <span id="modal-sound-text">Đang bật</span>
+          </button>
         </div>
 
         <!-- Token Ownership Box -->

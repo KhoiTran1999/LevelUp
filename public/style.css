@@ -27,6 +27,11 @@ html.dark {
   --input-border: #334155;
 }
 
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-main);
   background-color: var(--bg-app);

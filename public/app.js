@@ -1082,8 +1082,13 @@ function renderHeader() {
   document.getElementById('hero-exp-bar').style.width = `${pct}%`;
 
   const soundBtn = document.getElementById('toggle-sound-btn');
-  soundBtn.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (soundBtn) soundBtn.textContent = p.soundEnabled ? '🔊' : '🔇';
   sfx.enabled = p.soundEnabled;
+
+  const modalSoundIcon = document.getElementById('modal-sound-icon');
+  const modalSoundText = document.getElementById('modal-sound-text');
+  if (modalSoundIcon) modalSoundIcon.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (modalSoundText) modalSoundText.textContent = p.soundEnabled ? 'Đang bật' : 'Đang tắt';
 
   const themeBtn = document.getElementById('toggle-theme-btn');
   if (themeBtn) {
@@ -1593,14 +1598,20 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', toggleTheme);
   }
 
-  // Sound FX Toggle Button
-  document.getElementById('toggle-sound-btn').addEventListener('click', () => {
+  // Sound FX Toggle Buttons (Header + Profile Modal)
+  function toggleSound() {
     appState.profile.soundEnabled = !appState.profile.soundEnabled;
     sfx.enabled = appState.profile.soundEnabled;
     renderHeader();
     if (sfx.enabled) sfx.playCoin();
     triggerSave(false);
-  });
+  }
+
+  const soundBtn = document.getElementById('toggle-sound-btn');
+  if (soundBtn) soundBtn.addEventListener('click', toggleSound);
+
+  const modalSoundBtn = document.getElementById('modal-sound-btn');
+  if (modalSoundBtn) modalSoundBtn.addEventListener('click', toggleSound);
 
   // Pomodoro Banner buttons
   document.getElementById('btn-timer-toggle').addEventListener('click', toggleFocusTimer);
