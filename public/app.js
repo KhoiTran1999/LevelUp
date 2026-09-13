@@ -135,6 +135,8 @@ const DEFAULT_STATE = {
       targetMinutes: 25,
       advice: 'Bật chế độ Không làm phiền trên điện thoại trước khi bấm giờ.',
       verdict: '25 phút tập trung sâu là khoảng thời gian chuẩn mực. Hãy hoàn thành đủ giờ để nhận thưởng!',
+      isRepeatable: true,
+      completedCount: 0,
       status: 'active',
       createdAt: Date.now()
     },
@@ -148,6 +150,8 @@ const DEFAULT_STATE = {
       targetMinutes: 0,
       advice: 'Làm dứt khoát trong 5 - 10 phút.',
       verdict: 'Công việc nhanh gọn có kết quả rõ ràng. Đánh dấu xong để nhận ngay 5 Vàng!',
+      isRepeatable: false,
+      completedCount: 0,
       status: 'active',
       createdAt: Date.now()
     }
@@ -1335,7 +1339,7 @@ const completingQuestIds = new Set();
 
 async function completeQuest(questId, skipConfirm = false) {
   const quest = appState.quests.find(q => q.id === questId);
-  if (!quest || quest.status === 'completed' || completingQuestIds.has(questId)) return;
+  if (!quest || (!quest.isRepeatable && quest.status === 'completed') || completingQuestIds.has(questId)) return;
 
   if (!skipConfirm) {
     const ok = await confirmAction({
@@ -1352,14 +1356,19 @@ async function completeQuest(questId, skipConfirm = false) {
 
   completingQuestIds.add(questId);
   try {
-    if (quest.status === 'completed') return;
+    if (!quest.isRepeatable && quest.status === 'completed') return;
 
     if (activeFocusQuest && activeFocusQuest.id === questId) {
       clearFocusTimerSession();
     }
 
-    quest.status = 'completed';
-    quest.completedAt = Date.now();
+    if (quest.isRepeatable) {
+      quest.completedCount = (quest.completedCount || 0) + 1;
+      quest.lastCompletedAt = Date.now();
+    } else {
+      quest.status = 'completed';
+      quest.completedAt = Date.now();
+    }
 
     appState.profile.coins += quest.rewardCoins;
     appState.profile.totalCoinsEarned += quest.rewardCoins;
@@ -1369,12 +1378,12 @@ async function completeQuest(questId, skipConfirm = false) {
       id: 'led_' + Date.now(),
       type: 'earn',
       amount: quest.rewardCoins,
-      description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}`,
+      description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}${quest.isRepeatable ? ` (Lần ${quest.completedCount})` : ''}`,
       timestamp: Date.now()
     });
 
     sfx.playCoin();
-    showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành: "${quest.title}"`, 'gold', {
+    showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`, 'gold', {
       label: 'Hoàn tác',
       onClick: () => undoCompleteQuest(quest.id)
     });
@@ -1389,7 +1398,9 @@ async function completeQuest(questId, skipConfirm = false) {
 
 async function undoCompleteQuest(questId) {
   const quest = appState.quests.find(q => q.id === questId);
-  if (!quest || quest.status !== 'completed') return;
+  if (!quest) return;
+  if (!quest.isRepeatable && quest.status !== 'completed') return;
+  if (quest.isRepeatable && (!quest.completedCount || quest.completedCount <= 0)) return;
 
   const ok = await confirmAction({
     title: 'Hoàn Tác Nhiệm Vụ?',
@@ -1402,8 +1413,12 @@ async function undoCompleteQuest(questId) {
   });
   if (!ok) return;
 
-  quest.status = 'active';
-  delete quest.completedAt;
+  if (quest.isRepeatable) {
+    quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
+  } else {
+    quest.status = 'active';
+    delete quest.completedAt;
+  }
 
   appState.profile.coins = Math.max(0, appState.profile.coins - quest.rewardCoins);
   appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - quest.rewardCoins);
@@ -1423,6 +1438,30 @@ async function undoCompleteQuest(questId) {
   renderQuests();
   renderLedger();
   showToast(`Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`, 'info');
+}
+
+async function restartQuest(questId) {
+  const quest = appState.quests.find(q => q.id === questId);
+  if (!quest) return;
+
+  quest.status = 'active';
+  delete quest.completedAt;
+
+  sfx.playClick();
+  triggerSave(true);
+  renderQuests();
+  showToast(`Đã đưa nhiệm vụ "${quest.title}" trở lại danh sách làm việc!`, 'info');
+}
+
+function toggleQuestRepeatable(questId) {
+  const quest = appState.quests.find(q => q.id === questId);
+  if (!quest) return;
+
+  quest.isRepeatable = !quest.isRepeatable;
+  sfx.playClick();
+  triggerSave(true);
+  renderQuests();
+  showToast(`Nhiệm vụ "${quest.title}": ${quest.isRepeatable ? 'Đã bật Lặp lại' : 'Chuyển sang Làm 1 lần'}`, 'info');
 }
 
 async function deleteQuest(questId) {
@@ -1798,6 +1837,7 @@ async function submitQuestToAI() {
   const title = document.getElementById('input-quest-title').value.trim();
   const desc = document.getElementById('input-quest-desc').value.trim();
   const estimate = parseInt(document.getElementById('input-quest-estimate').value, 10) || 0;
+  const isRepeatable = document.querySelector('input[name="quest-repeat"]:checked')?.value === 'repeatable';
 
   if (!title) {
     showToast('Vui lòng nhập tên nhiệm vụ!', 'error');
@@ -1849,7 +1889,8 @@ async function submitQuestToAI() {
       targetMinutes: data.targetMinutes || 25,
       rank: data.rank || calculateRank(data.rewardCoins || 10),
       verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
-      advice: data.advice || 'Tập trung hoàn thành từng bước một.'
+      advice: data.advice || 'Tập trung hoàn thành từng bước một.',
+      isRepeatable: Boolean(isRepeatable)
     };
     currentDebateHistory = [];
 
@@ -1890,6 +1931,11 @@ function updateVerdictDisplay() {
     }
     if (timeBox) timeBox.classList.add('hidden');
     if (lockedTimeBox) lockedTimeBox.classList.add('hidden');
+  }
+
+  const repeatText = document.getElementById('verdict-repeat-text');
+  if (repeatText) {
+    repeatText.textContent = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm 1 lần';
   }
 
   const verdictCoins = document.getElementById('verdict-coins');
@@ -1955,6 +2001,8 @@ function acceptVerdictAndCreateQuest() {
     targetMinutes: currentPendingVerdict.targetMinutes || 0,
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
+    isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
+    completedCount: 0,
     status: 'active',
     createdAt: Date.now()
   };
@@ -2436,7 +2484,12 @@ function renderQuests() {
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between gap-2 mb-2.5">
-          <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-0.5 rounded-lg">HẠNG ${q.rank}</span>
+            <button class="btn-toggle-repeat text-[10px] font-bold px-2 py-0.5 rounded-md border transition flex items-center gap-1 ${q.isRepeatable ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-300 dark:hover:border-slate-700'}" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
+              ${q.isRepeatable ? `🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}` : '🎯 1 lần'}
+            </button>
+          </div>
           <div class="flex items-center gap-1.5">
             <span class="text-xs font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1">${COIN_ICON_HTML} +${q.rewardCoins}</span>
             <button class="btn-del-quest text-slate-400 hover:text-rose-500 p-1 transition leading-none text-base" title="Xóa nhiệm vụ">&times;</button>
@@ -2453,10 +2506,14 @@ function renderQuests() {
         </span>
 
         ${isCompleted ? `
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap justify-end">
             <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <span>✓</span> Hoàn thành
             </span>
+            <button class="btn-restart-quest text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Làm lại nhiệm vụ này">
+              <span>🔄</span>
+              <span>Làm lại</span>
+            </button>
             <button class="btn-undo-quest text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-600 dark:text-slate-300 transition flex items-center gap-1" title="Hoàn tác trạng thái hoàn thành">
               <span>↩️</span>
               <span>Hoàn tác</span>
@@ -2476,10 +2533,26 @@ function renderQuests() {
       </div>
     `;
 
+    const toggleRepeatBtn = card.querySelector('.btn-toggle-repeat');
+    if (toggleRepeatBtn) {
+      toggleRepeatBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleQuestRepeatable(q.id);
+      });
+    }
+
     card.querySelector('.btn-del-quest').addEventListener('click', (e) => {
       e.stopPropagation();
       deleteQuest(q.id);
     });
+
+    const restartBtn = card.querySelector('.btn-restart-quest');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        restartQuest(q.id);
+      });
+    }
 
     const undoBtn = card.querySelector('.btn-undo-quest');
     if (undoBtn) {
@@ -3806,6 +3879,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-quest-title').value = '';
     document.getElementById('input-quest-desc').value = '';
     document.getElementById('input-quest-estimate').value = '';
+    const repeatOnceRadio = document.querySelector('input[name="quest-repeat"][value="once"]');
+    if (repeatOnceRadio) repeatOnceRadio.checked = true;
     const modNotice = document.getElementById('verdict-modified-notice');
     if (modNotice) modNotice.classList.add('hidden');
     openModal('modal-quest');
@@ -3817,6 +3892,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-submit-to-ai').addEventListener('click', submitQuestToAI);
   document.getElementById('btn-accept-verdict').addEventListener('click', acceptVerdictAndCreateQuest);
+
+  const verdictRepeatToggle = document.getElementById('verdict-repeat-toggle');
+  if (verdictRepeatToggle) {
+    verdictRepeatToggle.addEventListener('click', () => {
+      if (!currentPendingVerdict) return;
+      currentPendingVerdict.isRepeatable = !currentPendingVerdict.isRepeatable;
+      sfx.playClick();
+      updateVerdictDisplay();
+    });
+  }
 
   // Quest Debate features
   document.getElementById('btn-open-debate').addEventListener('click', () => {
