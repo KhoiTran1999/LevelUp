@@ -121,6 +121,17 @@ export function parseBool(val, defaultVal = false) {
   return defaultVal;
 }
 
+// Fallback categorizer for unit test mock payloads lacking LLM semantic category
+// ponytail: fallback heuristic only; live AI responses supply result.category directly from LLM
+function resolveCategory(origTitle, title, origDesc, desc) {
+  const raw = `${origTitle} ${title} ${origDesc} ${desc}`.toLowerCase();
+  const text = `${raw} ${stripDiacritics(raw)}`;
+  if (/(đánh|danh)\s*(răng|rang)|(rửa|rua)\s*(mặt|mat)|đi\s*tắm|di\s*tam|tắm\s*rửa|tam\s*rua|tắm\s*gội|tam\s*goi|\btắm\b|(uống|uong)\s*(nước|nuoc)|hít\s*thở|hit\s*tho|(gấp|gap)\s*(chăn|chan)|(mặc|mac)\s*(quần\s*áo|quan\s*ao)|ve\s*sinh\s*ca\s*nhan/i.test(text)) return 'trivial';
+  if (/(rửa|rua)\s*(bát|bat|chén|chen|đĩa|dia)|(quét|quet)\s*(nhà|nha)|(đổ|do)\s*(rác|rac)|(lau|dọn|don)\s*(bàn|ban|nhà|nha|sàn|san|phòng|phong|dẹp|dep)/i.test(text)) return 'chore';
+  if (/học|hoc|đọc|doc|sách|sach|chương|chuong|ôn\s*thi|on\s*thi|bài\s*tập|bai\s*tap|nghiên\s*cứu|nghien\s*cuu|code|lập\s*trình|lap\s*trinh|kinh\s*tế|kinh\s*te/i.test(text)) return 'study';
+  return 'general';
+}
+
 // Programmatic Arbiter Sanitizer: Enforces chunking on overloaded tasks even if LLM has title inertia
 export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc = '') {
   if (!result || typeof result !== 'object') return result;
@@ -137,35 +148,17 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
-  // Task title representation for habit matching (strictly avoid matching on AI-generated instructions/descriptions)
-  const titleMatchRaw = `${normOrig} ${title}`.toLowerCase();
-  const titleMatchText = `${titleMatchRaw} ${stripDiacritics(titleMatchRaw)}`;
-
   // Composite search text for multi-chapter / workload context
   const fullMatchRaw = `${normOrig} ${title} ${originalDesc} ${description}`.toLowerCase();
   const fullMatchText = `${fullMatchRaw} ${stripDiacritics(fullMatchRaw)}`;
 
-  // Guard: Intellectual, academic, coding or professional work is NEVER a trivial personal habit
-  // ponytail: Unicode character classes on raw text and safe unaccented compounds prevent homograph collisions (e.g. 'sạch sẽ' -> 'sach' colliding with 'sách', 'rửa đĩa' -> 'dia' colliding with 'địa')
-  const isStudyOrWork = (
-    /(^|[^\p{L}\p{N}])(học|đọc|sách|chương|tài\s*liệu|giáo\s*trình|bài\s*tập|ôn\s*thi|nghiên\s*cứu|lập\s*trình|code|coding|dự\s*án|kinh\s*tế|toán|ngữ\s*văn|lịch\s*sử|địa\s*lý|vật\s*lý|hóa\s*học|sinh\s*học|tiếng\s*(anh|trung|nhật|hàn|pháp)|viết\s*(luận|báo\s*cáo|lách|bài)|thuyết\s*trình|khoá\s*học|luận\s*văn|tiểu\s*luận|đề\s*cương|k[ìi]\s*thi|thi\s*cử)($|[^\p{L}\p{N}])/ui.test(titleMatchRaw) ||
-    /\b(hoc|doc\s*sach|chuong|tai\s*lieu|giao\s*trinh|bai\s*tap|on\s*thi|nghien\s*cuu|lap\s*trinh|code|coding|du\s*an|kinh\s*te|toan|dia\s*ly|vat\s*ly|hoa\s*hoc|sinh\s*hoc|tieng\s*(anh|trung|nhat|han|phap)|viet\s*(luan|bao\s*cao|lach|bai)|thuyet\s*trinh|khoa\s*hoc|luan\s*van|tieu\s*luan|de\s*cuong|k[ìi]\s*thi|thi\s*cu)\b/i.test(titleMatchText)
-  );
+  // Semantic category classification (AI-first, deterministic clamping in code)
+  const category = (result.category || '').toLowerCase() || resolveCategory(normOrig, title, originalDesc, description);
+  const isStudyOrWork = category === 'study' || category === 'work';
+  const isTrivialTask = category === 'trivial';
+  const isQuickChore = category === 'chore';
 
-  // Pattern detection for trivial / biological / routine tasks
-  // ponytail: strict \b word boundaries and titleMatchText scoping prevent false positives on 'trọng tâm', 'tâm lý', etc.
-  const isTrivialTask = !isStudyOrWork && (
-    /\b(đánh\s*răng|danh\s*rang|chải\s*răng|chai\s*rang|rửa\s*mặt|rua\s*mat|đi\s*tắm|di\s*tam|tắm(\s*rửa)?|tắm\s*gội|tam\s*rua|tam\s*goi|gội\s*đầu|goi\s*dau|cắt\s*móng|cat\s*mong)\b/i.test(titleMatchText) ||
-    /\b(thở|tho|hít\s*thở|hit\s*tho|uống\s*nước|uong\s*nuoc)\b/i.test(titleMatchText) ||
-    /\b((thức|ngủ)\s*dậy|(thuc|ngu)\s*day|đi\s*ngủ|di\s*ngu|thức\s*giấc|thuc\s*giac|chợp\s*mắt|chop\s*mat)\b/i.test(titleMatchText) ||
-    /\b(gấp\s*chăn|gap\s*chan|dọn\s*giường|don\s*giuong|mở\s*mắt|mo\s*mat|chớp\s*mắt)\b/i.test(titleMatchText) ||
-    /\b((bật|tắt)\s*quạt|(bat|tat)\s*quat)\b/i.test(titleMatchText) ||
-    /\b((bật|tắt)\s*(máy(\s*tính)?|đèn)|(bat|tat)\s*(may(\s*tinh)?|den))\b/i.test(titleMatchText) ||
-    /\b(ăn\s*(cơm|sáng|trưa|tối|vặt)|an\s*(com|sang|trua|toi|vat))\b/i.test(titleMatchText) ||
-    /\b(đi\s*vệ\s*sinh|di\s*ve\s*sinh|rửa\s*tay|rua\s*tay)\b/i.test(titleMatchText) ||
-    /\b(đi\s*tất|di\s*tat|mặc\s*quần\s*áo|mac\s*quan\s*ao|thay\s*đồ|thay\s*do)\b/i.test(titleMatchText)
-  );
-
+  // 1. Trivial personal habits: capped at 2 coins, 0 minutes
   if (isTrivialTask) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 2);
@@ -175,8 +168,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     verdict = 'Thói quen sinh hoạt cơ bản hàng ngày, áp dụng mức thưởng tượng trưng 1-2 Vàng.';
   }
 
-  // Pattern detection for quick household chores (anti-padding)
-  const isQuickChore = !isStudyOrWork && /(rửa\s*(bát|chén|ly|cốc|đĩa|xoong|nồi|chảo|bình|đũa|thìa)|rua\s*(bat|chen|ly|coc|dia|xoong|noi|chao|binh|dua|thia)|quét\s*(nhà|sân|phòng|bếp)|quet\s*(nha|san|phong|bep)|đổ\s*rác|do\s*rac|vứt\s*rác|vut\s*rac|dọn\s*rác|don\s*rac|lau\s*(bàn|nhà|bếp|kính|cửa|sàn)|lau\s*(ban|nha|bep|kinh|cua|san)|dọn\s*(bàn|phòng|dẹp|nhà|bếp)|don\s*(ban|phong|dep|nha|bep)|hút\s*bụi|hut\s*bui|giặt\s*(đồ|quần\s*áo)|giat\s*(do|quan\s*ao)|phơi\s*(đồ|quần\s*áo)|phoi\s*(do|quan\s*ao)|thu\s*quần\s*áo|thu\s*quan\s*ao|gấp\s*quần\s*áo|gap\s*quan\s*ao|cọ\s*(toilet|nhà\s*vệ\s*sinh|bồn\s*cầu)|co\s*(toilet|nha\s*ve\s*sinh|bon\s*cau)|tưới\s*cây|tuoi\s*cay|cho\s*(chó|mèo)\s*ăn|cho\s*(cho|meo)\s*an)/i.test(fullMatchText);
+  // 2. Quick household chores: capped at 5 coins, 0 minutes
   if (isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 5);
@@ -243,7 +235,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   let requiresProof = parseBool(result.requiresProof, false);
   let proofGuidance = typeof result.proofGuidance === 'string' ? result.proofGuidance.trim() : '';
 
-  const isIntangible = /\b(ngủ|ngu|thiền|thien|nghe\s*podcast|nghe\s*nhạc|nghe\s*nhac|nhịn\s*ăn|nhin\s*an)\b/i.test(titleMatchText);
+  const isIntangible = /\b(đi\s*ngủ|di\s*ngu|ngủ\s*đủ|ngu\s*du|thiền|thien\s*dinh|nghe\s*podcast|nghe\s*nhạc|nghe\s*nhac|nhịn\s*ăn|nhin\s*an)\b/i.test(fullMatchText);
 
   // Programmatic Arbiter: High-value tasks (>= 15 coins / Rank B, A, S) or deep focus sessions (>= 25m) with tangible physical output MUST require proof unless specifically negotiated or intangible
   const isHighValueOrDeepWork = rewardCoins >= 15 || (type === 'focus' && targetMinutes >= 25);
@@ -276,6 +268,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     ...result,
     title,
     description,
+    category,
     type,
     targetMinutes,
     rewardCoins,
@@ -453,6 +446,13 @@ QUY TẮC THẨM ĐỊNH & PHÂN LOẠI KỶ LUẬT:
      * Nhiệm vụ nhỏ dưới 10 Vàng (Hạng E, D).
      * HOẶC công việc hoàn toàn vô hình không thể chụp ảnh (thiền định, đi ngủ sớm, nhịn ăn vặt, nghe podcast).
      * Khi 'requiresProof': false thì 'proofGuidance': ''.
+6. PHÂN LOẠI DANH MỤC CÔNG VIỆC ('category'):
+   - "study": Việc học tập, đọc sách, nghiên cứu, ôn thi, làm bài tập, học kỹ năng.
+   - "work": Lập trình, phát triển dự án, công việc chuyên môn, viết báo cáo.
+   - "fitness": Rèn luyện thể lực, tập thể dục, gym, chạy bộ, hít đất.
+   - "chore": Việc nhà, dọn dẹp, rửa bát/chén, quét nhà, giặt đồ, nấu ăn.
+   - "habit": Thói quen tích cực hàng ngày (uống nước, thiền, đọc tin, ngủ đúng giờ).
+   - "trivial": Hành vi sinh hoạt cơ bản hiển nhiên (đánh răng, rửa mặt, đi tắm, thở, chớp mắt, ăn cơm...).
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
@@ -464,6 +464,7 @@ QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 
 Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' và 'isModified' TRƯỚC khi viết 'title'):
 {
+  "category": "study" | "work" | "fitness" | "chore" | "habit" | "trivial",
   "isOverloaded": boolean,
   "chunkingPlan": "Nếu isOverloaded = true, ghi rõ kế hoạch chia nhỏ (VD: 'Nhiệm vụ 10 chương quá tải, AI chia nhỏ thành đọc Chương 1 trong 50 phút')",
   "isModified": boolean,
@@ -560,6 +561,7 @@ Trả về ĐÚNG định dạng JSON:
   "reply": "Lời phản hồi tự nhiên, chuẩn mực chăm sóc khách hàng, ân cần, khéo léo và chốt rõ thông số",
   "newTitle": "Tên nhiệm vụ sau khi chốt (nếu không đổi thì giữ nguyên tên cũ)",
   "newDescription": "Mô tả nhiệm vụ sau khi chốt (nếu không đổi thì giữ nguyên)",
+  "newCategory": "study" | "work" | "fitness" | "chore" | "habit" | "trivial",
   "newType": "focus" | "bounty",
   "newRewardCoins": number,
   "newTargetMinutes": number,
@@ -594,6 +596,7 @@ Trả về ĐÚNG định dạng JSON:
           const rawDebate = {
             title: result.newTitle || quest.title,
             description: result.newDescription !== undefined ? result.newDescription : (quest.description || ''),
+            category: result.newCategory || quest.category,
             type: result.newType || (result.newTargetMinutes > 0 ? 'focus' : quest.type || 'focus'),
             targetMinutes: result.newTargetMinutes !== undefined ? result.newTargetMinutes : quest.targetMinutes,
             rewardCoins: result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins,

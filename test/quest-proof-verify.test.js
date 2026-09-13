@@ -290,3 +290,4 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
 }
 
 console.log('🎉 TẤT CẢ CÁC KIỂM THỬ CHO TÍNH NĂNG ẢNH BẰNG CHỨNG ĐÃ THÀNH CÔNG RỰC RỠ!\n');
+process.exit(0);
