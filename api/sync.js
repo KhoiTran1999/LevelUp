@@ -157,9 +157,10 @@ export function deriveLegitimateBalance(state, existingState = null) {
   // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
   // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng hoặc bơm hàng ngàn quest giả
   const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
+  const isAdminAdjusted = Boolean(existingState?.profile?.adminAdjusted || state?.profile?.adminAdjusted);
   const maxAllowedCeiling = existingTotal > 0
     ? existingTotal + 500
-    : maxTrackedEarned;
+    : (isAdminAdjusted ? Math.max(rawTotal, maxTrackedEarned) : maxTrackedEarned);
 
   if (rawTotal > maxAllowedCeiling) {
     rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxTrackedEarned;
@@ -171,6 +172,9 @@ export function deriveLegitimateBalance(state, existingState = null) {
   }
 
   // Số coin hiện tại không thể lớn hơn (tổng kiếm được - tổng đã tiêu)
+  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent) {
+    rawTotal = rawCoins + totalSpent;
+  }
   const maxCurrent = Math.max(0, rawTotal - totalSpent);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
@@ -187,7 +191,7 @@ export function deriveLegitimateBalance(state, existingState = null) {
   const existingLevel = Math.max(1, parseInt(existingState?.profile?.level, 10) || 1);
   const maxAllowedLevel = existingTotal > 0
     ? existingLevel + 2
-    : Math.min(10, Math.max(existingLevel, Math.floor(rawTotal / 40) + 1));
+    : (isAdminAdjusted ? Math.max(rawLevel, existingLevel) : Math.min(10, Math.max(existingLevel, Math.floor(rawTotal / 40) + 1)));
 
   if (rawLevel > maxAllowedLevel) {
     rawLevel = existingTotal > 0 ? existingLevel + 1 : Math.min(maxAllowedLevel, 5);
@@ -365,6 +369,33 @@ export async function authenticateCaller(token, redis, adminConfig) {
   return null;
 }
 
+export async function verifyIsAdmin(token, redis, adminConfig) {
+  if (!token || typeof token !== 'string') return false;
+  const cleanToken = token.trim();
+  if (adminConfig && adminConfig.token && cleanToken === adminConfig.token) {
+    return true;
+  }
+  const caller = await authenticateCaller(cleanToken, redis, adminConfig);
+  if (!caller) return false;
+  const callerEmail = (caller.email || '').toLowerCase();
+  if (callerEmail && adminConfig && Array.isArray(adminConfig.emails) && adminConfig.emails.includes(callerEmail)) {
+    return true;
+  }
+  if (caller.sub && redis) {
+    let raw = await redis.get(`levelup:user:google:${caller.sub}`);
+    if (!raw) raw = await redis.get(`levelup:user:${caller.sub}`);
+    if (raw) {
+      try {
+        const u = JSON.parse(raw);
+        if (u?.profile?.role === 'admin') return true;
+        const nick = (u?.profile?.nickname || '').toLowerCase();
+        if (nick && adminConfig && Array.isArray(adminConfig.nicks) && adminConfig.nicks.includes(nick)) return true;
+      } catch (_) {}
+    }
+  }
+  return false;
+}
+
 export default async function handler(req, res) {
   const { nicks: ADMIN_NICKS, emails: ADMIN_EMAILS, token: ADMIN_TOKEN } = getAdminConfig();
 
@@ -506,6 +537,9 @@ export default async function handler(req, res) {
 
         const initialScore = 1020;
         await redis.zadd('levelup:leaderboard', initialScore, sub);
+        if (typeof redis.sadd === 'function') {
+          await redis.sadd('levelup:all_users', sub);
+        }
       } else {
         if (userState.profile) {
           userState.profile.googleId = sub;
@@ -710,7 +744,145 @@ export default async function handler(req, res) {
         });
       }
 
-      // 2.3 Tải hồ sơ người dùng theo Google ID Token hoặc Session Token
+      // 2.4 Admin Action: Danh sách toàn bộ người chơi (admin_list_users)
+      if (action === 'admin_list_users') {
+        const isAdminCaller = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+        if (!isAdminCaller) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên (Admin) mới có quyền truy cập danh sách người chơi.' });
+        }
+
+        const userKeySet = new Set();
+
+        // 1. Thu thập từ levelup:all_users
+        if (typeof redis.smembers === 'function') {
+          try {
+            const allMembers = await redis.smembers('levelup:all_users');
+            if (Array.isArray(allMembers)) {
+              allMembers.forEach(m => m && userKeySet.add(m));
+            }
+          } catch (_) {}
+        }
+
+        // 2. Thu thập từ Leaderboard và Cheaters
+        try {
+          const lbMembers = await redis.zrevrange('levelup:leaderboard', 0, -1);
+          if (Array.isArray(lbMembers)) {
+            lbMembers.forEach(m => m && userKeySet.add(m));
+          }
+        } catch (_) {}
+        try {
+          const chMembers = await redis.zrevrange('levelup:cheaters', 0, -1);
+          if (Array.isArray(chMembers)) {
+            chMembers.forEach(m => m && userKeySet.add(m));
+          }
+        } catch (_) {}
+
+        // 3. Thu thập từ keys pattern 'levelup:user:*'
+        if (typeof redis.keys === 'function') {
+          try {
+            const keys = await redis.keys('levelup:user:*');
+            if (Array.isArray(keys)) {
+              for (const k of keys) {
+                const subOrKey = k.replace(/^levelup:user:(google:)?/, '');
+                if (subOrKey) userKeySet.add(subOrKey);
+              }
+            }
+          } catch (_) {}
+        }
+
+        const users = [];
+        const seenSubs = new Set();
+
+        for (const subOrKey of userKeySet) {
+          let raw = await redis.get(`levelup:user:google:${subOrKey}`);
+          if (!raw) raw = await redis.get(`levelup:user:${subOrKey}`);
+          if (!raw) {
+            const mapped = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(subOrKey)}`);
+            if (mapped) {
+              raw = await redis.get(`levelup:user:google:${mapped}`);
+              if (!raw) raw = await redis.get(`levelup:user:${mapped}`);
+            }
+          }
+          if (!raw) continue;
+
+          try {
+            const uData = JSON.parse(raw);
+            const prof = uData.profile || {};
+            const googleId = prof.googleId || uData.googleId || subOrKey;
+
+            if (seenSubs.has(googleId)) continue;
+            seenSubs.add(googleId);
+
+            const email = (prof.googleEmail || '').toLowerCase();
+            const isAdminMember = (email && ADMIN_EMAILS.includes(email)) ||
+                                  ADMIN_NICKS.includes((prof.nickname || '').toLowerCase()) ||
+                                  prof.role === 'admin';
+
+            users.push({
+              key: googleId,
+              sub: googleId,
+              nickname: prof.nickname || googleId,
+              email: email,
+              avatar: prof.avatar || prof.googlePicture || '⚔️',
+              level: prof.level || 1,
+              exp: prof.exp || 0,
+              coins: typeof prof.coins === 'number' ? prof.coins : (prof.totalCoinsEarned || 20),
+              totalCoinsEarned: prof.totalCoinsEarned || 20,
+              title: prof.title || deriveTitleForLevel(prof.level || 1),
+              role: isAdminMember ? 'admin' : (prof.role || 'adventurer'),
+              isCheater: Boolean(prof.isCheater),
+              cheatStrikes: prof.cheatStrikes || 0,
+              adminAdjusted: Boolean(prof.adminAdjusted),
+              ledgerCount: Array.isArray(uData.ledger) ? uData.ledger.length : 0,
+              questsCount: Array.isArray(uData.quests) ? uData.quests.length : 0,
+              lastSyncedAt: uData.lastSyncedAt || uData.lastModified || Date.now()
+            });
+          } catch (_) {}
+        }
+
+        // Sắp xếp: Admin lên đầu, tiếp đến Level giảm dần, rồi Coins giảm dần
+        users.sort((a, b) => {
+          if (a.role === 'admin' && b.role !== 'admin') return -1;
+          if (b.role === 'admin' && a.role !== 'admin') return 1;
+          if ((b.level || 1) !== (a.level || 1)) return (b.level || 1) - (a.level || 1);
+          return (b.coins || 0) - (a.coins || 0);
+        });
+
+        return res.status(200).json({ success: true, users, count: users.length });
+      }
+
+      // 2.5 Admin Action: Xem lịch sử thu chi của người chơi (admin_get_user_ledger)
+      if (action === 'admin_get_user_ledger') {
+        const isAdminCaller = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+        if (!isAdminCaller) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền xem lịch sử thu chi người chơi.' });
+        }
+        const target = req.query?.targetSub || req.query?.targetNickname;
+        if (!target) {
+          return res.status(400).json({ error: 'Thiếu thông tin người chơi (targetSub).' });
+        }
+        let rawData = await redis.get(`levelup:user:google:${target}`);
+        if (!rawData) rawData = await redis.get(`levelup:user:${target}`);
+        if (!rawData) {
+          const mapped = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(target)}`);
+          if (mapped) {
+            rawData = await redis.get(`levelup:user:google:${mapped}`);
+            if (!rawData) rawData = await redis.get(`levelup:user:${mapped}`);
+          }
+        }
+        if (!rawData) {
+          return res.status(404).json({ error: 'Không tìm thấy dữ liệu người chơi.' });
+        }
+        const parsed = JSON.parse(rawData);
+        return res.status(200).json({
+          success: true,
+          target,
+          profile: parsed.profile || {},
+          ledger: Array.isArray(parsed.ledger) ? parsed.ledger : []
+        });
+      }
+
+      // 2.6 Tải hồ sơ người dùng theo Google ID Token hoặc Session Token
       if (!token) {
         return res.status(401).json({ error: 'Cần đăng nhập tài khoản Google để tải dữ liệu.' });
       }
@@ -728,6 +900,11 @@ export default async function handler(req, res) {
       }
 
       const data = JSON.parse(rawData);
+      const isCallerAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+      if (isCallerAdmin && data.profile && data.profile.role !== 'admin') {
+        data.profile.role = 'admin';
+        await redis.set(`levelup:user:google:${targetSub}`, JSON.stringify(data), 'EX', 180 * 24 * 3600);
+      }
       return res.status(200).json({
         found: true,
         isOwner: true,
@@ -742,18 +919,7 @@ export default async function handler(req, res) {
       // 3.1 Admin Action: Xóa tài khoản gian lận khỏi Leaderboard
       if (action === 'admin_remove') {
         const target = req.body?.targetSub || req.body?.targetNickname;
-        let callerEmail = '';
-        let isCallerAdmin = false;
-
-        if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
-          isCallerAdmin = true;
-        } else if (token) {
-          const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
-          if (caller) {
-            callerEmail = caller.email || '';
-            isCallerAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(callerEmail);
-          }
-        }
+        const isCallerAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
 
         if (!isCallerAdmin) {
           return res.status(403).json({ error: 'Chỉ Quản trị viên (Admin) mới có thẩm quyền thực hiện thao tác này.' });
@@ -773,6 +939,10 @@ export default async function handler(req, res) {
           await redis.zrem('levelup:leaderboard', target);
           await redis.zrem('levelup:cheaters', targetSubToDelete);
           await redis.zrem('levelup:cheaters', target);
+          if (typeof redis.srem === 'function') {
+            await redis.srem('levelup:all_users', targetSubToDelete);
+            await redis.srem('levelup:all_users', target);
+          }
         }
 
         return res.status(200).json({ success: true, removed: targetSubToDelete });
@@ -781,18 +951,7 @@ export default async function handler(req, res) {
       // 3.2 Admin Action: Ân xá tài khoản gian lận (Khôi phục danh hiệu, xóa cờ vi phạm, đưa lại Leaderboard)
       if (action === 'admin_pardon') {
         const target = req.body?.targetSub || req.body?.targetNickname;
-        let callerEmail = '';
-        let isCallerAdmin = false;
-
-        if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
-          isCallerAdmin = true;
-        } else if (token) {
-          const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
-          if (caller) {
-            callerEmail = caller.email || '';
-            isCallerAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(callerEmail);
-          }
-        }
+        const isCallerAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
 
         if (!isCallerAdmin) {
           return res.status(403).json({ error: 'Chỉ Quản trị viên (Admin) mới có thẩm quyền thực hiện thao tác này.' });
@@ -857,7 +1016,203 @@ export default async function handler(req, res) {
         });
       }
 
-      // 3.3 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
+      // 3.3 Admin Action: Tinh chỉnh Vàng, Cấp độ, EXP và Trạng thái người chơi (admin_update_user)
+      if (action === 'admin_update_user') {
+        const isAdminCaller = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+        if (!isAdminCaller) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền tinh chỉnh dữ liệu người chơi.' });
+        }
+
+        const { targetSub, coins, totalCoinsEarned, level, exp, isCheater, reason } = req.body || {};
+        if (!targetSub) {
+          return res.status(400).json({ error: 'Thiếu tham số targetSub.' });
+        }
+
+        let userKey = `levelup:user:google:${targetSub}`;
+        let rawUserData = await redis.get(userKey);
+        if (!rawUserData) {
+          userKey = `levelup:user:${targetSub}`;
+          rawUserData = await redis.get(userKey);
+        }
+        if (!rawUserData) {
+          const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(targetSub)}`);
+          if (mappedSub) {
+            userKey = `levelup:user:google:${mappedSub}`;
+            rawUserData = await redis.get(userKey);
+          }
+        }
+        if (!rawUserData) {
+          return res.status(404).json({ error: 'Không tìm thấy người chơi cần điều chỉnh.' });
+        }
+
+        const userData = JSON.parse(rawUserData);
+        if (!userData.profile) userData.profile = {};
+
+        const oldCoins = typeof userData.profile.coins === 'number' ? userData.profile.coins : (userData.profile.totalCoinsEarned || 20);
+        const oldLevel = userData.profile.level || 1;
+        const serverTimestamp = Date.now();
+
+        // 1. Cập nhật Coins & Total
+        if (coins !== undefined && coins !== null && !isNaN(parseInt(coins, 10))) {
+          const newCoins = Math.max(0, parseInt(coins, 10));
+          userData.profile.coins = newCoins;
+          if (totalCoinsEarned !== undefined && totalCoinsEarned !== null && !isNaN(parseInt(totalCoinsEarned, 10))) {
+            userData.profile.totalCoinsEarned = Math.max(newCoins, parseInt(totalCoinsEarned, 10));
+          } else {
+            userData.profile.totalCoinsEarned = Math.max(newCoins, userData.profile.totalCoinsEarned || 20);
+          }
+        }
+
+        // 2. Cập nhật Level & EXP
+        if (level !== undefined && level !== null && !isNaN(parseInt(level, 10))) {
+          const newLevel = Math.max(1, Math.min(100, parseInt(level, 10)));
+          userData.profile.level = newLevel;
+          if (exp !== undefined && exp !== null && !isNaN(parseInt(exp, 10))) {
+            userData.profile.exp = Math.max(0, parseInt(exp, 10));
+          }
+          if (!userData.profile.isCheater) {
+            userData.profile.title = deriveTitleForLevel(newLevel);
+          }
+        }
+
+        // 3. Trạng thái gian lận (isCheater toggle)
+        if (typeof isCheater === 'boolean') {
+          userData.profile.isCheater = isCheater;
+          if (isCheater) {
+            userData.profile.title = 'Kẻ Gian Lận ⚠️';
+            await redis.zrem('levelup:leaderboard', targetSub);
+            await redis.zadd('levelup:cheaters', serverTimestamp, targetSub);
+          } else {
+            userData.profile.cheatStrikes = 0;
+            delete userData.profile.cheatedAt;
+            delete userData.profile.redemptionBaseline;
+            userData.profile.title = deriveTitleForLevel(userData.profile.level || 1);
+            await redis.zrem('levelup:cheaters', targetSub);
+          }
+        }
+
+        // Đánh dấu cờ adminAdjusted để tránh Anti-Cheat phạt nhầm
+        userData.profile.adminAdjusted = true;
+
+        // 4. Ghi Audit Log vào Ledger
+        const coinsDiff = (userData.profile.coins ?? oldCoins) - oldCoins;
+        const levelDiff = (userData.profile.level ?? oldLevel) - oldLevel;
+        const changeParts = [];
+        if (coinsDiff !== 0) changeParts.push(`${coinsDiff > 0 ? '+' : ''}${coinsDiff} Vàng`);
+        if (levelDiff !== 0) changeParts.push(`${levelDiff > 0 ? '+' : ''}${levelDiff} Cấp`);
+        const changeSummary = changeParts.length > 0 ? changeParts.join(', ') : 'Cập nhật chỉ số';
+
+        const auditEntry = {
+          id: `admin_adj_${serverTimestamp}`,
+          type: coinsDiff >= 0 ? 'earn' : 'spend',
+          category: 'admin',
+          amount: Math.abs(coinsDiff),
+          title: '👑 Quản Trị Viên điều chỉnh',
+          description: reason || `👑 Quản trị viên cập nhật: ${changeSummary} (Bởi Admin)`,
+          timestamp: serverTimestamp
+        };
+        userData.ledger = [auditEntry, ...(Array.isArray(userData.ledger) ? userData.ledger : [])].slice(0, 100);
+
+        userData.lastModified = serverTimestamp;
+        userData.lastSyncedAt = serverTimestamp;
+
+        // Lưu lại vào Redis
+        await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+
+        // Đồng bộ Bảng Xếp Hạng nếu không phải kẻ gian lận
+        if (!userData.profile.isCheater) {
+          const finalLevel = userData.profile.level || 1;
+          const finalCoins = userData.profile.coins || 0;
+          const score = (finalLevel * 1000) + finalCoins;
+          await redis.zadd('levelup:leaderboard', score, targetSub);
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: `Đã cập nhật thành công người chơi "${userData.profile.nickname || targetSub}".`,
+          profile: userData.profile
+        });
+      }
+
+      // 3.4 Admin Action: Xóa lịch sử thu chi của người chơi (admin_clear_user_ledger)
+      if (action === 'admin_clear_user_ledger') {
+        const isAdminCaller = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+        if (!isAdminCaller) {
+          return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền xóa lịch sử thu chi.' });
+        }
+
+        const { targetSub, entryId, entryIds } = req.body || {};
+        if (!targetSub) {
+          return res.status(400).json({ error: 'Thiếu tham số targetSub.' });
+        }
+
+        let userKey = `levelup:user:google:${targetSub}`;
+        let rawUserData = await redis.get(userKey);
+        if (!rawUserData) {
+          userKey = `levelup:user:${targetSub}`;
+          rawUserData = await redis.get(userKey);
+        }
+        if (!rawUserData) {
+          const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(targetSub)}`);
+          if (mappedSub) {
+            userKey = `levelup:user:google:${mappedSub}`;
+            rawUserData = await redis.get(userKey);
+          }
+        }
+        if (!rawUserData) {
+          return res.status(404).json({ error: 'Không tìm thấy người chơi.' });
+        }
+
+        const userData = JSON.parse(rawUserData);
+        const serverTimestamp = Date.now();
+
+        // 1. Xóa nhiều bản ghi theo danh sách tích chọn (entryIds)
+        if (Array.isArray(entryIds) && entryIds.length > 0) {
+          const idsToDelete = new Set(entryIds);
+          const beforeCount = (Array.isArray(userData.ledger) ? userData.ledger : []).length;
+          userData.ledger = (Array.isArray(userData.ledger) ? userData.ledger : []).filter(item => !idsToDelete.has(item.id));
+          const removedCount = beforeCount - userData.ledger.length;
+          userData.lastModified = serverTimestamp;
+          await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+          return res.status(200).json({
+            success: true,
+            removedCount,
+            remainingCount: userData.ledger.length,
+            message: `Đã xóa thành công ${removedCount} giao dịch đã chọn.`
+          });
+        } else if (entryId && entryId !== 'all') {
+          // 2. Xóa 1 bản ghi cụ thể (entryId)
+          userData.ledger = (Array.isArray(userData.ledger) ? userData.ledger : []).filter(item => item.id !== entryId);
+          userData.lastModified = serverTimestamp;
+          await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+          return res.status(200).json({
+            success: true,
+            removedId: entryId,
+            remainingCount: userData.ledger.length,
+            message: 'Đã xóa bản ghi giao dịch thành công.'
+          });
+        } else {
+          // 3. Xóa toàn bộ lịch sử thu chi
+          userData.ledger = [{
+            id: `admin_cleared_${serverTimestamp}`,
+            type: 'system',
+            category: 'admin',
+            amount: 0,
+            title: 'Dọn dẹp lịch sử',
+            description: '🧹 Lịch sử thu chi đã được Quản trị viên dọn dẹp sạch sẽ.',
+            timestamp: serverTimestamp
+          }];
+          userData.lastModified = serverTimestamp;
+          await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+          return res.status(200).json({
+            success: true,
+            clearedAll: true,
+            message: `Đã xóa toàn bộ lịch sử thu chi của "${userData.profile?.nickname || targetSub}".`
+          });
+        }
+      }
+
+      // 3.5 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
       if (action === 'logout') {
         if (token) {
           await redis.del(`levelup:session:${token}`);
@@ -915,7 +1270,6 @@ export default async function handler(req, res) {
         await redis.set(`levelup:nick_to_sub:${nickname}`, userSub, 'EX', 180 * 24 * 3600);
       }
 
-      const userRole = isAdmin ? 'admin' : 'adventurer';
       const serverTimestamp = Date.now();
       const userKey = `levelup:user:google:${userSub}`;
 
@@ -924,6 +1278,10 @@ export default async function handler(req, res) {
       if (rawExisting) {
         try { existingState = JSON.parse(rawExisting); } catch (_) {}
       }
+
+      const callerIsAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
+      const isAdminUser = callerIsAdmin || isAdmin || existingState?.profile?.role === 'admin';
+      const userRole = isAdminUser ? 'admin' : 'adventurer';
 
       // Anti-Cheat: Validate and derive legitimate coin balance from quest completions and inventory
       const balanceCheck = deriveLegitimateBalance(state, existingState);
@@ -1090,6 +1448,9 @@ export default async function handler(req, res) {
       };
 
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
+      if (typeof redis.sadd === 'function') {
+        await redis.sadd('levelup:all_users', userSub);
+      }
 
       // Cập nhật Sổ Đen Gian Lận:
       if (isCheater) {
