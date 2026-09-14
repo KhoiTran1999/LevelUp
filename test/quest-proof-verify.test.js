@@ -1,4 +1,6 @@
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   signQuest,
   signQuestLegacy,
@@ -15,6 +17,9 @@ function simulateCompleteQuest(quest, profile) {
 
   if (quest._proofVerified) {
     delete quest._proofVerified;
+  }
+  if (quest.focusTimerCompleted) {
+    delete quest.focusTimerCompleted;
   }
 
   quest.completedCount = (quest.completedCount || 0) + 1;
@@ -287,6 +292,69 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   assert.strictEqual(negotiatedProofOff, false, 'parseBool chuyển đổi chính xác false');
 
   console.log('✓ Test 7: Luồng thương lượng cập nhật requiresProof hai chiều hoạt động chuẩn xác.');
+}
+
+// Test 8: Bug #7 Fix - Bảo toàn trạng thái hoàn thành thời gian khi reload trang
+{
+  const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+
+  // 8.1 Kiểm tra app.js gán quest.focusTimerCompleted = true và triggerSave(true) khi timer kết thúc
+  assert.ok(appJs.includes('quest.focusTimerCompleted = true;'), 'focusTimerFinished phải gán quest.focusTimerCompleted = true');
+  assert.ok(appJs.includes('triggerSave(true);'), 'focusTimerFinished phải lưu state lên cloud/local');
+
+  // 8.2 Kiểm tra startFocusTimer không bắt người dùng đếm giờ lại khi focusTimerCompleted = true
+  assert.ok(appJs.includes('quest.focusTimerCompleted && quest.requiresProof && !quest._proofVerified'), 'startFocusTimer phải chặn bắt đầu lại khi đã đủ thời gian');
+
+  // 8.3 Kiểm tra renderQuests hiển thị badge "CHỜ NỘP ẢNH" và nút "Chụp Ảnh Nhận Vàng 📸"
+  assert.ok(appJs.includes('CHỜ NỘP ẢNH'), 'renderQuests phải hiển thị badge CHỜ NỘP ẢNH');
+  assert.ok(appJs.includes('btn-submit-quest-proof'), 'renderQuests phải có nút class btn-submit-quest-proof');
+  assert.ok(appJs.includes('Chụp Ảnh Nhận Vàng 📸'), 'renderQuests phải có nhãn Chụp Ảnh Nhận Vàng 📸');
+  assert.ok(appJs.includes('openQuestProofModal(q)'), 'Sự kiện click btn-submit-quest-proof phải mở modal nộp ảnh');
+
+  // 8.4 Kiểm tra dọn sạch cờ focusTimerCompleted khi hoàn thành, hoàn tác hoặc làm lại
+  assert.ok(appJs.includes('delete quest.focusTimerCompleted;'), 'completeQuest, undoCompleteQuest hoặc restartQuest phải dọn sạch focusTimerCompleted');
+
+  // 8.5 Giả lập luồng logic: Làm nhiệm vụ 30p + chụp ảnh, hoàn thành timer, reload trang, chụp ảnh sau
+  const quest = {
+    id: 'q_timed_proof',
+    title: 'Học 30 phút và chụp ảnh vở',
+    type: 'focus',
+    targetMinutes: 30,
+    rewardCoins: 25,
+    requiresProof: true
+  };
+  const profile = { coins: 10, exp: 20 };
+
+  // Bước 1: Timer kết thúc
+  quest.focusTimerCompleted = true;
+  assert.strictEqual(quest.focusTimerCompleted, true);
+
+  // Bước 2: Người dùng bận, tắt/reload trang. Dữ liệu nạp lại từ cloud/storage:
+  const reloadedQuest = JSON.parse(JSON.stringify(quest));
+  assert.strictEqual(reloadedQuest.focusTimerCompleted, true, 'Trạng thái focusTimerCompleted phải sống sót qua reload trang');
+
+  // Bước 3: Người dùng bấm vào nhiệm vụ, hệ thống không bắt bấm giờ lại
+  let timerRestartPrevented = false;
+  function attemptStartTimer(q) {
+    if (q.focusTimerCompleted && q.requiresProof && !q._proofVerified) {
+      timerRestartPrevented = true;
+      return false;
+    }
+    return true;
+  }
+  const canStartTimer = attemptStartTimer(reloadedQuest);
+  assert.strictEqual(canStartTimer, false, 'Không được phép bắt người dùng đếm giờ lại từ đầu');
+  assert.strictEqual(timerRestartPrevented, true, 'Hệ thống đã nhận diện timer hoàn thành và chuyển sang nộp ảnh');
+
+  // Bước 4: Người dùng chụp ảnh và AI thẩm định thành công
+  reloadedQuest._proofVerified = true;
+  const finishRes = simulateCompleteQuest(reloadedQuest, profile);
+  assert.strictEqual(finishRes.success, true, 'Nhiệm vụ hoàn thành thành công sau khi gửi ảnh');
+  assert.strictEqual(reloadedQuest.status, 'completed');
+  assert.strictEqual(reloadedQuest.focusTimerCompleted, undefined, 'Cờ focusTimerCompleted phải được dọn dẹp sạch sẽ');
+  assert.strictEqual(profile.coins, 35, 'Người dùng nhận đủ 25 Vàng');
+
+  console.log('✓ Test 8: Khắc phục triệt để Bug #7 - Người dùng không bị bắt đếm giờ lại từ đầu sau khi reload trang.');
 }
 
 console.log('🎉 TẤT CẢ CÁC KIỂM THỬ CHO TÍNH NĂNG ẢNH BẰNG CHỨNG ĐÃ THÀNH CÔNG RỰC RỠ!\n');

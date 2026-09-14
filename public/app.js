@@ -573,6 +573,7 @@ async function hydrateFromCloud(isManual = false) {
       applyTheme(appState.profile.theme || 'dark');
       saveLocalCache();
       renderAll();
+      restoreFocusTimer();
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật từ Cloud';
@@ -1010,7 +1011,11 @@ function restoreFocusTimer() {
       isBreakMode = false;
     } else if (state.questId) {
       const quest = appState.quests?.find(q => q.id === state.questId);
-      if (!quest || quest.status === 'completed') {
+      if (!quest) {
+        // ponytail: Chưa load xong quests từ cloud, giữ nguyên timer state tránh xóa nhầm khi reload trang
+        return;
+      }
+      if (quest.status === 'completed') {
         localStorage.removeItem(TIMER_STORAGE_KEY);
         return;
       }
@@ -1198,6 +1203,13 @@ async function startFocusTimer(quest) {
   // Edge case 1: Nhiệm vụ đã hoàn thành từ trước
   if (quest.status === 'completed') {
     showToast('Nhiệm vụ này đã được hoàn thành!', 'info');
+    return;
+  }
+
+  // Edge case 1b: Nhiệm vụ đã đủ thời gian tập trung, đang chờ chụp ảnh nộp cho AI
+  if (quest.focusTimerCompleted && quest.requiresProof && !quest._proofVerified) {
+    showToast(`Nhiệm vụ "${quest.title}" đã hoàn thành đủ thời gian! Vui lòng chụp ảnh để AI duyệt nhận Vàng.`, 'info');
+    openQuestProofModal(quest);
     return;
   }
 
@@ -1513,6 +1525,8 @@ function focusTimerFinished() {
     }
 
     if (quest.requiresProof && !quest._proofVerified) {
+      quest.focusTimerCompleted = true;
+      triggerSave(true);
       sendFocusNotification(
         '⏳ HẾT GIỜ TẬP TRUNG!',
         `Bạn đã hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}". Hãy chụp ảnh bằng chứng để nhận Vàng nhé!`
@@ -1604,6 +1618,9 @@ async function completeQuest(questId, skipConfirm = false) {
   if (quest._proofVerified) {
     delete quest._proofVerified;
   }
+  if (quest.focusTimerCompleted) {
+    delete quest.focusTimerCompleted;
+  }
 
   if (!skipConfirm) {
     const ok = await confirmAction({
@@ -1681,6 +1698,8 @@ async function undoCompleteQuest(questId) {
   if (!ok) return;
 
   quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
+  delete quest.focusTimerCompleted;
+  delete quest._proofVerified;
   if (quest.isRepeatable) {
     if (!quest.completedCount) delete quest.lastCompletedAt;
   } else {
@@ -1716,6 +1735,8 @@ async function restartQuest(questId) {
 
   quest.status = 'active';
   delete quest.completedAt;
+  delete quest.focusTimerCompleted;
+  delete quest._proofVerified;
 
   sfx.playClick();
   triggerSave(true);
@@ -2647,6 +2668,8 @@ async function acceptVerdictAndCreateQuest() {
       targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
       targetQuest.requiresProof = Boolean(currentPendingVerdict.requiresProof);
       targetQuest.proofGuidance = currentPendingVerdict.proofGuidance || '';
+      delete targetQuest.focusTimerCompleted;
+      delete targetQuest._proofVerified;
 
       if (activeFocusQuest && activeFocusQuest.id === targetQuest.id) {
         activeFocusQuest.title = targetQuest.title;
@@ -4746,8 +4769,8 @@ function renderQuests() {
           <div class="flex items-center gap-2">
             <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg tracking-wider shadow-xs">HẠNG ${q.rank}</span>
             ${q.requiresProof ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs" title="Cần chụp ảnh gửi AI thẩm định để nhận thưởng">
-                📸 CẦN ẢNH
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs'}" title="${q.focusTimerCompleted ? 'Đã hoàn thành đủ thời gian! Chờ chụp ảnh gửi AI thẩm định để nhận thưởng' : 'Cần chụp ảnh gửi AI thẩm định để nhận thưởng'}">
+                📸 ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
               </span>
             ` : ''}
             ${isCurrentlyFocusing ? `
@@ -4778,11 +4801,16 @@ function renderQuests() {
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2 text-xs">
           <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
             ${q.type === 'focus' ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 font-mono">
-                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                ${q.targetMinutes}p
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'} font-mono">
+                ${q.focusTimerCompleted ? `
+                  <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                  <span>Đã đủ ${q.targetMinutes}p</span>
+                ` : `
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                  <span>${q.targetMinutes}p</span>
+                `}
               </span>
-              <span>Tập trung</span>
+              <span>${q.focusTimerCompleted ? 'Đã xong giờ' : 'Tập trung'}</span>
             ` : `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
@@ -4826,7 +4854,12 @@ function renderQuests() {
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
               <span>Thương lượng</span>
             </button>
-            ${q.type === 'focus' ? `
+            ${q.focusTimerCompleted && q.requiresProof ? `
+              <button class="btn-submit-quest-proof flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400/50" title="Đã đủ thời gian tập trung! Bấm để chụp ảnh gửi AI duyệt nhận Vàng">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+                <span>Chụp Ảnh Nhận Vàng 📸</span>
+              </button>
+            ` : (q.type === 'focus' ? `
               <button class="btn-start-focus flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20'}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
                 <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
@@ -4836,7 +4869,7 @@ function renderQuests() {
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
               </button>
-            `}
+            `)}
           </div>
         `}
       </div>
@@ -4876,6 +4909,14 @@ function renderQuests() {
       undoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         undoCompleteQuest(q.id);
+      });
+    }
+
+    const submitProofBtn = card.querySelector('.btn-submit-quest-proof');
+    if (submitProofBtn) {
+      submitProofBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openQuestProofModal(q);
       });
     }
 
@@ -6199,6 +6240,11 @@ async function initStartupFlow() {
         applyTheme(appState.profile.theme || 'dark');
         closeModal('modal-welcome');
         renderAll();
+        restoreFocusTimer();
+        const pendingProofQuest = (appState.quests || []).find(q => q.focusTimerCompleted && q.requiresProof && !q._proofVerified && q.status !== 'completed');
+        if (pendingProofQuest) {
+          showToast(`📸 Nhiệm vụ "${pendingProofQuest.title}" đã hoàn thành thời gian! Hãy bấm "Chụp Ảnh Nhận Vàng" để AI duyệt thưởng.`, 'info');
+        }
         return;
       }
     } else if (res.status === 401) {
