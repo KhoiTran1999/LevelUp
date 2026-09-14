@@ -81,7 +81,20 @@ export function verifyQuestSignature(q) {
   return false;
 }
 
-export function signReward(name, price, tier) {
+export function signReward(name, price, tier, targetMinutes = 0) {
+  const normName = (name || '').normalize('NFC').trim().toLowerCase();
+  const p = parseInt(price, 10) || 0;
+  const tr = (tier || 'common').toLowerCase();
+  const m = parseInt(targetMinutes, 10) || 0;
+  if (m > 0) {
+    const payload = `reward:${normName}:${p}:${tr}:${m}`;
+    return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+  }
+  const payload = `reward:${normName}:${p}:${tr}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function signRewardLegacy(name, price, tier) {
   const normName = (name || '').normalize('NFC').trim().toLowerCase();
   const p = parseInt(price, 10) || 0;
   const tr = (tier || 'common').toLowerCase();
@@ -92,8 +105,10 @@ export function signReward(name, price, tier) {
 export function verifyRewardSignature(r) {
   if (!r || typeof r !== 'object') return false;
   if (r.signature) {
-    const expected = signReward(r.name, r.price, r.tier);
+    const expected = signReward(r.name, r.price, r.tier, r.targetMinutes || 0);
     if (r.signature === expected) return true;
+    const legacyExpected = signRewardLegacy(r.name, r.price, r.tier);
+    if (r.signature === legacyExpected) return true;
   }
   if (r.id === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
   if (r.id === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';

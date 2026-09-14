@@ -281,13 +281,139 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   };
 }
 
+// ponytail: extract duration in minutes from text expressions like "30 phút", "1 tiếng", "45p", "2h", "nửa tiếng"
+export function extractDurationFromText(text) {
+  if (!text || typeof text !== 'string') return 0;
+  const t = text.toLowerCase();
+  if (/\b(nửa\s*tiếng|nửa\s*giờ)\b/i.test(t)) return 30;
+  const compoundMatch = t.match(/(\d+)\s*(?:tiếng|giờ|h)\s*(\d+)\s*(?:phút|p)?\b/i);
+  if (compoundMatch) return parseInt(compoundMatch[1], 10) * 60 + parseInt(compoundMatch[2], 10);
+  const halfHourMatch = t.match(/(\d+)\s*(?:tiếng|giờ)\s*rưỡi\b/i);
+  if (halfHourMatch) return parseInt(halfHourMatch[1], 10) * 60 + 30;
+  const hourMatch = t.match(/(\d+)\s*(tiếng|giờ|hour|h)\b/i);
+  if (hourMatch) return parseInt(hourMatch[1], 10) * 60;
+  const minMatch = t.match(/(\d+)\s*(phút|min|p)\b/i);
+  if (minMatch) return parseInt(minMatch[1], 10);
+  return 0;
+}
+
+// ponytail: parse alternative options from text like "- Phương án 1: ...", "- Cách 2: ..." for interactive buttons
+export function parseDebateOptionsFromText(text, type = 'reward') {
+  if (!text || typeof text !== 'string') return [];
+  const lines = text.split('\n');
+  const rawOptions = [];
+  let current = null;
+
+  const keywordRegex = /^\s*(?:[-*•]|\d+[.)])?\s*(Phương\s*án|Phương\s*thức|Cách|Gợi\s*ý|Lựa\s*chọn|Giải\s*pháp|Hướng|Option|Opt|PA)\s*([1-9]|A|B|C|Một|Hai|Ba)[:.-]?\s*(.*)$/i;
+  const numberRegex = /^\s*[-*•]?\s*([1-9])[:.)]\s+(.*)$/i;
+
+  for (const line of lines) {
+    const kwMatch = line.match(keywordRegex);
+    const numMatch = !kwMatch ? line.match(numberRegex) : null;
+    const match = kwMatch || numMatch;
+
+    if (match) {
+      if (current) rawOptions.push(current);
+      const prefix = kwMatch ? kwMatch[1].trim() : 'Phương án';
+      const id = kwMatch ? kwMatch[2] : numMatch[1];
+      const rest = (kwMatch ? kwMatch[3] : numMatch[2]).trim();
+      current = {
+        id,
+        title: `${prefix} ${id}`,
+        text: rest
+      };
+    } else if (!line.trim()) {
+      if (current) {
+        rawOptions.push(current);
+        current = null;
+      }
+    } else if (current && !line.match(/^\s*[-*•]/)) {
+      current.text += ' ' + line.trim();
+    } else if (current && line.match(/^\s*[-*•]/)) {
+      rawOptions.push(current);
+      current = null;
+    }
+  }
+  if (current) rawOptions.push(current);
+
+  return rawOptions.map(opt => {
+    let mins = 0;
+    if (type === 'reward' && /(?:nhiệm\s*vụ|làm\s*(?:thêm|nốt)).*?\d+\s*phút/i.test(opt.text)) {
+      const rewardDurMatch = opt.text.match(/(?:đổi|thời\s*(?:lượng|gian)|xem|chơi|thành).*?(\d+)\s*phút/i);
+      if (rewardDurMatch) {
+        mins = parseInt(rewardDurMatch[1], 10);
+      } else if (/nửa\s*(?:tiếng|giờ)/i.test(opt.text)) {
+        mins = 30;
+      }
+    } else {
+      mins = extractDurationFromText(opt.text);
+    }
+
+    let gold = undefined;
+    const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
+    if (explicitPriceMatch) {
+      gold = parseInt(explicitPriceMatch[1], 10);
+    } else if (type === 'quest') {
+      const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+      if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
+    } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
+      const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
+      if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+    }
+
+    let newName = undefined;
+    const nameMatch = opt.text.match(/(?:thành|tên\s*(?:mới\s*)?(?:là)?)\s*["“]?([^"”\n,.]+?)["”]?\s*(?:nha|nhé|nè|\.|$)/i);
+    if (nameMatch) {
+      const candidate = nameMatch[1].trim();
+      if (candidate.length >= 3 && !/^\s*\d+\s*(?:vàng|phút|tiếng|giờ|min|p)\s*$/i.test(candidate) && !/^\s*mức\s*giá/i.test(candidate)) {
+        newName = candidate;
+      }
+    }
+
+    let label = opt.title;
+    const details = [];
+    if (mins > 0) details.push(`${mins} phút`);
+    if (gold !== undefined) details.push(`${gold} Vàng`);
+    if (details.length > 0) {
+      label += ` (${details.join(' • ')})`;
+    } else if (opt.text.length < 40) {
+      label += `: ${opt.text}`;
+    }
+
+    let argument = `Chốt ${opt.title.toLowerCase()}`;
+    if (details.length > 0) {
+      argument += `: ${details.join(', ')}`;
+    }
+
+    const payload = {};
+    if (type === 'reward') {
+      if (gold !== undefined) payload.newPrice = gold;
+      if (mins > 0) payload.newTargetMinutes = mins;
+      if (gold !== undefined && gold < 30) payload.newTier = 'common';
+      if (newName) payload.newName = newName;
+    } else {
+      if (gold !== undefined) payload.newRewardCoins = gold;
+      if (mins > 0) payload.newTargetMinutes = mins;
+      if (newName) payload.newTitle = newName;
+    }
+
+    return {
+      id: opt.id,
+      label,
+      argument,
+      text: opt.text,
+      ...payload
+    };
+  });
+}
+
 // Fallback categorizer for reward unit test mock payloads lacking LLM semantic category
 // ponytail: fallback heuristic only; live AI responses supply result.category directly from LLM
 function resolveRewardCategory(origName, name, origDesc, desc) {
   const raw = `${origName} ${name} ${origDesc} ${desc}`.toLowerCase();
   const text = `${raw} ${stripDiacritics(raw)}`;
   if (/(say\s*x[ỉi]n|u[ốo]ng.*(bia|r[ượ]u)|h[úu]t\s*thu[ốo]c|th[âa]u\s*[đd][êe]m|c[ờo]\s*b[ạa]c|c[áa]\s*[đd][ộo]|nh[ậa]u|\d+\s*(lon|chai)\s*(bia|r[ượ]u))/i.test(text)) return 'harmful';
-  if (/(ch[ơo]i\s*game|l[ướ][ớo]t\s*(tiktok|facebook|fb|reels|shorts|m[ạa]ng|web)|xem\s*(phim|youtube|anime)|netflix)/i.test(text)) return 'entertainment';
+  if (/(ch[ơo]i\s*game|l[ướ][ớo]t\s*(tiktok|facebook|fb|reels|shorts|m[ạa]ng|web)|xem\s*(phim|youtube|video|clip|anime|truy[eề]n)|netflix)/i.test(text)) return 'entertainment';
   return 'general';
 }
 
@@ -303,6 +429,7 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
   let isModified = Boolean(result.isModified);
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
+  const isNegotiated = Boolean(result.isNegotiated);
 
   // Semantic category classification (AI-first, deterministic clamping in code)
   const category = (result.category || '').toLowerCase() || resolveRewardCategory(normOrig, name, originalDesc, description);
@@ -319,7 +446,8 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     }
   }
 
-  if (isEntertainment && price < 35) {
+  // Only clamp to 35 for entertainment during initial appraisal, NOT during debate negotiation
+  if (isEntertainment && price < 35 && !isNegotiated) {
     price = 35;
     isModified = true;
     verdict = 'Định giá 35 Vàng cho hoạt động giải trí để đảm bảo nỗ lực tương xứng.';
@@ -335,11 +463,40 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     }
   }
 
-  // ponytail: enforce price floor by tier to prevent prompt injection devaluation
+  // Sanitize target enjoyment duration in minutes (0 means instant/no countdown, up to 360 mins)
+  const textDuration = extractDurationFromText(`${normOrig} ${name} ${originalDesc} ${description}`);
+  let targetMinutes = parseInt(result.targetMinutes, 10);
+  if (isNaN(targetMinutes) || targetMinutes < 0) {
+    targetMinutes = 0;
+  }
+  // If user mentioned duration in title/desc but AI returned 0 or didn't parse, prioritize text duration unless negotiated
+  if (textDuration > 0 && (targetMinutes === 0 || !isNegotiated)) {
+    targetMinutes = textDuration;
+  } else if (targetMinutes === 0 && isEntertainment && !isNegotiated) {
+    targetMinutes = 30; // default for entertainment activity without explicit duration
+  }
+  targetMinutes = Math.max(0, Math.min(360, targetMinutes));
+
+  // Determine tier and enforce minimum price
   const validTiers = ['common', 'rare', 'epic', 'legendary'];
-  const tier = validTiers.includes((result.tier || '').toLowerCase()) ? result.tier.toLowerCase() : 'common';
+  let tier = validTiers.includes((result.tier || '').toLowerCase()) ? result.tier.toLowerCase() : 'common';
+
+  // If negotiated, auto-calibrate tier to match price so tier floor doesn't override agreement
+  if (isNegotiated) {
+    if (price < 30) {
+      tier = 'common';
+    } else if (price < 70) {
+      tier = 'rare';
+    } else if (price < 250) {
+      tier = 'epic';
+    } else {
+      tier = 'legendary';
+    }
+  }
+
   const tierMin = { common: 15, rare: 30, epic: 70, legendary: 250 };
   price = Math.max(tierMin[tier] || 15, Math.min(5000, price));
+
   // ponytail: strip HTML tags from icon to prevent stored XSS via AI output
   const icon = (result.icon || '🎁').replace(/<[^>]*>/g, '').trim().slice(0, 10) || '🎁';
 
@@ -350,6 +507,7 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     category,
     price,
     tier,
+    targetMinutes,
     icon,
     isModified,
     modificationReason
@@ -556,6 +714,20 @@ PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NG�
 - Giọng điệu: Thân thiện, ấm áp, thấu hiểu, ân cần và lịch thiệp. Xưng hô "mình" - "bạn" gần gũi.
 - TUYỆT ĐỐI KHÔNG dùng từ ngữ cộc cằn, gay gắt, mỉa mai hay nạt nộ.
 - TRÌNH BÀY MẠCH LẠC: Chia câu trả lời thành các đoạn ngắn bằng dấu xuống dòng để người dùng dễ đọc.
+- KHI GỢI Ý CÁC PHƯƠNG ÁN THAY THẾ:
+  * Trình bày rõ ràng từng phương án bằng gạch đầu dòng (VD: "- Phương án 1: ...", "- Phương án 2: ..." hoặc "- Cách 1: ...", "- Cách 2: ...").
+  * BẮT BUỘC trả về mảng "options" trong JSON để giao diện tạo nút bấm tương tác cho người dùng click chọn ngay:
+    "options": [
+      {
+        "id": 1,
+        "label": "Phương án 1 (kèm Vàng / thời gian)",
+        "argument": "Chốt phương án 1: ...",
+        "newRewardCoins": number,
+        "newTargetMinutes": number,
+        "newType": "focus" | "bounty",
+        "newTitle": "Tên nhiệm vụ nếu có điều chỉnh"
+      }
+    ]
 
 Trả về ĐÚNG định dạng JSON:
 {
@@ -569,7 +741,16 @@ Trả về ĐÚNG định dạng JSON:
   "newTargetMinutes": number,
   "newRank": "E" | "D" | "C" | "B" | "A" | "S",
   "newRequiresProof": boolean,
-  "newProofGuidance": "Hướng dẫn chụp ảnh nếu newRequiresProof = true, ngược lại để chuỗi rỗng"
+  "newProofGuidance": "Hướng dẫn chụp ảnh nếu newRequiresProof = true, ngược lại để chuỗi rỗng",
+  "options": [
+    {
+      "id": 1,
+      "label": "Tên phương án",
+      "argument": "Câu chốt phương án",
+      "newRewardCoins": number,
+      "newTargetMinutes": number
+    }
+  ]
 }`;
 
         let rewardContext = '';
@@ -590,18 +771,50 @@ Trả về ĐÚNG định dạng JSON:
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         if (result.accepted) {
+          const selectedOpt = payload?.selectedOption;
+          let extractedCoins = undefined;
+          let extractedMins = undefined;
+
+          if (result.newRewardCoins !== undefined) extractedCoins = parseInt(result.newRewardCoins, 10);
+          else if (result.rewardCoins !== undefined) extractedCoins = parseInt(result.rewardCoins, 10);
+
+          if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
+          else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
+
+          if (extractedCoins === undefined && selectedOpt?.newRewardCoins !== undefined) {
+            extractedCoins = parseInt(selectedOpt.newRewardCoins, 10);
+          }
+          if (extractedMins === undefined && selectedOpt?.newTargetMinutes !== undefined) {
+            extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+          }
+
+          if (extractedCoins === undefined && result.reply) {
+            const coinMatch = result.reply.match(/(?:mức\s*thưởng|thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống|còn)[:\s]*(\d+)\s*vàng/i) || result.reply.match(/(\d+)\s*vàng/i);
+            if (coinMatch) extractedCoins = parseInt(coinMatch[1], 10);
+          }
+          const durationFromQuestName = extractDurationFromText(result.newTitle || selectedOpt?.newTitle || quest.title);
+          if (extractedMins === undefined && durationFromQuestName > 0) {
+            extractedMins = durationFromQuestName;
+          } else if (extractedMins === undefined && result.reply) {
+            const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|tập\s*trung\s*(?:lên|xuống|khoảng)?|tăng\s*(?:thời\s*gian\s*)?(?:lên|xuống))[:\s]*(\d+)\s*phút/i);
+            if (timeMatch) extractedMins = parseInt(timeMatch[1], 10);
+          }
+
+          const rawCoins = (extractedCoins !== undefined && !isNaN(extractedCoins)) ? extractedCoins : quest.rewardCoins;
+          const rawMins = (extractedMins !== undefined && !isNaN(extractedMins)) ? extractedMins : (quest.targetMinutes !== undefined ? quest.targetMinutes : 25);
+
           const hasExplicitProofDecision = result.newRequiresProof !== undefined;
           const negotiatedProof = hasExplicitProofDecision
             ? parseBool(result.newRequiresProof, quest.requiresProof)
             : parseBool(quest.requiresProof, false);
 
           const rawDebate = {
-            title: result.newTitle || quest.title,
+            title: result.newTitle || selectedOpt?.newTitle || quest.title,
             description: result.newDescription !== undefined ? result.newDescription : (quest.description || ''),
             category: result.newCategory || quest.category,
-            type: result.newType || (result.newTargetMinutes > 0 ? 'focus' : quest.type || 'focus'),
-            targetMinutes: result.newTargetMinutes !== undefined ? result.newTargetMinutes : quest.targetMinutes,
-            rewardCoins: result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins,
+            type: result.newType || selectedOpt?.newType || (rawMins > 0 ? 'focus' : quest.type || 'focus'),
+            targetMinutes: rawMins,
+            rewardCoins: rawCoins,
             rank: result.newRank,
             requiresProof: negotiatedProof,
             proofGuidance: result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || '')
@@ -627,6 +840,9 @@ Trả về ĐÚNG định dạng JSON:
 
           result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, result.newRequiresProof);
         }
+        if (!Array.isArray(result.options) || result.options.length === 0) {
+          result.options = parseDebateOptionsFromText(result.reply, 'quest');
+        }
         return res.status(200).json(result);
       }
 
@@ -637,6 +853,7 @@ Trả về ĐÚNG định dạng JSON:
         const name = clampStr(payload?.name, 150);
         const description = clampStr(payload?.description, 1000);
         const userEstimatePrice = parseInt(payload?.userEstimatePrice, 10) || 0;
+        const userEstimateDuration = parseInt(payload?.userEstimateDuration, 10) || 0;
         const currentQuests = Array.isArray(payload?.currentQuests) ? payload.currentQuests.slice(0, 5) : [];
         const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!name) {
@@ -671,6 +888,11 @@ QUY TẮC ĐỊNH GIÁ & QUY ĐỔI CÔNG SỨC:
    - "item": Sách vở, dụng cụ học tập, thời trang, đồ dùng cá nhân.
    - "milestone": Du lịch, kỳ nghỉ, mục tiêu lớn dài hạn.
    - "harmful": Hành vi độc hại, chất kích thích, tổn hại sức khỏe (uống say xỉn, thuốc lá, cờ bạc, thâu đêm...). BẮT BUỘC AI đổi tên sang món quà lành mạnh tương đương!
+5. ĐỊNH LƯỢNG THỜI GIAN TẬN HƯỞNG ('targetMinutes'):
+   - BẮT BUỘC TRÍCH XUẤT THỜI GIAN NẾU CÓ TRONG TÊN HOẶC MÔ TẢ: Nếu tên hoặc mô tả có chứa số phút hoặc giờ (Ví dụ: "Xem Youtube 30 phút", "Chơi game 1 tiếng", "Nghỉ ngơi 45p"), bạn BẮT BUỘC đặt 'targetMinutes' đúng bằng số phút đó (Ví dụ: 30 phút = 30, 1 tiếng = 60). Kể cả khi người dùng không điền ô thời gian riêng!
+   - ĐỐI VỚI HOẠT ĐỘNG GIẢI TRÍ (Xem video/Youtube, xem phim, chơi game, lướt TikTok/mạng xã hội): BẮT BUỘC PHẢI CÓ THỜI GIAN ĐẾM NGƯỢC (targetMinutes tối thiểu từ 15 - 30 phút trở lên), TUYỆT ĐỐI KHÔNG ĐỂ targetMinutes = 0 cho giải trí.
+   - Chỉ đặt targetMinutes = 0 cho quà vật phẩm hoặc đồ ăn thức uống ăn nhanh không cần hẹn giờ (mua sách, uống ly trà sữa, ăn bánh).
+   - Tôn trọng thời gian người dùng đề xuất nếu hợp lý. Nếu người dùng đề xuất thời gian quá dài hoặc quá ngắn so với mức giá, hãy điều chỉnh tương xứng.
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
@@ -689,6 +911,7 @@ Trả về ĐÚNG định dạng JSON:
   "modificationReason": "Lý do chỉnh sửa ngắn gọn (nếu isModified = true, ngược lại để rỗng)",
   "price": number,
   "tier": "common" | "rare" | "epic" | "legendary",
+  "targetMinutes": number,
   "icon": "emoji đại diện phù hợp nhất cho món quà này",
   "verdict": "Nhận xét súc tích (1-2 câu, dưới 30 từ), chỉ nêu phân loại và lý do định giá Vàng, không văn mẫu lê thê"
 }`;
@@ -699,14 +922,21 @@ Trả về ĐÚNG định dạng JSON:
           questContext = `\n- Các nhiệm vụ người dùng đang thực hiện:\n${questList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 
+        const inferredDuration = extractDurationFromText(`${name} ${description}`);
+        const effectiveDuration = userEstimateDuration > 0 ? userEstimateDuration : inferredDuration;
+        const durationPromptInfo = effectiveDuration > 0
+          ? `${effectiveDuration} phút (người dùng chỉ định hoặc trích xuất từ tên/mô tả)`
+          : 'Để AI đề xuất (BẮT BUỘC đặt 15 - 30 phút cho hoạt động giải trí/mạng xã hội, 0 cho ăn uống/vật phẩm)';
+
         const userPrompt = `Phần thưởng muốn thêm vào Cửa Hàng:
 - Tên phần thưởng: "${name}"
 - Chi tiết: "${description}"
-- Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}${questContext}`;
+- Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}
+- Thời gian tận hưởng dự kiến: ${durationPromptInfo}${questContext}`;
 
         const rawResult = await callAI(systemPrompt, userPrompt);
         const result = sanitizeEvaluatedReward(rawResult, name, description);
-        result.signature = signReward(result.name, result.price, result.tier);
+        result.signature = signReward(result.name, result.price, result.tier, result.targetMinutes);
         return res.status(200).json(result);
       }
 
@@ -724,7 +954,7 @@ Trả về ĐÚNG định dạng JSON:
         }
 
         const systemPrompt = `Bạn là Trợ Lý Cửa Hàng & Định Giá Phần Thưởng của LevelUp.
-CHỈ CÓ BẠN mới có thẩm quyền chốt: Tên phần thưởng, Mô tả chi tiết, Giá Vàng và Phân loại (Tier). Người dùng không thể tự ý sửa đổi ngoài việc thương lượng với bạn.
+CHỈ CÓ BẠN mới có thẩm quyền chốt: Tên phần thưởng, Mô tả chi tiết, Giá Vàng, Phân loại (Tier) và Thời gian tận hưởng (targetMinutes). Người dùng không thể tự ý sửa đổi ngoài việc thương lượng với bạn.
 
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
 - TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
@@ -744,7 +974,26 @@ PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NG�
   3. Đưa ra phương án thay thế/giải pháp đơn giản: "Nếu bạn muốn đổi quà nhanh hơn với số Vàng hiện tại, mình gợi ý bạn có thể thử một món nhỏ hơn (như chơi game 30 phút hoặc 1 ly đồ uống tự pha) thì mức giá sẽ nhẹ nhàng hơn rất nhiều đấy!".
   4. Động viên tích cực: "Cố lên bạn ơi, hoàn thành thêm 1-2 việc nữa là bạn đã hoàn toàn tự tin rước phần thưởng này về rồi! ✨".
 - KHI CHẤP THUẬN (accepted: true):
-  - Nhiệt tình, vui vẻ duyệt khi người dùng chủ động điều chỉnh quy mô phần thưởng phù hợp hoặc giải thích hợp lý. Cập nhật 'newName', 'newDescription', 'newPrice', 'newTier'.
+  - Nhiệt tình, vui vẻ duyệt khi người dùng chủ động điều chỉnh quy mô phần thưởng, thời gian hoặc giải thích hợp lý.
+  - BẮT BUỘC cập nhật các trường dữ liệu số tương ứng với thỏa thuận:
+    * 'newPrice': Số Vàng mới sau khi chốt (nếu đồng ý giảm giá, BẮT BUỘC ghi số Vàng mới, ví dụ: 20).
+    * 'newTargetMinutes': Số phút tận hưởng mới sau khi chốt (ví dụ giảm xuống 15 phút thì ghi 15; nếu không cần đếm giờ thì ghi 0).
+    * 'newTier': Phân hạng tương ứng mức giá ('common' cho dưới 30 Vàng, 'rare' cho 30-60 Vàng, 'epic' cho 70-250 Vàng, 'legendary' cho trên 250 Vàng).
+    * 'newName', 'newDescription': Tên và mô tả sau khi chốt (nếu không đổi thì giữ nguyên).
+- KHI GỢI Ý CÁC PHƯƠNG ÁN THAY THẾ:
+  * Trình bày rõ ràng từng phương án bằng gạch đầu dòng (VD: "- Phương án 1: ...", "- Phương án 2: ..." hoặc "- Cách 1: ...", "- Cách 2: ...").
+  * BẮT BUỘC trả về mảng "options" trong JSON để giao diện tạo nút bấm tương tác cho người dùng click chọn ngay:
+    "options": [
+      {
+        "id": 1,
+        "label": "Phương án 1 (kèm giá Vàng / thời gian)",
+        "argument": "Chốt phương án 1: ...",
+        "newPrice": number,
+        "newTargetMinutes": number,
+        "newName": "Tên phần thưởng tương ứng",
+        "newTier": "common" | "rare" | "epic" | "legendary"
+      }
+    ]
 
 Trả về ĐÚNG định dạng JSON:
 {
@@ -754,7 +1003,17 @@ Trả về ĐÚNG định dạng JSON:
   "newDescription": "Mô tả phần thưởng sau khi chốt (nếu không đổi thì giữ nguyên)",
   "newCategory": "entertainment" | "treat" | "item" | "milestone" | "harmful",
   "newPrice": number,
-  "newTier": "common" | "rare" | "epic" | "legendary"
+  "newTier": "common" | "rare" | "epic" | "legendary",
+  "newTargetMinutes": number,
+  "options": [
+    {
+      "id": 1,
+      "label": "Tên phương án",
+      "argument": "Câu chốt phương án",
+      "newPrice": number,
+      "newTargetMinutes": number
+    }
+  ]
 }`;
 
         let questContext = '';
@@ -763,28 +1022,73 @@ Trả về ĐÚNG định dạng JSON:
           questContext = `\n- Các nhiệm vụ người dùng đang thực hiện:\n${questList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 
+        const currentMins = reward.targetMinutes !== undefined ? reward.targetMinutes : 0;
         const userPrompt = `Phần thưởng đang thương lượng:
 - Tên hiện tại: "${reward.name}"
 - Chi tiết: "${reward.description || ''}"
-- Giá hiện tại: ${reward.price} Vàng${questContext}
+- Giá hiện tại: ${reward.price} Vàng
+- Thời gian hiện tại: ${currentMins > 0 ? currentMins + ' phút' : 'Không cần bấm giờ'}${questContext}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const result = await callAI(systemPrompt, userPrompt, 0.4);
         if (result.accepted) {
+          const selectedOpt = payload?.selectedOption;
+          let extractedPrice = undefined;
+          let extractedMins = undefined;
+
+          if (result.newPrice !== undefined) extractedPrice = parseInt(result.newPrice, 10);
+          else if (result.price !== undefined) extractedPrice = parseInt(result.price, 10);
+
+          if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
+          else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
+
+          if (extractedPrice === undefined && selectedOpt?.newPrice !== undefined) {
+            extractedPrice = parseInt(selectedOpt.newPrice, 10);
+          }
+          if (extractedMins === undefined && selectedOpt?.newTargetMinutes !== undefined) {
+            extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+          }
+
+          if (extractedPrice === undefined && result.reply) {
+            const priceMatch = result.reply.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống))[:\s]*(\d+)\s*vàng/i) || result.reply.match(/(\d+)\s*vàng/i);
+            if (priceMatch) extractedPrice = parseInt(priceMatch[1], 10);
+          }
+
+          const durationFromName = extractDurationFromText(result.newName || selectedOpt?.newName || reward.name);
+          if (extractedMins === undefined && durationFromName > 0) {
+            extractedMins = durationFromName;
+          } else if (extractedMins === undefined && result.reply) {
+            const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|rút\s*ngắn\s*(?:thời\s*gian\s*)?(?:xuống|còn))[:\s]*(\d+)\s*phút/i);
+            if (timeMatch) extractedMins = parseInt(timeMatch[1], 10);
+          }
+
+          const rawPrice = (extractedPrice !== undefined && !isNaN(extractedPrice)) ? extractedPrice : reward.price;
+          const rawMins = (extractedMins !== undefined && !isNaN(extractedMins)) ? extractedMins : (reward.targetMinutes !== undefined ? reward.targetMinutes : 0);
+          const rawTier = result.newTier || selectedOpt?.newTier || result.tier || reward.tier;
+          const rawName = result.newName || selectedOpt?.newName || result.name || reward.name;
+          const rawDesc = result.newDescription !== undefined ? result.newDescription : (result.description !== undefined ? result.description : (reward.description || ''));
+          const rawCat = result.newCategory || result.category || reward.category;
+
           const rawDebate = {
-            name: result.newName || reward.name,
-            description: result.newDescription !== undefined ? result.newDescription : (reward.description || ''),
-            category: result.newCategory || reward.category,
-            price: result.newPrice !== undefined ? result.newPrice : reward.price,
-            tier: result.newTier || reward.tier
+            name: rawName,
+            description: rawDesc,
+            category: rawCat,
+            price: rawPrice,
+            tier: rawTier,
+            targetMinutes: rawMins,
+            isNegotiated: true
           };
           const clean = sanitizeEvaluatedReward(rawDebate, reward.name, reward.description);
           result.newName = clean.name;
           result.newDescription = clean.description;
           result.newPrice = clean.price;
           result.newTier = clean.tier;
-          result.signature = signReward(clean.name, clean.price, clean.tier);
+          result.newTargetMinutes = clean.targetMinutes;
+          result.signature = signReward(clean.name, clean.price, clean.tier, clean.targetMinutes);
+        }
+        if (!Array.isArray(result.options) || result.options.length === 0) {
+          result.options = parseDebateOptionsFromText(result.reply, 'reward');
         }
         return res.status(200).json(result);
       }

@@ -884,21 +884,32 @@ let wakeLock = null;
 let lastFormattedTitle = '';
 let actualFocusedSeconds = 0;
 
+function extractDurationFromText(text) {
+  if (!text || typeof text !== 'string') return 0;
+  const t = text.toLowerCase();
+  if (/\b(nửa\s*tiếng|nửa\s*giờ)\b/i.test(t)) return 30;
+  const compoundMatch = t.match(/(\d+)\s*(?:tiếng|giờ|h)\s*(\d+)\s*(?:phút|p)?\b/i);
+  if (compoundMatch) return parseInt(compoundMatch[1], 10) * 60 + parseInt(compoundMatch[2], 10);
+  const halfHourMatch = t.match(/(\d+)\s*(?:tiếng|giờ)\s*rưỡi\b/i);
+  if (halfHourMatch) return parseInt(halfHourMatch[1], 10) * 60 + 30;
+  const hourMatch = t.match(/(\d+)\s*(tiếng|giờ|hour|h)\b/i);
+  if (hourMatch) return parseInt(hourMatch[1], 10) * 60;
+  const minMatch = t.match(/(\d+)\s*(phút|min|p)\b/i);
+  if (minMatch) return parseInt(minMatch[1], 10);
+  return 0;
+}
+
 function extractRewardDuration(item) {
-  if (item.targetMinutes && item.targetMinutes > 0) return item.targetMinutes;
-  const text = `${item.name || ''} ${item.description || ''}`.toLowerCase();
-  const hourMatch = text.match(/(\d+)\s*(tiếng|giờ|hour|h)\b/i);
-  if (hourMatch) {
-    return parseInt(hourMatch[1], 10) * 60;
+  if (item && item.targetMinutes !== undefined && item.targetMinutes !== null) {
+    const tm = parseInt(item.targetMinutes, 10);
+    if (!isNaN(tm)) return Math.max(0, tm);
   }
-  const minMatch = text.match(/(\d+)\s*(phút|min|p)\b/i);
-  if (minMatch) {
-    return parseInt(minMatch[1], 10);
-  }
-  if (item.tier === 'common') return 15;
-  if (item.tier === 'rare') return 30;
-  if (item.tier === 'epic') return 60;
-  if (item.tier === 'legendary') return 90;
+  const textDuration = extractDurationFromText(`${item?.name || ''} ${item?.description || ''}`);
+  if (textDuration > 0) return textDuration;
+  if (item?.tier === 'common') return 15;
+  if (item?.tier === 'rare') return 30;
+  if (item?.tier === 'epic') return 60;
+  if (item?.tier === 'legendary') return 90;
   return 25;
 }
 
@@ -1997,13 +2008,34 @@ async function buyShopItem(itemId) {
     return;
   }
 
+  const durationMinutes = extractRewardDuration(item);
+  const hasTimer = durationMinutes > 0;
+
+  // Nếu có hẹn giờ và đang trong nhiệm vụ tập trung, cảnh báo trước
+  if (hasTimer && activeFocusQuest) {
+    const okInterrupt = await confirmAction({
+      title: 'Đang Trong Nhiệm Vụ Tập Trung',
+      message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Đổi quà này sẽ dừng nhiệm vụ để bắt đầu ${durationMinutes} phút tự thưởng cho bạn. Bạn có muốn tiếp tục?`,
+      detail: '⚠️ Thời gian tập trung của nhiệm vụ đang làm dở sẽ không được tính.',
+      confirmText: 'Đổi & Tự Thưởng Ngay 🎁',
+      cancelText: 'Tiếp Tục Làm Việc ⚔️',
+      icon: '🎁',
+      btnColor: 'purple'
+    });
+    if (!okInterrupt) return;
+  }
+
   const ok = await confirmAction({
     title: 'Đổi Phần Thưởng?',
-    message: `Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`,
-    detail: `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${appState.profile.coins - item.price}`,
-    confirmText: 'Đổi Quà 🎁',
+    message: hasTimer
+      ? `Bạn có chắc muốn dùng ${item.price} Vàng để đổi "${item.name}" và bắt đầu ${durationMinutes} phút tự thưởng?`
+      : `Bạn có chắc muốn dùng ${item.price} Vàng để đổi phần thưởng "${item.name}"?`,
+    detail: hasTimer
+      ? `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại: ${appState.profile.coins - item.price}\n⏱️ Đồng hồ đếm ngược ${durationMinutes} phút sẽ kích hoạt ngay trên màn hình!`
+      : `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${appState.profile.coins - item.price}`,
+    confirmText: hasTimer ? `Đổi & Bấm Giờ (${durationMinutes}p) ⏱️` : 'Đổi Quà 🎁',
     cancelText: 'Để Sau',
-    icon: '🎁',
+    icon: item.icon || '🎁',
     btnColor: 'amber'
   });
   if (!ok) return;
@@ -2017,6 +2049,7 @@ async function buyShopItem(itemId) {
     price: item.price,
     tier: item.tier,
     icon: item.icon,
+    targetMinutes: item.targetMinutes !== undefined ? item.targetMinutes : durationMinutes,
     signature: item.signature || '',
     purchasedAt: Date.now(),
     isUsed: false
@@ -2044,7 +2077,13 @@ async function buyShopItem(itemId) {
   renderShop();
   renderInventory();
   renderLedger();
-  switchRewardSubtab('inventory');
+
+  if (hasTimer) {
+    await useInventoryItem(newInvItem.id, true);
+    document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    switchRewardSubtab('inventory');
+  }
 }
 
 async function refundInventoryItem(invId, skipConfirm = false) {
@@ -2089,7 +2128,7 @@ async function refundInventoryItem(invId, skipConfirm = false) {
   showToast(`Đã hoàn trả "${item.name}" (+${item.price} Vàng).`, 'gold');
 }
 
-async function useInventoryItem(invId) {
+async function useInventoryItem(invId, skipConfirm = false) {
   const item = appState.inventory.find(i => i.id === invId);
   if (!item) return;
 
@@ -2121,60 +2160,85 @@ async function useInventoryItem(invId) {
     return;
   }
 
-  // Case 3: Xung đột với phiên tập trung nhiệm vụ
-  if (activeFocusQuest) {
-    const ok = await confirmAction({
-      title: 'Đang Trong Nhiệm Vụ Tập Trung',
-      message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng nhiệm vụ để dùng phần thưởng "${item.name}"?`,
-      detail: '⚠️ Thời gian tập trung của nhiệm vụ sẽ không được tính.',
-      confirmText: 'Dừng & Dùng Quà 🎁',
-      cancelText: 'Tiếp Tục Nhiệm Vụ ⚔️',
-      icon: '🎁',
-      btnColor: 'purple'
-    });
-    if (!ok) return;
-  } else if (isBreakMode) {
-    // Case 4: Xung đột với giờ nghỉ giải lao
-    const ok = await confirmAction({
-      title: 'Kết Thúc Giờ Nghỉ?',
-      message: `Bạn đang trong giờ nghỉ giải lao (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn kết thúc nghỉ ngơi để bắt đầu dùng phần thưởng "${item.name}" ngay?`,
-      confirmText: 'Dùng Quà Ngay 🎁',
-      cancelText: 'Nghỉ Tiếp ☕',
-      icon: '☕',
-      btnColor: 'purple'
-    });
-    if (!ok) return;
-  } else if (activeRewardItem && activeRewardItem.id !== invId) {
-    // Case 5: Đang có một phần thưởng khác đang đếm giờ
-    const ok = await confirmAction({
-      title: 'Đổi Phần Thưởng Đang Dùng?',
-      message: `Bạn đang trong phiên dùng quà "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
-      confirmText: 'Đổi Quà 🎁',
-      cancelText: 'Giữ Quà Hiện Tại',
-      icon: '🎁',
-      btnColor: 'purple'
-    });
-    if (!ok) return;
-  } else {
-    // Xác nhận sử dụng quà kèm thời lượng đếm ngược
-    const durationMinutes = extractRewardDuration(item);
-    const ok = await confirmAction({
-      title: 'Sử Dụng Phần Thưởng & Bắt Đầu Đếm Giờ?',
-      message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
-      detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
-      confirmText: `Dùng & Bấm Giờ (${durationMinutes}p) ⏱️`,
-      cancelText: 'Để Sau',
-      icon: item.icon || '🎁',
-      btnColor: 'purple'
-    });
-    if (!ok) return;
+  const durationMinutes = extractRewardDuration(item);
+
+  if (!skipConfirm) {
+    // Case 3: Xung đột với phiên tập trung nhiệm vụ
+    if (activeFocusQuest) {
+      const ok = await confirmAction({
+        title: 'Đang Trong Nhiệm Vụ Tập Trung',
+        message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng nhiệm vụ để dùng phần thưởng "${item.name}"?`,
+        detail: '⚠️ Thời gian tập trung của nhiệm vụ sẽ không được tính.',
+        confirmText: 'Dừng & Dùng Quà 🎁',
+        cancelText: 'Tiếp Tục Nhiệm Vụ ⚔️',
+        icon: '🎁',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
+    } else if (isBreakMode) {
+      // Case 4: Xung đột với giờ nghỉ giải lao
+      const ok = await confirmAction({
+        title: 'Kết Thúc Giờ Nghỉ?',
+        message: `Bạn đang trong giờ nghỉ giải lao (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn kết thúc nghỉ ngơi để bắt đầu dùng phần thưởng "${item.name}" ngay?`,
+        confirmText: 'Dùng Quà Ngay 🎁',
+        cancelText: 'Nghỉ Tiếp ☕',
+        icon: '☕',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
+    } else if (activeRewardItem && activeRewardItem.id !== invId) {
+      // Case 5: Đang có một phần thưởng khác đang đếm giờ
+      const ok = await confirmAction({
+        title: 'Đổi Phần Thưởng Đang Dùng?',
+        message: `Bạn đang trong phiên dùng quà "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
+        confirmText: 'Đổi Quà 🎁',
+        cancelText: 'Giữ Quà Hiện Tại',
+        icon: '🎁',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
+    } else if (durationMinutes > 0) {
+      // Case 6: Xác nhận sử dụng quà kèm thời lượng đếm ngược
+      const ok = await confirmAction({
+        title: 'Sử Dụng Phần Thưởng & Bắt Đầu Đếm Giờ?',
+        message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
+        detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
+        confirmText: `Dùng & Bấm Giờ (${durationMinutes}p) ⏱️`,
+        cancelText: 'Để Sau',
+        icon: item.icon || '🎁',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
+    } else {
+      // Case 7: Quà nhận ngay không cần đếm giờ
+      const ok = await confirmAction({
+        title: 'Sử Dụng Phần Thưởng?',
+        message: `Bạn muốn sử dụng phần thưởng "${item.name}" ngay bây giờ?`,
+        detail: '🎉 Hãy tự thưởng cho bản thân sau những nỗ lực rèn luyện và làm việc chăm chỉ!',
+        confirmText: 'Sử Dụng 🎁',
+        cancelText: 'Để Sau',
+        icon: item.icon || '🎁',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
+    }
+  }
+
+  // Nếu quà không cần bấm giờ
+  if (durationMinutes === 0) {
+    item.isUsed = true;
+    item.usedAt = Date.now();
+    sfx.playFanfare();
+    showToast(`🎉 Đã sử dụng phần thưởng "${item.name}"! Chúc mừng bạn!`, 'success');
+    renderInventory();
+    triggerSave(true);
+    return;
   }
 
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().catch(() => {});
   }
 
-  const durationMinutes = extractRewardDuration(item);
   item.isUsed = true;
   item.usedAt = Date.now();
 
@@ -2664,7 +2728,125 @@ function createDebateLoadingBubble(text = 'AI đang xem xét đề xuất thươ
   return row;
 }
 
-function appendAiChatBubble(container, { reply, accepted, diffTags = [], botName = 'Trọng Tài AI', botIcon = '🤖' }) {
+function parseDebateOptionsFromText(text, type = 'reward') {
+  if (!text || typeof text !== 'string') return [];
+  const lines = text.split('\n');
+  const rawOptions = [];
+  let current = null;
+
+  const keywordRegex = /^\s*(?:[-*•]|\d+[.)])?\s*(Phương\s*án|Phương\s*thức|Cách|Gợi\s*ý|Lựa\s*chọn|Giải\s*pháp|Hướng|Option|Opt|PA)\s*([1-9]|A|B|C|Một|Hai|Ba)[:.-]?\s*(.*)$/i;
+  const numberRegex = /^\s*[-*•]?\s*([1-9])[:.)]\s+(.*)$/i;
+
+  for (const line of lines) {
+    const kwMatch = line.match(keywordRegex);
+    const numMatch = !kwMatch ? line.match(numberRegex) : null;
+    const match = kwMatch || numMatch;
+
+    if (match) {
+      if (current) rawOptions.push(current);
+      const prefix = kwMatch ? kwMatch[1].trim() : 'Phương án';
+      const id = kwMatch ? kwMatch[2] : numMatch[1];
+      const rest = (kwMatch ? kwMatch[3] : numMatch[2]).trim();
+      current = {
+        id,
+        title: `${prefix} ${id}`,
+        text: rest
+      };
+    } else if (!line.trim()) {
+      if (current) {
+        rawOptions.push(current);
+        current = null;
+      }
+    } else if (current && !line.match(/^\s*[-*•]/)) {
+      current.text += ' ' + line.trim();
+    } else if (current && line.match(/^\s*[-*•]/)) {
+      rawOptions.push(current);
+      current = null;
+    }
+  }
+  if (current) rawOptions.push(current);
+
+  return rawOptions.map(opt => {
+    let mins = 0;
+    if (type === 'reward' && /(?:nhiệm\s*vụ|làm\s*(?:thêm|nốt)).*?\d+\s*phút/i.test(opt.text)) {
+      const rewardDurMatch = opt.text.match(/(?:đổi|thời\s*(?:lượng|gian)|xem|chơi|thành).*?(\d+)\s*phút/i);
+      if (rewardDurMatch) {
+        mins = parseInt(rewardDurMatch[1], 10);
+      } else if (/nửa\s*(?:tiếng|giờ)/i.test(opt.text)) {
+        mins = 30;
+      }
+    } else {
+      mins = extractDurationFromText(opt.text);
+    }
+
+    let gold = undefined;
+    const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
+    if (explicitPriceMatch) {
+      gold = parseInt(explicitPriceMatch[1], 10);
+    } else if (type === 'quest') {
+      const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+      if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
+    } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
+      const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
+      if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+    }
+
+    let newName = undefined;
+    const nameMatch = opt.text.match(/(?:thành|tên\s*(?:mới\s*)?(?:là)?)\s*["“]?([^"”\n,.]+?)["”]?\s*(?:nha|nhé|nè|\.|$)/i);
+    if (nameMatch) {
+      const candidate = nameMatch[1].trim();
+      if (candidate.length >= 3 && !/^\s*\d+\s*(?:vàng|phút|tiếng|giờ|min|p)\s*$/i.test(candidate) && !/^\s*mức\s*giá/i.test(candidate)) {
+        newName = candidate;
+      }
+    }
+
+    let label = opt.title;
+    const details = [];
+    if (mins > 0) details.push(`${mins} phút`);
+    if (gold !== undefined) details.push(`${gold} Vàng`);
+    if (details.length > 0) {
+      label += ` (${details.join(' • ')})`;
+    } else if (opt.text.length < 40) {
+      label += `: ${opt.text}`;
+    }
+
+    let argument = `Chốt ${opt.title.toLowerCase()}`;
+    if (details.length > 0) {
+      argument += `: ${details.join(', ')}`;
+    }
+
+    const payload = {};
+    if (type === 'reward') {
+      if (gold !== undefined) payload.newPrice = gold;
+      if (mins > 0) payload.newTargetMinutes = mins;
+      if (gold !== undefined && gold < 30) payload.newTier = 'common';
+      if (newName) payload.newName = newName;
+    } else {
+      if (gold !== undefined) payload.newRewardCoins = gold;
+      if (mins > 0) payload.newTargetMinutes = mins;
+      if (newName) payload.newTitle = newName;
+    }
+
+    return {
+      id: opt.id,
+      label,
+      argument,
+      text: opt.text,
+      ...payload
+    };
+  });
+}
+
+function appendAiChatBubble(container, {
+  reply,
+  accepted,
+  diffTags = [],
+  botName = 'Trọng Tài AI',
+  botIcon = '🤖',
+  options = [],
+  onSelectOption = null,
+  mode = 'quest'
+}) {
   if (!container) return;
   const row = document.createElement('div');
   row.className = 'flex justify-start items-start gap-2 message-fade-in';
@@ -2686,6 +2868,30 @@ function appendAiChatBubble(container, { reply, accepted, diffTags = [], botName
     `;
   }
 
+  // Parse options if not provided directly
+  const effectiveOptions = (Array.isArray(options) && options.length > 0)
+    ? options
+    : parseDebateOptionsFromText(reply, mode);
+
+  let optionsHtml = '';
+  if (effectiveOptions && effectiveOptions.length > 0) {
+    optionsHtml = `
+      <div class="mt-2.5 pt-2.5 border-t border-amber-200/70 dark:border-slate-800/80 space-y-1.5 debate-options-wrapper">
+        <div class="text-[11px] font-bold text-amber-700 dark:text-amber-400 tracking-wide flex items-center gap-1.5">
+          <span>💡</span><span>Chọn phương án đề xuất:</span>
+        </div>
+        <div class="flex flex-col sm:flex-row flex-wrap gap-1.5 debate-options-list">
+          ${effectiveOptions.map((opt, idx) => `
+            <button type="button" data-option-idx="${idx}" class="debate-option-btn group text-left px-3 py-2 rounded-xl text-xs font-semibold bg-white/90 dark:bg-slate-800/90 hover:bg-amber-100 dark:hover:bg-amber-950/60 active:scale-95 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 transition-all flex items-center gap-2 shadow-xs cursor-pointer">
+              <span class="w-5 h-5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-300 flex items-center justify-center text-[11px] font-black shrink-0 group-hover:scale-110 transition-transform">👉</span>
+              <span class="font-medium">${escapeHtml(opt.label || `Phương án ${opt.id || idx + 1}`)}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   const bubbleThemeClass = accepted
     ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-300/80 dark:border-emerald-800/60 text-slate-800 dark:text-slate-200'
     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200';
@@ -2699,9 +2905,31 @@ function appendAiChatBubble(container, { reply, accepted, diffTags = [], botName
       </div>
       <div class="text-xs sm:text-[13px] leading-relaxed break-words">${renderMarkdown(reply)}</div>
       ${diffTagsHtml}
+      ${optionsHtml}
     </div>
   `;
   container.appendChild(row);
+
+  // Attach click listener to option buttons
+  const optionButtons = row.querySelectorAll('.debate-option-btn');
+  optionButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-option-idx'), 10);
+      const selected = effectiveOptions[idx];
+      if (!selected) return;
+
+      optionButtons.forEach(b => {
+        b.disabled = true;
+        b.classList.add('opacity-50', 'pointer-events-none');
+      });
+      btn.classList.remove('opacity-50');
+      btn.classList.add('ring-2', 'ring-amber-500', 'bg-amber-100', 'dark:bg-amber-900/40');
+
+      if (typeof onSelectOption === 'function') {
+        onSelectOption(selected);
+      }
+    });
+  });
 
   // Cuộn dừng ở ĐẦU tin nhắn của AI thay vì cuối tin nhắn để người đọc bắt đầu ngay từ dòng đầu
   requestAnimationFrame(() => {
@@ -2777,11 +3005,13 @@ function initRewardDebateChat(forceReset = false) {
   chatLogs.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function sendDebateArgument() {
+async function sendDebateArgument(customArg = null, selectedOption = null) {
   if (isDebatingQuest) return;
 
   const argInput = document.getElementById('input-debate-arg');
-  const argument = argInput ? argInput.value.trim() : '';
+  const argument = (typeof customArg === 'string' && customArg.trim())
+    ? customArg.trim()
+    : (argInput ? argInput.value.trim() : '');
   if (!argument) return;
 
   const chatLogs = document.getElementById('debate-chat-logs');
@@ -2822,7 +3052,8 @@ async function sendDebateArgument() {
           argument,
           history: currentDebateHistory,
           currentRewards,
-          userCoins: appState.profile?.coins || 0
+          userCoins: appState.profile?.coins || 0,
+          selectedOption
         }
       })
     });
@@ -2855,7 +3086,10 @@ async function sendDebateArgument() {
       accepted: data.accepted,
       diffTags,
       botName: 'Trọng Tài AI',
-      botIcon: '🤖'
+      botIcon: '🤖',
+      options: data.options,
+      mode: 'quest',
+      onSelectOption: (opt) => sendDebateArgument(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
     currentDebateHistory.push({ user: argument, arbiter: data.reply });
@@ -2917,21 +3151,127 @@ async function sendDebateArgument() {
 let currentPendingReward = null;
 let currentRewardDebateHistory = [];
 
+function updateRewardVerdictDisplay() {
+  if (!currentPendingReward) return;
+
+  const tier = (currentPendingReward.tier || 'rare').toLowerCase();
+  const tierUpper = tier.toUpperCase();
+
+  const evalTier = document.getElementById('eval-tier');
+  if (evalTier) {
+    evalTier.textContent = tierUpper;
+    evalTier.className = `text-xs font-mono font-black px-2.5 py-1 rounded-lg border ${
+      tier === 'legendary' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40' :
+      tier === 'epic' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/40' :
+      tier === 'rare' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/40' :
+      'bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/40'
+    }`;
+  }
+
+  const evalPrice = document.getElementById('eval-price');
+  if (evalPrice) {
+    evalPrice.innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
+  }
+
+  const targetMinutes = parseInt(currentPendingReward.targetMinutes, 10) || 0;
+  const timeText = targetMinutes > 0 ? `${targetMinutes} Phút` : 'Không cần bấm giờ';
+
+  const evalTargetMinutes = document.getElementById('eval-target-minutes');
+  if (evalTargetMinutes) {
+    evalTargetMinutes.textContent = timeText;
+  }
+
+  const evalVerdict = document.getElementById('eval-verdict');
+  if (evalVerdict && currentPendingReward.verdict) {
+    evalVerdict.textContent = `"${currentPendingReward.verdict}"`;
+  }
+
+  const evalCatBadge = document.getElementById('eval-category-badge');
+  if (evalCatBadge && currentPendingReward.category) {
+    const catMap = {
+      entertainment: '🎮 GIẢI TRÍ',
+      treat: '🥤 ĂN UỐNG',
+      item: '📦 VẬT PHẨM',
+      milestone: '🏆 CỘT MỐC',
+      harmful: '⚠️ SỨC KHỎE'
+    };
+    evalCatBadge.textContent = catMap[currentPendingReward.category] || '🎁 TỰ THƯỞNG';
+  }
+
+  const lockedIcon = document.getElementById('reward-locked-icon');
+  if (lockedIcon) lockedIcon.textContent = currentPendingReward.icon || '🎁';
+
+  const lockedName = document.getElementById('reward-locked-name');
+  if (lockedName) lockedName.textContent = currentPendingReward.name;
+
+  const lockedDesc = document.getElementById('reward-locked-desc');
+  const lockedDescContainer = document.getElementById('reward-locked-desc-container');
+  if (lockedDesc && lockedDescContainer) {
+    if (currentPendingReward.description) {
+      lockedDesc.textContent = currentPendingReward.description;
+      lockedDescContainer.classList.remove('hidden');
+    } else {
+      lockedDescContainer.classList.add('hidden');
+    }
+  }
+
+  const lockedTier = document.getElementById('reward-locked-tier-label');
+  if (lockedTier) lockedTier.textContent = tierUpper;
+
+  const lockedTimeLabel = document.getElementById('reward-locked-time-label');
+  if (lockedTimeLabel) lockedTimeLabel.textContent = timeText;
+
+  const lockedPrice = document.getElementById('reward-locked-price-label');
+  if (lockedPrice) lockedPrice.innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
+}
+
+function renderRewardVerdictStep() {
+  document.getElementById('reward-evaluating-step').classList.add('hidden');
+  document.getElementById('reward-verdict-step').classList.remove('hidden');
+
+  updateRewardVerdictDisplay();
+
+  const evalVerdict = document.getElementById('eval-verdict');
+  if (evalVerdict) evalVerdict.textContent = `"${currentPendingReward.verdict || 'Phần thưởng đã được định giá phù hợp.'}"`;
+
+  const evalAdvice = document.getElementById('eval-advice');
+  if (evalAdvice) evalAdvice.textContent = currentPendingReward.advice || 'Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.';
+
+  // AI Modification Notice
+  const rewardModNotice = document.getElementById('reward-modified-notice');
+  const rewardModReason = document.getElementById('reward-modified-reason');
+  if (rewardModNotice && rewardModReason) {
+    if (currentPendingReward.isModified && currentPendingReward.modificationReason) {
+      rewardModNotice.classList.remove('hidden');
+      rewardModReason.textContent = currentPendingReward.modificationReason;
+    } else {
+      rewardModNotice.classList.add('hidden');
+    }
+  }
+
+  const rewardDebateBox = document.getElementById('reward-debate-container');
+  if (rewardDebateBox) rewardDebateBox.classList.add('hidden');
+  const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
+  if (rewardChatLogs) rewardChatLogs.innerHTML = '';
+}
+
 async function evaluateRewardItem() {
   const name = document.getElementById('input-reward-name').value.trim();
   const desc = document.getElementById('input-reward-desc').value.trim();
+  const estimate = parseInt(document.getElementById('input-reward-estimate')?.value, 10) || 0;
+  let duration = parseInt(document.getElementById('input-reward-duration')?.value, 10) || 0;
+  if (duration <= 0) {
+    const textDur = extractDurationFromText(`${name} ${desc}`);
+    if (textDur > 0) duration = textDur;
+  }
 
   if (!name) {
     showToast('Vui lòng nhập tên phần thưởng!', 'error');
     return;
   }
 
-  const evalBox = document.getElementById('reward-eval-box');
-  const btnEval = document.getElementById('btn-eval-reward');
-  const btnSave = document.getElementById('btn-save-reward');
-
-  btnEval.textContent = '⏳ AI đang định giá...';
-  btnEval.disabled = true;
+  document.getElementById('reward-form-step').classList.add('hidden');
+  document.getElementById('reward-evaluating-step').classList.remove('hidden');
 
   try {
     const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
@@ -2949,13 +3289,18 @@ async function evaluateRewardItem() {
         payload: {
           name,
           description: desc,
+          userEstimatePrice: estimate,
+          userEstimateDuration: duration,
           currentQuests,
           userCoins: appState.profile?.coins || 0
         }
       })
     });
 
-    if (!res.ok) throw new Error('AI Error');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'AI Error');
+    }
     const data = await res.json();
 
     const finalName = (data.name && typeof data.name === 'string') ? data.name.trim() : name;
@@ -2970,67 +3315,29 @@ async function evaluateRewardItem() {
       modificationReason: data.modificationReason || (isModified ? 'AI đã điều chỉnh phần thưởng để lành mạnh và duy trì động lực tốt hơn.' : ''),
       price: data.price || 30,
       tier: data.tier || 'rare',
+      targetMinutes: data.targetMinutes !== undefined ? data.targetMinutes : duration,
       icon: data.icon || '🎁',
       signature: data.signature || '',
-      verdict: data.verdict || 'Phần thưởng đã được định giá phù hợp.'
+      verdict: data.verdict || 'Phần thưởng đã được định giá phù hợp.',
+      advice: data.advice || 'Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.'
     };
     currentRewardDebateHistory = [];
 
-    evalBox.classList.remove('hidden');
-
-    // Populate locked reward display card
-    const lockedName = document.getElementById('reward-locked-name');
-    if (lockedName) lockedName.textContent = currentPendingReward.name;
-
-    const lockedDesc = document.getElementById('reward-locked-desc');
-    const lockedDescContainer = document.getElementById('reward-locked-desc-container');
-    if (lockedDesc && lockedDescContainer) {
-      if (currentPendingReward.description) {
-        lockedDesc.textContent = currentPendingReward.description;
-        lockedDescContainer.classList.remove('hidden');
-      } else {
-        lockedDescContainer.classList.add('hidden');
-      }
-    }
-
-    const lockedIcon = document.getElementById('reward-locked-icon');
-    if (lockedIcon) lockedIcon.textContent = currentPendingReward.icon;
-
-    document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
-    document.getElementById('eval-price').innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
-    document.getElementById('eval-verdict').textContent = `"${currentPendingReward.verdict}"`;
-
-    const rewardModNotice = document.getElementById('reward-modified-notice');
-    const rewardModReason = document.getElementById('reward-modified-reason');
-    if (rewardModNotice && rewardModReason) {
-      if (currentPendingReward.isModified && currentPendingReward.modificationReason) {
-        rewardModNotice.classList.remove('hidden');
-        rewardModReason.textContent = currentPendingReward.modificationReason;
-      } else {
-        rewardModNotice.classList.add('hidden');
-      }
-    }
-
-    const rewardDebateBox = document.getElementById('reward-debate-container');
-    if (rewardDebateBox) rewardDebateBox.classList.add('hidden');
-    const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
-    if (rewardChatLogs) rewardChatLogs.innerHTML = '';
-
-    btnEval.classList.add('hidden');
-    btnSave.classList.remove('hidden');
-    sfx.playClick();
+    renderRewardVerdictStep();
   } catch (err) {
-    showToast('Lỗi thẩm định: ' + err.message, 'error');
-    btnEval.textContent = '🤖 AI Định Giá Vàng';
-    btnEval.disabled = false;
+    showToast('Không thể kết nối với AI: ' + err.message, 'error');
+    document.getElementById('reward-evaluating-step').classList.add('hidden');
+    document.getElementById('reward-form-step').classList.remove('hidden');
   }
 }
 
-async function sendRewardDebateArgument() {
+async function sendRewardDebateArgument(customArg = null, selectedOption = null) {
   if (isDebatingReward) return;
 
   const argInput = document.getElementById('input-reward-debate-arg');
-  const argument = argInput ? argInput.value.trim() : '';
+  const argument = (typeof customArg === 'string' && customArg.trim())
+    ? customArg.trim()
+    : (argInput ? argInput.value.trim() : '');
   if (!argument || !currentPendingReward) return;
 
   const chatLogs = document.getElementById('reward-debate-chat-logs');
@@ -3072,7 +3379,8 @@ async function sendRewardDebateArgument() {
           argument,
           history: currentRewardDebateHistory,
           currentQuests,
-          userCoins: appState.profile?.coins || 0
+          userCoins: appState.profile?.coins || 0,
+          selectedOption
         }
       })
     });
@@ -3089,6 +3397,11 @@ async function sendRewardDebateArgument() {
       if (data.newTier && data.newTier !== prevReward.tier) {
         diffTags.push(`⭐ Hạng: ${(prevReward.tier || 'rare').toUpperCase()} ➔ ${(data.newTier || '').toUpperCase()}`);
       }
+      if (data.newTargetMinutes !== undefined && data.newTargetMinutes !== prevReward.targetMinutes) {
+        const oldM = prevReward.targetMinutes ? `${prevReward.targetMinutes}p` : 'Không bấm giờ';
+        const newM = data.newTargetMinutes ? `${data.newTargetMinutes}p` : 'Không bấm giờ';
+        diffTags.push(`⏱️ Thời gian: ${oldM} ➔ ${newM}`);
+      }
       if (data.newName && data.newName !== prevReward.name) {
         diffTags.push(`🎁 Tên mới: "${data.newName}"`);
       }
@@ -3099,7 +3412,10 @@ async function sendRewardDebateArgument() {
       accepted: data.accepted,
       diffTags,
       botName: 'Trợ Lý Cửa Hàng AI',
-      botIcon: '🎁'
+      botIcon: '🎁',
+      options: data.options,
+      mode: 'reward',
+      onSelectOption: (opt) => sendRewardDebateArgument(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
     currentRewardDebateHistory.push({ user: argument, arbiter: data.reply });
@@ -3107,27 +3423,16 @@ async function sendRewardDebateArgument() {
     if (data.accepted) {
       if (data.newName) currentPendingReward.name = data.newName;
       if (data.newDescription !== undefined) currentPendingReward.description = data.newDescription;
-      if (data.newPrice) currentPendingReward.price = data.newPrice;
+      if (data.newPrice !== undefined && Number(data.newPrice) > 0) currentPendingReward.price = Number(data.newPrice);
       if (data.newTier) currentPendingReward.tier = data.newTier;
+      if (data.newTargetMinutes !== undefined) currentPendingReward.targetMinutes = data.newTargetMinutes;
       if (data.signature) currentPendingReward.signature = data.signature;
+      if (data.reply) currentPendingReward.verdict = data.reply;
 
-      // Update locked reward display card
-      const lockedName = document.getElementById('reward-locked-name');
-      if (lockedName) lockedName.textContent = currentPendingReward.name;
+      const rewardModNotice = document.getElementById('reward-modified-notice');
+      if (rewardModNotice) rewardModNotice.classList.add('hidden');
 
-      const lockedDesc = document.getElementById('reward-locked-desc');
-      const lockedDescContainer = document.getElementById('reward-locked-desc-container');
-      if (lockedDesc && lockedDescContainer) {
-        if (currentPendingReward.description) {
-          lockedDesc.textContent = currentPendingReward.description;
-          lockedDescContainer.classList.remove('hidden');
-        } else {
-          lockedDescContainer.classList.add('hidden');
-        }
-      }
-
-      document.getElementById('eval-tier').textContent = currentPendingReward.tier.toUpperCase();
-      document.getElementById('eval-price').innerHTML = `${COIN_ICON_HTML} ${currentPendingReward.price} Vàng`;
+      updateRewardVerdictDisplay();
 
       showToast('Thương lượng thành công! AI đã cập nhật phần thưởng.', 'gold');
       sfx.playFanfare();
@@ -3169,9 +3474,11 @@ function openRewardRenegotiateModal(itemId) {
     description: item.description || '',
     price: item.price,
     tier: item.tier || 'rare',
+    targetMinutes: item.targetMinutes !== undefined ? item.targetMinutes : extractRewardDuration(item),
     icon: item.icon || '🎁',
     signature: item.signature || '',
-    verdict: item.verdict || 'Phần thưởng hợp lý.'
+    verdict: item.verdict || 'Phần thưởng hợp lý.',
+    advice: item.advice || 'Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.'
   };
   currentRewardDebateHistory = [];
 
@@ -3180,37 +3487,20 @@ function openRewardRenegotiateModal(itemId) {
   if (titleEl) titleEl.textContent = 'THƯƠNG LƯỢNG LẠI PHẦN THƯỞNG';
   if (subEl) subEl.textContent = 'Thương lượng với AI để điều chỉnh tên, mô tả hoặc mức giá Vàng';
 
-  document.getElementById('input-reward-name').value = item.name;
-  document.getElementById('input-reward-desc').value = item.description || '';
+  const saveBtn = document.getElementById('btn-save-reward');
+  if (saveBtn) saveBtn.textContent = '✓ Cập Nhật Phần Thưởng';
 
-  const rewardEvalBox = document.getElementById('reward-eval-box');
-  if (rewardEvalBox) rewardEvalBox.classList.remove('hidden');
+  document.getElementById('reward-form-step').classList.add('hidden');
+  document.getElementById('reward-evaluating-step').classList.add('hidden');
+  document.getElementById('reward-verdict-step').classList.remove('hidden');
 
-  const lockedName = document.getElementById('reward-locked-name');
-  if (lockedName) lockedName.textContent = item.name;
-
-  const lockedIcon = document.getElementById('reward-locked-icon');
-  if (lockedIcon) lockedIcon.textContent = item.icon || '🎁';
-
-  const lockedDesc = document.getElementById('reward-locked-desc');
-  const lockedDescContainer = document.getElementById('reward-locked-desc-container');
-  if (lockedDesc && lockedDescContainer) {
-    if (item.description) {
-      lockedDesc.textContent = item.description;
-      lockedDescContainer.classList.remove('hidden');
-    } else {
-      lockedDescContainer.classList.add('hidden');
-    }
-  }
-
-  const evalTier = document.getElementById('eval-tier');
-  if (evalTier) evalTier.textContent = (item.tier || 'rare').toUpperCase();
-
-  const evalPrice = document.getElementById('eval-price');
-  if (evalPrice) evalPrice.innerHTML = `${COIN_ICON_HTML} ${item.price} Vàng`;
+  updateRewardVerdictDisplay();
 
   const evalVerdict = document.getElementById('eval-verdict');
   if (evalVerdict) evalVerdict.textContent = `"Bạn đang thương lượng lại phần thưởng '${item.name}' với AI."`;
+
+  const evalAdvice = document.getElementById('eval-advice');
+  if (evalAdvice) evalAdvice.textContent = currentPendingReward.advice;
 
   const rewardModNotice = document.getElementById('reward-modified-notice');
   if (rewardModNotice) rewardModNotice.classList.add('hidden');
@@ -3220,15 +3510,6 @@ function openRewardRenegotiateModal(itemId) {
 
   initRewardDebateChat(true);
 
-  const btnEval = document.getElementById('btn-eval-reward');
-  if (btnEval) btnEval.classList.add('hidden');
-
-  const btnSave = document.getElementById('btn-save-reward');
-  if (btnSave) {
-    btnSave.classList.remove('hidden');
-    btnSave.textContent = '✓ Cập Nhật Phần Thưởng';
-  }
-
   const argInput = document.getElementById('input-reward-debate-arg');
   if (argInput) argInput.value = '';
 
@@ -3236,8 +3517,30 @@ function openRewardRenegotiateModal(itemId) {
   if (argInput) setTimeout(() => argInput.focus(), 150);
 }
 
-function savePendingReward() {
+async function savePendingReward() {
   if (!currentPendingReward) return;
+
+  const isEditing = Boolean(currentEditingRewardId);
+  const rewardName = currentPendingReward.name || 'Phần thưởng mới';
+  const rewardPrice = currentPendingReward.price || 30;
+  const rewardTier = (currentPendingReward.tier || 'rare').toUpperCase();
+  const rewardIcon = currentPendingReward.icon || '🎁';
+  const targetMinutes = parseInt(currentPendingReward.targetMinutes, 10) || 0;
+  const timeInfo = targetMinutes > 0 ? ` • ⏱️ ${targetMinutes} Phút` : ' • ⚡ Không bấm giờ';
+
+  const ok = await confirmAction({
+    title: isEditing ? 'Xác Nhận Cập Nhật Phần Thưởng?' : 'Xác Nhận Thêm Phần Thưởng?',
+    message: isEditing
+      ? `Bạn có chắc muốn lưu các thay đổi cho phần thưởng "${rewardName}"?`
+      : `Bạn có chắc chắn muốn thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
+    detail: `🪙 Giá: ${rewardPrice} Vàng • ⭐ Hạng: ${rewardTier}${timeInfo} • Biểu tượng: ${rewardIcon}`,
+    confirmText: isEditing ? 'Cập Nhật' : 'Thêm Vào Cửa Hàng',
+    cancelText: 'Xem Lại',
+    icon: rewardIcon,
+    btnColor: 'amber'
+  });
+
+  if (!ok) return;
 
   if (currentEditingRewardId) {
     const targetItem = appState.shopItems.find(i => i.id === currentEditingRewardId);
@@ -3246,6 +3549,7 @@ function savePendingReward() {
       targetItem.description = currentPendingReward.description || '';
       targetItem.price = currentPendingReward.price;
       targetItem.tier = currentPendingReward.tier || 'rare';
+      targetItem.targetMinutes = targetMinutes;
       if (currentPendingReward.icon) targetItem.icon = currentPendingReward.icon;
       targetItem.signature = currentPendingReward.signature || targetItem.signature || '';
 
@@ -3253,6 +3557,7 @@ function savePendingReward() {
       showToast(`Đã cập nhật phần thưởng "${targetItem.name}"!`, 'success');
       closeModal('modal-reward');
       currentEditingRewardId = null;
+      renderShop();
       triggerSave(true);
       return;
     }
@@ -3261,6 +3566,7 @@ function savePendingReward() {
   const finalItem = {
     ...currentPendingReward,
     price: currentPendingReward.price,
+    targetMinutes: targetMinutes,
     signature: currentPendingReward.signature || ''
   };
 
@@ -3268,6 +3574,7 @@ function savePendingReward() {
   sfx.playFanfare();
   showToast(`Đã thêm món "${finalItem.name}" vào Cửa Hàng!`, 'success');
   closeModal('modal-reward');
+  renderShop();
   triggerSave(true);
 }
 
@@ -4581,6 +4888,7 @@ function renderShop() {
   appState.shopItems.forEach(item => {
     const canAfford = appState.profile.coins >= item.price;
     const coinsNeeded = Math.max(0, item.price - appState.profile.coins);
+    const durationMins = extractRewardDuration(item);
     const card = document.createElement('div');
     card.className = 'rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group';
 
@@ -4599,6 +4907,11 @@ function renderShop() {
             ${item.tier || 'RARE'}
           </span>
           <div class="flex items-center gap-1.5">
+            ${durationMins > 0 ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 font-mono text-[11px] font-bold border border-purple-500/20 shadow-xs">
+                ⏱️ ${durationMins}p
+              </span>
+            ` : ''}
             <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
               ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
             </div>
@@ -4642,7 +4955,7 @@ function renderShop() {
           </button>
           <button class="btn-buy-item flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${canAfford ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300/40 dark:border-slate-700/40'}" ${canAfford ? '' : 'disabled'}>
             ${canAfford ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
-            <span>${canAfford ? 'Đổi Quà' : 'Chưa Đủ Vàng'}</span>
+            <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p)` : 'Đổi Quà') : 'Chưa Đủ Vàng'}</span>
           </button>
         </div>
       </div>
@@ -6369,15 +6682,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Open Shop Reward Modal (Desktop, Mobile & Global)
   const openRewardHandler = () => {
     currentEditingRewardId = null;
+    currentPendingReward = null;
     sfx.playClick();
     const titleEl = document.getElementById('modal-reward-title');
     const subEl = document.getElementById('modal-reward-subtitle');
     if (titleEl) titleEl.textContent = 'THÊM PHẦN THƯỞNG MỚI';
     if (subEl) subEl.textContent = 'AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực';
 
+    const saveBtn = document.getElementById('btn-save-reward');
+    if (saveBtn) saveBtn.textContent = '✓ Đồng Ý & Thêm Vào Cửa Hàng';
+
+    document.getElementById('reward-form-step').classList.remove('hidden');
+    document.getElementById('reward-evaluating-step').classList.add('hidden');
+    document.getElementById('reward-verdict-step').classList.add('hidden');
+
     document.getElementById('input-reward-name').value = '';
     document.getElementById('input-reward-desc').value = '';
-    document.getElementById('reward-eval-box').classList.add('hidden');
+    const estimateInput = document.getElementById('input-reward-estimate');
+    if (estimateInput) estimateInput.value = '';
+    const durationInput = document.getElementById('input-reward-duration');
+    if (durationInput) durationInput.value = '';
+
     const rewardModNotice = document.getElementById('reward-modified-notice');
     if (rewardModNotice) rewardModNotice.classList.add('hidden');
     const rewardDebateBox = document.getElementById('reward-debate-container');
@@ -6385,13 +6710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rewardChatLogs = document.getElementById('reward-debate-chat-logs');
     if (rewardChatLogs) rewardChatLogs.innerHTML = '';
     currentRewardDebateHistory = [];
-    const btnEval = document.getElementById('btn-eval-reward');
-    btnEval.classList.remove('hidden');
-    btnEval.disabled = false;
-    btnEval.textContent = '🤖 AI Định Giá Vàng';
-    const btnSave = document.getElementById('btn-save-reward');
-    btnSave.classList.add('hidden');
-    btnSave.textContent = '+ Thêm Vào Cửa Hàng';
+
     openModal('modal-reward');
   };
   window.openRewardModal = openRewardHandler;
