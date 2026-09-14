@@ -3233,16 +3233,33 @@ function parseDebateOptionsFromText(text, type = 'reward') {
       mins = extractDurationFromText(opt.text);
     }
 
-    let gold = undefined;
-    const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
-    if (explicitPriceMatch) {
-      gold = parseInt(explicitPriceMatch[1], 10);
-    } else if (type === 'quest') {
-      const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
-      if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
-    } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
-      const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
-      if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+    let loanRate = undefined;
+    let loanDeduct = undefined;
+    let loanLimit = undefined;
+
+    if (type === 'loan') {
+      const loanGoldMatch = opt.text.match(/(?:vay|mức\s*vay|khoản\s*vay|số\s*vàng(?:\s*vay)?|còn)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+      if (loanGoldMatch) gold = parseInt(loanGoldMatch[1], 10);
+
+      const rateMatch = opt.text.match(/(?:lãi\s*suất|lãi|phí)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i) || opt.text.match(/(\d+(?:[.,]\d+)?)\s*%(?:\/ngày)?/i);
+      if (rateMatch) loanRate = parseFloat(rateMatch[1].replace(',', '.')) / 100;
+
+      const deductMatch = opt.text.match(/(?:trích|trích\s*nợ|tỷ\s*lệ)[:\s]*(\d+)\s*%/i);
+      if (deductMatch) loanDeduct = parseInt(deductMatch[1], 10) / 100;
+
+      const limitMatch = opt.text.match(/(?:hạn\s*mức(?:\s*(?:lên|mới))?|cấp\s*hạn\s*mức)[:\s]*(\d+)\s*vàng/i);
+      if (limitMatch) loanLimit = parseInt(limitMatch[1], 10);
+    } else {
+      const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
+      if (explicitPriceMatch) {
+        gold = parseInt(explicitPriceMatch[1], 10);
+      } else if (type === 'quest') {
+        const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+        if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
+      } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
+        const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
+        if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+      }
     }
 
     let newName = undefined;
@@ -3256,8 +3273,15 @@ function parseDebateOptionsFromText(text, type = 'reward') {
 
     let label = opt.title;
     const details = [];
-    if (mins > 0) details.push(`${mins} phút`);
-    if (gold !== undefined) details.push(`${gold} Vàng`);
+    if (type === 'loan') {
+      if (gold !== undefined) details.push(`Vay ${gold} Vàng`);
+      if (loanRate !== undefined) details.push(`Lãi ${(loanRate * 100).toFixed(1)}%/ngày`);
+      if (loanDeduct !== undefined) details.push(`Trích ${(loanDeduct * 100).toFixed(0)}%`);
+      if (loanLimit !== undefined) details.push(`Hạn mức ${loanLimit} Vàng`);
+    } else {
+      if (mins > 0) details.push(`${mins} phút`);
+      if (gold !== undefined) details.push(`${gold} Vàng`);
+    }
     if (details.length > 0) {
       label += ` (${details.join(' • ')})`;
     } else if (opt.text.length < 40) {
@@ -3270,7 +3294,12 @@ function parseDebateOptionsFromText(text, type = 'reward') {
     }
 
     const payload = {};
-    if (type === 'reward') {
+    if (type === 'loan') {
+      if (gold !== undefined) payload.newAmount = gold;
+      if (loanRate !== undefined) payload.newBorrowRate = loanRate;
+      if (loanDeduct !== undefined) payload.newAutoDeductPercent = loanDeduct;
+      if (loanLimit !== undefined) payload.newCreditLimit = loanLimit;
+    } else if (type === 'reward') {
       if (gold !== undefined) payload.newPrice = gold;
       if (mins > 0) payload.newTargetMinutes = mins;
       if (gold !== undefined && gold < 30) payload.newTier = 'common';
@@ -7395,6 +7424,513 @@ function onDeductPercentChange(val) {
   }
 }
 
+// ==========================================
+// BANK AI LOAN ASSISTANT & NEGOTIATION
+// ==========================================
+let bankNegotiatedTerms = null; // { amount, borrowRate, autoDeductPercent, creditLimit, signature }
+let currentBankDebateHistory = [];
+let isDebatingBankLoan = false;
+let bankConsultationCache = { data: null, timestamp: 0 };
+
+function calculateUserEarningsCapacity() {
+  const ledger = Array.isArray(appState.ledger) ? appState.ledger : [];
+  const now = Date.now();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const todayMs = startOfToday.getTime();
+  const threeDaysAgo = now - 3 * 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+  let todayEarned = 0;
+  let last3DaysEarned = 0;
+  let last7DaysEarned = 0;
+  let recentCompletedQuests = 0;
+
+  for (const entry of ledger) {
+    if (entry.type === 'earn') {
+      const amt = parseInt(entry.amount, 10) || 0;
+      const ts = parseInt(entry.timestamp, 10) || now;
+      if (ts >= todayMs) todayEarned += amt;
+      if (ts >= threeDaysAgo) last3DaysEarned += amt;
+      if (ts >= sevenDaysAgo) last7DaysEarned += amt;
+      if (entry.category === 'quest_reward' || (entry.title && entry.title.includes('nhiệm vụ'))) {
+        recentCompletedQuests++;
+      }
+    }
+  }
+
+  const profile = appState.profile || {};
+  const totalEarned = parseInt(profile.totalCoinsEarned, 10) || 0;
+  const streak = Math.max(1, parseInt(profile.streak, 10) || 1);
+
+  let avgDailyIncome = 0;
+  if (last7DaysEarned > 0) {
+    avgDailyIncome = Math.round(last7DaysEarned / 7);
+  } else if (last3DaysEarned > 0) {
+    avgDailyIncome = Math.round(last3DaysEarned / 3);
+  } else if (totalEarned > 0) {
+    avgDailyIncome = Math.max(15, Math.round(totalEarned / Math.min(30, streak)));
+  } else {
+    avgDailyIncome = 15;
+  }
+
+  return {
+    todayEarned,
+    last3DaysEarned,
+    last7DaysEarned,
+    avgDailyIncome: Math.max(10, avgDailyIncome),
+    recentCompletedQuests
+  };
+}
+
+async function loadBankLoanConsultation(forceRefresh = true) {
+  const consultCard = document.getElementById('bank-ai-consult-card');
+  const incomeTag = document.getElementById('bank-ai-daily-income-tag');
+  const inputBorrow = document.getElementById('input-borrow-amount');
+  const inputDeduct = document.getElementById('input-deduct-percent');
+  const btnAnalyze = document.getElementById('btn-analyze-loan-roadmap');
+  const btnText = document.getElementById('btn-analyze-loan-text');
+
+  if (!consultCard) return;
+
+  if (btnAnalyze) {
+    btnAnalyze.disabled = true;
+    btnAnalyze.classList.add('opacity-75', 'cursor-wait');
+  }
+  if (btnText) {
+    btnText.textContent = 'Đang phân tích ví Vàng & nhiệm vụ...';
+  }
+
+  const earnings = calculateUserEarningsCapacity();
+  if (incomeTag) incomeTag.textContent = `Thu nhập: ~${earnings.avgDailyIncome} Vàng/ngày`;
+
+  if (!forceRefresh && bankConsultationCache.data && (Date.now() - bankConsultationCache.timestamp < 120000)) {
+    applyBankConsultationData(bankConsultationCache.data);
+    return;
+  }
+
+  const profile = appState.profile || {};
+  const activeQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 8).map(q => ({
+    title: q.title,
+    rewardCoins: q.rewardCoins,
+    type: q.type,
+    targetMinutes: q.targetMinutes,
+    isRepeatable: q.isRepeatable,
+    timesCompleted: q.timesCompleted
+  }));
+
+  const shopItems = (appState.shopItems || []).slice(0, 6).map(s => ({
+    name: s.name,
+    price: s.price,
+    tier: s.tier
+  }));
+
+  const deductVal = parseInt(inputDeduct?.value, 10) || 50;
+  const currentReqAmt = parseInt(inputBorrow?.value, 10) || 0;
+
+  try {
+    const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        action: 'bank_consult_loan',
+        payload: {
+          profile,
+          autoDeductPercent: deductVal / 100,
+          requestedAmount: currentReqAmt,
+          poolState: currentBankPool,
+          quests: activeQuests,
+          shopItems,
+          earningsStats: earnings
+        }
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      bankConsultationCache = { data, timestamp: Date.now() };
+      applyBankConsultationData(data);
+      return;
+    }
+  } catch (err) {
+    console.warn('Không thể tải tư vấn AI khoản vay từ máy chủ:', err);
+  }
+
+  // Fallback local consultation
+  const creditLimit = calculateLocalCreditLimit(profile, deductVal / 100);
+  const userCoins = parseInt(profile.coins, 10) || 0;
+  const shouldBorrow = userCoins < 40;
+  const recommendedAmount = Math.min(creditLimit, Math.max(15, Math.floor(earnings.avgDailyIncome * 2)));
+  const borrowRate = 0.05;
+  const autoDeduct = deductVal / 100;
+  const estDays = Math.min(5, Math.max(2, Math.ceil(recommendedAmount / Math.max(5, earnings.avgDailyIncome * autoDeduct))));
+  const estimatedInterest = Math.ceil(recommendedAmount * borrowRate * estDays);
+  const totalDebt = recommendedAmount + estimatedInterest;
+
+  let fallbackPlan = '';
+  if (activeQuests.length > 0) {
+    const q1 = activeQuests[0];
+    const coinsNeeded = Math.ceil(totalDebt / autoDeduct);
+    const times = Math.max(1, Math.ceil(coinsNeeded / Math.max(1, q1.rewardCoins || 10)));
+    fallbackPlan = `Bạn chỉ cần hoàn thành nhiệm vụ "${q1.title}" khoảng ${times} lần trong ${estDays} ngày (thu về ~${coinsNeeded} Vàng, trích ra trả ~${totalDebt} Vàng gồm ${recommendedAmount} Vàng gốc + ${estimatedInterest} Vàng phí lãi) là sạch nợ nhẹ nhàng!`;
+  } else {
+    fallbackPlan = `Khoản vay ${recommendedAmount} Vàng dự kiến thêm ${estimatedInterest} Vàng phí lãi trong ${estDays} ngày (tổng ~${totalDebt} Vàng). Bạn hãy tạo 1-2 nhiệm vụ và làm đều đặn trong ${estDays} ngày, hệ thống sẽ tự động trích thưởng trả hết nhé!`;
+  }
+
+  const localData = {
+    shouldBorrow,
+    creditLimit,
+    recommendedAmount,
+    borrowRate,
+    autoDeductPercent: autoDeduct,
+    estimatedDaysToRepay: estDays,
+    estimatedInterest,
+    totalEstimatedDebt: totalDebt,
+    repaymentPlan: fallbackPlan,
+    advice: shouldBorrow
+      ? `Bạn đang có chuỗi chăm chỉ ${profile.streak || 0} ngày. Vay ${recommendedAmount} Vàng là mức vừa vặn giúp bạn đạt mục tiêu mà không bị áp lực nợ!`
+      : `Bạn đang có ${userCoins} Vàng trong ví, đủ để đổi các món quà nhỏ mà không cần vay mượn. Nếu cần món lớn hơn thì hãy vay một khoản nhỏ nhé!`,
+    options: [
+      {
+        id: 1,
+        label: `Gói an toàn: Vay ${Math.max(15, Math.floor(recommendedAmount * 0.7))} Vàng (Trích 50%)`,
+        argument: `Mình chọn gói an toàn vay ${Math.max(15, Math.floor(recommendedAmount * 0.7))} Vàng với tỷ lệ trích 50%`,
+        newAmount: Math.max(15, Math.floor(recommendedAmount * 0.7)),
+        newBorrowRate: 0.05,
+        newAutoDeductPercent: 0.50,
+        newCreditLimit: creditLimit
+      },
+      {
+        id: 2,
+        label: `Gói tăng tốc: Vay ${Math.min(creditLimit, Math.floor(recommendedAmount * 1.3))} Vàng (Trích 70%)`,
+        argument: `Mình chọn gói tăng tốc vay ${Math.min(creditLimit, Math.floor(recommendedAmount * 1.3))} Vàng với tỷ lệ trích 70%`,
+        newAmount: Math.min(creditLimit, Math.floor(recommendedAmount * 1.3)),
+        newBorrowRate: 0.05,
+        newAutoDeductPercent: 0.70,
+        newCreditLimit: creditLimit
+      }
+    ]
+  };
+
+  bankConsultationCache = { data: localData, timestamp: Date.now() };
+  applyBankConsultationData(localData);
+}
+
+function applyBankConsultationData(data) {
+  if (!data) return;
+  const btnAnalyze = document.getElementById('btn-analyze-loan-roadmap');
+  const btnText = document.getElementById('btn-analyze-loan-text');
+  const hintText = document.getElementById('bank-ai-consult-hint');
+  const adviceText = document.getElementById('bank-ai-advice-text');
+  const roadmapBox = document.getElementById('bank-ai-roadmap-box');
+  const planText = document.getElementById('bank-ai-repayment-plan');
+  const estDaysEl = document.getElementById('bank-ai-est-days');
+  const recommendTag = document.getElementById('bank-ai-recommend-tag');
+  const inputBorrow = document.getElementById('input-borrow-amount');
+
+  if (btnAnalyze) {
+    btnAnalyze.disabled = false;
+    btnAnalyze.classList.remove('opacity-75', 'cursor-wait');
+  }
+  if (btnText) {
+    btnText.textContent = 'Phân tích lại lộ trình';
+  }
+  if (hintText) {
+    hintText.classList.add('hidden');
+  }
+  if (adviceText) {
+    adviceText.classList.remove('hidden');
+    if (data.advice) adviceText.textContent = data.advice;
+  }
+  if (roadmapBox) {
+    roadmapBox.classList.remove('hidden');
+  }
+
+  if (recommendTag) {
+    recommendTag.classList.remove('hidden');
+    if (data.shouldBorrow) {
+      recommendTag.textContent = 'Nên vay vừa sức';
+      recommendTag.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
+    } else {
+      recommendTag.textContent = 'Chưa cần vay';
+      recommendTag.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30';
+    }
+  }
+
+  if (planText && data.repaymentPlan) planText.textContent = data.repaymentPlan;
+  if (estDaysEl && data.estimatedDaysToRepay) estDaysEl.textContent = `${data.estimatedDaysToRepay} ngày`;
+
+  if (inputBorrow && (!inputBorrow.value || parseInt(inputBorrow.value, 10) === 0)) {
+    if (data.recommendedAmount) inputBorrow.value = data.recommendedAmount;
+  }
+}
+
+function toggleBankAiDebate() {
+  const container = document.getElementById('bank-debate-container');
+  const btnText = document.getElementById('btn-toggle-bank-ai-text');
+  if (!container) return;
+
+  const isHidden = container.classList.contains('hidden');
+  if (isHidden) {
+    container.classList.remove('hidden');
+    if (btnText) btnText.textContent = 'Thu Gọn';
+    initBankDebateChat();
+  } else {
+    container.classList.add('hidden');
+    if (btnText) btnText.textContent = 'Thương Lượng';
+  }
+}
+window.toggleBankAiDebate = toggleBankAiDebate;
+
+function initBankDebateChat(forceReset = false) {
+  const chatLogs = document.getElementById('bank-debate-chat-logs');
+  if (!chatLogs) return;
+  if (!forceReset && chatLogs.children.length > 0) return;
+
+  const consultData = bankConsultationCache.data;
+  const initialOptions = consultData?.options || [];
+  const rates = calculateLocalBankRates(currentBankPool);
+  const currentRatePct = ((rates.borrowRate || 0.05) * 100).toFixed(1);
+
+  chatLogs.innerHTML = `
+    <div class="flex justify-start items-start gap-2 message-fade-in">
+      <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">🤖</div>
+      <div class="max-w-[90%] sm:max-w-[92%] bg-blue-50/80 dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 shadow-xs leading-relaxed space-y-2">
+        <div class="font-bold text-xs sm:text-[13px] text-blue-600 dark:text-blue-400">Trợ Lý Vay Vàng AI:</div>
+        <div>
+          Chào bạn! Mình là Trợ Lý Vay Vàng của Ngân Hàng LevelUp. Lãi suất niêm yết hiện tại là <strong>${currentRatePct}%/ngày</strong>.
+        </div>
+        <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+          💡 Bạn có thể chọn một phương án định sẵn bên dưới, bấm vào các gợi ý nhanh hoặc đưa ra lý do (như chuỗi chăm chỉ, cam kết trả nợ sớm) để thương lượng giảm lãi suất và nâng hạn mức nhé!
+        </div>
+        ${initialOptions.length > 0 ? `
+          <div class="mt-2 pt-2 border-t border-blue-200/70 dark:border-slate-800/80 space-y-1.5">
+            <div class="text-[11px] font-bold text-blue-700 dark:text-blue-400 tracking-wide flex items-center gap-1">
+              <span>💡</span><span>Phương án đề xuất sẵn cho bạn:</span>
+            </div>
+            <div class="flex flex-col sm:flex-row flex-wrap gap-1.5">
+              ${initialOptions.map((opt, idx) => `
+                <button type="button" data-bank-opt-idx="${idx}" class="bank-debate-option-btn group text-left px-3 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-950/60 active:scale-95 text-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-700/80 transition-all flex items-center gap-2 shadow-xs cursor-pointer">
+                  <span class="w-5 h-5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-300 flex items-center justify-center text-[11px] font-black shrink-0 group-hover:scale-110 transition-transform">👉</span>
+                  <span class="font-medium">${escapeHtml(opt.label || `Gói ${idx + 1}`)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+
+  chatLogs.querySelectorAll('.bank-debate-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-bank-opt-idx'), 10);
+      const opt = initialOptions[idx];
+      if (opt) {
+        sendBankDebateMessage(opt.argument || opt.label, opt);
+      }
+    });
+  });
+
+  chatLogs.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function sendBankDebateMessage(customArg = null, selectedOption = null) {
+  if (isDebatingBankLoan) return;
+
+  const argInput = document.getElementById('input-bank-debate-arg');
+  const argument = (typeof customArg === 'string' && customArg.trim())
+    ? customArg.trim()
+    : (argInput ? argInput.value.trim() : '');
+  if (!argument) return;
+
+  const chatLogs = document.getElementById('bank-debate-chat-logs');
+  const btnSend = document.getElementById('btn-send-bank-debate');
+
+  isDebatingBankLoan = true;
+  if (argInput) {
+    argInput.disabled = true;
+    argInput.value = '';
+  }
+  if (btnSend) {
+    btnSend.disabled = true;
+    btnSend.innerHTML = `<span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style="animation-delay: 0ms"></span><span class="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style="animation-delay: 150ms"></span><span class="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style="animation-delay: 300ms"></span></span>`;
+  }
+
+  appendUserChatBubble(chatLogs, argument);
+
+  const loadingBubble = createDebateLoadingBubble('Trợ lý AI đang xem xét đề xuất thương lượng khoản vay...');
+  chatLogs.appendChild(loadingBubble);
+  chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
+
+  try {
+    const profile = appState.profile || {};
+    const inputBorrow = document.getElementById('input-borrow-amount');
+    const inputDeduct = document.getElementById('input-deduct-percent');
+    const currentAmount = parseInt(inputBorrow?.value, 10) || 30;
+    const currentDeduct = (parseInt(inputDeduct?.value, 10) || 50) / 100;
+    const rates = calculateLocalBankRates(currentBankPool);
+    const currentRate = bankNegotiatedTerms?.borrowRate ?? rates.borrowRate;
+    const currentLimit = bankNegotiatedTerms?.creditLimit ?? calculateLocalCreditLimit(profile, currentDeduct);
+
+    const activeQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 8).map(q => ({
+      title: q.title,
+      rewardCoins: q.rewardCoins,
+      type: q.type,
+      targetMinutes: q.targetMinutes
+    }));
+
+    const shopItems = (appState.shopItems || []).slice(0, 6).map(s => ({
+      name: s.name,
+      price: s.price
+    }));
+
+    const earnings = calculateUserEarningsCapacity();
+
+    const currentLoanState = {
+      amount: currentAmount,
+      borrowRate: currentRate,
+      autoDeductPercent: currentDeduct,
+      creditLimit: currentLimit
+    };
+
+    const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        action: 'bank_debate_loan',
+        payload: {
+          loan: currentLoanState,
+          argument,
+          history: currentBankDebateHistory,
+          profile,
+          poolState: currentBankPool,
+          quests: activeQuests,
+          shopItems,
+          earningsStats: earnings,
+          selectedOption
+        }
+      })
+    });
+
+    if (!res.ok) throw new Error('AI Error');
+    const data = await res.json();
+    loadingBubble.remove();
+
+    const diffTags = [];
+    if (data.accepted) {
+      if (data.newBorrowRate !== undefined && Number(data.newBorrowRate) > 0.30) {
+        data.newBorrowRate = Number(data.newBorrowRate) / 100;
+      }
+      if (data.newAutoDeductPercent !== undefined && Number(data.newAutoDeductPercent) > 1.0) {
+        data.newAutoDeductPercent = Number(data.newAutoDeductPercent) / 100;
+      }
+
+      if (data.newBorrowRate && Number(data.newBorrowRate) !== currentRate) {
+        diffTags.push(`📉 Lãi suất: ${(currentRate * 100).toFixed(1)}% ➔ ${(Number(data.newBorrowRate) * 100).toFixed(1)}%/ngày`);
+      }
+      if (data.newCreditLimit && Number(data.newCreditLimit) !== currentLimit) {
+        diffTags.push(`🚀 Hạn mức: ${currentLimit} ➔ ${data.newCreditLimit} Vàng`);
+      }
+      if (data.newAmount && Number(data.newAmount) !== currentAmount) {
+        diffTags.push(`💰 Vay: ${currentAmount} ➔ ${data.newAmount} Vàng`);
+      }
+      if (data.newAutoDeductPercent && Number(data.newAutoDeductPercent) !== currentDeduct) {
+        diffTags.push(`✂️ Trích nợ: ${Math.round(currentDeduct * 100)}% ➔ ${Math.round(Number(data.newAutoDeductPercent) * 100)}%`);
+      }
+    }
+
+    appendAiChatBubble(chatLogs, {
+      reply: data.reply,
+      accepted: data.accepted,
+      diffTags,
+      botName: 'Trợ Lý Vay Vàng AI',
+      botIcon: '🤖',
+      options: data.options,
+      mode: 'loan',
+      onSelectOption: (opt) => {
+        const cleanOpt = { ...opt };
+        if (cleanOpt.newBorrowRate !== undefined && Number(cleanOpt.newBorrowRate) > 0.30) {
+          cleanOpt.newBorrowRate = Number(cleanOpt.newBorrowRate) / 100;
+        }
+        if (cleanOpt.newAutoDeductPercent !== undefined && Number(cleanOpt.newAutoDeductPercent) > 1.0) {
+          cleanOpt.newAutoDeductPercent = Number(cleanOpt.newAutoDeductPercent) / 100;
+        }
+        sendBankDebateMessage(cleanOpt.argument || `Chốt phương án ${cleanOpt.id}`, cleanOpt);
+      }
+    });
+
+    currentBankDebateHistory.push({ user: argument, arbiter: data.reply });
+
+    if (data.accepted) {
+      bankNegotiatedTerms = {
+        amount: data.newAmount,
+        borrowRate: data.newBorrowRate,
+        autoDeductPercent: data.newAutoDeductPercent,
+        creditLimit: data.newCreditLimit,
+        signature: data.signature
+      };
+
+      if (inputBorrow && data.newAmount) {
+        inputBorrow.value = data.newAmount;
+      }
+      if (inputDeduct && data.newAutoDeductPercent) {
+        const pct = Math.round(data.newAutoDeductPercent * 100);
+        inputDeduct.value = pct;
+        onDeductPercentChange(pct);
+      }
+
+      const badge = document.getElementById('bank-negotiated-badge');
+      const termsSpan = document.getElementById('bank-negotiated-terms');
+      if (badge && termsSpan) {
+        termsSpan.textContent = `Lãi ${(data.newBorrowRate * 100).toFixed(1)}%/ngày • Hạn mức ${data.newCreditLimit} Vàng • Trích ${Math.round(data.newAutoDeductPercent * 100)}%`;
+        badge.classList.remove('hidden');
+      }
+
+      const elLimitBadge = document.getElementById('bank-credit-limit-badge');
+      if (elLimitBadge && data.newCreditLimit) {
+        elLimitBadge.innerHTML = `<span>Hạn mức: ${data.newCreditLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
+      }
+
+      showToast('Thương lượng thành công! AI đã áp dụng điều khoản ưu đãi.', 'gold');
+      if (typeof sfx !== 'undefined' && sfx.playFanfare) sfx.playFanfare();
+    }
+  } catch (err) {
+    loadingBubble.remove();
+    const errRow = document.createElement('div');
+    errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
+    errRow.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">⚠️</div>
+      <div class="max-w-[85%] bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl rounded-tl-xs p-3 text-xs text-rose-700 dark:text-rose-300 shadow-xs">
+        <strong>Lỗi thương lượng:</strong> ${escapeHtml(err.message || 'Không thể kết nối với AI. Vui lòng thử lại.')}
+      </div>
+    `;
+    chatLogs.appendChild(errRow);
+    chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
+    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+  } finally {
+    isDebatingBankLoan = false;
+    if (argInput) {
+      argInput.disabled = false;
+      argInput.focus();
+    }
+    if (btnSend) {
+      btnSend.disabled = false;
+      btnSend.innerHTML = `<span>Gửi</span><span class="text-[10px]">➤</span>`;
+    }
+  }
+}
+window.sendBankDebateMessage = sendBankDebateMessage;
+window.loadBankLoanConsultation = loadBankLoanConsultation;
+
 async function executeBankBorrow() {
   ensureUserBankProfile();
   const bank = appState.profile.bank;
@@ -7414,16 +7950,21 @@ async function executeBankBorrow() {
     return;
   }
 
-  const maxLimit = calculateLocalCreditLimit(appState.profile, autoDeduct);
-  if (borrowAmt > maxLimit) {
-    showToast(`Số Vàng vay (${borrowAmt}) vượt quá hạn mức tối đa (${maxLimit}) của bạn!`, 'error');
+  const standardLimit = calculateLocalCreditLimit(appState.profile, autoDeduct);
+  const effectiveLimit = bankNegotiatedTerms?.creditLimit || standardLimit;
+  if (borrowAmt > effectiveLimit) {
+    showToast(`Số Vàng vay (${borrowAmt}) vượt quá hạn mức tối đa (${effectiveLimit}) của bạn!`, 'error');
     return;
   }
+
+  const negotiatedRateText = bankNegotiatedTerms?.borrowRate
+    ? `\n📉 Lãi suất ưu đãi đã chốt: ${(bankNegotiatedTerms.borrowRate * 100).toFixed(1)}%/ngày`
+    : '';
 
   const ok = await confirmAction({
     title: 'Xác Nhận Vay Vàng Tức Thời?',
     message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
-    detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)`,
+    detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ${negotiatedRateText}\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)`,
     confirmText: 'Vay Ngay ⚡',
     cancelText: 'Hủy',
     icon: '⚡',
@@ -7444,7 +7985,10 @@ async function executeBankBorrow() {
         },
         body: JSON.stringify({
           amount: borrowAmt,
-          autoDeductPercent: autoDeduct
+          autoDeductPercent: autoDeduct,
+          loanSignature: bankNegotiatedTerms?.signature,
+          borrowRate: bankNegotiatedTerms?.borrowRate,
+          creditLimit: bankNegotiatedTerms?.creditLimit
         })
       });
       if (res.ok) {
@@ -7467,6 +8011,7 @@ async function executeBankBorrow() {
 
   if (!serverSuccess) {
     const rates = calculateLocalBankRates(currentBankPool);
+    const finalRate = bankNegotiatedTerms?.borrowRate ?? rates.borrowRate;
     let bailoutInjected = 0;
     if (currentBankPool.poolGold < borrowAmt) {
       bailoutInjected = borrowAmt - currentBankPool.poolGold;
@@ -7480,7 +8025,7 @@ async function executeBankBorrow() {
     appState.profile.bank.loan = {
       principal: borrowAmt,
       debt: borrowAmt,
-      borrowRate: rates.borrowRate,
+      borrowRate: finalRate,
       autoDeductPercent: autoDeduct,
       borrowedAt: Date.now(),
       lastAccruedAt: Date.now(),
@@ -7494,11 +8039,15 @@ async function executeBankBorrow() {
       category: 'bank_borrow',
       amount: borrowAmt,
       title: 'Vay Vàng Ngân Hàng',
-      description: `🏦 Đã vay ${borrowAmt} Vàng (Lãi suất: ${(rates.borrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${deductPct}% mỗi nhiệm vụ).`,
+      description: `🏦 Đã vay ${borrowAmt} Vàng (Lãi suất: ${(finalRate * 100).toFixed(1)}%/ngày, trích nợ: ${deductPct}% mỗi nhiệm vụ).`,
       timestamp: Date.now()
     });
     showToast(`Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
   }
+
+  bankNegotiatedTerms = null;
+  const negBadge = document.getElementById('bank-negotiated-badge');
+  if (negBadge) negBadge.classList.add('hidden');
 
   sfx.playFanfare();
   if (inputAmount) inputAmount.value = '';
@@ -8286,6 +8835,30 @@ document.addEventListener('DOMContentLoaded', () => {
         input.classList.add('ring-2', 'ring-amber-500');
         setTimeout(() => input.classList.remove('ring-2', 'ring-amber-500'), 500);
         sfx.playClick();
+      }
+    });
+  });
+
+  // Bank Loan Debate controls
+  const inputBankDebateArg = document.getElementById('input-bank-debate-arg');
+  if (inputBankDebateArg) {
+    inputBankDebateArg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendBankDebateMessage();
+      }
+    });
+  }
+  document.querySelectorAll('.quick-suggest-bank-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const suggestText = btn.getAttribute('data-suggest');
+      const input = document.getElementById('input-bank-debate-arg');
+      if (input && suggestText) {
+        input.value = suggestText;
+        input.focus();
+        input.classList.add('ring-2', 'ring-blue-500');
+        setTimeout(() => input.classList.remove('ring-2', 'ring-blue-500'), 500);
+        if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
       }
     });
   });

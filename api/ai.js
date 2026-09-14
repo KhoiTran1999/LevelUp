@@ -7,6 +7,7 @@ import {
   checkRateLimit,
   signQuest,
   signReward,
+  signLoanOffer,
   calculateBankRates,
   calculateCreditLimit
 } from './sync.js';
@@ -352,15 +353,33 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
     }
 
     let gold = undefined;
-    const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
-    if (explicitPriceMatch) {
-      gold = parseInt(explicitPriceMatch[1], 10);
-    } else if (type === 'quest') {
-      const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
-      if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
-    } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
-      const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
-      if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+    let rate = undefined;
+    let deduct = undefined;
+    let limit = undefined;
+
+    if (type === 'loan') {
+      const loanGoldMatch = opt.text.match(/(?:vay|mức\s*vay|khoản\s*vay|số\s*vàng(?:\s*vay)?|còn)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+      if (loanGoldMatch) gold = parseInt(loanGoldMatch[1], 10);
+
+      const rateMatch = opt.text.match(/(?:lãi\s*suất|lãi|phí)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i) || opt.text.match(/(\d+(?:[.,]\d+)?)\s*%(?:\/ngày)?/i);
+      if (rateMatch) rate = parseFloat(rateMatch[1].replace(',', '.')) / 100;
+
+      const deductMatch = opt.text.match(/(?:trích|trích\s*nợ|tỷ\s*lệ)[:\s]*(\d+)\s*%/i);
+      if (deductMatch) deduct = parseInt(deductMatch[1], 10) / 100;
+
+      const limitMatch = opt.text.match(/(?:hạn\s*mức(?:\s*(?:lên|mới))?|cấp\s*hạn\s*mức)[:\s]*(\d+)\s*vàng/i);
+      if (limitMatch) limit = parseInt(limitMatch[1], 10);
+    } else {
+      const explicitPriceMatch = opt.text.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|đổi\s*(?:ngay\s*)?(?:với\s*)?(?:mức\s*)?giá)[:\s]*(\d+)\s*vàng/i);
+      if (explicitPriceMatch) {
+        gold = parseInt(explicitPriceMatch[1], 10);
+      } else if (type === 'quest') {
+        const questCoinMatch = opt.text.match(/(?:thưởng|mức\s*thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống)[:\s]*(\d+)\s*vàng/i) || opt.text.match(/(\d+)\s*vàng/i);
+        if (questCoinMatch) gold = parseInt(questCoinMatch[1], 10);
+      } else if (!/(?:tích\s*lũy|có\s*sẵn|thêm\s*\d+\s*vàng|làm\s*nốt|làm\s*thêm)/i.test(opt.text)) {
+        const genericGoldMatch = opt.text.match(/(\d+)\s*vàng/i);
+        if (genericGoldMatch) gold = parseInt(genericGoldMatch[1], 10);
+      }
     }
 
     let newName = undefined;
@@ -374,8 +393,15 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
 
     let label = opt.title;
     const details = [];
-    if (mins > 0) details.push(`${mins} phút`);
-    if (gold !== undefined) details.push(`${gold} Vàng`);
+    if (type === 'loan') {
+      if (gold !== undefined) details.push(`Vay ${gold} Vàng`);
+      if (rate !== undefined) details.push(`Lãi ${(rate * 100).toFixed(1)}%/ngày`);
+      if (deduct !== undefined) details.push(`Trích ${Math.round(deduct * 100)}%`);
+      if (limit !== undefined) details.push(`Hạn mức ${limit} Vàng`);
+    } else {
+      if (mins > 0) details.push(`${mins} phút`);
+      if (gold !== undefined) details.push(`${gold} Vàng`);
+    }
     if (details.length > 0) {
       label += ` (${details.join(' • ')})`;
     } else if (opt.text.length < 40) {
@@ -393,6 +419,11 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
       if (mins > 0) payload.newTargetMinutes = mins;
       if (gold !== undefined && gold < 30) payload.newTier = 'common';
       if (newName) payload.newName = newName;
+    } else if (type === 'loan') {
+      if (gold !== undefined) payload.newAmount = gold;
+      if (rate !== undefined) payload.newBorrowRate = rate;
+      if (deduct !== undefined) payload.newAutoDeductPercent = deduct;
+      if (limit !== undefined) payload.newCreditLimit = limit;
     } else {
       if (gold !== undefined) payload.newRewardCoins = gold;
       if (mins > 0) payload.newTargetMinutes = mins;
@@ -407,6 +438,41 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
       ...payload
     };
   });
+}
+
+/**
+ * Phân tích giám sát vĩ mô Kho Bạc & AMM nội bộ
+ * Cung cấp thông tin bảo mật làm thước đo kinh tế cho AI Thống Đốc
+ */
+export function analyzeMacroTelemetry(poolState = {}) {
+  const rates = calculateBankRates(poolState);
+  const p = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
+  const b = Math.max(0, parseInt(poolState?.totalBorrowed, 10) || 0);
+  const reserve = Math.max(0, parseInt(poolState?.reserveFund, 10) || 0);
+  const bailout = Math.max(0, parseInt(poolState?.bailoutDebt, 10) || 0);
+  const totalDep = Math.max(0, parseInt(poolState?.totalDeposited, 10) || 0);
+
+  // Phân loại trạng thái thanh khoản nội bộ (Internal Macro Stance)
+  let liquidityStatus = 'normal'; // 'abundant' | 'normal' | 'tight'
+  if (bailout > 0 || rates.utilization > 0.75 || reserve < 50) {
+    liquidityStatus = 'tight';
+  } else if (rates.utilization < 0.40 && p >= 300 && bailout === 0) {
+    liquidityStatus = 'abundant';
+  }
+
+  // Sàn lãi suất đàm phán an toàn: không bao giờ thấp hơn depositRate để tránh ngân hàng bị lỗ chi trả
+  const depositFloor = Math.max(0.02, rates.depositRate);
+
+  return {
+    ...rates,
+    poolGold: p,
+    totalBorrowed: b,
+    reserveFund: reserve,
+    bailoutDebt: bailout,
+    totalDeposited: totalDep,
+    liquidityStatus,
+    depositFloor
+  };
 }
 
 // Fallback categorizer for reward unit test mock payloads lacking LLM semantic category
@@ -1151,61 +1217,404 @@ Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
       }
 
       // ==========================================
-      // 7. BANK CREDIT APPRAISE (AI Thẩm định hạn mức vay)
+      // 7. BANK CONSULT LOAN (AI Tư vấn & Lập kế hoạch khoản vay)
       // ==========================================
+      case 'bank_consult_loan':
       case 'bank_credit_appraise': {
         const userProfile = payload?.profile || {};
         const autoDeduct = Math.min(0.80, Math.max(0.30, Number(payload?.autoDeductPercent) || 0.50));
         const requestedAmount = Math.max(0, parseInt(payload?.requestedAmount, 10) || 0);
         const poolState = payload?.poolState || {};
-        const rates = calculateBankRates(poolState);
+        const macro = analyzeMacroTelemetry(poolState);
+        const rates = macro;
         const creditLimit = calculateCreditLimit(userProfile, autoDeduct);
-
-        let aiAdvice = '';
-        let warning = '';
+        const userCoins = parseInt(userProfile?.coins, 10) || 0;
         const level = Math.max(1, parseInt(userProfile?.level, 10) || 1);
         const streak = Math.max(0, parseInt(userProfile?.streak, 10) || 0);
 
+        const quests = Array.isArray(payload?.quests) ? payload.quests.slice(0, 8) : [];
+        const shopItems = Array.isArray(payload?.shopItems) ? payload.shopItems.slice(0, 6) : [];
+        const earningsStats = payload?.earningsStats || {};
+        const avgDaily = Math.max(0, parseInt(earningsStats?.avgDailyIncome, 10) || 0);
+        const todayEarned = Math.max(0, parseInt(earningsStats?.todayEarned, 10) || 0);
+
+        let aiResult = null;
+
         if (API_KEY) {
           try {
-            const systemPrompt = `Bạn là Thống Đốc Ngân Hàng Trung Ương AI của LevelUp RPG.
-Nhiệm vụ: Thẩm định khoản vay Vàng cho người chơi và đưa ra lời khuyên ân cần, động viên.
-QUY TẮC QUAN TRỌNG VỀ GIỌNG ĐIỆU:
-- Dùng từ ngữ đơn giản, gần gũi, đời thường, tuyệt đối KHÔNG dùng thuật ngữ tài chính khó hiểu (như "tỷ lệ đòn bẩy", "thẩm định tín dụng phức tạp", "rủi ro thanh khoản vĩ mô").
-- Giải thích rõ cơ chế trích nợ tự động một cách dễ hiểu: "Mỗi khi bạn làm xong một việc, hệ thống sẽ trích ${(autoDeduct * 100).toFixed(0)}% tiền thưởng để trả nợ dần, bạn không lo phải gom tiền trả một lần".
-- Nếu người chơi chọn trích nợ cao (60% - 80%), khen ngợi tinh thần quyết tâm trả nợ nhanh.
-- Nếu họ vay số lượng lớn so với cấp độ, nhắc họ chăm chỉ làm nhiệm vụ để không bị quá hạn.
-- Trả về JSON định dạng:
-{
-  "advice": "Lời khuyên ngắn gọn (2-3 câu), thân thiện, động viên",
-  "warning": "Lưu ý nếu có về thời hạn 7 ngày để tránh bị khóa cửa hàng"
-}`;
-            const userPrompt = `Người chơi Level ${level}, chuỗi chăm chỉ ${streak} ngày.
-Hạn mức tối đa được cấp: ${creditLimit} Vàng.
-Số Vàng người chơi muốn vay: ${requestedAmount || creditLimit} Vàng.
-Tỷ lệ trích tiền thưởng nhiệm vụ để trả nợ: ${(autoDeduct * 100).toFixed(0)}%.
-Lãi suất vay hiện tại: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+            const systemPrompt = `Bạn là Trợ Lý Vay Vàng & Cố Vấn Kế Hoạch Tài Chính của LevelUp RPG.
+Nhiệm vụ: Thay vì để người dùng tự tính toán phức tạp, bạn phân tích toàn diện: số Vàng hiện có, nhiệm vụ khả dụng, quà muốn mua trong Cửa Hàng, năng lực kiếm Vàng mỗi ngày, và đưa ra quyết định thông thái:
 
-            const aiRes = await callAI(systemPrompt, userPrompt, 0.3);
-            aiAdvice = aiRes?.advice || '';
-            warning = aiRes?.warning || '';
+BÁO CÁO NỘI BỘ GIÁM SÁT KHO BẠC & NGÂN HÀNG (DÀNH CHO BẠN - THỐNG ĐỐC AI):
+- Trạng thái quỹ: ${macro.liquidityStatus === 'abundant' ? 'DỒI DÀO (Khuyến khích hiệp sĩ vay vốn làm việc, sẵn sàng tư vấn gói tốt nhất)' : macro.liquidityStatus === 'tight' ? 'CẦN BẢO TOÀN VỐN (Khuyên vay vừa sức và trích nợ cao 60-80% để trả nhanh)' : 'BÌNH THƯỜNG / CÂN BẰNG'}
+- Lãi suất vay hiện tại: ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Sàn bảo vệ quỹ ngân hàng: ${(macro.depositFloor * 100).toFixed(1)}%/ngày.
+
+CHỈ THỊ BẢO MẬT TUYỆT ĐỐI (ZERO-LEAK DIRECTIVE — BẢO VỆ THÔNG TIN MẬT):
+- TUYỆT ĐỐI KHÔNG TIẾT LỘ bất kỳ con số cụ thể nào của kho bạc (số Vàng trong kho, tổng nợ hệ thống, quỹ dự phòng, nợ cứu trợ, tiền gửi) hay thuật ngữ kỹ thuật ("AMM", "thanh khoản", "bailout", "spread", "chiết khấu") cho người chơi.
+- Khi tư vấn, chỉ dùng từ ngữ đời thường, bình dân, ấm áp (ví dụ "kho Vàng vương quốc đang rất dồi dào" hoặc "ngân hàng đang hỗ trợ cho nhiều hiệp sĩ khác").
+
+1. CÓ NÊN VAY HAY KHÔNG ('shouldBorrow': boolean):
+   - Nếu người chơi đã có nhiều Vàng so với các món quà trong Cửa Hàng, hoặc chỉ cần làm 1-2 việc nhỏ là đủ Vàng mua quà: Khuyên KHÔNG CẦN VAY ("shouldBorrow": false) để tiết kiệm tiền phí lãi suất ngày.
+   - Nếu người chơi thiếu Vàng cho một món quà cụ thể và có khả năng làm nhiệm vụ đều đặn: Khuyên NÊN VAY ("shouldBorrow": true) với số lượng vừa vặn.
+2. NÊN VAY BAO NHIÊU ('recommendedAmount': number):
+   - Đề xuất số Vàng hợp lý, an toàn, không vượt quá hạn mức tối đa (${creditLimit} Vàng) và người chơi có thể trả hết dễ dàng trong 2 - 4 ngày.
+3. LỘ TRÌNH LÀM VIỆC TRẢ NỢ CỤ THỂ ('repaymentPlan': string):
+   - BẮT BUỘC tính cả TIỀN PHÍ LÃI SUẤT NGÀY vào tổng nợ để trả sạch cả gốc lẫn lãi:
+     * Mỗi ngày nợ sẽ tính thêm phí lãi = Số Vàng vay * Lãi suất ngày.
+     * Dự kiến trả trong N ngày thì Tổng nợ cần trả = Số Vàng vay + (Số Vàng vay * Lãi suất ngày * N ngày).
+     * Từ tổng nợ đó và tỷ lệ trích nợ, tính ra tổng tiền thưởng cần kiếm và nêu rõ: Cần làm những việc gì trong danh sách nhiệm vụ của bạn ấy, làm bao nhiêu lần và dự kiến mất bao nhiêu ngày để tự động trả hết sạch nợ cả gốc lẫn lãi (ví dụ: "Khoản vay 40 Vàng lãi 5%/ngày trong 2 ngày sẽ phát sinh thêm 4 Vàng tiền phí lãi (tổng nợ ~44 Vàng). Chỉ cần làm 'Đọc sách' 3 lần trong 2 ngày (thu 90 Vàng, trích 50% = 45 Vàng) là trả sạch toàn bộ nợ nhẹ nhàng!").
+4. CÁC PHƯƠNG ÁN LỰA CHỌN ('options': array):
+   - Cung cấp 2-3 phương án định sẵn (mỗi phương án có số Vàng vay, lãi suất ngày, tỷ lệ trích nợ) để người dùng có thể bấm chọn ngay.
+
+PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TUYỆT ĐỐI TRÁNH THUẬT NGỮ KHÓ HIỂU:
+- TUYỆT ĐỐI KHÔNG dùng từ ngữ kỹ thuật hay thuật ngữ tài chính khó hiểu (như "tỷ lệ đòn bẩy", "khả năng thanh khoản", "rủi ro vĩ mô", "chiết khấu", "lạm phát điểm", "Pomodoro", "AMM").
+- Xưng hô "mình" - "bạn" thân mật, lịch thiệp, đồng cảm, luôn động viên tinh thần rèn luyện thói quen tốt.
+- Giải thích đơn giản, tự nhiên: "mỗi khi làm xong việc hệ thống sẽ trích một phần tiền thưởng trả nợ", "tiền phí trả thêm mỗi ngày (lãi suất)", "khoản vay nhẹ nhàng vừa sức".
+
+Trả về ĐÚNG định dạng JSON:
+{
+  "shouldBorrow": boolean,
+  "recommendedAmount": number,
+  "recommendedDeductPercent": number,
+  "estimatedDaysToRepay": number,
+  "estimatedInterest": number,
+  "totalEstimatedDebt": number,
+  "repaymentPlan": "Kế hoạch trả nợ cụ thể: nêu rõ làm việc gì, bao nhiêu lần, tính cả tiền lãi phát sinh để trả sạch nợ trong bao nhiêu ngày",
+  "advice": "Lời khuyên ngắn gọn (2-3 câu), thân thiện, động viên",
+  "warning": "Lưu ý nếu có về thời hạn 7 ngày để tránh bị khóa đổi quà",
+  "options": [
+    {
+      "id": 1,
+      "label": "Tên phương án ngắn gọn kèm số Vàng và % trích",
+      "argument": "Câu chốt phương án",
+      "newAmount": number,
+      "newBorrowRate": number,
+      "newAutoDeductPercent": number,
+      "newCreditLimit": number
+    }
+  ]
+}`;
+
+            const questSummary = quests.length > 0
+              ? quests.map(q => `  + "${q.title}": thưởng ${q.rewardCoins} Vàng (${q.type === 'focus' ? (q.targetMinutes || 25) + 'p' : 'không bấm giờ'}, ${q.isRepeatable ? 'làm lại được' : '1 lần'})`).join('\n')
+              : '  (Chưa có nhiệm vụ nào, khuyên tạo thêm nhiệm vụ)';
+
+            const shopSummary = shopItems.length > 0
+              ? shopItems.map(s => `  + "${s.name}": giá ${s.price} Vàng`).join('\n')
+              : '  (Cửa hàng chưa có quà)';
+
+            const userPrompt = `Thông tin tài chính của người chơi:
+- Cấp độ: ${level}, Chuỗi chăm chỉ: ${streak} ngày.
+- Số Vàng hiện có trong ví: ${userCoins} Vàng.
+- Thu nhập trung bình gần đây: khoảng ${avgDaily || 15} Vàng/ngày (hôm nay đã kiếm ${todayEarned} Vàng).
+- Hạn mức vay tối đa được cấp: ${creditLimit} Vàng.
+- Lãi suất vay hiện tại: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.
+- Tỷ lệ trích nợ dự kiến: ${(autoDeduct * 100).toFixed(0)}%.
+- Nhiệm vụ người chơi đang có:
+${questSummary}
+- Các phần thưởng trong Cửa Hàng:
+${shopSummary}
+${requestedAmount > 0 ? `- Người chơi đang dự định vay: ${requestedAmount} Vàng.` : '- Người chơi chưa biết nên vay bao nhiêu.'}
+Hãy phân tích và đưa ra lời khuyên cho bạn ấy.`;
+
+            aiResult = await callAI(systemPrompt, userPrompt, 0.3);
           } catch (_) {}
         }
 
-        if (!aiAdvice) {
-          const deductPct = Math.round(autoDeduct * 100);
-          aiAdvice = `Hệ thống cấp cho bạn hạn mức ${creditLimit} Vàng dựa trên cấp độ ${level} và chuỗi ngày chăm chỉ ${streak} ngày. Mỗi khi xong nhiệm vụ, ${deductPct}% Vàng thưởng sẽ được tự động trích trả nợ giúp bạn thanh thản làm việc!`;
-          warning = `Hãy nhớ hoàn thành nhiệm vụ đều đặn trong vòng 7 ngày để trả hết nợ và giữ cho cửa hàng luôn mở nhé!`;
+        // Smart deterministic fallback if AI is offline or call fails
+        const shouldBorrowDefault = userCoins < 40;
+        const safeAmountDefault = Math.min(creditLimit, Math.max(15, Math.floor((avgDaily || 20) * 2)));
+        const finalAmount = Math.min(creditLimit, requestedAmount > 0 ? requestedAmount : (aiResult?.recommendedAmount || safeAmountDefault));
+        const finalDeduct = typeof aiResult?.recommendedDeductPercent === 'number' ? Math.min(0.8, Math.max(0.3, aiResult.recommendedDeductPercent)) : autoDeduct;
+
+        const estDays = Math.max(1, parseInt(aiResult?.estimatedDaysToRepay, 10) || Math.min(6, Math.max(2, Math.ceil(finalAmount / Math.max(5, (avgDaily || 15) * finalDeduct)))));
+        const estimatedInterest = Math.max(0, parseInt(aiResult?.estimatedInterest, 10) || Math.ceil(finalAmount * rates.borrowRate * estDays));
+        const totalEstimatedDebt = Math.max(finalAmount, parseInt(aiResult?.totalEstimatedDebt, 10) || (finalAmount + estimatedInterest));
+
+        let fallbackPlan = '';
+        if (quests.length > 0) {
+          const q1 = quests[0];
+          const coinsNeeded = Math.ceil(totalEstimatedDebt / finalDeduct);
+          const timesNeeded = Math.max(1, Math.ceil(coinsNeeded / Math.max(1, q1.rewardCoins || 10)));
+          fallbackPlan = `Bạn chỉ cần hoàn thành nhiệm vụ "${q1.title}" khoảng ${timesNeeded} lần trong ${estDays} ngày (thu về ~${coinsNeeded} Vàng, trích ra trả ~${totalEstimatedDebt} Vàng gồm ${finalAmount} Vàng gốc + ${estimatedInterest} Vàng tiền phí lãi) là sạch nợ nhẹ nhàng!`;
+        } else {
+          fallbackPlan = `Khoản vay ${finalAmount} Vàng dự kiến phát sinh thêm khoảng ${estimatedInterest} Vàng tiền phí lãi trong ${estDays} ngày (tổng nợ ~${totalEstimatedDebt} Vàng). Bạn hãy thêm 1-2 nhiệm vụ để làm đều đặn trong ${estDays} ngày, hệ thống sẽ tự động trích thưởng trả hết sạch nhé!`;
+        }
+
+        const advice = aiResult?.advice || (shouldBorrowDefault
+          ? `Bạn đang có chuỗi chăm chỉ ${streak} ngày và kiếm được khoảng ${avgDaily || 15} Vàng/ngày. Vay ${finalAmount} Vàng là mức vừa sức giúp bạn đổi quà sớm mà không lo áp lực!`
+          : `Bạn đang có sẵn ${userCoins} Vàng trong ví, đủ để đổi nhiều món quà nhỏ mà không cần vay mượn. Nếu cần món lớn hơn thì hãy vay một khoản nhỏ nhé!`);
+
+        const repaymentPlan = aiResult?.repaymentPlan || fallbackPlan;
+        const warning = aiResult?.warning || 'Hãy nhớ trả nợ trong vòng 7 ngày để tránh bị tạm khóa đổi quà nhé!';
+        const shouldBorrow = aiResult?.shouldBorrow !== undefined ? parseBool(aiResult.shouldBorrow, shouldBorrowDefault) : shouldBorrowDefault;
+
+        let options = Array.isArray(aiResult?.options) && aiResult.options.length > 0 ? aiResult.options : [];
+        if (options.length === 0) {
+          const opt1Amt = Math.max(15, Math.floor(finalAmount * 0.7));
+          const opt2Amt = Math.min(creditLimit, Math.max(finalAmount, Math.floor(finalAmount * 1.3)));
+          options = [
+            {
+              id: 1,
+              label: `Gói an toàn: Vay ${opt1Amt} Vàng (Trích 50%)`,
+              argument: `Mình chọn gói an toàn vay ${opt1Amt} Vàng với tỷ lệ trích 50%`,
+              newAmount: opt1Amt,
+              newBorrowRate: rates.borrowRate,
+              newAutoDeductPercent: 0.50,
+              newCreditLimit: creditLimit
+            },
+            {
+              id: 2,
+              label: `Gói tăng tốc: Vay ${opt2Amt} Vàng (Trích 70%)`,
+              argument: `Mình chọn gói tăng tốc vay ${opt2Amt} Vàng với tỷ lệ trích 70%`,
+              newAmount: opt2Amt,
+              newBorrowRate: rates.borrowRate,
+              newAutoDeductPercent: 0.70,
+              newCreditLimit: creditLimit
+            }
+          ];
         }
 
         return res.status(200).json({
+          shouldBorrow,
           creditLimit,
-          recommendedAmount: Math.min(creditLimit, requestedAmount || creditLimit),
+          recommendedAmount: finalAmount,
           borrowRate: rates.borrowRate,
-          autoDeductPercent: autoDeduct,
-          advice: aiAdvice,
-          warning: warning || 'Hãy nhớ trả nợ trong vòng 7 ngày để tránh bị tạm khóa đổi quà nhé!'
+          autoDeductPercent: finalDeduct,
+          estimatedDaysToRepay: estDays,
+          estimatedInterest,
+          totalEstimatedDebt,
+          repaymentPlan,
+          advice,
+          warning,
+          options
         });
+      }
+
+      // ==========================================
+      // 8. BANK DEBATE LOAN (AI Thương lượng khoản vay)
+      // ==========================================
+      case 'bank_debate_loan': {
+        const loan = payload?.loan || {};
+        const argument = clampStr(payload?.argument, 1000);
+        const history = Array.isArray(payload?.history) ? payload.history.slice(-6) : [];
+        const userProfile = payload?.profile || {};
+        const poolState = payload?.poolState || {};
+        const macro = analyzeMacroTelemetry(poolState);
+        const rates = macro;
+        const quests = Array.isArray(payload?.quests) ? payload.quests.slice(0, 8) : [];
+        const shopItems = Array.isArray(payload?.shopItems) ? payload.shopItems.slice(0, 6) : [];
+        const earningsStats = payload?.earningsStats || {};
+        const selectedOption = payload?.selectedOption;
+
+        if (!argument) {
+          return res.status(400).json({ error: 'Thiếu lý lẽ thương lượng.' });
+        }
+
+        const level = Math.max(1, parseInt(userProfile?.level, 10) || 1);
+        const streak = Math.max(0, parseInt(userProfile?.streak, 10) || 0);
+        const userCoins = parseInt(userProfile?.coins, 10) || 0;
+        const currentAmount = Math.max(10, parseInt(loan?.amount, 10) || 30);
+        const currentRate = Number(loan?.borrowRate) || rates.borrowRate;
+        const currentDeduct = Math.min(0.80, Math.max(0.30, Number(loan?.autoDeductPercent) || 0.50));
+        const currentLimit = Math.max(20, parseInt(loan?.creditLimit, 10) || calculateCreditLimit(userProfile, currentDeduct));
+
+        const systemPrompt = `Bạn là Trợ Lý Vay Vàng & Thống Đốc Ngân Hàng AI của LevelUp RPG.
+CHỈ CÓ BẠN mới có thẩm quyền chốt: Mức Vàng vay ('newAmount'), Lãi suất ưu đãi (%/ngày, 'newBorrowRate'), Tỷ lệ trích nợ ('newAutoDeductPercent'), và Hạn mức tín dụng được cấp ('newCreditLimit'). Người dùng không thể tự ý sửa đổi ngoài việc thương lượng với bạn.
+
+BÁO CÁO NỘI BỘ GIÁM SÁT KHO BẠC & NGÂN HÀNG TRUNG ƯƠNG (DÀNH CHO BẠN - THỐNG ĐỐC AI):
+- Trạng thái vốn hệ thống: ${macro.liquidityStatus === 'abundant' ? 'DỒI DÀO (Khuyến khích hiệp sĩ vay vốn làm việc, sẵn sàng ưu đãi sâu)' : macro.liquidityStatus === 'tight' ? 'CĂNG THẲNG / CẦN BẢO TOÀN VỐN (Thận trọng, chỉ ưu đãi khi người vay tăng trích nợ 60-80% để thu hồi vốn nhanh)' : 'BÌNH THƯỜNG / CÂN BẰNG'}
+- Sàn lãi suất huy động tiền gửi (Deposit Rate): ${(macro.depositRate * 100).toFixed(1)}%/ngày.
+  * SÀN BẢO VỆ NGÂN HÀNG BẮT BUỘC: ${(macro.depositFloor * 100).toFixed(1)}%/ngày.
+  * NGUYÊN TẮC AN TOÀN VỐN BẮT BUỘC: Lãi suất cho vay ưu đãi ('newBorrowRate') TUYỆT ĐỐI KHÔNG ĐƯỢC THẤP HƠN ${(macro.depositFloor * 100).toFixed(1)}%/ngày (tức ${macro.depositFloor}). Nếu thấp hơn mức này, tiền lãi thu về không đủ bù đắp tiền thưởng chi trả cho người gửi tiết kiệm!
+- Lãi suất cho vay thị trường chuẩn (Borrow Rate): ${(macro.borrowRate * 100).toFixed(1)}%/ngày.
+
+QUY TẮC THƯƠNG LƯỢNG WIN-WIN (ĐÔI BÊN CÙNG CÓ LỢI):
+1. XIN GIẢM LÃI SUẤT NGÀY:
+   - Nếu người dùng có lý do tốt (chuỗi chăm chỉ >= 2 ngày, chăm làm nhiệm vụ, cam kết trích nợ cao 60-80%, hoặc hứa trả nợ sớm):
+     * BẮT BUỘC ĐỒNG Ý ("accepted": true) giảm lãi suất ngày xuống mức ưu đãi (từ ${(currentRate * 100).toFixed(1)}%/ngày xuống mức thấp hơn, nhưng KHÔNG ĐƯỢC THẤP HƠN SÀN BẢO VỆ ${(macro.depositFloor * 100).toFixed(1)}%/ngày).
+     * ${macro.liquidityStatus === 'tight' ? 'LƯU Ý DO KHO ĐANG CẦN BẢO TOÀN VỐN: Yêu cầu người chơi nâng tỷ lệ trích nợ (newAutoDeductPercent) lên 60% - 80% như một điều kiện đối ứng để được hưởng lãi suất ưu đãi.' : 'Kho Vàng đang thuận lợi, bạn có thể giảm thẳng xuống gần sàn ưu đãi để khích lệ người chơi!'}
+     * Lời thoại: Khen ngợi tinh thần kỷ luật và chốt luôn lãi suất ưu đãi cho bạn ấy!
+2. XIN NÂNG HẠN MỨC TÍN DỤNG:
+   - Nếu người dùng muốn đổi quà chính đáng trong Cửa Hàng hoặc cần thêm vốn làm việc:
+     * BẮT BUỘC ĐỒNG Ý ("accepted": true) nâng thêm hạn mức (ví dụ tăng thêm 15 - 40 Vàng so với hạn mức ${currentLimit} hiện tại).
+3. ĐIỀU CHỈNH SỐ TIỀN VAY / TỶ LỆ TRÍCH NỢ:
+   - Nếu người dùng muốn vay ít hơn để an toàn, hoặc muốn tăng tỷ lệ trích lên 60-80% để trả nhanh: Đồng ý ngay!
+4. KHI NGƯỜI DÙNG CHỌN HOẶC ĐỒNG Ý VỚI PHƯƠNG ÁN ĐÃ GỢI Ý (VD: "chốt phương án 1", "mình chọn cách 2", "ok nha"):
+   - BẮT BUỘC đặt "accepted": true và cập nhật đúng thông số của phương án đó ngay lập tức!
+5. KHI YÊU CẦU VÔ LÝ HOẶC ĐÒI GIẢM LÃI DƯỚI SÀN BẢO VỆ:
+   - Ví dụ đòi miễn lãi hoàn toàn 0%, đòi lãi suất thấp hơn ${(macro.depositFloor * 100).toFixed(1)}%/ngày, đòi nâng hạn mức lên hàng nghìn Vàng:
+     * Đặt "accepted": false, giải thích ân cần vì sao ngân hàng cần mức phí tối thiểu này để duy trì quỹ chung và trả thưởng cho các hiệp sĩ gửi tiết kiệm, rồi đề xuất mức giảm về đúng sàn ${(macro.depositFloor * 100).toFixed(1)}%/ngày.
+6. BẮT BUỘC TRẢ VỀ "options" ĐỂ TẠO NÚT BẤM:
+   - Luôn cung cấp mảng "options" (mỗi phương án có newAmount, newBorrowRate, newAutoDeductPercent, newCreditLimit) để người dùng có thể bấm chọn ngay trên giao diện chat.
+
+CHỈ THỊ BẢO MẬT NỘI BỘ TUYỆT ĐỐI (ZERO-LEAK DIRECTIVE — KHÔNG LÀM LỘ THÔNG TIN MẬT):
+- BẠN TUYỆT ĐỐI KHÔNG ĐƯỢC TIẾT LỘ BẤT KỲ CON SỐ HAY THÔNG TIN NỘI BỘ NÀO CỦA KHO BẠC TRONG LỜI PHẢN HỒI ('reply'):
+  * CẤM TIẾT LỘ: Số dư kho bạc (${macro.poolGold} Vàng), tổng Vàng đang cho vay (${macro.totalBorrowed} Vàng), quỹ dự phòng (${macro.reserveFund} Vàng), nợ cứu trợ (${macro.bailoutDebt} Vàng), tổng tiền gửi (${macro.totalDeposited} Vàng), hay tỷ lệ tận dụng vốn ${(macro.utilization * 100).toFixed(1)}%.
+  * CẤM THUẬT NGỮ: "AMM", "thanh khoản", "bailout", "nợ cứu trợ", "quỹ dự phòng", "spread", "chiết khấu", "tỷ lệ đòn bẩy", "rủi ro vĩ mô", "lạm phát điểm", "Pomodoro".
+- KHI CẦN NÊU LÝ DO THƯƠNG LƯỢNG VỚI NGƯỜI CHƠI, CHỈ DÙNG CÁCH NÓI ĐỜI THƯỜNG, BÌNH DÂN:
+  * Khi kho dồi dào: "Hiện tại kho Vàng của vương quốc đang rất dồi dào, mình rất vui được hỗ trợ bạn mức phí ưu đãi nhất nè..."
+  * Khi kho cần bảo toàn vốn: "Hiện tại ngân hàng đang hỗ trợ vốn cho nhiều hiệp sĩ khác làm nhiệm vụ, nên để công bằng cho mọi người và bảo đảm an toàn quỹ chung, bạn tăng tỷ lệ trích thưởng lên một chút để trả nhanh nhé..."
+  * Khi từ chối hạ lãi dưới sàn: "Mức phí này là tối thiểu để hệ thống duy trì quỹ và trả tiền thưởng tiết kiệm cho các hiệp sĩ khác rồi nè, mình không thể hạ thấp hơn được nữa bạn nhé..."
+- Xưng hô "mình" - "bạn" gần gũi, ấm áp, như một người bạn đồng hành tài chính thông thái.
+
+Trả về ĐÚNG định dạng JSON:
+{
+  "accepted": boolean,
+  "reply": "Lời phản hồi tự nhiên, ân cần, giải thích rõ ràng và chốt thông số",
+  "newAmount": number,
+  "newBorrowRate": number (Lãi suất ngày dạng số thập phân tỷ lệ, BẮT BUỘC: 2% ghi 0.02, 3% ghi 0.03, 3.5% ghi 0.035, 5% ghi 0.05. TUYỆT ĐỐI KHÔNG ghi 2 mà ghi 0.02),
+  "newCreditLimit": number,
+  "newAutoDeductPercent": number (Tỷ lệ trích nợ dạng số thập phân, ví dụ 50% ghi 0.50, 60% ghi 0.60),
+  "options": [
+    {
+      "id": 1,
+      "label": "Tên phương án",
+      "argument": "Câu chốt phương án",
+      "newAmount": number,
+      "newBorrowRate": number (dạng số thập phân, ví dụ 0.02),
+      "newAutoDeductPercent": number (dạng số thập phân, ví dụ 0.50),
+      "newCreditLimit": number
+    }
+  ]
+}`;
+
+        let questSummary = quests.length > 0
+          ? quests.map(q => `  + "${q.title}": ${q.rewardCoins} Vàng`).join('\n')
+          : '  (Chưa có nhiệm vụ)';
+
+        const userPrompt = `Khoản vay đang thương lượng:
+- Số Vàng đề xuất: ${currentAmount} Vàng
+- Lãi suất hiện tại: ${(currentRate * 100).toFixed(1)}%/ngày
+- Tỷ lệ trích nợ hiện tại: ${(currentDeduct * 100).toFixed(0)}%
+- Hạn mức hiện tại: ${currentLimit} Vàng
+- Người chơi Level ${level}, Chuỗi ${streak} ngày, Ví hiện có ${userCoins} Vàng
+- Thu nhập trung bình: ${earningsStats?.avgDailyIncome || 15} Vàng/ngày
+- Nhiệm vụ người chơi có:
+${questSummary}
+- Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
+- Ý kiến / Đề xuất thương lượng mới của người chơi: "${argument}"`;
+
+        let result = null;
+        if (API_KEY) {
+          try {
+            result = await callAI(systemPrompt, userPrompt, 0.4);
+          } catch (_) {}
+        }
+
+        // Deterministic fallback for debate if AI is offline
+        if (!result) {
+          const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp/i.test(argument);
+          const isLimitNegotiate = /nâng\s*hạn\s*mức|tăng\s*hạn\s*mức|hạn\s*mức\s*cao/i.test(argument);
+
+          if (isRateNegotiate && (streak >= 2 || level >= 2)) {
+            const discountedRate = Math.max(macro.depositFloor, Number((currentRate - 0.02).toFixed(4)));
+            const suggestDeduct = macro.liquidityStatus === 'tight' ? Math.max(0.60, currentDeduct) : currentDeduct;
+            const tightNote = macro.liquidityStatus === 'tight' && suggestDeduct > currentDeduct
+              ? ' Vì ngân hàng đang hỗ trợ cho nhiều hiệp sĩ khác, bạn hãy trích ' + Math.round(suggestDeduct * 100) + '% tiền thưởng để trả nhanh giúp kho nhé!'
+              : '';
+            result = {
+              accepted: true,
+              reply: `Bạn có chuỗi chăm chỉ ${streak} ngày rất ấn tượng! Mình đồng ý giảm lãi suất ngày từ ${(currentRate * 100).toFixed(1)}%/ngày xuống chỉ còn ${(discountedRate * 100).toFixed(1)}%/ngày nhé.${tightNote} Chúc bạn hoàn thành nhiệm vụ thật vui vẻ! ✨`,
+              newAmount: currentAmount,
+              newBorrowRate: discountedRate,
+              newCreditLimit: currentLimit,
+              newAutoDeductPercent: suggestDeduct
+            };
+          } else if (isLimitNegotiate) {
+            const bonusLimit = currentLimit + (macro.liquidityStatus === 'tight' ? 15 : 25);
+            result = {
+              accepted: true,
+              reply: `Thấy bạn có tinh thần làm việc tích cực, mình sẵn sàng nâng hạn mức vay cho bạn từ ${currentLimit} Vàng lên ${bonusLimit} Vàng nè! Hãy cân nhắc vay mức vừa sức để dễ trả nợ nhé. ✨`,
+              newAmount: Math.min(bonusLimit, currentAmount + 15),
+              newBorrowRate: currentRate,
+              newCreditLimit: bonusLimit,
+              newAutoDeductPercent: currentDeduct
+            };
+          } else {
+            result = {
+              accepted: false,
+              reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để đảm bảo an toàn quỹ chung và bạn không bị áp lực trả nợ, tụi mình giữ mức này nhé. Bạn có thể chọn phương án trả nhanh với tỷ lệ trích cao hơn để giảm số ngày nợ nè.`,
+              newAmount: currentAmount,
+              newBorrowRate: currentRate,
+              newCreditLimit: currentLimit,
+              newAutoDeductPercent: currentDeduct
+            };
+          }
+        }
+
+        // Option extraction & sync
+        if (selectedOption) {
+          if (selectedOption.newAmount !== undefined) result.newAmount = parseInt(selectedOption.newAmount, 10);
+          if (selectedOption.newBorrowRate !== undefined) {
+            let sRate = Number(selectedOption.newBorrowRate);
+            if (sRate > 0.30) sRate = sRate / 100;
+            result.newBorrowRate = sRate;
+          }
+          if (selectedOption.newAutoDeductPercent !== undefined) {
+            let sDeduct = Number(selectedOption.newAutoDeductPercent);
+            if (sDeduct > 1.0) sDeduct = sDeduct / 100;
+            result.newAutoDeductPercent = sDeduct;
+          }
+          if (selectedOption.newCreditLimit !== undefined) result.newCreditLimit = parseInt(selectedOption.newCreditLimit, 10);
+        }
+
+        // Sanitize numbers
+        let cleanAmount = parseInt(result.newAmount, 10);
+        if (isNaN(cleanAmount) || cleanAmount <= 0) cleanAmount = currentAmount;
+
+        let cleanRate = Number(result.newBorrowRate);
+        if (isNaN(cleanRate) || cleanRate <= 0) {
+          const replyRateMatch = result.reply?.match(/(?:lãi\s*suất|lãi|còn|xuống)[:\s]*(\d+(?:[.,]\d+)?)\s*%(?:\/ngày)?/i);
+          cleanRate = replyRateMatch ? parseFloat(replyRateMatch[1].replace(',', '.')) / 100 : currentRate;
+        }
+        // Tự động chuẩn hóa nếu AI trả về dạng số nguyên phần trăm (VD: 2 nghĩa là 2% -> 0.02, 2.5 nghĩa là 2.5% -> 0.025)
+        if (cleanRate > 0.30) {
+          cleanRate = cleanRate / 100;
+        }
+        cleanRate = Math.min(0.20, Math.max(macro.depositFloor, Number(cleanRate.toFixed(4))));
+
+        let cleanDeduct = Number(result.newAutoDeductPercent);
+        if (isNaN(cleanDeduct) || cleanDeduct <= 0) cleanDeduct = currentDeduct;
+        // Tự động chuẩn hóa nếu AI trả về dạng số nguyên 50 -> 0.50
+        if (cleanDeduct > 1.0) {
+          cleanDeduct = cleanDeduct / 100;
+        }
+        cleanDeduct = Math.min(0.80, Math.max(0.30, Number(cleanDeduct.toFixed(2))));
+
+        let cleanLimit = parseInt(result.newCreditLimit, 10);
+        if (isNaN(cleanLimit) || cleanLimit <= 0) cleanLimit = currentLimit;
+        cleanLimit = Math.max(cleanAmount, cleanLimit);
+
+        result.newAmount = cleanAmount;
+        result.newBorrowRate = cleanRate;
+        result.newAutoDeductPercent = cleanDeduct;
+        result.newCreditLimit = cleanLimit;
+
+        if (result.accepted) {
+          const callerId = caller?.sub || userProfile?.googleId || userProfile?.nickname || 'guest';
+          result.signature = signLoanOffer(callerId, result.newAmount, result.newBorrowRate, result.newAutoDeductPercent, result.newCreditLimit);
+        }
+
+        if (!Array.isArray(result.options) || result.options.length === 0) {
+          result.options = parseDebateOptionsFromText(result.reply, 'loan');
+        } else {
+          result.options = result.options.map(opt => {
+            let optRate = Number(opt.newBorrowRate);
+            if (!isNaN(optRate)) {
+              if (optRate > 0.30) optRate = optRate / 100;
+              opt.newBorrowRate = Math.min(0.20, Math.max(macro.depositFloor, Number(optRate.toFixed(4))));
+            }
+            let optDeduct = Number(opt.newAutoDeductPercent);
+            if (!isNaN(optDeduct)) {
+              if (optDeduct > 1.0) optDeduct = optDeduct / 100;
+              opt.newAutoDeductPercent = Math.min(0.80, Math.max(0.30, Number(optDeduct.toFixed(2))));
+            }
+            return opt;
+          });
+        }
+
+        return res.status(200).json(result);
       }
 
       // ==========================================

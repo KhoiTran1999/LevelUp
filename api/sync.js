@@ -152,6 +152,31 @@ export function verifyRewardSignature(r, shopItems = []) {
 }
 
 /**
+ * Anti-Cheat: Sign and verify AI-negotiated loan offers
+ * Protects against tampering of negotiated interest rates and credit limits
+ */
+export function signLoanOffer(userId, amount, borrowRate, autoDeductPercent, creditLimit) {
+  const normUser = (userId || '').trim().toLowerCase();
+  const a = parseInt(amount, 10) || 0;
+  const r = Number(borrowRate).toFixed(4);
+  const d = Number(autoDeductPercent).toFixed(2);
+  const lim = parseInt(creditLimit, 10) || 0;
+  const payload = `loan:${normUser}:${a}:${r}:${d}:${lim}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function verifyLoanSignature(userIdCandidates, amount, borrowRate, autoDeductPercent, creditLimit, sig) {
+  if (!sig || typeof sig !== 'string') return false;
+  const candidates = Array.isArray(userIdCandidates) ? userIdCandidates : [userIdCandidates];
+  for (const uid of candidates) {
+    if (uid && signLoanOffer(uid, amount, borrowRate, autoDeductPercent, creditLimit) === sig) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Dynamic Interest Rate AMM for LevelUp 3-Party Finance
  * U = Total Borrowed / (Pool Gold + Total Borrowed)
  * Deposit rate: 1% to 8% daily (clamp)
@@ -1772,9 +1797,28 @@ export default async function handler(req, res) {
           }
 
           const autoDeduct = Math.min(0.80, Math.max(0.30, Number(req.body?.autoDeductPercent) || 0.50));
-          const maxLimit = calculateCreditLimit(uState.profile, autoDeduct);
-          if (borrowAmt > maxLimit) {
-            return res.status(400).json({ error: `Số Vàng vay (${borrowAmt}) vượt quá hạn mức tín dụng tối đa (${maxLimit}) của bạn!` });
+          const standardLimit = calculateCreditLimit(uState.profile, autoDeduct);
+          let effectiveLimit = standardLimit;
+          let effectiveBorrowRate = rates.borrowRate;
+
+          // Check if user has a verified AI-negotiated loan offer
+          const loanSig = typeof req.body?.loanSignature === 'string' ? req.body.loanSignature.trim() : '';
+          const negotiatedRate = Number(req.body?.negotiatedRate);
+          const negotiatedLimit = parseInt(req.body?.negotiatedLimit, 10);
+          let isNegotiatedLoan = false;
+
+          if (loanSig && !isNaN(negotiatedRate) && !isNaN(negotiatedLimit)) {
+            const userCandidates = [caller?.sub, uState.profile?.googleId, uState.profile?.nickname, 'guest'].filter(Boolean);
+            if (verifyLoanSignature(userCandidates, borrowAmt, negotiatedRate, autoDeduct, negotiatedLimit, loanSig)) {
+              // Valid signature: accept negotiated rate and negotiated limit (clamped within economic guardrails)
+              effectiveBorrowRate = Math.min(rates.borrowRate, Math.max(0.01, Number(negotiatedRate.toFixed(4))));
+              effectiveLimit = Math.max(standardLimit, Math.min(1000, negotiatedLimit));
+              isNegotiatedLoan = true;
+            }
+          }
+
+          if (borrowAmt > effectiveLimit) {
+            return res.status(400).json({ error: `Số Vàng vay (${borrowAmt}) vượt quá hạn mức tín dụng tối đa (${effectiveLimit}) của bạn!` });
           }
 
           // Bảo lãnh Kho Bạc nếu Bể không đủ thanh khoản để giải ngân
@@ -1792,21 +1836,23 @@ export default async function handler(req, res) {
           uState.profile.bank.loan = {
             principal: borrowAmt,
             debt: borrowAmt,
-            borrowRate: rates.borrowRate,
+            borrowRate: effectiveBorrowRate,
             autoDeductPercent: autoDeduct,
             borrowedAt: serverTimestamp,
             lastAccruedAt: serverTimestamp,
-            isOverdue: false
+            isOverdue: false,
+            isNegotiated: isNegotiatedLoan
           };
           uState.profile.bank.isFrozen = false;
 
+          const noteNegotiated = isNegotiatedLoan ? ' (Ưu đãi AI thương lượng)' : '';
           uState.ledger.unshift({
             id: `bank_bor_${serverTimestamp}`,
             type: 'earn',
             category: 'bank_borrow',
             amount: borrowAmt,
             title: 'Vay Vàng Ngân Hàng',
-            description: `🏦 Đã vay ${borrowAmt} Vàng. Lãi suất: ${(rates.borrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${(autoDeduct * 100).toFixed(0)}% mỗi nhiệm vụ.`,
+            description: `🏦 Đã vay ${borrowAmt} Vàng${noteNegotiated}. Lãi suất: ${(effectiveBorrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${(autoDeduct * 100).toFixed(0)}% mỗi nhiệm vụ.`,
             timestamp: serverTimestamp
           });
           if (uState.ledger.length > 100) uState.ledger.splice(100);
