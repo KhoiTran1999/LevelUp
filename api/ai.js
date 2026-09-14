@@ -776,6 +776,7 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
 - TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
   * KHÔNG dùng từ "Pomodoro" -> chỉ gọi đơn giản là "tập trung 25 phút", "hẹn giờ", "phiên làm việc".
+  * KHÔNG dùng từ "Zen Mode" -> chỉ gọi là "chế độ toàn màn hình" hoặc "chế độ tập trung tối đa".
   * KHÔNG dùng các từ tiếng Anh: "bounty", "focus", "type", "rank", "tier", "anti-padding", "anti-trivial". Chỉ gọi là "việc không cần bấm giờ" hoặc "việc hẹn giờ tập trung".
   * KHÔNG dùng các khái niệm như "lạm phát điểm thưởng", "cơ chế RPG", "hệ sinh thái", "tham số".
 - GIẢI THÍCH ĐƠN GIẢN, DỄ HIỂU & ĐỜI THƯỜNG: Chỉ cần giải thích ngắn gọn, tự nhiên như trò chuyện với bạn bè (Ví dụ: "Việc này tốn nhiều công sức hơn nên mình tăng thưởng cho bạn lên 5 Vàng nhé!", hoặc "Bài học này hơi dài nên bạn chia làm 2 lần học sẽ đỡ mệt hơn nhé!").
@@ -1027,7 +1028,8 @@ CHỈ CÓ BẠN mới có thẩm quyền chốt: Tên phần thưởng, Mô tả
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NGỮ KHÓ HIỂU:
 - TUYỆT ĐỐI TRÁNH các từ ngữ, thuật ngữ kỹ thuật hay khái niệm nội bộ mà người dùng thấy khó hiểu và không cần biết:
   * KHÔNG dùng các từ như: "dopamine" hay "dopamine giá rẻ / dễ dãi", "tỷ lệ nỗ lực 3:1", "cân bằng kinh tế RPG", "lạm phát điểm".
-  * KHÔNG dùng các từ tiếng Anh: "tier", "common", "rare", "epic", "legendary", "Pomodoro".
+  * KHÔNG dùng các từ tiếng Anh: "tier", "common", "rare", "epic", "legendary", "Pomodoro", "Zen Mode".
+  * Thay bằng tiếng Việt đời thường: "phổ thông", "cao cấp", "quý giá", "cực phẩm", "đếm giờ", "chế độ toàn màn hình".
 - GIẢI THÍCH ĐƠN GIẢN, DỄ HIỂU & ĐỜI THƯỜNG:
   * Giải thích ngắn gọn, tự nhiên như một người bạn (Ví dụ: "Món quà này lớn nên cần nhiều công sức một chút, để khi nhận bạn sẽ thấy thật xứng đáng và vui hơn nhé!").
 - Giọng điệu: Lịch thiệp, vui tươi, tâm lý, ân cần và giàu tính xây dựng. Xưng hô "mình" - "bạn" gần gũi.
@@ -1267,7 +1269,7 @@ CHỈ THỊ BẢO MẬT TUYỆT ĐỐI (ZERO-LEAK DIRECTIVE — BẢO VỆ THÔN
    - Cung cấp 2-3 phương án định sẵn (mỗi phương án có số Vàng vay, lãi suất ngày, tỷ lệ trích nợ) để người dùng có thể bấm chọn ngay.
 
 PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TUYỆT ĐỐI TRÁNH THUẬT NGỮ KHÓ HIỂU:
-- TUYỆT ĐỐI KHÔNG dùng từ ngữ kỹ thuật hay thuật ngữ tài chính khó hiểu (như "tỷ lệ đòn bẩy", "khả năng thanh khoản", "rủi ro vĩ mô", "chiết khấu", "lạm phát điểm", "Pomodoro", "AMM").
+- TUYỆT ĐỐI KHÔNG dùng từ ngữ kỹ thuật hay thuật ngữ tài chính khó hiểu (như "tỷ lệ đòn bẩy", "khả năng thanh khoản", "rủi ro vĩ mô", "chiết khấu", "lạm phát điểm", "Pomodoro", "AMM", "siết nợ", "tất toán", "giải ngân", "bể", "Zen Mode"). Thay bằng từ ngữ đời thường, bình dân: "trả hết nợ", "nhận Vàng vay", "tự động trích Vàng trả dần", "quỹ Vàng", "chế độ toàn màn hình".
 - Xưng hô "mình" - "bạn" thân mật, lịch thiệp, đồng cảm, luôn động viên tinh thần rèn luyện thói quen tốt.
 - Giải thích đơn giản, tự nhiên: "mỗi khi làm xong việc hệ thống sẽ trích một phần tiền thưởng trả nợ", "tiền phí trả thêm mỗi ngày (lãi suất)", "khoản vay nhẹ nhàng vừa sức".
 
@@ -1451,7 +1453,7 @@ QUY TẮC THƯƠNG LƯỢNG WIN-WIN (ĐÔI BÊN CÙNG CÓ LỢI):
 CHỈ THỊ BẢO MẬT NỘI BỘ TUYỆT ĐỐI (ZERO-LEAK DIRECTIVE — KHÔNG LÀM LỘ THÔNG TIN MẬT):
 - BẠN TUYỆT ĐỐI KHÔNG ĐƯỢC TIẾT LỘ BẤT KỲ CON SỐ HAY THÔNG TIN NỘI BỘ NÀO CỦA KHO BẠC TRONG LỜI PHẢN HỒI ('reply'):
   * CẤM TIẾT LỘ: Số dư kho bạc (${macro.poolGold} Vàng), tổng Vàng đang cho vay (${macro.totalBorrowed} Vàng), quỹ dự phòng (${macro.reserveFund} Vàng), nợ cứu trợ (${macro.bailoutDebt} Vàng), tổng tiền gửi (${macro.totalDeposited} Vàng), hay tỷ lệ tận dụng vốn ${(macro.utilization * 100).toFixed(1)}%.
-  * CẤM THUẬT NGỮ: "AMM", "thanh khoản", "bailout", "nợ cứu trợ", "quỹ dự phòng", "spread", "chiết khấu", "tỷ lệ đòn bẩy", "rủi ro vĩ mô", "lạm phát điểm", "Pomodoro".
+  * CẤM THUẬT NGỮ: "AMM", "thanh khoản", "bailout", "nợ cứu trợ", "quỹ dự phòng", "spread", "chiết khấu", "tỷ lệ đòn bẩy", "rủi ro vĩ mô", "lạm phát điểm", "Pomodoro", "siết nợ", "tất toán", "giải ngân", "bể", "Zen Mode".
 - KHI CẦN NÊU LÝ DO THƯƠNG LƯỢNG VỚI NGƯỜI CHƠI, CHỈ DÙNG CÁCH NÓI ĐỜI THƯỜNG, BÌNH DÂN:
   * Khi kho dồi dào: "Hiện tại kho Vàng của vương quốc đang rất dồi dào, mình rất vui được hỗ trợ bạn mức phí ưu đãi nhất nè..."
   * Khi kho cần bảo toàn vốn: "Hiện tại ngân hàng đang hỗ trợ vốn cho nhiều hiệp sĩ khác làm nhiệm vụ, nên để công bằng cho mọi người và bảo đảm an toàn quỹ chung, bạn tăng tỷ lệ trích thưởng lên một chút để trả nhanh nhé..."
@@ -1631,16 +1633,17 @@ ${questSummary}
         let commentary = '';
         if (API_KEY) {
           try {
-            const systemPrompt = `Bạn là Thống Đốc Ngân Hàng AI vui tính của vương quốc LevelUp RPG.
-Nhiệm vụ: Viết một bản tin tài chính thị trường cực kỳ ngắn gọn (2-3 câu), hài hước, mang tính chất RPG game.
+            const systemPrompt = `Bạn là Thống Đốc Ngân Hàng AI thân thiện và chu đáo của vương quốc LevelUp RPG.
+Nhiệm vụ: Viết một bản tin tài chính thị trường ngắn gọn (2 câu), gần gũi, văn minh, mang phong cách RPG vui tươi.
 QUY TẮC:
-- Dùng từ ngữ đời thường, bình dân, không dùng từ ngữ tài chính vĩ mô phức tạp.
-- Nếu Kho Bạc đang cứu trợ (bailoutDebt > 0): Thông báo Kho Bạc Hệ Thống đang bảo lãnh 100% thanh khoản, kêu gọi hiệp sĩ cày nhiệm vụ gửi tiết kiệm nhận lãi suất cao ngất ngưởng để hỗ trợ thị trường.
-- Nếu Bể dồi dào Vàng (utilization < 0.4): Khuyên người chơi vay Vàng giá rẻ để đổi quà thư giãn, nạp năng lượng.
-- Nếu Bể khan hiếm Vàng (utilization > 0.7): Khen ngợi ai gửi tiết kiệm lúc này vì lãi suất gửi đang rất hời!
+- Dùng từ ngữ đời thường, ấm áp, lịch thiệp, khích lệ người chơi. Tuyệt đối KHÔNG dùng từ ngữ cợt nhả, suồng sã quá đà.
+- KHÔNG dùng từ ngữ kỹ thuật: "AMM", "bể", "thanh khoản", "tất toán", "siết nợ". Dùng: "quỹ Vàng", "tiết kiệm", "vay Vàng nhẹ nhàng".
+- Nếu Kho Bạc đang hỗ trợ vốn (bailoutDebt > 0): Thông báo quỹ Vàng an toàn tuyệt đối 100%, khích lệ người chơi làm nhiệm vụ và gửi tiết kiệm nhận lãi suất cao.
+- Nếu Quỹ dồi dào Vàng (utilization < 0.4): Thông báo quỹ Vàng đang rất dư dả, lãi vay hạ nhiệt, khuyên người chơi nếu cần có thể vay Vàng nhẹ nhàng để đổi quà nạp năng lượng rồi làm việc trả dần.
+- Nếu Quỹ khan hiếm Vàng (utilization > 0.7): Khích lệ người chơi gửi tiết kiệm vì lãi suất tiền gửi đang rất hấp dẫn!
 - Trả về JSON: { "commentary": "..." }`;
 
-            const userPrompt = `Vàng trong Bể: ${poolGold}, Đang cho vay: ${totalBorrowed}, Nợ cứu trợ Kho Bạc: ${bailoutDebt}, Tỷ lệ sử dụng bể: ${(utilization * 100).toFixed(1)}%, Lãi gửi: ${(rates.depositRate * 100).toFixed(1)}%/ngày, Lãi vay: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+            const userPrompt = `Vàng trong Quỹ: ${poolGold}, Đang cho vay: ${totalBorrowed}, Nợ cứu trợ Kho Bạc: ${bailoutDebt}, Tỷ lệ sử dụng quỹ: ${(utilization * 100).toFixed(1)}%, Lãi gửi: ${(rates.depositRate * 100).toFixed(1)}%/ngày, Lãi vay: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
             const aiRes = await callAI(systemPrompt, userPrompt, 0.4);
             commentary = aiRes?.commentary || '';
           } catch (_) {}
@@ -1648,13 +1651,13 @@ QUY TẮC:
 
         if (!commentary) {
           if (bailoutDebt > 0) {
-            commentary = `🛡️ Kho Bạc Hệ Thống đang bảo lãnh khẩn cấp ${bailoutDebt} Vàng để đảm bảo tiền gửi an toàn 100%. Lãi suất gửi tiết kiệm đang ở mức cao ${(rates.depositRate * 100).toFixed(1)}%/ngày, hãy nhanh tay gửi Vàng sinh sôi!`;
+            commentary = `🛡️ Kho Bạc Hệ Thống đang bảo trợ ${bailoutDebt} Vàng để đảm bảo tiền gửi an toàn 100%. Lãi suất gửi tiết kiệm đang ở mức tốt ${(rates.depositRate * 100).toFixed(1)}%/ngày, hãy gửi Vàng để nhận sinh lời mỗi ngày!`;
           } else if (utilization > 0.7) {
-            commentary = `🔥 Nhu cầu vay Vàng đang rất lớn! Ngân Hàng đang tăng lãi suất gửi lên ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội tuyệt vời cho các hiệp sĩ chăm chỉ gửi Vàng tích lũy tài sản!`;
+            commentary = `🔥 Nhu cầu vay Vàng đang tăng! Ngân Hàng tăng lãi suất tiền gửi lên ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội tuyệt vời cho các thành viên chăm chỉ gửi tiết kiệm tích lũy tài sản!`;
           } else if (utilization < 0.3) {
-            commentary = `🌊 Bể Vàng đang rất dồi dào và lãi vay hạ nhiệt chỉ còn ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Nếu cần chút Vàng đổi quà thư giãn, hãy vay nhanh và trả dần qua nhiệm vụ nhé!`;
+            commentary = `🌱 Quỹ Vàng đang rất dồi dào và lãi vay ưu đãi chỉ còn ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Nếu cần chút Vàng đổi quà thư giãn nạp năng lượng, bạn có thể vay nhẹ nhàng và trả dần qua nhiệm vụ!`;
           } else {
-            commentary = `⚖️ Thị trường tài chính đang vận hành ổn định và cân bằng. Lãi gửi tiết kiệm ${(rates.depositRate * 100).toFixed(1)}%/ngày và lãi vay ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+            commentary = `⚖️ Thị trường ngân hàng đang vận hành ổn định. Lãi gửi tiết kiệm ${(rates.depositRate * 100).toFixed(1)}%/ngày và lãi vay ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
           }
         }
 

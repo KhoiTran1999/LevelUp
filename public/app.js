@@ -1380,7 +1380,7 @@ function renderFocusStationUI() {
   const zenToggleBtn = document.getElementById('btn-zen-toggle');
 
   if (isBreakMode) {
-    if (titleEl) titleEl.textContent = 'Nghỉ giải lao (Pomodoro Break)';
+    if (titleEl) titleEl.textContent = 'Nghỉ giải lao nạp năng lượng';
     if (rankEl) {
       rankEl.textContent = 'BREAK';
       rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
@@ -1847,26 +1847,28 @@ function toggleZenMode(show) {
     const zenProtocol = document.getElementById('zen-protocol-label');
 
     if (isBreakMode) {
-      if (zenTitle) zenTitle.textContent = 'Nghỉ giải lao (Pomodoro Break)';
+      if (zenTitle) zenTitle.textContent = 'Nghỉ giải lao nạp năng lượng';
       if (zenRank) {
-        zenRank.textContent = 'BREAK';
+        zenRank.textContent = 'GIẢI LAO';
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
       }
-      if (zenProtocol) zenProtocol.textContent = 'RELAX PROTOCOL';
+      if (zenProtocol) zenProtocol.textContent = 'NGHỈ NGƠI NẠP NĂNG LƯỢNG';
     } else if (activeRewardItem) {
       if (zenTitle) zenTitle.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
       if (zenRank) {
-        zenRank.textContent = (activeRewardItem.tier || 'REWARD').toUpperCase();
+        const tierLabels = { common: 'PHỔ THÔNG', rare: 'CAO CẤP', epic: 'QUÝ GIÁ', legendary: 'CỰC PHẨM' };
+        const rawTier = (activeRewardItem.tier || 'rare').toLowerCase();
+        zenRank.textContent = tierLabels[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30';
       }
-      if (zenProtocol) zenProtocol.textContent = 'REWARD PROTOCOL';
+      if (zenProtocol) zenProtocol.textContent = 'TẬN HƯỞNG PHẦN THƯỞNG';
     } else if (activeFocusQuest) {
       if (zenTitle) zenTitle.textContent = activeFocusQuest.title;
       if (zenRank) {
         zenRank.textContent = `HẠNG ${activeFocusQuest.rank}`;
         zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono`;
       }
-      if (zenProtocol) zenProtocol.textContent = 'FOCUS PROTOCOL';
+      if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
     }
   } else {
     overlay.classList.add('hidden');
@@ -2067,7 +2069,7 @@ async function completeQuest(questId, skipConfirm = false) {
         category: 'bank_deduct',
         amount: deductedForLoan,
         title: 'Trích nợ nhiệm vụ Ngân Hàng',
-        description: `🏦 Đã tự động trích ${deductedForLoan} Vàng từ nhiệm vụ "${quest.title}" để trả nợ.${loanCleared ? ' Khoản nợ đã được tất toán!' : ` Nợ còn lại: ${appState.profile.bank?.loan?.debt || 0} Vàng.`}`,
+        description: `🏦 Đã tự động trích ${deductedForLoan} Vàng từ nhiệm vụ "${quest.title}" để trả nợ.${loanCleared ? ' Khoản nợ đã được trả hết!' : ` Nợ còn lại: ${appState.profile.bank?.loan?.debt || 0} Vàng.`}`,
         timestamp: Date.now() + 1
       });
     }
@@ -5491,13 +5493,20 @@ function renderShop() {
       epic: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
       legendary: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
     };
+    const tierLabels = {
+      common: 'PHỔ THÔNG',
+      rare: 'CAO CẤP',
+      epic: 'QUÝ GIÁ',
+      legendary: 'CỰC PHẨM'
+    };
+    const rawTier = (item.tier || 'rare').toLowerCase();
 
     card.innerHTML = `
       <div>
         <!-- Zone 1: Header (Classification & Value/Reward) -->
         <div class="flex items-center justify-between gap-2 mb-3">
-          <span class="text-[10px] font-mono uppercase px-2.5 py-1 rounded-lg font-bold border tracking-wider shadow-xs ${tierColors[item.tier] || tierColors.rare}">
-            ${item.tier || 'RARE'}
+          <span class="text-[10px] font-mono uppercase px-2.5 py-1 rounded-lg font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
+            ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
           </span>
           <div class="flex items-center gap-1.5">
             ${durationMins > 0 ? `
@@ -5617,7 +5626,7 @@ function renderInventory() {
               </span>
             ` : `
               <span class="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 tracking-wider">
-                KHO QUÀ
+                CHƯA DÙNG
               </span>
             `}
           </div>
@@ -6429,7 +6438,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'add-quest',
-    title: 'Giao Việc & Trọng Tài AI',
+    title: 'Giao Nhiệm Vụ & Trợ Lý AI',
     icon: '⚔️',
     tab: 'quests',
     getTarget: () => {
@@ -6437,11 +6446,11 @@ const TOUR_STEPS = [
       if (window.innerWidth < 768 && mobBtn && mobBtn.offsetParent !== null) return mobBtn;
       return document.getElementById('btn-open-add-quest');
     },
-    desc: 'Tạo việc cần làm (phím tắt Q). Trọng tài AI sẽ tự động định Rank (S/A/B/C/D), thưởng Vàng và EXP tương xứng với độ khó công việc.'
+    desc: 'Tạo nhiệm vụ mới (phím tắt Q). Trợ lý AI sẽ tự động định Hạng (S/A/B/C/D), thưởng Vàng và EXP tương xứng với độ khó nhiệm vụ.'
   },
   {
     id: 'focus-timer',
-    title: 'Bấm Giờ Tập Trung (Pomodoro)',
+    title: 'Đồng Hồ Đếm Giờ Tập Trung',
     icon: '⏱️',
     tab: 'quests',
     getTarget: () => {
@@ -6451,7 +6460,7 @@ const TOUR_STEPS = [
       if (questList && questList.offsetParent !== null) return questList;
       return document.getElementById('tab-quests');
     },
-    desc: 'Bấm "Bắt Đầu" trên việc bất kỳ để chạy đếm giờ Pomodoro. Kích hoạt Zen Mode toàn màn hình giúp tập trung tối đa và loại bỏ xao nhãng.'
+    desc: 'Bấm "Bắt Đầu" trên nhiệm vụ bất kỳ để chạy đếm giờ tập trung. Kích hoạt Chế độ Toàn màn hình giúp tập trung tối đa và loại bỏ xao nhãng.'
   },
   {
     id: 'shop',
@@ -7130,7 +7139,7 @@ function renderAdminBankTelemetry(pool, rates) {
 
 async function loadBankAiCommentary(pool) {
   const elCommentary = document.getElementById('bank-ai-commentary');
-  if (!elCommentary) return;
+  if (!elCommentary || elCommentary.closest('.hidden')) return;
 
   // Cache bản tin trong 2 phút để tối ưu hiệu năng
   if (bankCommentaryCache.text && Date.now() - bankCommentaryCache.timestamp < 120000) {
@@ -7164,11 +7173,11 @@ async function loadBankAiCommentary(pool) {
   const rates = calculateLocalBankRates(pool);
   let fallback = '';
   if ((pool.bailoutDebt || 0) > 0) {
-    fallback = `Kho Bạc Hệ Thống đang bảo lãnh ${pool.bailoutDebt} Vàng thanh khoản 100%! Hãy cày nhiệm vụ và gửi tiết kiệm ngay để nhận lãi suất cao ngất ngưởng ${(rates.depositRate * 100).toFixed(1)}%/ngày!`;
+    fallback = `Kho Bạc Hệ Thống đang bảo trợ ${pool.bailoutDebt} Vàng an toàn 100%! Hãy hoàn thành nhiệm vụ và gửi tiết kiệm để nhận mức lãi suất hấp dẫn ${(rates.depositRate * 100).toFixed(1)}%/ngày!`;
   } else if (rates.utilization > 0.6) {
-    fallback = `Bể Vàng đang sôi động! Lãi suất gửi tiết kiệm đang ở mức cao ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội vàng cho các hiệp sĩ chăm chỉ tích lũy tài sản!`;
+    fallback = `Quỹ Vàng đang có nhu cầu vốn cao! Lãi suất gửi tiết kiệm đang ở mức tốt ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội thuận lợi để bạn gửi Vàng tích lũy!`;
   } else {
-    fallback = `Bể thanh khoản dồi dào Vàng nhàn rỗi! Lãi suất vay ưu đãi chỉ ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Hãy tạm ứng Vàng nếu bạn cần đổi quà thư giãn ngay hôm nay!`;
+    fallback = `Quỹ Vàng đang rất dồi dào! Lãi suất vay ưu đãi chỉ ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Bạn có thể vay Vàng nhẹ nhàng nếu cần đổi quà nạp lại năng lượng!`;
   }
   bankCommentaryCache = { text: fallback, timestamp: Date.now() };
   elCommentary.textContent = fallback;
@@ -7465,7 +7474,7 @@ function onDeductPercentChange(val) {
   const appraisal = document.getElementById('bank-appraisal-box');
   if (appraisal) {
     if (numVal >= 70) {
-      appraisal.innerHTML = `🔥 <strong>Tuyệt vời!</strong> Bạn cam kết trích ${numVal}% tiền thưởng nhiệm vụ để tất toán nhanh. AI cấp cho bạn hạn mức cao nhất (${finalLimit} Vàng)!`;
+      appraisal.innerHTML = `🔥 <strong>Tuyệt vời!</strong> Bạn cam kết trích ${numVal}% tiền thưởng nhiệm vụ để trả hết nợ nhanh. AI cấp cho bạn hạn mức cao nhất (${finalLimit} Vàng)!`;
     } else if (numVal <= 40) {
       appraisal.innerHTML = `🌿 Trích nhẹ nhàng ${numVal}% tiền thưởng giúp bạn thong thả làm việc. Hạn mức khả dụng là ${finalLimit} Vàng.`;
     } else {
@@ -7985,7 +7994,7 @@ async function executeBankBorrow() {
   ensureUserBankProfile();
   const bank = appState.profile.bank;
   if (bank.loan && (bank.loan.debt || 0) > 0) {
-    showToast('Bạn đang có khoản vay chưa thanh toán! Vui lòng tất toán trước khi vay thêm.', 'error');
+    showToast('Bạn đang có khoản vay chưa thanh toán! Vui lòng trả hết nợ trước khi vay thêm.', 'error');
     return;
   }
 
@@ -8200,10 +8209,10 @@ async function executeBankRepay() {
       category: 'bank_repay',
       amount: payAmt,
       title: 'Trả nợ sớm Ngân Hàng',
-      description: `🏦 Đã trả ${payAmt} Vàng.${loanCleared ? ' Khoản nợ đã được tất toán!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
+      description: `🏦 Đã trả ${payAmt} Vàng.${loanCleared ? ' Khoản nợ đã được trả hết!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
       timestamp: Date.now()
     });
-    showToast(`Đã trả thành công ${payAmt} Vàng!${loanCleared ? ' Chúc mừng bạn đã tất toán toàn bộ nợ!' : ''}`, 'success');
+    showToast(`Đã trả thành công ${payAmt} Vàng!${loanCleared ? ' Chúc mừng bạn đã trả hết toàn bộ nợ!' : ''}`, 'success');
   }
 
   sfx.playCoin();
@@ -8360,7 +8369,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalSoundBtn = document.getElementById('modal-sound-btn');
   if (modalSoundBtn) modalSoundBtn.addEventListener('click', toggleSound);
 
-  // Pomodoro Banner & Focus Station controls
+  // Focus Station Banner & Focus Timer controls
   const btnTimerToggle = document.getElementById('btn-timer-toggle');
   if (btnTimerToggle) btnTimerToggle.addEventListener('click', toggleFocusTimer);
 
@@ -8416,7 +8425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Fullscreen Zen Mode controls
+  // Fullscreen Focus Overlay controls
   const btnZen = document.getElementById('btn-timer-zen');
   if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
 
