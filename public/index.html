@@ -766,9 +766,11 @@
                   <p class="text-[11px] text-slate-500 dark:text-slate-400">Vay Vàng giải trí ngay - Trích nợ tự động khi làm nhiệm vụ</p>
                 </div>
               </div>
-              <span id="bank-credit-limit-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 inline-flex items-center gap-1">
-                Hạn mức: 50 <span class="coin-icon"></span>
-              </span>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button id="bank-credit-limit-badge" onclick="openCreditLimitModal()" type="button" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 hover:bg-blue-500/25 active:scale-95 text-blue-700 dark:text-blue-300 border border-blue-500/30 inline-flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Bấm để xem công thức tính & cách nâng hạn mức">
+                  <span>Hạn mức: 50</span> <span class="coin-icon"></span> <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>
+                </button>
+              </div>
             </div>
 
             <!-- Tình trạng nợ hiện tại -->
@@ -816,6 +818,14 @@
               <!-- Lời khuyên ân cần từ AI Thống Đốc -->
               <div id="bank-appraisal-box" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 💡 <em>Hệ thống sẽ tự động trích một phần Vàng thưởng mỗi khi bạn hoàn thành nhiệm vụ để trả nợ dần, giúp bạn thoải mái giải trí mà không lo áp lực trả một lúc!</em>
+              </div>
+
+              <!-- Tra cứu cách tính & nâng hạn mức -->
+              <div class="pt-0.5 text-right">
+                <button type="button" onclick="openCreditLimitModal()" class="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center gap-1 hover:underline cursor-pointer transition">
+                  <span>📊 Xem chi tiết cách tính & mẹo nâng hạn mức</span>
+                  <span class="text-[10px]">→</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1720,6 +1730,104 @@
 
         <div class="pt-2 flex justify-end">
           <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer">
+            Đã Hiểu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: HẠN MỨC VAY VÀNG & CÁCH NÂNG HẠN MỨC -->
+  <div id="modal-credit-limit-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-credit-limit-title">
+    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">⚡</span>
+          <h3 id="modal-credit-limit-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-blue-600 dark:text-blue-400">CÁCH TÍNH & NÂNG HẠN MỨC VAY</h3>
+        </div>
+        <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
+        <!-- Live Breakdown Card -->
+        <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 space-y-2.5">
+          <div class="flex justify-between items-center border-b border-blue-500/20 pb-2">
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Hạn mức của bạn</div>
+              <div class="text-xl font-extrabold font-mono text-blue-600 dark:text-blue-400 inline-flex items-center gap-1" id="modal-credit-limit-total">
+                50 <span class="coin-icon"></span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Hệ số cam kết</div>
+              <div class="text-sm font-bold font-mono text-blue-600 dark:text-blue-400" id="modal-credit-limit-kdeduct">x1.02</div>
+            </div>
+          </div>
+
+          <!-- Detailed factors -->
+          <div class="space-y-1.5 text-[11px] pt-1">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600 dark:text-slate-400">🎖️ Cấp độ (<span id="modal-credit-calc-level">LV. 1</span>):</span>
+              <span class="font-mono font-semibold text-slate-800 dark:text-slate-200" id="modal-credit-calc-level-val">+25 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600 dark:text-slate-400">🔥 Chuỗi ngày (<span id="modal-credit-calc-streak">0 ngày</span>):</span>
+              <span class="font-mono font-semibold text-slate-800 dark:text-slate-200" id="modal-credit-calc-streak-val">+0 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600 dark:text-slate-400">💰 Vàng tích lũy (<span id="modal-credit-calc-earned">0</span> Vàng):</span>
+              <span class="font-mono font-semibold text-slate-800 dark:text-slate-200" id="modal-credit-calc-earned-val">+2 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center pt-1 border-t border-blue-500/15">
+              <span class="font-medium text-slate-600 dark:text-slate-400">🛡️ Hạn mức cơ sở:</span>
+              <span class="font-mono font-bold text-slate-800 dark:text-slate-200" id="modal-credit-calc-base">27 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500 dark:text-slate-400 text-[10px]">Tỷ lệ trích nợ cam kết:</span>
+              <span class="font-mono text-slate-600 dark:text-slate-400 text-[10px]" id="modal-credit-calc-deduct-rate">50% thưởng nhiệm vụ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Ways to raise credit limit -->
+        <div class="space-y-2">
+          <div class="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs uppercase tracking-wide">
+            <span>🚀</span>
+            <span>4 Cách để được nâng hạn mức cao hơn</span>
+          </div>
+          <div class="space-y-2 text-[11px] leading-relaxed">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-blue-600 dark:text-blue-400 mb-0.5">1. Chăm chỉ thăng cấp (Level Up):</div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Mỗi khi lên 1 Cấp độ, bạn được cộng thẳng <strong class="text-slate-900 dark:text-white font-mono">+25 Vàng</strong> vào hạn mức cơ sở.
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-blue-600 dark:text-blue-400 mb-0.5">2. Duy trì chuỗi ngày (Streak):</div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Đăng nhập và hoàn thành nhiệm vụ mỗi ngày. Mỗi ngày duy trì chuỗi giúp bạn nhận thêm <strong class="text-slate-900 dark:text-white font-mono">+5 Vàng</strong> hạn mức.
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-blue-600 dark:text-blue-400 mb-0.5">3. Tích lũy Vàng từ nhiệm vụ:</div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Làm càng nhiều nhiệm vụ, uy tín của bạn càng cao. Hệ thống cộng thêm <strong class="text-slate-900 dark:text-white font-mono">10% tổng số Vàng</strong> bạn từng kiếm được vào hạn mức.
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div class="font-semibold text-blue-600 dark:text-blue-400 mb-0.5">4. Chọn tỷ lệ trích nợ cao khi vay:</div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Khi kéo thanh trích nợ từ 50% lên <strong class="text-blue-600 dark:text-blue-400 font-bold">80%</strong>, hệ số cam kết tăng lên mức cao nhất <strong class="text-slate-900 dark:text-white font-mono">x1.5 lần</strong> (hạn mức tối đa có thể chạm tới <strong class="text-emerald-600 dark:text-emerald-400 font-mono">600 Vàng</strong>).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer">
             Đã Hiểu
           </button>
         </div>

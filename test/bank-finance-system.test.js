@@ -318,6 +318,7 @@ function testBankUIElements() {
   assert.ok(html.includes('id="input-deduct-percent"'), 'Phải có thanh trượt tỷ lệ trích nợ 30% - 80%');
   assert.ok(html.includes('id="btn-bank-borrow"'), 'Phải có nút Vay Vàng');
   assert.ok(html.includes('id="btn-bank-repay"'), 'Phải có nút Trả Nợ Sớm');
+  assert.ok(html.includes('id="modal-credit-limit-info"'), 'Phải có modal hướng dẫn cách tính & nâng hạn mức vay');
 
   console.log('✓ Test 9: Toàn bộ cấu trúc DOM, Tabs, AMM Metrics, Sổ Tiết Kiệm và Quầy Vay trong public/index.html đầy đủ 100%.');
 }
@@ -340,6 +341,7 @@ function testAppJsBankIntegration() {
   assert.ok(appJs.includes('window.executeBankWithdraw = executeBankWithdraw'), 'Phải gán window.executeBankWithdraw');
   assert.ok(appJs.includes('window.executeBankBorrow = executeBankBorrow'), 'Phải gán window.executeBankBorrow');
   assert.ok(appJs.includes('window.executeBankRepay = executeBankRepay'), 'Phải gán window.executeBankRepay');
+  assert.ok(appJs.includes('window.openCreditLimitModal = openCreditLimitModal'), 'Phải gán window.openCreditLimitModal');
 
   // Kiểm tra switchTab
   assert.ok(appJs.includes("tabId === 'bank'"), 'switchTab phải có case chuyển sang tab bank và loadBankState');

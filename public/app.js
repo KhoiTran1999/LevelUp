@@ -6860,12 +6860,12 @@ function calculateLocalBankRates(poolState) {
 function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   const level = Math.max(1, parseInt(profile?.level, 10) || 1);
   const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
-  const totalEarned = Math.max(0, parseInt(profile?.totalCoinsEarned, 10) || 0);
+  const totalEarned = Math.max(20, parseInt(profile?.totalCoinsEarned, 10) || 20);
   const rawBase = level * 25 + streak * 5 + Math.floor(totalEarned * 0.1);
   const baseLimit = Math.min(400, rawBase);
   const rate = Math.min(0.80, Math.max(0.30, Number(autoDeductPercent) || 0.50));
   const kDeduct = 0.7 + ((rate - 0.30) / 0.50) * 0.8;
-  return Math.floor(baseLimit * kDeduct);
+  return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
 function ensureUserBankProfile() {
@@ -6973,7 +6973,7 @@ function renderBankUI(pool, userBank, creditLimit) {
 
   // 4. Quầy Vay Vàng (Borrower)
   const elBadge = document.getElementById('bank-credit-limit-badge');
-  if (elBadge) elBadge.innerHTML = `Hạn mức: ${creditLimit} ${COIN_ICON_HTML}`;
+  if (elBadge) elBadge.innerHTML = `<span>Hạn mức: ${creditLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
 
   const activeBox = document.getElementById('bank-loan-active-box');
   const formBox = document.getElementById('bank-loan-form-box');
@@ -7323,6 +7323,57 @@ async function executeBankWithdraw() {
   loadBankState();
 }
 
+function openCreditLimitModal() {
+  const profile = appState.profile || {};
+  const inputDeduct = document.getElementById('input-deduct-percent');
+  const deductVal = parseInt(inputDeduct?.value, 10) || (profile.bank?.loan?.autoDeductPercent ? Math.round(profile.bank.loan.autoDeductPercent * 100) : 50);
+  const autoDeduct = deductVal / 100;
+
+  const level = Math.max(1, parseInt(profile.level, 10) || 1);
+  const streak = Math.max(0, parseInt(profile.streak, 10) || 0);
+  const totalEarned = Math.max(20, parseInt(profile.totalCoinsEarned, 10) || 20);
+
+  const levelPoints = level * 25;
+  const streakPoints = streak * 5;
+  const earnedPoints = Math.floor(totalEarned * 0.1);
+
+  const rawBase = levelPoints + streakPoints + earnedPoints;
+  const baseLimit = Math.min(400, rawBase);
+
+  const clampedRate = Math.min(0.80, Math.max(0.30, autoDeduct));
+  const kDeduct = 0.7 + ((clampedRate - 0.30) / 0.50) * 0.8;
+  const totalLimit = Math.max(20, Math.floor(baseLimit * kDeduct));
+
+  const elTotal = document.getElementById('modal-credit-limit-total');
+  const elKDeduct = document.getElementById('modal-credit-limit-kdeduct');
+  const elLevel = document.getElementById('modal-credit-calc-level');
+  const elLevelVal = document.getElementById('modal-credit-calc-level-val');
+  const elStreak = document.getElementById('modal-credit-calc-streak');
+  const elStreakVal = document.getElementById('modal-credit-calc-streak-val');
+  const elEarned = document.getElementById('modal-credit-calc-earned');
+  const elEarnedVal = document.getElementById('modal-credit-calc-earned-val');
+  const elBase = document.getElementById('modal-credit-calc-base');
+  const elDeductRate = document.getElementById('modal-credit-calc-deduct-rate');
+
+  if (elTotal) elTotal.innerHTML = `${totalLimit} ${COIN_ICON_HTML}`;
+  if (elKDeduct) elKDeduct.textContent = `x${kDeduct.toFixed(2)}`;
+  if (elLevel) elLevel.textContent = `LV. ${level}`;
+  if (elLevelVal) elLevelVal.textContent = `+${levelPoints} Vàng`;
+  if (elStreak) elStreak.textContent = `${streak} ngày`;
+  if (elStreakVal) elStreakVal.textContent = `+${streakPoints} Vàng`;
+  if (elEarned) elEarned.textContent = (profile.totalCoinsEarned || 0).toLocaleString('vi-VN');
+  if (elEarnedVal) elEarnedVal.textContent = `+${earnedPoints} Vàng`;
+  if (elBase) elBase.textContent = `${baseLimit} Vàng${rawBase > 400 ? ' (Đạt trần 400)' : ''}`;
+  if (elDeductRate) elDeductRate.textContent = `${deductVal}% thưởng nhiệm vụ`;
+
+  if (typeof sfx !== 'undefined' && sfx.playClick) {
+    sfx.playClick();
+  }
+  const modal = document.getElementById('modal-credit-limit-info');
+  if (modal) modal.classList.remove('hidden');
+}
+window.openCreditLimitModal = openCreditLimitModal;
+
 function onDeductPercentChange(val) {
   const numVal = parseInt(val, 10) || 50;
   const label = document.getElementById('deduct-percent-label');
@@ -7330,7 +7381,7 @@ function onDeductPercentChange(val) {
 
   const finalLimit = calculateLocalCreditLimit(appState.profile, numVal / 100);
   const badge = document.getElementById('bank-credit-limit-badge');
-  if (badge) badge.innerHTML = `Hạn mức: ${finalLimit} ${COIN_ICON_HTML}`;
+  if (badge) badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
 
   const appraisal = document.getElementById('bank-appraisal-box');
   if (appraisal) {
