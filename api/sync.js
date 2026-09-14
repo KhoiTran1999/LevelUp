@@ -982,7 +982,7 @@ export default async function handler(req, res) {
 
     // 3. POST /api/sync: Lưu game state hoặc Admin Actions
     if (req.method === 'POST') {
-      const { nickname: rawNick, oldNickname: rawOldNick, state } = req.body || {};
+      const { nickname: rawNick, oldNickname: rawOldNick, state, timerAction } = req.body || {};
 
       // 3.1 Admin Action: Xóa tài khoản gian lận khỏi Leaderboard
       if (action === 'admin_remove') {
@@ -1395,8 +1395,13 @@ export default async function handler(req, res) {
       const existingModified = Number(existingState?.lastModified || existingState?.lastSyncedAt || 0);
 
       // Conflict Resolution: If incoming state has timestamp and cloud state is strictly newer,
-      // return existing cloud state without overwriting it with stale data
-      if (existingState && incomingModified > 0 && existingModified > incomingModified) {
+      // return existing cloud state without overwriting it with stale data.
+      // Exception: If client performs an explicit timerAction ('start', 'pause', 'resume', 'cancel'),
+      // do NOT reject as conflict - allow explicit user action to take effect immediately!
+      const isExplicitTimerAction = Boolean(timerAction || req.body?.timerAction);
+      const isConflict = existingState && incomingModified > 0 && (existingModified > incomingModified);
+
+      if (!isExplicitTimerAction && isConflict) {
         return res.status(200).json({
           success: true,
           conflict: true,
@@ -1405,6 +1410,7 @@ export default async function handler(req, res) {
           role: userRole,
           syncedAt: existingState.lastSyncedAt || serverTimestamp,
           state: existingState,
+          activeTimer: existingState.activeTimer || null,
           message: 'Dữ liệu trên Đám mây mới hơn. Thiết bị đã tự động cập nhật bản mới nhất!'
         });
       }
@@ -1542,8 +1548,13 @@ export default async function handler(req, res) {
         }
       }
 
+      const finalActiveTimer = (timerAction === 'cancel' || req.body?.timerAction === 'cancel')
+        ? null
+        : (state.activeTimer || null);
+
       const payloadToSave = {
         ...state,
+        activeTimer: finalActiveTimer,
         shopItems: sanitizedShopItems,
         // ponytail: Giới hạn lưu trữ tối đa 100 giao dịch ledger gần nhất trên Cloud/Redis
         ledger: updatedLedger.slice(0, 100),
@@ -1609,6 +1620,7 @@ export default async function handler(req, res) {
         nickname: payloadToSave.profile.nickname,
         role: userRole,
         syncedAt: serverTimestamp,
+        activeTimer: payloadToSave.activeTimer || null,
         level: balanceCheck.level,
         coins: balanceCheck.coins,
         totalCoinsEarned: balanceCheck.totalCoinsEarned,

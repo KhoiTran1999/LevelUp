@@ -198,6 +198,8 @@ const DEFAULT_STATE = {
       timestamp: Date.now()
     }
   ],
+  activeTimer: null,
+  lastTimerClearedAt: 0,
   lastSyncedAt: 0
 };
 
@@ -380,7 +382,11 @@ function deriveLegitimateBalance(state) {
   return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered, fine };
 }
 
-async function syncWithCloud(isManual = false) {
+const CURRENT_TAB_ID = 'tab_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+const CURRENT_RUNNER_ID = CURRENT_TAB_ID;
+let isTimerActionPending = false;
+
+async function syncWithCloud(isManual = false, timerAction = null) {
   const syncDot = document.getElementById('sync-indicator');
   const modalSyncState = document.getElementById('modal-sync-state');
   const modalSyncTime = document.getElementById('modal-sync-time');
@@ -409,7 +415,8 @@ async function syncWithCloud(isManual = false) {
         oldNickname: appState.pendingOldNickname,
         token: token,
         idToken: appState.profile.googleToken || token,
-        state: appState
+        state: appState,
+        timerAction: timerAction || undefined
       })
     });
 
@@ -419,6 +426,16 @@ async function syncWithCloud(isManual = false) {
       if (data.role) {
         appState.profile.role = data.role;
         updateAdminNavVisibility();
+      }
+
+      // Echo Reconciliation: Đồng bộ activeTimer ngay lập tức từ kết quả xác thực của server
+      if (data.activeTimer !== undefined) {
+        if (data.activeTimer === null && appState.activeTimer) {
+          clearFocusTimerSession(false);
+        } else if (data.activeTimer) {
+          appState.activeTimer = data.activeTimer;
+          restoreFocusTimer();
+        }
       }
 
       // Xử lý xung đột đồng bộ đa thiết bị (Last-Write-Wins):
@@ -439,6 +456,7 @@ async function syncWithCloud(isManual = false) {
         appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
         saveLocalCache();
         renderAll();
+        restoreFocusTimer();
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
@@ -483,7 +501,7 @@ async function syncWithCloud(isManual = false) {
   }
 }
 
-function triggerSave(needsCloud = true) {
+function triggerSave(needsCloud = true, immediate = false, timerAction = null) {
   // Self-heal corrupted bounty targetMinutes if 0 was coerced to 25
   for (const q of (appState.quests || [])) {
     if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
@@ -498,15 +516,20 @@ function triggerSave(needsCloud = true) {
     appState.profile.coins = check.coins;
     appState.profile.totalCoinsEarned = check.totalCoinsEarned;
   }
-  appState.lastModified = Date.now();
+  appState.lastModified = Math.max(Date.now(), (Number(appState.lastSyncedAt) || 0) + 1);
   saveLocalCache();
   renderAll();
 
   if (needsCloud) {
     clearTimeout(syncTimeout);
-    syncTimeout = setTimeout(() => {
-      syncWithCloud(false);
-    }, 600);
+    if (immediate) {
+      syncTimeout = null;
+      syncWithCloud(false, timerAction);
+    } else {
+      syncTimeout = setTimeout(() => {
+        syncWithCloud(false, timerAction);
+      }, 600);
+    }
   }
 }
 
@@ -545,17 +568,48 @@ async function hydrateFromCloud(isManual = false) {
 
     const result = await res.json();
     if (!result.found || !result.data) {
-      // Cloud chưa có bản lưu -> đẩy bản local hiện tại lên
-      syncWithCloud(false);
+      if (isManual) showToast('Chưa có dữ liệu trên Cloud. Dữ liệu sẽ được lưu khi bạn thao tác!', 'info');
       return;
     }
 
     const cloudData = result.data;
     const cloudTime = Number(cloudData.lastModified || cloudData.lastSyncedAt || 0);
     const localTime = Number(appState.lastModified || appState.lastSyncedAt || 0);
+    const timerCloudTime = Number(cloudData.activeTimer?.updatedAt || cloudData.activeTimer?.lastTickTime || 0);
+    const timerLocalTime = appState.activeTimer
+      ? Number(appState.activeTimer?.updatedAt || appState.activeTimer?.lastTickTime || 0)
+      : Number(appState.lastTimerClearedAt || appState.lastModified || 0);
+    const timerChanged = JSON.stringify(cloudData.activeTimer || null) !== JSON.stringify(appState.activeTimer || null);
 
-    // Nếu Cloud mới hơn (do làm nhiệm vụ trên máy khác): Đồng bộ nạp từ Cloud về
-    if (cloudTime > localTime) {
+    // Nếu một thiết bị khác đã tiếp quản quyền runner và đang chạy -> Dừng ngay lập tức trên thiết bị này
+    if (isFocusRunning && cloudData.activeTimer?.runnerId && cloudData.activeTimer.runnerId !== CURRENT_RUNNER_ID) {
+      isFocusRunning = false;
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = null;
+      releaseWakeLock();
+      showToast('Phiên đếm giờ đã chuyển sang thiết bị khác.', 'info');
+    }
+
+    // Nếu Cloud đã chuyển sang tạm dừng hoặc hủy mà thiết bị này vẫn đang chạy -> Dừng ngay
+    if (isFocusRunning && cloudData.activeTimer && !cloudData.activeTimer.isRunning) {
+      isFocusRunning = false;
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = null;
+      releaseWakeLock();
+    }
+
+    // Nếu trên Cloud đã hủy phiên (activeTimer = null) mà thiết bị này còn phiên -> Giải phóng ngay
+    if (cloudData.activeTimer === null && appState.activeTimer) {
+      clearFocusTimerSession(false);
+    }
+
+    // Nếu Cloud mới hơn (do làm nhiệm vụ trên máy khác) HOẶC trạng thái Timer từ Cloud thực sự mới hơn:
+    const isCloudTimerNewer = timerChanged && (
+      Boolean(cloudData.activeTimer && (!appState.activeTimer || timerCloudTime >= timerLocalTime)) ||
+      Boolean(!cloudData.activeTimer && appState.activeTimer)
+    );
+
+    if (cloudTime > localTime || isCloudTimerNewer) {
       appState = normalizeObjectNFC({
         ...DEFAULT_STATE,
         ...cloudData,
@@ -579,10 +633,15 @@ async function hydrateFromCloud(isManual = false) {
       if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật từ Cloud';
       if (modalSyncTime) modalSyncTime.textContent = new Date(cloudData.lastSyncedAt || Date.now()).toLocaleTimeString();
       if (isManual) showToast('Đã tải dữ liệu mới nhất từ thiết bị khác thành công!', 'success');
-    } else if (localTime > cloudTime) {
-      // Nếu máy hiện tại mới hơn (do vừa thao tác xong): Đẩy dữ liệu mới lên Cloud
-      syncWithCloud(false);
     } else {
+      if (timerChanged) {
+        if (cloudData.activeTimer === null) {
+          clearFocusTimerSession(false);
+        } else {
+          appState.activeTimer = cloudData.activeTimer || null;
+          restoreFocusTimer();
+        }
+      }
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
@@ -963,12 +1022,74 @@ function sendFocusNotification(title, body) {
   }
 }
 
-// LocalStorage State Persistence
-function saveFocusTimerState() {
+// LocalStorage & Redis Cloud State Persistence
+let lastCloudTimerCheckpoint = Date.now();
+
+// Kéo thông tin timer mới nhất từ Cloud của thiết bị đang chạy trước khi bắt đầu hoặc tiếp quản
+async function pullLatestTimerFromCloud() {
+  if (!appState.profile?.googleId || !appState.profile?.nickname) return null;
+  try {
+    const token = appState.profile.sessionToken || appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
+    if (!token) return null;
+    const res = await fetch(`/api/sync?token=${encodeURIComponent(token)}&nickname=${encodeURIComponent(appState.profile.nickname)}&ts=${Date.now()}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (res.ok) {
+      const result = await res.json();
+      if (result.found && result.data) {
+        if (result.data.activeTimer === null) {
+          clearFocusTimerSession(false);
+          return null;
+        }
+        const remoteTimer = result.data.activeTimer;
+        if (remoteTimer) {
+          if (remoteTimer.isRunning) {
+            const refTime = Number(remoteTimer.lastTickTime || remoteTimer.updatedAt || Date.now());
+            const elapsed = Math.max(0, (Date.now() - refTime) / 1000);
+            focusRemainingSeconds = Math.max(0, (remoteTimer.remainingSeconds || 0) - elapsed);
+            actualFocusedSeconds = (remoteTimer.actualFocusedSeconds || 0) + (!remoteTimer.isBreakMode ? elapsed : 0);
+          } else {
+            focusRemainingSeconds = Math.max(0, remoteTimer.remainingSeconds || 0);
+            actualFocusedSeconds = remoteTimer.actualFocusedSeconds || 0;
+          }
+          focusTotalSeconds = remoteTimer.totalSeconds || focusTotalSeconds;
+          appState.activeTimer = {
+            ...remoteTimer,
+            remainingSeconds: focusRemainingSeconds,
+            actualFocusedSeconds
+          };
+          return appState.activeTimer;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('pullLatestTimerFromCloud error:', err);
+  }
+  return null;
+}
+
+function saveFocusTimerState(syncCloudNow = false, immediate = false, timerAction = null) {
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
-    localStorage.removeItem(TIMER_STORAGE_KEY);
+    try {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    } catch (_) {}
+    if (appState.activeTimer) {
+      appState.activeTimer = null;
+      appState.lastTimerClearedAt = Date.now();
+      if (syncCloudNow) triggerSave(true, immediate, timerAction || 'cancel');
+    }
     return;
   }
+
+  // Nếu không phải runner đang chạy và không phải lệnh đồng bộ chủ động, không ghi đè timer lên Redis
+  if (appState.activeTimer?.runnerId && appState.activeTimer.runnerId !== CURRENT_RUNNER_ID && !isFocusRunning && !syncCloudNow) {
+    return;
+  }
+
   const state = {
     questId: activeFocusQuest ? activeFocusQuest.id : null,
     questTitle: activeFocusQuest ? activeFocusQuest.title : null,
@@ -984,18 +1105,63 @@ function saveFocusTimerState() {
     actualFocusedSeconds: actualFocusedSeconds,
     isRunning: isFocusRunning,
     isBreakMode: isBreakMode,
-    lastTickTime: Date.now()
+    runnerId: isFocusRunning ? CURRENT_RUNNER_ID : (appState.activeTimer?.runnerId || CURRENT_RUNNER_ID),
+    lastTickTime: Date.now(),
+    updatedAt: Date.now()
   };
-  localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+  appState.activeTimer = state;
+  try {
+    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+  } catch (_) {}
+
+  if (syncCloudNow) {
+    triggerSave(true, immediate, timerAction);
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const syncChannel = new BroadcastChannel('levelup_sync_channel');
+        syncChannel.postMessage({
+          type: 'TIMER_SYNC_UPDATE',
+          tabId: CURRENT_TAB_ID,
+          runnerId: state.runnerId,
+          isRunning: isFocusRunning,
+          action: timerAction
+        });
+        syncChannel.close();
+      } catch (_) {}
+    }
+  }
 }
 
 function restoreFocusTimer() {
-  const raw = localStorage.getItem(TIMER_STORAGE_KEY);
-  if (!raw) return;
+  let state = appState.activeTimer;
+  let localState = null;
   try {
-    const state = JSON.parse(raw);
-    if (!state) return;
+    const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+    if (raw) localState = JSON.parse(raw);
+  } catch (_) {}
 
+  // Reconcile Cloud vs Local: ưu tiên bản ghi có mốc thời gian cập nhật mới nhất
+  if (state && localState) {
+    const cloudTime = state.updatedAt || state.lastTickTime || 0;
+    const localTime = localState.updatedAt || localState.lastTickTime || 0;
+    if (localTime > cloudTime) {
+      state = localState;
+    }
+  } else if (!state && localState) {
+    // Chỉ dùng cache cục bộ nếu chưa từng đồng bộ với Cloud
+    if (!appState.lastSyncedAt) {
+      state = localState;
+    }
+  }
+
+  if (!state) {
+    if (activeFocusQuest || isBreakMode || activeRewardItem) {
+      clearFocusTimerSession(false);
+    }
+    return;
+  }
+
+  try {
     if (state.isBreakMode) {
       isBreakMode = true;
       activeFocusQuest = null;
@@ -1003,7 +1169,7 @@ function restoreFocusTimer() {
     } else if (state.isRewardMode && state.rewardItemId) {
       const invItem = appState.inventory?.find(i => i.id === state.rewardItemId);
       if (!invItem) {
-        localStorage.removeItem(TIMER_STORAGE_KEY);
+        clearFocusTimerSession(false);
         return;
       }
       activeRewardItem = invItem;
@@ -1016,29 +1182,35 @@ function restoreFocusTimer() {
         return;
       }
       if (quest.status === 'completed') {
-        localStorage.removeItem(TIMER_STORAGE_KEY);
+        clearFocusTimerSession(false);
         return;
       }
       activeFocusQuest = quest;
       activeRewardItem = null;
       isBreakMode = false;
     } else {
-      localStorage.removeItem(TIMER_STORAGE_KEY);
+      clearFocusTimerSession(false);
       return;
     }
 
     focusTotalSeconds = state.totalSeconds || (activeFocusQuest?.targetMinutes || (activeRewardItem ? extractRewardDuration(activeRewardItem) : 25)) * 60;
     actualFocusedSeconds = state.actualFocusedSeconds || 0;
-    isFocusRunning = !!state.isRunning;
 
-    if (isFocusRunning) {
-      const elapsed = Math.max(0, (Date.now() - (state.lastTickTime || Date.now())) / 1000);
+    const isMyRunner = !state.runnerId || state.runnerId === CURRENT_RUNNER_ID;
+
+    // Chỉ được chạy đếm giờ trên đúng 1 thiết bị sở hữu runnerId
+    // Thiết bị này chạy thì thiết bị kia PHẢI NGỪNG (không chạy interval đếm ngược)
+    if (state.isRunning && isMyRunner) {
+      isFocusRunning = true;
+      const refTime = state.lastTickTime || state.updatedAt || Date.now();
+      const elapsed = Math.max(0, (Date.now() - refTime) / 1000);
       if (!isBreakMode) {
         actualFocusedSeconds += elapsed;
       }
       focusRemainingSeconds = Math.max(0, (state.remainingSeconds || 0) - elapsed);
 
       if (focusRemainingSeconds <= 0) {
+        focusRemainingSeconds = 0;
         updateTimerDisplay();
         if (isBreakMode) {
           breakTimerFinished();
@@ -1055,20 +1227,47 @@ function restoreFocusTimer() {
       clearInterval(focusTimerInterval);
       focusTimerInterval = setInterval(tickFocusTimer, 500);
     } else {
-      focusRemainingSeconds = Math.max(0, state.remainingSeconds || 0);
+      // Thiết bị kia đang chạy HOẶC phiên đang tạm dừng -> Thiết bị này DỪNG đếm ngược
+      isFocusRunning = false;
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = null;
+      releaseWakeLock();
+
+      if (state.isRunning && !isMyRunner) {
+        // Đồng bộ thời gian hiển thị tĩnh từ thiết bị đang chạy
+        const refTime = state.lastTickTime || state.updatedAt || Date.now();
+        const elapsed = Math.max(0, (Date.now() - refTime) / 1000);
+        focusRemainingSeconds = Math.max(0, (state.remainingSeconds || 0) - elapsed);
+      } else {
+        focusRemainingSeconds = Math.max(0, state.remainingSeconds || 0);
+      }
     }
 
     renderFocusStationUI();
     updateTimerDisplay();
+    renderQuests();
+    renderInventory();
   } catch (e) {
     console.error('Failed to restore focus timer:', e);
-    localStorage.removeItem(TIMER_STORAGE_KEY);
+    clearFocusTimerSession(false);
   }
 }
 
 // Delta-Time Tick Engine
 function tickFocusTimer() {
   if (!isFocusRunning) return;
+
+  // Nếu một thiết bị khác đã tiếp quản quyền runner, thiết bị này phải dừng lại ngay lập tức
+  if (appState.activeTimer?.runnerId && appState.activeTimer.runnerId !== CURRENT_RUNNER_ID) {
+    isFocusRunning = false;
+    clearInterval(focusTimerInterval);
+    focusTimerInterval = null;
+    releaseWakeLock();
+    renderFocusStationUI();
+    updateTimerDisplay();
+    return;
+  }
+
   const now = Date.now();
   const deltaSec = Math.max(0, (now - lastTickTime) / 1000);
   lastTickTime = now;
@@ -1079,7 +1278,14 @@ function tickFocusTimer() {
     }
     focusRemainingSeconds = Math.max(0, focusRemainingSeconds - deltaSec);
     updateTimerDisplay();
-    saveFocusTimerState();
+
+    // Checkpoint lên Cloud định kỳ mỗi 30s để các thiết bị khác nắm bắt tiến độ
+    if (now - lastCloudTimerCheckpoint >= 30000) {
+      lastCloudTimerCheckpoint = now;
+      saveFocusTimerState(true);
+    } else {
+      saveFocusTimerState(false);
+    }
 
     if (focusRemainingSeconds <= 0) {
       clearInterval(focusTimerInterval);
@@ -1192,13 +1398,54 @@ function renderFocusStationUI() {
     if (expEl) expEl.textContent = `+${activeFocusQuest.rewardCoins * 3}`;
   }
 
-  const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
-  if (toggleBtn) toggleBtn.textContent = toggleText;
-  if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+  const isRunningElsewhere = Boolean(
+    appState.activeTimer?.isRunning &&
+    appState.activeTimer?.runnerId &&
+    appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
+  );
+
+  const isPausedElsewhere = Boolean(
+    !appState.activeTimer?.isRunning &&
+    appState.activeTimer?.runnerId &&
+    appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
+  );
+
+  if (isRunningElsewhere) {
+    if (modeLabel) modeLabel.textContent = 'ĐANG CHẠY TRÊN THIẾT BỊ KHÁC 📱';
+    const toggleText = 'Tiếp Tục Ở Thiết Bị Này ⏱️';
+    if (toggleBtn) {
+      toggleBtn.textContent = toggleText;
+      toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition shadow-sm active:scale-95';
+    }
+    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+  } else if (isPausedElsewhere) {
+    if (modeLabel) modeLabel.textContent = 'ĐANG TẠM DỪNG (MÁY KHÁC) ⏸️';
+    const toggleText = 'Tiếp Tục Ở Thiết Bị Này ⏱️';
+    if (toggleBtn) {
+      toggleBtn.textContent = toggleText;
+      toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition shadow-sm active:scale-95';
+    }
+    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+  } else {
+    if (modeLabel && !isBreakMode && !activeRewardItem) {
+      modeLabel.textContent = isFocusRunning ? 'ĐANG BẤM GIỜ TẬP TRUNG' : 'ĐANG TẠM DỪNG ⏸️';
+    }
+    const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
+    if (toggleBtn) {
+      toggleBtn.textContent = toggleText;
+      toggleBtn.className = isFocusRunning
+        ? 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95'
+        : 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-sm active:scale-95';
+    }
+    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+  }
 }
 
 async function startFocusTimer(quest) {
   if (!quest) return;
+  if (isTimerActionPending) return;
+  isTimerActionPending = true;
+  setTimeout(() => { isTimerActionPending = false; }, 400);
 
   // Edge case 1: Nhiệm vụ đã hoàn thành từ trước
   if (quest.status === 'completed') {
@@ -1220,17 +1467,8 @@ async function startFocusTimer(quest) {
       document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     } else {
-      const ok = await confirmAction({
-        title: 'Tiếp Tục Bấm Giờ?',
-        message: `Nhiệm vụ "${quest.title}" đang tạm dừng với ${Math.ceil(focusRemainingSeconds / 60)} phút còn lại. Bạn có muốn tiếp tục đếm giờ?`,
-        confirmText: 'Tiếp Tục ⏱️',
-        cancelText: 'Hủy',
-        icon: '⏱️',
-        btnColor: 'cyan'
-      });
-      if (ok) {
-        toggleFocusTimer();
-      }
+      await toggleFocusTimer();
+      document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
   }
@@ -1271,18 +1509,6 @@ async function startFocusTimer(quest) {
       btnColor: 'amber'
     });
     if (!ok) return;
-  } else if (!activeRewardItem) {
-    // Xác nhận trước khi bắt đầu phiên tập trung
-    const ok = await confirmAction({
-      title: 'Bắt Đầu Tập Trung?',
-      message: `Bắt đầu phiên tập trung ${quest.targetMinutes || 25} phút cho nhiệm vụ "${quest.title}"?`,
-      detail: '🎯 Hãy bật chế độ Không làm phiền và tập trung hoàn toàn trong suốt phiên.',
-      confirmText: 'Bắt Đầu ⏱️',
-      cancelText: 'Để Sau',
-      icon: '⏱️',
-      btnColor: 'cyan'
-    });
-    if (!ok) return;
   }
 
   if ('Notification' in window && Notification.permission === 'default') {
@@ -1298,12 +1524,16 @@ async function startFocusTimer(quest) {
   isFocusRunning = true;
   lastTickTime = Date.now();
 
+  // Optimistic UI updates - 0ms latency phản hồi ngay trên giao diện
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState();
+  saveFocusTimerState(true, true, 'start');
   requestWakeLock();
   renderQuests();
   renderInventory();
+
+  // Cuộn ngay đến thanh đếm giờ để người dùng nhìn thấy lập tức
+  document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   clearInterval(focusTimerInterval);
   focusTimerInterval = setInterval(tickFocusTimer, 500);
@@ -1313,6 +1543,10 @@ async function startFocusTimer(quest) {
 }
 
 function startBreakTimer(breakMinutes = 5) {
+  if (isTimerActionPending) return;
+  isTimerActionPending = true;
+  setTimeout(() => { isTimerActionPending = false; }, 400);
+
   isBreakMode = true;
   activeFocusQuest = null;
   activeRewardItem = null;
@@ -1323,7 +1557,7 @@ function startBreakTimer(breakMinutes = 5) {
 
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState();
+  saveFocusTimerState(true, true, 'start');
   requestWakeLock();
   renderQuests();
   renderInventory();
@@ -1335,69 +1569,110 @@ function startBreakTimer(breakMinutes = 5) {
   showToast(`Bắt đầu nghỉ giải lao ${breakMinutes} phút! Hãy vươn vai và uống nước nhé.`, 'info');
 }
 
-function toggleFocusTimer() {
-  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
+async function toggleFocusTimer() {
+  if (isTimerActionPending) return;
+  isTimerActionPending = true;
+  setTimeout(() => { isTimerActionPending = false; }, 400);
+
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem && !appState.activeTimer) {
     showToast('Chưa có phiên nào đang chạy!', 'info');
     return;
   }
 
-  isFocusRunning = !isFocusRunning;
-  lastTickTime = Date.now();
+  // Nếu chuẩn bị bắt đầu đếm (từ tạm dừng hoặc chuyển từ thiết bị khác sang):
+  // "khi chạy lại thì phải đồng bộ với thời gian của thiết bị đang chạy mới nhất rồi mới chạy, sau đó thì thiết bị đó phải bị dừng lại"
+  if (!isFocusRunning) {
+    // 1. Đồng bộ thời gian mới nhất từ thiết bị đang chạy qua Cloud trước khi chạy
+    await pullLatestTimerFromCloud();
 
-  const toggleBtn = document.getElementById('btn-timer-toggle');
-  const zenToggleBtn = document.getElementById('btn-zen-toggle');
-  const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
-  if (toggleBtn) toggleBtn.textContent = toggleText;
-  if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
-
-  if (isFocusRunning) {
-    requestWakeLock();
-    if (!focusTimerInterval) {
-      focusTimerInterval = setInterval(tickFocusTimer, 500);
+    isFocusRunning = true;
+    lastTickTime = Date.now();
+    if (appState.activeTimer) {
+      appState.activeTimer.runnerId = CURRENT_RUNNER_ID;
+      appState.activeTimer.isRunning = true;
+      appState.activeTimer.lastTickTime = lastTickTime;
+      appState.activeTimer.updatedAt = lastTickTime;
     }
+
+    requestWakeLock();
+    clearInterval(focusTimerInterval);
+    focusTimerInterval = setInterval(tickFocusTimer, 500);
     sfx.playClick();
-  } else {
-    releaseWakeLock();
-    sfx.playClick();
+
+    updateTimerDisplay();
+    renderFocusStationUI();
+    saveFocusTimerState(true, true, 'resume'); // Đẩy ngay lên Redis kèm runnerId mới để thiết bị kia dừng lại
+    renderQuests();
+    renderInventory();
+    showToast('Đã tiếp tục đếm giờ trên thiết bị này!', 'success');
+    return;
   }
 
+  // Đang chạy trên thiết bị này -> Bấm để Tạm dừng
+  isFocusRunning = false;
+  lastTickTime = Date.now();
+  releaseWakeLock();
+  clearInterval(focusTimerInterval);
+  focusTimerInterval = null;
+  sfx.playClick();
+
   updateTimerDisplay();
-  saveFocusTimerState();
+  renderFocusStationUI();
+  saveFocusTimerState(true, true, 'pause');
   renderQuests();
   renderInventory();
 }
 
 async function resetFocusTimer() {
-  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
+  if (isTimerActionPending) return;
+  isTimerActionPending = true;
+  setTimeout(() => { isTimerActionPending = false; }, 400);
 
-  const msg = isBreakMode
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem && !appState.activeTimer) return;
+
+  const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
+  const wasBreak = isBreakMode || Boolean(appState.activeTimer?.isBreakMode);
+  const questTitle = activeFocusQuest?.title || appState.activeTimer?.questTitle || 'nhiệm vụ';
+
+  const title = wasBreak
+    ? 'Dừng Giờ Nghỉ?'
+    : isReward
+    ? 'Dừng Tận Hưởng Quà?'
+    : 'Dừng Phiên Tập Trung?';
+
+  const msg = wasBreak
     ? 'Bạn có chắc muốn kết thúc sớm giờ nghỉ giải lao?'
-    : activeRewardItem
-    ? `Bạn có chắc muốn kết thúc sớm thời gian tận hưởng phần thưởng "${activeRewardItem.name}"?`
-    : `Bạn có chắc muốn dừng phiên tập trung cho "${activeFocusQuest?.title || 'nhiệm vụ'}"? Thời gian đã đếm sẽ không được tính.`;
+    : isReward
+    ? `Bạn có chắc muốn kết thúc sớm thời gian tận hưởng phần thưởng "${activeRewardItem?.name || appState.activeTimer?.rewardItemName || 'phần thưởng'}"?`
+    : `Bạn có chắc muốn dừng phiên tập trung cho "${questTitle}"? Thời gian đã đếm sẽ không được tính.`;
+
+  const detail = isReward
+    ? 'Phần thưởng đã dùng vẫn được ghi nhận trong kho quà.'
+    : wasBreak
+    ? ''
+    : '⚠️ Phiên tập trung sẽ bị hủy và bạn sẽ không nhận được Vàng.';
 
   const ok = await confirmAction({
-    title: isBreakMode ? 'Dừng Giờ Nghỉ?' : (activeRewardItem ? 'Dừng Tận Hưởng Quà?' : 'Dừng Phiên Tập Trung?'),
+    title,
     message: msg,
-    detail: activeRewardItem ? 'Phần thưởng đã dùng vẫn được ghi nhận trong kho quà.' : (isBreakMode ? '' : '⚠️ Phiên tập trung sẽ bị hủy và bạn sẽ không nhận được Vàng.'),
-    confirmText: 'Dừng Ngay',
-    cancelText: 'Tiếp Tục',
-    icon: activeRewardItem ? '🎁' : (isBreakMode ? '☕' : '⏹️'),
+    detail,
+    confirmText: 'Dừng Phiên ⏹️',
+    cancelText: 'Tiếp Tục Đếm',
+    icon: isReward ? '🎁' : (wasBreak ? '☕' : '⏹️'),
     btnColor: 'rose'
   });
 
   if (ok) {
-    clearFocusTimerSession();
-    renderQuests();
-    renderInventory();
-    showToast(activeRewardItem ? 'Đã kết thúc phiên dùng quà.' : 'Đã dừng phiên tập trung.', 'info');
+    clearFocusTimerSession(true);
+    showToast(isReward ? 'Đã kết thúc phiên dùng quà.' : (wasBreak ? 'Đã dừng giờ nghỉ.' : 'Đã dừng phiên tập trung.'), 'info');
   }
 }
 
-function clearFocusTimerSession() {
+function clearFocusTimerSession(syncToCloud = true) {
   clearInterval(focusTimerInterval);
   focusTimerInterval = null;
   releaseWakeLock();
+  const hadActiveSession = Boolean(activeFocusQuest || isBreakMode || activeRewardItem || appState.activeTimer);
   activeFocusQuest = null;
   activeRewardItem = null;
   isFocusRunning = false;
@@ -1405,7 +1680,10 @@ function clearFocusTimerSession() {
   focusRemainingSeconds = 0;
   focusTotalSeconds = 0;
   actualFocusedSeconds = 0;
-  localStorage.removeItem(TIMER_STORAGE_KEY);
+  appState.lastTimerClearedAt = Date.now();
+  try {
+    localStorage.removeItem(TIMER_STORAGE_KEY);
+  } catch (_) {}
   document.title = 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
 
   const banner = document.getElementById('active-focus-banner');
@@ -1413,6 +1691,20 @@ function clearFocusTimerSession() {
 
   const zenOverlay = document.getElementById('focus-zen-overlay');
   if (zenOverlay) zenOverlay.classList.add('hidden');
+
+  if (appState.activeTimer || hadActiveSession) {
+    appState.activeTimer = null;
+    if (syncToCloud) {
+      triggerSave(true, true, 'cancel');
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const syncChannel = new BroadcastChannel('levelup_sync_channel');
+          syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'cancel' });
+          syncChannel.close();
+        } catch (_) {}
+      }
+    }
+  }
 
   renderQuests();
   renderInventory();
@@ -1433,7 +1725,7 @@ function adjustTimer(deltaSec) {
     focusTotalSeconds = focusRemainingSeconds;
   }
   updateTimerDisplay();
-  saveFocusTimerState();
+  saveFocusTimerState(true, true);
   sfx.playClick();
   showToast(`Đã thêm thời gian: +${deltaSec / 60}p`, 'info');
 }
@@ -1468,7 +1760,7 @@ function saveEditTimer(mins, secs) {
     focusTotalSeconds = total;
   }
   updateTimerDisplay();
-  saveFocusTimerState();
+  saveFocusTimerState(true, true);
   sfx.playClick();
   closeModal('modal-edit-focus-timer');
   showToast(`Đã lưu thời gian: ${mins}p ${secs}s`, 'success');
@@ -2283,7 +2575,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
 
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState();
+  saveFocusTimerState(true, true);
   requestWakeLock();
   renderQuests();
   renderInventory();
@@ -4752,6 +5044,11 @@ function renderQuests() {
   filtered.forEach(q => {
     const isCompleted = q.status === 'completed';
     const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
+    const isSessionOnOtherDevice = Boolean(
+      isCurrentlyFocusing &&
+      appState.activeTimer?.runnerId &&
+      appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
+    );
     const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
     const card = document.createElement('div');
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative ${
@@ -4860,9 +5157,9 @@ function renderQuests() {
                 <span>Chụp Ảnh Nhận Vàng 📸</span>
               </button>
             ` : (q.type === 'focus' ? `
-              <button class="btn-start-focus flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20'}">
+              <button class="btn-start-focus flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${isSessionOnOtherDevice ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20 ring-2 ring-cyan-400' : (isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20')}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>${isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu'}</span>
+                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu')}</span>
               </button>
             ` : `
               <button class="btn-complete-bounty flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md ${cooldownRemainingMs > 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300/40 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/20 active:scale-95'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
@@ -6285,12 +6582,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Lắng nghe tín hiệu đồng bộ đa tab từ BroadcastChannel khi Admin tinh chỉnh chỉ số
+  // Lắng nghe tín hiệu đồng bộ đa tab từ BroadcastChannel khi Admin tinh chỉnh chỉ số hoặc đếm giờ
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const syncChannel = new BroadcastChannel('levelup_sync_channel');
       syncChannel.onmessage = (event) => {
-        if (event.data?.type === 'ADMIN_SYNC_UPDATE') {
+        if (event.data?.tabId === CURRENT_TAB_ID) return; // Bỏ qua thông điệp phát từ chính tab này
+        if (event.data?.type === 'TIMER_SYNC_UPDATE') {
+          // Nếu tab khác đã giành quyền runner, dừng ngay lập tức tại tab này (0ms delay)
+          if (event.data.runnerId && event.data.runnerId !== CURRENT_RUNNER_ID && isFocusRunning) {
+            isFocusRunning = false;
+            clearInterval(focusTimerInterval);
+            focusTimerInterval = null;
+            releaseWakeLock();
+          }
+          if (event.data.action === 'cancel') {
+            clearFocusTimerSession(false);
+          } else if (event.data.action === 'pause' && isFocusRunning) {
+            isFocusRunning = false;
+            clearInterval(focusTimerInterval);
+            focusTimerInterval = null;
+            releaseWakeLock();
+          }
+          if (appState.profile?.googleId && appState.profile?.nickname) {
+            hydrateFromCloud(false);
+          }
+        } else if (event.data?.type === 'ADMIN_SYNC_UPDATE') {
           if (appState.profile?.googleId && appState.profile?.nickname) {
             hydrateFromCloud(false);
           }
@@ -6298,6 +6615,20 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     } catch (_) {}
   }
+
+  // Polling định kỳ mỗi 10 giây nếu tab đang mở để tự động bắt kịp đồng hồ đếm ngược giữa các thiết bị
+  setInterval(() => {
+    if (!document.hidden && appState.profile?.googleId && appState.profile?.nickname) {
+      hydrateFromCloud(false);
+    }
+  }, 10000);
+
+  // Polling tần suất cao 2.5 giây khi có phiên đếm giờ đang hoạt động để dừng thiết bị cũ và nhận diện kịp thời
+  setInterval(() => {
+    if (!document.hidden && (isFocusRunning || appState.activeTimer) && appState.profile?.googleId && appState.profile?.nickname) {
+      hydrateFromCloud(false);
+    }
+  }, 2500);
 
   // Navigation Tab buttons (Desktop & Mobile)
   document.querySelectorAll('.nav-tab, .mobile-nav-btn').forEach(btn => {
