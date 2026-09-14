@@ -3066,7 +3066,7 @@ async function acceptVerdictAndCreateQuest() {
     message: isEditing
       ? `Bạn có chắc muốn lưu các thay đổi cho nhiệm vụ "${questTitle}"?`
       : `Bạn có chắc chắn muốn nhận nhiệm vụ "${questTitle}" vào danh sách?`,
-    detail: `🪙 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}\n📌 ${repeatText} • ${proofText}`,
+    detail: `💰 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}\n📌 ${repeatText} • ${proofText}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Nhận Nhiệm Vụ',
     cancelText: 'Xem Lại',
     icon: '⚔️',
@@ -3519,7 +3519,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
     const diffTags = [];
     if (data.accepted) {
       if (data.newRewardCoins && data.newRewardCoins !== prevVerdict.rewardCoins) {
-        diffTags.push(`🪙 Thưởng: ${prevVerdict.rewardCoins} ➔ ${data.newRewardCoins} Vàng`);
+        diffTags.push(`💰 Thưởng: ${prevVerdict.rewardCoins} ➔ ${data.newRewardCoins} Vàng`);
       }
       if (data.newTargetMinutes !== undefined && Number(data.newTargetMinutes) !== Number(prevVerdict.targetMinutes)) {
         diffTags.push(`⏱️ Thời gian: ${prevVerdict.targetMinutes || 0}p ➔ ${data.newTargetMinutes}p`);
@@ -3846,7 +3846,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
     const diffTags = [];
     if (data.accepted) {
       if (data.newPrice && data.newPrice !== prevReward.price) {
-        diffTags.push(`🪙 Giá: ${prevReward.price} ➔ ${data.newPrice} Vàng`);
+        diffTags.push(`💰 Giá: ${prevReward.price} ➔ ${data.newPrice} Vàng`);
       }
       if (data.newTier && data.newTier !== prevReward.tier) {
         diffTags.push(`⭐ Hạng: ${(prevReward.tier || 'rare').toUpperCase()} ➔ ${(data.newTier || '').toUpperCase()}`);
@@ -3987,7 +3987,7 @@ async function savePendingReward() {
     message: isEditing
       ? `Bạn có chắc muốn lưu các thay đổi cho phần thưởng "${rewardName}"?`
       : `Bạn có chắc chắn muốn thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
-    detail: `🪙 Giá: ${rewardPrice} Vàng • ⭐ Hạng: ${rewardTier}${timeInfo} • Biểu tượng: ${rewardIcon}`,
+    detail: `💰 Giá: ${rewardPrice} Vàng • ⭐ Hạng: ${rewardTier}${timeInfo} • Biểu tượng: ${rewardIcon}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Thêm Vào Cửa Hàng',
     cancelText: 'Xem Lại',
     icon: rewardIcon,
@@ -6957,7 +6957,7 @@ function renderBankUI(pool, userBank, creditLimit) {
   if (elBailout) {
     if ((pool.bailoutDebt || 0) > 0) {
       elBailout.className = 'text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5 flex items-center gap-1';
-      elBailout.innerHTML = `<span>⚠️</span> <span>Kho Bạc bảo lãnh (${pool.bailoutDebt} 🪙)</span>`;
+      elBailout.innerHTML = `<span>⚠️</span> <span class="inline-flex items-center gap-1">Kho Bạc bảo lãnh (${pool.bailoutDebt} ${COIN_ICON_HTML})</span>`;
     } else {
       elBailout.className = 'text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 flex items-center gap-1';
       elBailout.innerHTML = `<span>🛡️</span> <span>Kho Bạc an toàn</span>`;
@@ -6973,7 +6973,7 @@ function renderBankUI(pool, userBank, creditLimit) {
 
   // 4. Quầy Vay Vàng (Borrower)
   const elBadge = document.getElementById('bank-credit-limit-badge');
-  if (elBadge) elBadge.textContent = `Hạn mức: ${creditLimit} 🪙`;
+  if (elBadge) elBadge.innerHTML = `Hạn mức: ${creditLimit} ${COIN_ICON_HTML}`;
 
   const activeBox = document.getElementById('bank-loan-active-box');
   const formBox = document.getElementById('bank-loan-form-box');
@@ -6993,7 +6993,7 @@ function renderBankUI(pool, userBank, creditLimit) {
     }
 
     const elDebt = document.getElementById('bank-current-debt');
-    if (elDebt) elDebt.textContent = `${userBank.loan.debt} 🪙`;
+    if (elDebt) elDebt.innerHTML = `${userBank.loan.debt} ${COIN_ICON_HTML}`;
 
     const elDeductRate = document.getElementById('bank-active-deduct-rate');
     if (elDeductRate) elDeductRate.textContent = `${Math.round((userBank.loan.autoDeductPercent || 0.5) * 100)}%`;
@@ -7063,8 +7063,8 @@ function renderAdminBankTelemetry(pool, rates) {
   const elAdminHealth = document.getElementById('admin-bank-health-badge');
   if ((pool.bailoutDebt || 0) > 0) {
     if (elAdminBailoutText) {
-      elAdminBailoutText.textContent = `Kho Bạc Đang Cứu Trợ (${pool.bailoutDebt} 🪙)`;
-      elAdminBailoutText.className = 'text-[9px] text-amber-600 dark:text-amber-400 font-bold';
+      elAdminBailoutText.innerHTML = `Kho Bạc Đang Cứu Trợ (${pool.bailoutDebt} ${COIN_ICON_HTML})`;
+      elAdminBailoutText.className = 'text-[9px] text-amber-600 dark:text-amber-400 font-bold inline-flex items-center gap-1';
     }
     if (elAdminHealth) {
       elAdminHealth.className = 'text-[11px] font-bold px-2.5 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1';
@@ -7330,7 +7330,7 @@ function onDeductPercentChange(val) {
 
   const finalLimit = calculateLocalCreditLimit(appState.profile, numVal / 100);
   const badge = document.getElementById('bank-credit-limit-badge');
-  if (badge) badge.textContent = `Hạn mức: ${finalLimit} 🪙`;
+  if (badge) badge.innerHTML = `Hạn mức: ${finalLimit} ${COIN_ICON_HTML}`;
 
   const appraisal = document.getElementById('bank-appraisal-box');
   if (appraisal) {
@@ -7339,7 +7339,7 @@ function onDeductPercentChange(val) {
     } else if (numVal <= 40) {
       appraisal.innerHTML = `🌿 Trích nhẹ nhàng ${numVal}% tiền thưởng giúp bạn thong thả làm việc. Hạn mức khả dụng là ${finalLimit} Vàng.`;
     } else {
-      appraisal.innerHTML = `💡 <em>Tỷ lệ ${numVal}% cân bằng lý tưởng giữa việc trả nợ và giữ lại Vàng tiêu xài cho các nhiệm vụ tiếp theo! Hạn mức: ${finalLimit} 🪙</em>`;
+      appraisal.innerHTML = `💡 <em>Tỷ lệ ${numVal}% cân bằng lý tưởng giữa việc trả nợ và giữ lại Vàng tiêu xài cho các nhiệm vụ tiếp theo! Hạn mức: ${finalLimit} ${COIN_ICON_HTML}</em>`;
     }
   }
 }
