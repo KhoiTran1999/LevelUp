@@ -254,11 +254,11 @@ export function extractToken(req) {
 }
 
 export function getAdminConfig() {
-  const nicks = (process.env.ADMIN_NICKNAMES || 'admin,guildmaster')
+  const nicks = (process.env.ADMIN_NICKNAMES || 'admin,guildmaster,khoitran,khoi tran,khôi trần')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
-  const emails = (process.env.ADMIN_EMAILS || '')
+  const emails = (process.env.ADMIN_EMAILS || 'admin@gmail.com,guildmaster@gmail.com,tranquockhoi1999@gmail.com,khoitran200199@gmail.com')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);

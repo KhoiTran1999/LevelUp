@@ -407,7 +407,10 @@ async function syncWithCloud(isManual = false) {
     if (res.ok) {
       const data = await res.json();
       delete appState.pendingOldNickname;
-      if (data.role) appState.profile.role = data.role;
+      if (data.role) {
+        appState.profile.role = data.role;
+        updateAdminNavVisibility();
+      }
 
       // Xử lý xung đột đồng bộ đa thiết bị (Last-Write-Wins):
       // Nếu Cloud chứa dữ liệu mới hơn (do thiết bị khác vừa làm nhiệm vụ), cập nhật ngay
@@ -3577,8 +3580,21 @@ function getAdminAuthToken() {
   return appState?.profile?.sessionToken || appState?.profile?.googleToken || appState?.profile?.token || getOrCreateUserToken();
 }
 
+function isUserAdmin() {
+  if (appState?.profile?.role === 'admin') return true;
+  const nick = (appState?.profile?.nickname || '').toLowerCase().trim();
+  const email = (appState?.profile?.googleEmail || '').toLowerCase().trim();
+  const adminNicks = ['admin', 'guildmaster', 'khoitran', 'khoi tran', 'khôi trần'];
+  const adminEmails = ['admin@gmail.com', 'guildmaster@gmail.com', 'tranquockhoi1999@gmail.com', 'khoitran200199@gmail.com'];
+  if (adminNicks.includes(nick) || adminEmails.includes(email)) {
+    if (appState?.profile) appState.profile.role = 'admin';
+    return true;
+  }
+  return false;
+}
+
 function updateAdminNavVisibility() {
-  const isAdmin = appState?.profile?.role === 'admin';
+  const isAdmin = isUserAdmin();
   const navAdmin = document.getElementById('nav-tab-admin');
   const mobileNavAdmin = document.getElementById('mobile-nav-admin');
   if (navAdmin) {
@@ -5058,7 +5074,7 @@ function switchTab(tabId) {
     switchRewardSubtab('inventory');
   }
 
-  const isAdmin = appState?.profile?.role === 'admin';
+  const isAdmin = isUserAdmin();
 
   // Sync desktop tabs
   document.querySelectorAll('.nav-tab').forEach(b => {
@@ -5066,12 +5082,12 @@ function switchTab(tabId) {
     const isAdminBtn = b.id === 'nav-tab-admin' || b.dataset.tab === 'admin';
 
     if (isAdminBtn && !isAdmin) {
-      b.className = 'nav-tab hidden items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap';
+      b.className = 'nav-tab hidden items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap';
       return;
     }
 
     if (isAdminBtn) {
-      b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
+      b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
         isActive
           ? 'active bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/40 shadow-xs'
           : 'hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-500/20'
@@ -5079,7 +5095,7 @@ function switchTab(tabId) {
       return;
     }
 
-    b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition shrink-0 whitespace-nowrap ${
+    b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap ${
       isActive
         ? 'active bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
@@ -6087,7 +6103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const roleBadge = document.getElementById('profile-role-badge');
     if (roleBadge) {
-      const isAdmin = appState.profile.role === 'admin';
+      const isAdmin = isUserAdmin();
       roleBadge.textContent = isAdmin ? '👑 Quản Trị Viên (Admin)' : '👤 Hiệp Sĩ';
       roleBadge.className = isAdmin
         ? 'font-bold px-2 py-0.5 rounded text-[11px] bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30'

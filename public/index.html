@@ -142,46 +142,42 @@
           <img src="logo.svg" alt="LevelUp Logo" class="w-7 h-7 rounded-lg shadow-sm">
           <span class="font-rpg-title font-black text-sm tracking-wider bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent hidden xl:inline">LEVELUP</span>
         </div>
-        <button data-tab="quests" class="nav-tab active flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 whitespace-nowrap">
+        <button data-tab="quests" class="nav-tab active flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 whitespace-nowrap">
           <span>📜</span>
           <span>Nhiệm Vụ</span>
           <span id="badge-active-quests" class="text-[11px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">0</span>
         </button>
-        <button data-tab="shop" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
+        <button data-tab="shop" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>🎁</span>
           <span class="hidden lg:inline">Phần Thưởng</span>
           <span class="lg:hidden">Thưởng</span>
           <span id="badge-rewards-total" class="text-[11px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
         </button>
-        <button data-tab="leaderboard" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
+        <button data-tab="leaderboard" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>🏆</span>
           <span class="hidden lg:inline">Bảng Xếp Hạng</span>
           <span class="lg:hidden">Xếp Hạng</span>
         </button>
-        <button data-tab="ledger" class="nav-tab flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
+        <button data-tab="ledger" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
           <span>📖</span>
-          <span class="hidden lg:inline">Lịch Sử Vàng</span>
-          <span class="lg:hidden">Lịch Sử</span>
+          <span>Lịch Sử</span>
         </button>
-        <button id="nav-tab-admin" data-tab="admin" class="nav-tab hidden items-center gap-1 sm:gap-1.5 xl:gap-2 px-2 md:px-2.5 xl:px-4 py-1.5 xl:py-2 rounded-xl font-semibold text-xs xl:text-sm transition text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-500/20 shrink-0 whitespace-nowrap">
+        <button id="nav-tab-admin" data-tab="admin" class="nav-tab hidden items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-500/20 shrink-0 whitespace-nowrap">
           <span>👑</span>
-          <span class="hidden lg:inline">Quản Trị Viên</span>
-          <span class="lg:hidden">Quản Trị</span>
+          <span>Quản Trị</span>
         </button>
       </div>
 
       <!-- Desktop / Tablet Quick Action Buttons -->
       <div class="flex items-center gap-1 sm:gap-1.5 xl:gap-2 shrink-0">
-        <button id="btn-open-add-quest" class="btn-action-quest flex items-center gap-1 sm:gap-1.5 px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo việc mới (Phím tắt: Q)">
+        <button id="btn-open-add-quest" class="btn-action-quest flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo việc mới (Phím tắt: Q)">
           <span class="text-sm">⚔️</span>
-          <span class="hidden xl:inline">Thêm Việc Mới</span>
-          <span class="hidden lg:inline xl:hidden">Việc Mới</span>
+          <span class="hidden lg:inline">Việc Mới</span>
           <kbd class="hidden xl:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
         </button>
-        <button id="btn-open-add-reward-nav" class="btn-action-reward flex items-center gap-1 sm:gap-1.5 px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo phần thưởng mới (Phím tắt: R)">
+        <button id="btn-open-add-reward-nav" class="btn-action-reward flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 whitespace-nowrap" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="text-sm">🎁</span>
-          <span class="hidden xl:inline">Thêm Phần Thưởng</span>
-          <span class="hidden lg:inline xl:hidden">Phần Thưởng</span>
+          <span class="hidden lg:inline">Thêm Quà</span>
           <kbd class="hidden xl:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
         </button>
       </div>
