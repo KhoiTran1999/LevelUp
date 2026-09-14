@@ -258,7 +258,145 @@
 
       <!-- Quests Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) -->
       <div id="quests-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
-        <!-- Quests will be rendered dynamically -->
+        <!-- Initial Skeleton Cards (Instant render while fetching state) -->
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-4/5 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-2/3 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-3/4 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-1/2 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-4/5 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-3/4 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-3/4 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-2/3 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-4/5 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-3/5 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+              <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+            </div>
+            <div class="space-y-2 my-2">
+              <div class="h-5 w-3/4 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+              <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+              <div class="h-3.5 w-1/2 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+            </div>
+          </div>
+          <div>
+            <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+              <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+              <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->

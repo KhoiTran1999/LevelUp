@@ -5697,35 +5697,78 @@ function renderSkeletons() {
   if (heroExp) heroExp.innerHTML = '<span class="inline-block w-10 h-2.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
   if (heroCoins) heroCoins.innerHTML = '<span class="inline-block w-8 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></span>';
 
-  const questList = document.getElementById('quest-list');
-  if (questList) {
-    questList.innerHTML = Array(4).fill(0).map(() => `
-      <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-pulse space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded"></div>
-          <div class="h-5 w-12 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+  // ponytail: Khởi tạo skeleton cards chuẩn cấu trúc RPG Card để chống chớp nháy và lệch layout (Anti-FOUC)
+  const questSkeletonCard = `
+    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+          <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
         </div>
-        <div class="h-3 w-3/4 bg-slate-200 dark:bg-slate-800 rounded"></div>
-        <div class="flex items-center justify-between pt-2">
-          <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
-          <div class="h-8 w-20 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+        <div class="space-y-2 my-2">
+          <div class="h-5 w-4/5 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+          <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+          <div class="h-3.5 w-2/3 bg-slate-100 dark:bg-slate-800/50 rounded"></div>
         </div>
       </div>
-    `).join('');
+      <div>
+        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+          <div class="h-4 w-24 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+          <div class="h-4 w-12 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+        </div>
+        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
+          <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+          <div class="h-9 flex-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const questsGrid = document.getElementById('quests-grid') || document.getElementById('quest-list');
+  const questsEmpty = document.getElementById('quests-empty');
+  if (questsEmpty) questsEmpty.classList.add('hidden');
+  if (questsGrid) {
+    questsGrid.innerHTML = Array(6).fill(questSkeletonCard).join('');
   }
 
-  const shopList = document.getElementById('shop-list');
-  if (shopList) {
-    shopList.innerHTML = Array(2).fill(0).map(() => `
-      <div class="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-pulse space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded"></div>
-          <div class="h-5 w-14 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+  const shopSkeletonCard = `
+    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between animate-pulse min-h-[220px]">
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="h-6 w-16 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
+          <div class="h-6 w-20 bg-slate-200 dark:bg-slate-800/80 rounded-lg"></div>
         </div>
-        <div class="h-3 w-2/3 bg-slate-200 dark:bg-slate-800 rounded"></div>
-        <div class="h-8 w-full bg-slate-200 dark:bg-slate-800 rounded-xl mt-2"></div>
+        <div class="flex items-start gap-3 my-2">
+          <div class="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-800/80 shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-5 w-4/5 bg-slate-200 dark:bg-slate-800/80 rounded-md"></div>
+            <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800/50 rounded"></div>
+          </div>
+        </div>
       </div>
-    `).join('');
+      <div>
+        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+          <div class="h-4 w-28 bg-slate-200 dark:bg-slate-800/60 rounded"></div>
+        </div>
+        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
+          <div class="h-9 w-full bg-slate-200 dark:bg-slate-800/80 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const shopGrid = document.getElementById('shop-grid') || document.getElementById('shop-list');
+  const shopEmpty = document.getElementById('shop-empty');
+  if (shopEmpty) shopEmpty.classList.add('hidden');
+  if (shopGrid) {
+    shopGrid.innerHTML = Array(6).fill(shopSkeletonCard).join('');
+  }
+
+  const inventoryGrid = document.getElementById('inventory-grid');
+  const inventoryEmpty = document.getElementById('inventory-empty');
+  if (inventoryEmpty) inventoryEmpty.classList.add('hidden');
+  if (inventoryGrid) {
+    inventoryGrid.innerHTML = Array(3).fill(shopSkeletonCard).join('');
   }
 
   const ledgerList = document.getElementById('ledger-list');

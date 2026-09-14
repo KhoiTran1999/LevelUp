@@ -140,6 +140,15 @@ async function testZeroLocalStorageAndSkeleton() {
   assert.ok(appJs.includes('function renderSkeletons()'), 'Phải có hàm renderSkeletons');
   assert.ok(appJs.includes('renderSkeletons();'), 'Startup flow phải kích hoạt renderSkeletons trước khi fetch sync');
 
+  // Đảm bảo renderSkeletons bao gồm skeleton cho các thẻ (quests-grid & shop-grid)
+  assert.ok(appJs.includes("document.getElementById('quests-grid')"), 'renderSkeletons phải cập nhật quests-grid');
+  assert.ok(appJs.includes("document.getElementById('shop-grid')"), 'renderSkeletons phải cập nhật shop-grid');
+
+  // Đảm bảo index.html chứa sẵn skeleton cards để chống chớp nháy ngay từ khi parse HTML
+  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.ok(indexHtml.includes('id="quests-grid"'), 'index.html phải có quests-grid');
+  assert.ok(indexHtml.includes('Initial Skeleton Cards'), 'index.html phải chứa sẵn skeleton cards ban đầu');
+
   console.log('✓ Test 6: Đã loại bỏ hoàn toàn LocalStorage, dữ liệu 100% trên Redis và kích hoạt Skeleton loading chống chớp nháy.');
 }
 
