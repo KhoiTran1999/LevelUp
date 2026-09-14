@@ -8047,7 +8047,9 @@ async function executeBankBorrow() {
           autoDeductPercent: autoDeduct,
           loanSignature: bankNegotiatedTerms?.signature,
           borrowRate: bankNegotiatedTerms?.borrowRate,
-          creditLimit: bankNegotiatedTerms?.creditLimit
+          negotiatedRate: bankNegotiatedTerms?.borrowRate,
+          creditLimit: bankNegotiatedTerms?.creditLimit,
+          negotiatedLimit: bankNegotiatedTerms?.creditLimit
         })
       });
       if (res.ok) {

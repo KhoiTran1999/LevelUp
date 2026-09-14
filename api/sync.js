@@ -1803,8 +1803,8 @@ export default async function handler(req, res) {
 
           // Check if user has a verified AI-negotiated loan offer
           const loanSig = typeof req.body?.loanSignature === 'string' ? req.body.loanSignature.trim() : '';
-          const negotiatedRate = Number(req.body?.negotiatedRate);
-          const negotiatedLimit = parseInt(req.body?.negotiatedLimit, 10);
+          const negotiatedRate = Number(req.body?.negotiatedRate ?? req.body?.borrowRate);
+          const negotiatedLimit = parseInt(req.body?.negotiatedLimit ?? req.body?.creditLimit, 10);
           let isNegotiatedLoan = false;
 
           if (loanSig && !isNaN(negotiatedRate) && !isNaN(negotiatedLimit)) {

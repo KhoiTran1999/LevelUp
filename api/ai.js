@@ -171,8 +171,8 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     verdict = 'Thói quen sinh hoạt cơ bản hàng ngày, áp dụng mức thưởng tượng trưng 1-2 Vàng.';
   }
 
-  // 2. Quick household chores: capped at 5 coins, 0 minutes
-  if (isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
+  // 2. Quick household chores: capped at 5 coins, 0 minutes (unless negotiated)
+  if (!result.isNegotiated && isQuickChore && (targetMinutes > 15 || rewardCoins > 5 || type === 'focus')) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 5);
     type = 'bounty';
@@ -352,6 +352,11 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
       mins = extractDurationFromText(opt.text);
     }
 
+    const isBounty = /(?:không\s*(?:cần\s*)?bấm\s*giờ|khong\s*(?:can\s*)?bam\s*gio|hoàn\s*thành\s*ngay|hoan\s*thanh\s*ngay|\bbounty\b)/i.test(opt.text);
+    const mentionsProofReq = /(?:cần|yêu\s*cầu|bắt\s*buộc)\s*(?:chụp\s*)?ảnh/i.test(opt.text);
+    const mentionsProofWaive = /(?:miễn|không\s*cần|bỏ\s*(?:yêu\s*cầu)?)\s*(?:chụp\s*)?ảnh/i.test(opt.text);
+    if (isBounty) mins = 0;
+
     let gold = undefined;
     let rate = undefined;
     let deduct = undefined;
@@ -399,8 +404,16 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
       if (deduct !== undefined) details.push(`Trích ${Math.round(deduct * 100)}%`);
       if (limit !== undefined) details.push(`Hạn mức ${limit} Vàng`);
     } else {
-      if (mins > 0) details.push(`${mins} phút`);
+      if (mins > 0) {
+        details.push(`${mins} phút`);
+      } else if (isBounty) {
+        details.push('Không cần bấm giờ');
+      }
       if (gold !== undefined) details.push(`${gold} Vàng`);
+      if (type === 'quest') {
+        if (mentionsProofReq) details.push('Cần ảnh');
+        else if (mentionsProofWaive) details.push('Miễn ảnh');
+      }
     }
     if (details.length > 0) {
       label += ` (${details.join(' • ')})`;
@@ -417,6 +430,7 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
     if (type === 'reward') {
       if (gold !== undefined) payload.newPrice = gold;
       if (mins > 0) payload.newTargetMinutes = mins;
+      else if (isBounty) payload.newTargetMinutes = 0;
       if (gold !== undefined && gold < 30) payload.newTier = 'common';
       if (newName) payload.newName = newName;
     } else if (type === 'loan') {
@@ -426,7 +440,15 @@ export function parseDebateOptionsFromText(text, type = 'reward') {
       if (limit !== undefined) payload.newCreditLimit = limit;
     } else {
       if (gold !== undefined) payload.newRewardCoins = gold;
-      if (mins > 0) payload.newTargetMinutes = mins;
+      if (mins > 0) {
+        payload.newTargetMinutes = mins;
+        payload.newType = 'focus';
+      } else if (isBounty) {
+        payload.newTargetMinutes = 0;
+        payload.newType = 'bounty';
+      }
+      if (mentionsProofReq) payload.newRequiresProof = true;
+      else if (mentionsProofWaive) payload.newRequiresProof = false;
       if (newName) payload.newTitle = newName;
     }
 
@@ -838,43 +860,131 @@ Trả về ĐÚNG định dạng JSON:
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
-        const result = await callAI(systemPrompt, userPrompt, 0.4);
-        if (result.accepted) {
-          const selectedOpt = payload?.selectedOption;
+        let result = null;
+        if (API_KEY) {
+          try {
+            result = await callAI(systemPrompt, userPrompt, 0.4);
+          } catch (_) {}
+        }
+
+        const selectedOpt = payload?.selectedOption;
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
+
+        // Deterministic fallback for quest debate if AI is offline
+        if (!result) {
+          const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau|nấu)/i.test(quest.title + ' ' + argument);
+          const isBountyReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay|bounty)/i.test(argument);
+          const wantsMoreCoins = /(?:tăng|thêm|nâng).*(?:thưởng|vàng)|xin.*(?:thưởng|vàng)|\d+\s*vàng/i.test(argument);
+          const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)|\d+\s*phút/i.test(argument);
+
+          if (selectedOpt) {
+            result = {
+              accepted: true,
+              reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`,
+              newRewardCoins: selectedOpt.newRewardCoins,
+              newTargetMinutes: selectedOpt.newTargetMinutes,
+              newType: selectedOpt.newType,
+              newRequiresProof: selectedOpt.newRequiresProof
+            };
+          } else if (isBountyReq || (isChore && wantsMoreCoins)) {
+            const coins = Math.min(5, Math.max(quest.rewardCoins || 3, 5));
+            result = {
+              accepted: true,
+              reply: `Việc này là việc nhanh gọn, mình đồng ý để bạn hoàn thành ngay không cần bấm giờ với mức thưởng ${coins} Vàng nhé! ✨`,
+              newType: 'bounty',
+              newTargetMinutes: 0,
+              newRewardCoins: coins
+            };
+          } else if (wantsLessTime) {
+            const newMins = Math.max(15, Math.floor((quest.targetMinutes || 25) * 0.7));
+            const newCoins = Math.max(5, Math.floor((quest.rewardCoins || 10) * 0.8));
+            result = {
+              accepted: true,
+              reply: `Mình đồng ý điều chỉnh thời gian tập trung xuống ${newMins} phút và mức thưởng ${newCoins} Vàng để bạn bắt đầu dễ dàng hơn nhé! ✨`,
+              newTargetMinutes: newMins,
+              newRewardCoins: newCoins,
+              newType: 'focus'
+            };
+          } else if (wantsMoreCoins) {
+            const newCoins = Math.min(25, (quest.rewardCoins || 10) + 3);
+            result = {
+              accepted: true,
+              reply: `Lý do của bạn rất xác đáng! Mình đồng ý nâng mức thưởng lên ${newCoins} Vàng nhé. Cố gắng hoàn thành thật tốt nha! ✨`,
+              newRewardCoins: newCoins,
+              newTargetMinutes: quest.targetMinutes || 25,
+              newType: quest.type || 'focus'
+            };
+          } else if (userAgreed) {
+            result = {
+              accepted: true,
+              reply: `Tuyệt vời, tụi mình đã thống nhất thông số nhiệm vụ này nhé! Bạn có thể nhận việc và bắt đầu ngay. ✨`,
+              newRewardCoins: quest.rewardCoins,
+              newTargetMinutes: quest.targetMinutes,
+              newType: quest.type
+            };
+          } else {
+            result = {
+              accepted: false,
+              reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để cân bằng nỗ lực, tụi mình giữ mức này nhé. Dưới đây là các phương án khả thi hơn nè:\n- Phương án 1: Giữ nguyên mức thưởng ${quest.rewardCoins} Vàng và rút ngắn còn 20 phút.\n- Phương án 2: Hoàn thành ngay không cần bấm giờ với mức thưởng 5 Vàng.`,
+              options: [
+                { id: 1, label: `Phương án 1 (20 phút • ${quest.rewardCoins} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${quest.rewardCoins} Vàng`, newTargetMinutes: 20, newRewardCoins: quest.rewardCoins, newType: 'focus' },
+                { id: 2, label: `Phương án 2 (Không cần bấm giờ • 5 Vàng)`, argument: `Chốt phương án 2: Không cần bấm giờ, 5 Vàng`, newTargetMinutes: 0, newRewardCoins: 5, newType: 'bounty' }
+              ]
+            };
+          }
+        }
+
+        const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
+        if (isAccepted) {
+          result.accepted = true;
           let extractedCoins = undefined;
           let extractedMins = undefined;
 
-          if (result.newRewardCoins !== undefined) extractedCoins = parseInt(result.newRewardCoins, 10);
-          else if (result.rewardCoins !== undefined) extractedCoins = parseInt(result.rewardCoins, 10);
-
-          if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
-          else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
-
-          if (extractedCoins === undefined && selectedOpt?.newRewardCoins !== undefined) {
-            extractedCoins = parseInt(selectedOpt.newRewardCoins, 10);
+          // Selected option parameters take priority over echoed LLM values
+          if (selectedOpt) {
+            if (selectedOpt.newRewardCoins !== undefined) extractedCoins = parseInt(selectedOpt.newRewardCoins, 10);
+            if (selectedOpt.newTargetMinutes !== undefined) extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+            if (selectedOpt.newType !== undefined) result.newType = selectedOpt.newType;
+            if (selectedOpt.newRequiresProof !== undefined) result.newRequiresProof = selectedOpt.newRequiresProof;
+            if (selectedOpt.newTitle) result.newTitle = selectedOpt.newTitle;
           }
-          if (extractedMins === undefined && selectedOpt?.newTargetMinutes !== undefined) {
-            extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+
+          if (extractedCoins === undefined) {
+            if (result.newRewardCoins !== undefined) extractedCoins = parseInt(result.newRewardCoins, 10);
+            else if (result.rewardCoins !== undefined) extractedCoins = parseInt(result.rewardCoins, 10);
+          }
+
+          if (extractedMins === undefined) {
+            if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
+            else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
           }
 
           if (extractedCoins === undefined && result.reply) {
             const coinMatch = result.reply.match(/(?:mức\s*thưởng|thưởng|nâng\s*lên|tăng\s*lên|giảm\s*xuống|còn)[:\s]*(\d+)\s*vàng/i) || result.reply.match(/(\d+)\s*vàng/i);
             if (coinMatch) extractedCoins = parseInt(coinMatch[1], 10);
           }
-          const durationFromQuestName = extractDurationFromText(result.newTitle || selectedOpt?.newTitle || quest.title);
-          if (extractedMins === undefined && durationFromQuestName > 0) {
-            extractedMins = durationFromQuestName;
-          } else if (extractedMins === undefined && result.reply) {
-            const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|tập\s*trung\s*(?:lên|xuống|khoảng)?|tăng\s*(?:thời\s*gian\s*)?(?:lên|xuống))[:\s]*(\d+)\s*phút/i);
-            if (timeMatch) extractedMins = parseInt(timeMatch[1], 10);
+
+          if (extractedMins === undefined) {
+            const durationFromQuestName = extractDurationFromText(result.newTitle || selectedOpt?.newTitle || quest.title);
+            if (durationFromQuestName > 0) {
+              extractedMins = durationFromQuestName;
+            } else if (result.reply) {
+              const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|tập\s*trung\s*(?:lên|xuống|khoảng)?|tăng\s*(?:thời\s*gian\s*)?(?:lên|xuống)|xuống|còn)[:\s]*(\d+)\s*phút/i);
+              if (timeMatch) extractedMins = parseInt(timeMatch[1], 10);
+            }
+          }
+
+          if (extractedMins === undefined && (result.newType === 'bounty' || selectedOpt?.newType === 'bounty' || /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay)/i.test(result.reply || ''))) {
+            extractedMins = 0;
           }
 
           const rawCoins = (extractedCoins !== undefined && !isNaN(extractedCoins)) ? extractedCoins : quest.rewardCoins;
           const rawMins = (extractedMins !== undefined && !isNaN(extractedMins)) ? extractedMins : (quest.targetMinutes !== undefined ? quest.targetMinutes : 25);
 
-          const hasExplicitProofDecision = result.newRequiresProof !== undefined;
+          const hasExplicitProofDecision = result.newRequiresProof !== undefined || selectedOpt?.newRequiresProof !== undefined;
           const negotiatedProof = hasExplicitProofDecision
-            ? parseBool(result.newRequiresProof, quest.requiresProof)
+            ? parseBool(result.newRequiresProof ?? selectedOpt?.newRequiresProof, quest.requiresProof)
             : parseBool(quest.requiresProof, false);
 
           const rawDebate = {
@@ -886,7 +996,8 @@ Trả về ĐÚNG định dạng JSON:
             rewardCoins: rawCoins,
             rank: result.newRank,
             requiresProof: negotiatedProof,
-            proofGuidance: result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || '')
+            proofGuidance: result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || ''),
+            isNegotiated: true
           };
           const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
           result.newTitle = clean.title;
@@ -1101,27 +1212,100 @@ Trả về ĐÚNG định dạng JSON:
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
-        const result = await callAI(systemPrompt, userPrompt, 0.4);
-        if (result.accepted) {
-          const selectedOpt = payload?.selectedOption;
+        let result = null;
+        if (API_KEY) {
+          try {
+            result = await callAI(systemPrompt, userPrompt, 0.4);
+          } catch (_) {}
+        }
+
+        const selectedOpt = payload?.selectedOption;
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
+
+        // Deterministic fallback for reward debate if AI is offline
+        if (!result) {
+          const isLowerPriceReq = /(?:giảm|hạ|bớt|rẻ).*(?:giá|vàng)|\d+\s*vàng/i.test(argument);
+          const isLowerTimeReq = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)|\d+\s*phút/i.test(argument);
+          const isNoTimerReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ)/i.test(argument);
+
+          if (selectedOpt) {
+            result = {
+              accepted: true,
+              reply: `Mình rất vui được chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Phần thưởng đã được cập nhật giá và thời lượng mới. ✨`,
+              newPrice: selectedOpt.newPrice,
+              newTargetMinutes: selectedOpt.newTargetMinutes,
+              newTier: selectedOpt.newTier,
+              newName: selectedOpt.newName
+            };
+          } else if (isNoTimerReq) {
+            result = {
+              accepted: true,
+              reply: `Được chứ! Mình chuyển phần thưởng này sang dạng đổi quà nhận ngay không cần bấm giờ nhé. ✨`,
+              newPrice: reward.price,
+              newTargetMinutes: 0,
+              newTier: reward.tier
+            };
+          } else if (isLowerPriceReq && isLowerTimeReq) {
+            const newPrice = Math.max(10, Math.floor(reward.price * 0.7));
+            const newMins = Math.max(10, Math.floor((reward.targetMinutes || 30) * 0.7));
+            result = {
+              accepted: true,
+              reply: `Phương án này rất hợp lý! Mình đồng ý giảm giá xuống ${newPrice} Vàng tương ứng với ${newMins} phút tận hưởng nhé! ✨`,
+              newPrice,
+              newTargetMinutes: newMins,
+              newTier: newPrice < 30 ? 'common' : reward.tier
+            };
+          } else if (isLowerPriceReq) {
+            result = {
+              accepted: false,
+              reply: `Món quà này rất giá trị nên mình giữ mức giá ${reward.price} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${Math.floor(reward.price * 0.6)} Vàng nhưng rút ngắn thời lượng còn 20 phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
+              options: [
+                { id: 1, label: `Phương án 1 (20 phút • ${Math.floor(reward.price * 0.6)} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${Math.floor(reward.price * 0.6)} Vàng`, newTargetMinutes: 20, newPrice: Math.floor(reward.price * 0.6), newTier: 'common' }
+              ]
+            };
+          } else if (userAgreed) {
+            result = {
+              accepted: true,
+              reply: `Tuyệt vời, tụi mình đã chốt xong phần thưởng này nhé! ✨`,
+              newPrice: reward.price,
+              newTargetMinutes: reward.targetMinutes,
+              newTier: reward.tier
+            };
+          } else {
+            result = {
+              accepted: false,
+              reply: `Mình rất hiểu mong muốn của bạn, nhưng tụi mình tạm giữ thông số này để bạn có thêm động lực hoàn thành nhiệm vụ nhé! ✨`
+            };
+          }
+        }
+
+        const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
+        if (isAccepted) {
+          result.accepted = true;
           let extractedPrice = undefined;
           let extractedMins = undefined;
 
-          if (result.newPrice !== undefined) extractedPrice = parseInt(result.newPrice, 10);
-          else if (result.price !== undefined) extractedPrice = parseInt(result.price, 10);
-
-          if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
-          else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
-
-          if (extractedPrice === undefined && selectedOpt?.newPrice !== undefined) {
-            extractedPrice = parseInt(selectedOpt.newPrice, 10);
+          // Selected option parameters take priority over echoed LLM values
+          if (selectedOpt) {
+            if (selectedOpt.newPrice !== undefined) extractedPrice = parseInt(selectedOpt.newPrice, 10);
+            if (selectedOpt.newTargetMinutes !== undefined) extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+            if (selectedOpt.newTier) result.newTier = selectedOpt.newTier;
+            if (selectedOpt.newName) result.newName = selectedOpt.newName;
           }
-          if (extractedMins === undefined && selectedOpt?.newTargetMinutes !== undefined) {
-            extractedMins = parseInt(selectedOpt.newTargetMinutes, 10);
+
+          if (extractedPrice === undefined) {
+            if (result.newPrice !== undefined) extractedPrice = parseInt(result.newPrice, 10);
+            else if (result.price !== undefined) extractedPrice = parseInt(result.price, 10);
+          }
+
+          if (extractedMins === undefined) {
+            if (result.newTargetMinutes !== undefined) extractedMins = parseInt(result.newTargetMinutes, 10);
+            else if (result.targetMinutes !== undefined) extractedMins = parseInt(result.targetMinutes, 10);
           }
 
           if (extractedPrice === undefined && result.reply) {
-            const priceMatch = result.reply.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống))[:\s]*(\d+)\s*vàng/i) || result.reply.match(/(\d+)\s*vàng/i);
+            const priceMatch = result.reply.match(/(?:mức\s*giá|giá(?:\s*vàng)?|giảm\s*(?:còn|xuống)|còn)[:\s]*(\d+)\s*vàng/i) || result.reply.match(/(\d+)\s*vàng/i);
             if (priceMatch) extractedPrice = parseInt(priceMatch[1], 10);
           }
 
@@ -1129,7 +1313,7 @@ Trả về ĐÚNG định dạng JSON:
           if (extractedMins === undefined && durationFromName > 0) {
             extractedMins = durationFromName;
           } else if (extractedMins === undefined && result.reply) {
-            const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|rút\s*ngắn\s*(?:thời\s*gian\s*)?(?:xuống|còn))[:\s]*(\d+)\s*phút/i);
+            const timeMatch = result.reply.match(/(?:thời\s*(?:gian|lượng)|rút\s*ngắn\s*(?:thời\s*gian\s*)?(?:xuống|còn)|xuống|còn)[:\s]*(\d+)\s*phút/i);
             if (timeMatch) extractedMins = parseInt(timeMatch[1], 10);
           }
 
@@ -1546,6 +1730,13 @@ ${questSummary}
         }
 
         // Option extraction & sync
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|sẵn sàng|mình duyệt|mình chấp thuận)\b/i.test(result.reply);
+
+        if (selectedOption || (userAgreed && aiAgreed)) {
+          result.accepted = true;
+        }
+
         if (selectedOption) {
           if (selectedOption.newAmount !== undefined) result.newAmount = parseInt(selectedOption.newAmount, 10);
           if (selectedOption.newBorrowRate !== undefined) {
