@@ -5767,22 +5767,18 @@ function switchRewardSubtab(subtab) {
   const paneShop = document.getElementById('subtab-pane-shop');
   const paneInv = document.getElementById('subtab-pane-inventory');
 
+  const baseClass = 'reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs transition';
+  const activeClass = `${baseClass} active font-bold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm`;
+  const inactiveClass = `${baseClass} font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200`;
+
   if (subtab === 'inventory') {
-    if (btnShop) {
-      btnShop.className = 'reward-subtab flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
-    }
-    if (btnInv) {
-      btnInv.className = 'reward-subtab active flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm';
-    }
+    if (btnShop) btnShop.className = inactiveClass;
+    if (btnInv) btnInv.className = activeClass;
     if (paneShop) paneShop.classList.add('hidden');
     if (paneInv) paneInv.classList.remove('hidden');
   } else {
-    if (btnShop) {
-      btnShop.className = 'reward-subtab active flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm';
-    }
-    if (btnInv) {
-      btnInv.className = 'reward-subtab flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
-    }
+    if (btnShop) btnShop.className = activeClass;
+    if (btnInv) btnInv.className = inactiveClass;
     if (paneShop) paneShop.classList.remove('hidden');
     if (paneInv) paneInv.classList.add('hidden');
   }
@@ -5836,7 +5832,7 @@ function switchTab(tabId) {
     if (isAdminBtn) {
       b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
         isActive
-          ? 'active bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/40 shadow-xs'
+          ? 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border-purple-500/50 shadow-xs font-bold'
           : 'hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-500/20'
       }`;
       return;
@@ -5844,7 +5840,7 @@ function switchTab(tabId) {
 
     b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap ${
       isActive
-        ? 'active bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+        ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs font-bold'
         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
     }`;
   });
@@ -5862,16 +5858,16 @@ function switchTab(tabId) {
     if (isAdminBtn) {
       b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
         isActive
-          ? 'active text-purple-600 dark:text-purple-400 font-bold'
-          : 'text-purple-500/70 dark:text-purple-400/70 font-medium'
+          ? 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+          : 'text-purple-500/70 dark:text-purple-400/70 hover:bg-purple-500/5 font-medium'
       }`;
       return;
     }
 
     b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
       isActive
-        ? 'active text-amber-600 dark:text-amber-400 font-bold'
-        : 'text-slate-500 dark:text-slate-400 font-medium'
+        ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs'
+        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
     }`;
   });
 

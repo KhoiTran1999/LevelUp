@@ -27,18 +27,25 @@ function testDesktopNavBar() {
   assert.ok(navSlice.includes('<span>Quản Trị</span>'), 'Tab Quản Trị phải súc tích để không bị tràn màn hình');
   assert.ok(!navSlice.includes('Lịch Sử Vàng'), 'Không dùng cụm từ dài "Lịch Sử Vàng" gây tràn layout');
 
-  // Kiểm tra các nút hành động nhanh
-  assert.ok(navSlice.includes('id="btn-open-add-quest"'), 'Phải có nút Thêm Việc Mới');
-  assert.ok(navSlice.includes('id="btn-open-add-reward-nav"'), 'Phải có nút Thêm Quà');
+  // Kiểm tra tách bạch nút hành động theo đúng từng tab chuyên biệt (không gộp chung vào navbar)
+  assert.ok(!navSlice.includes('id="btn-open-add-quest"'), 'Navbar không còn gộp nút Thêm Việc Mới');
+  assert.ok(!navSlice.includes('id="btn-open-add-reward-nav"'), 'Navbar không còn gộp nút Thêm Quà');
+
+  // Đảm bảo các nút hành động nằm ở đúng tab tương ứng
+  const tabQuestsSlice = html.substring(html.indexOf('id="tab-quests"'), html.indexOf('id="tab-shop"'));
+  assert.ok(tabQuestsSlice.includes('id="btn-open-add-quest"'), 'Nút Thêm Việc Mới phải nằm ở đúng Tab Nhiệm Vụ');
+
+  const tabShopSlice = html.substring(html.indexOf('id="tab-shop"'), html.indexOf('id="tab-leaderboard"'));
+  assert.ok(tabShopSlice.includes('id="btn-open-add-reward-nav"'), 'Nút Thêm Phần Thưởng phải nằm ở đúng Tab Phần Thưởng');
 
   // Ước tính kích thước đồ họa (bounding width check) trên container max-w-6xl (1120px khả dụng)
-  // Logo: ~105px, 5 tabs: ~515px, 2 action buttons: ~235px => Total ~855px
-  // 855px < 1120px => Dư tới hơn 260px khoảng thở, tuyệt đối không bị overflow ẩn tab
-  const totalEstimatedWidth = 105 + 515 + 235;
+  // Logo: ~105px, 5 tabs: ~515px => Total ~620px
+  // 620px < 1120px => Dư tới 500px khoảng thở, tuyệt đối không bị overflow ẩn tab
+  const totalEstimatedWidth = 105 + 515;
   const availableDesktopWidth = 1152 - 32; // max-w-6xl trừ padding 16px mỗi bên
   assert.ok(totalEstimatedWidth < availableDesktopWidth, `Tổng chiều rộng các phần tử (${totalEstimatedWidth}px) phải nhỏ hơn không gian khả dụng (${availableDesktopWidth}px)`);
 
-  console.log('✓ Test 1: Desktop Navigation Bar hiển thị đầy đủ 5 tab và 2 nút tác vụ mà không bị tràn (dư 265px khoảng thở).\n');
+  console.log('✓ Test 1: Desktop Navigation Bar hiển thị đầy đủ 5 tab tinh gọn, tách nút chức năng về đúng từng tab (dư 500px khoảng thở).\n');
 }
 
 // =============================================================================
@@ -53,20 +60,16 @@ function testTabletNavBar() {
   // Logo ẩn trên màn hình nhỏ hơn lg (hidden lg:flex)
   assert.ok(navSlice.includes('hidden lg:flex items-center'), 'Logo phải ẩn trên tablet < lg để nhường chỗ cho các tab');
 
-  // Các nút tác vụ thu gọn icon trên tablet (< lg)
-  assert.ok(navSlice.includes('<span class="hidden lg:inline">Việc Mới</span>'), 'Nút Thêm việc mới phải thu gọn thành icon trên tablet');
-  assert.ok(navSlice.includes('<span class="hidden lg:inline">Thêm Quà</span>'), 'Nút Thêm quà phải thu gọn thành icon trên tablet');
-
   // Kiểm tra tab Phần thưởng có fallback nhãn ngắn "Thưởng" trên tablet
   assert.ok(navSlice.includes('<span class="lg:hidden">Thưởng</span>'), 'Tab Phần thưởng phải có nhãn rút gọn "Thưởng" trên tablet');
 
   // Ước tính kích thước trên tablet 768px (736px khả dụng):
-  // Tabs: ~420px, Actions: ~70px => Total: 490px < 736px (dư 246px)
-  const tabletEstimatedWidth = 420 + 70;
+  // Tabs: ~420px => Total: 420px < 736px (dư 316px)
+  const tabletEstimatedWidth = 420;
   const availableTabletWidth = 768 - 32;
   assert.ok(tabletEstimatedWidth < availableTabletWidth, `Trên tablet 768px, tổng chiều rộng (${tabletEstimatedWidth}px) phải nhỏ hơn ${availableTabletWidth}px`);
 
-  console.log('✓ Test 2: Tablet / iPad Mini thanh điều hướng tinh gọn, hiển thị đầy đủ 5 tab không tràn (dư 246px).\n');
+  console.log('✓ Test 2: Tablet / iPad Mini thanh điều hướng tinh gọn, hiển thị đầy đủ 5 tab không tràn (dư 316px).\n');
 }
 
 // =============================================================================
@@ -75,11 +78,12 @@ function testTabletNavBar() {
 function testMobileNavigation() {
   console.log('Kiểm thử 3: Giao diện Di động (Mobile Phone < 768px)...');
 
-  // Thanh tác vụ nhanh trên đỉnh màn hình mobile
-  const mobileActionSlice = html.substring(html.indexOf('<!-- MOBILE ACTION STRIP'), html.indexOf('<!-- MAIN CONTENT'));
-  assert.ok(mobileActionSlice.includes('id="btn-open-add-quest-mobile"'), 'Phải có nút thêm việc mobile');
-  assert.ok(mobileActionSlice.includes('id="btn-open-add-reward-mobile"'), 'Phải có nút thêm quà mobile');
-  assert.ok(mobileActionSlice.includes('grid-cols-2'), 'Thanh tác vụ mobile phải chia 2 cột cân xứng');
+  // Các nút hành động hiển thị ở đầu mỗi tab trên cả mobile và desktop
+  const tabQuestsSlice = html.substring(html.indexOf('id="tab-quests"'), html.indexOf('id="tab-shop"'));
+  assert.ok(tabQuestsSlice.includes('id="btn-open-add-quest"'), 'Phải có nút thêm việc trong tab nhiệm vụ');
+
+  const tabShopSlice = html.substring(html.indexOf('id="tab-shop"'), html.indexOf('id="tab-leaderboard"'));
+  assert.ok(tabShopSlice.includes('id="btn-open-add-reward-nav"'), 'Phải có nút thêm quà trong tab phần thưởng');
 
   // Thanh điều hướng dưới đáy (Bottom Navigation Bar)
   const mobileNavSlice = html.substring(html.indexOf('<!-- MOBILE BOTTOM NAVIGATION'), html.indexOf('<!-- MODALS'));
@@ -87,7 +91,7 @@ function testMobileNavigation() {
   assert.ok(mobileNavSlice.includes('flex-1 min-w-0'), 'Các nút đáy mobile phải có flex-1 min-w-0 để chia đều 5 cột');
   assert.ok(mobileNavSlice.includes('whitespace-nowrap'), 'Chữ trên thanh đáy phải có whitespace-nowrap chống gãy dòng');
 
-  console.log('✓ Test 3: Giao diện Mobile tối ưu 1-chạm với thanh tác vụ trên và bottom bar 5 cột cân xứng.\n');
+  console.log('✓ Test 3: Giao diện Mobile tối ưu với nút bấm tại từng tab và bottom bar 5 cột cân xứng.\n');
 }
 
 // =============================================================================
