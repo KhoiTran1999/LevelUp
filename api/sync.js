@@ -56,28 +56,35 @@ export function signQuestLegacy(title, type, targetMinutes, rewardCoins) {
 
 export function verifyQuestSignature(q) {
   if (!q || typeof q !== 'object') return false;
-  if (q.id === 'q_seed_1') {
-    return (parseInt(q.rewardCoins, 10) || 0) === 12 && (parseInt(q.targetMinutes, 10) || 0) === 25 && q.type === 'focus';
-  }
-  if (q.id === 'q_seed_2') {
-    return (parseInt(q.rewardCoins, 10) || 0) === 5 && (parseInt(q.targetMinutes, 10) || 0) === 0 && q.type === 'bounty';
-  }
-  if (!q.signature) return false;
-  const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof));
-  if (q.signature === expected) return true;
-  const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
-  if (q.signature === legacyExpected) return true;
+  const canonicalId = q.questId || q.id;
 
-  // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
-  // verify against targetMinutes = 0 and auto-repair
-  if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
-    const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof));
-    if (q.signature === healingExpected || q.signature === signQuestLegacy(q.title, 'bounty', 0, q.rewardCoins)) {
-      q.targetMinutes = 0;
-      q._healed = true;
-      return true;
+  // 1. Kiểm tra chữ ký HMAC trước (ưu tiên chữ ký AI khi đã thẩm định hoặc thương lượng)
+  if (q.signature) {
+    const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof));
+    if (q.signature === expected) return true;
+    const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
+    if (q.signature === legacyExpected) return true;
+
+    // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
+    // verify against targetMinutes = 0 and auto-repair
+    if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
+      const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof));
+      if (q.signature === healingExpected || q.signature === signQuestLegacy(q.title, 'bounty', 0, q.rewardCoins)) {
+        q.targetMinutes = 0;
+        q._healed = true;
+        return true;
+      }
     }
   }
+
+  // 2. Kiểm tra nhiệm vụ mẫu mặc định (seed quests khi chưa thương lượng)
+  if (canonicalId === 'q_seed_1') {
+    return (parseInt(q.rewardCoins, 10) || 0) === 12 && (parseInt(q.targetMinutes, 10) || 0) === 25 && q.type === 'focus';
+  }
+  if (canonicalId === 'q_seed_2') {
+    return (parseInt(q.rewardCoins, 10) || 0) === 5 && (parseInt(q.targetMinutes, 10) || 0) === 0 && q.type === 'bounty';
+  }
+
   return false;
 }
 
@@ -102,17 +109,45 @@ export function signRewardLegacy(name, price, tier) {
   return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
 }
 
-export function verifyRewardSignature(r) {
+export function verifyRewardSignature(r, shopItems = []) {
   if (!r || typeof r !== 'object') return false;
-  if (r.signature) {
-    const expected = signReward(r.name, r.price, r.tier, r.targetMinutes || 0);
-    if (r.signature === expected) return true;
-    const legacyExpected = signRewardLegacy(r.name, r.price, r.tier);
-    if (r.signature === legacyExpected) return true;
+  // Canonical ID: hỗ trợ cả Shop Item lẫn Inventory Item (r.shopItemId)
+  const canonicalId = r.shopItemId || r.id;
+
+  // 1. Kiểm tra chữ ký HMAC trước (ưu tiên chữ ký AI khi đã thẩm định hoặc thương lượng)
+  const sig = r.signature || (Array.isArray(shopItems) && shopItems.find(s => s.id === canonicalId)?.signature);
+  if (sig) {
+    const targetM = parseInt(r.targetMinutes, 10) || 0;
+    if (sig === signReward(r.name, r.price, r.tier, targetM)) return true;
+    if (sig === signRewardLegacy(r.name, r.price, r.tier)) return true;
+    if (targetM !== 0 && sig === signReward(r.name, r.price, r.tier, 0)) return true;
+
+    // Đối chiếu với món quà gốc trong shopItems nếu là inventory item
+    if (Array.isArray(shopItems) && canonicalId) {
+      const parent = shopItems.find(s => s.id === canonicalId);
+      if (parent) {
+        const parentM = parseInt(parent.targetMinutes, 10) || 0;
+        if (sig === signReward(parent.name, r.price, parent.tier, parentM)) return true;
+        if (parent.signature && (sig === parent.signature || verifyRewardSignature(parent))) {
+          if ((parseInt(r.price, 10) || 0) === (parseInt(parent.price, 10) || 0)) return true;
+        }
+      }
+    }
   }
-  if (r.id === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
-  if (r.id === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';
-  if (r.id === 'shop_seed_3') return [90, 120].includes(parseInt(r.price, 10) || 0) && (r.tier || '').toLowerCase() === 'epic';
+
+  // 2. Kiểm tra vật phẩm mẫu mặc định (seed items khi chưa thương lượng)
+  if (canonicalId === 'shop_seed_1') return (parseInt(r.price, 10) || 0) === 35 && (r.tier || '').toLowerCase() === 'rare';
+  if (canonicalId === 'shop_seed_2') return (parseInt(r.price, 10) || 0) === 20 && (r.tier || '').toLowerCase() === 'common';
+  if (canonicalId === 'shop_seed_3') return [90, 120].includes(parseInt(r.price, 10) || 0) && (r.tier || '').toLowerCase() === 'epic';
+
+  // 3. Kế thừa tính xác thực từ Cửa Hàng (Provenance cross-reference)
+  if (Array.isArray(shopItems) && canonicalId) {
+    const parent = shopItems.find(s => s.id === canonicalId);
+    if (parent && (parseInt(r.price, 10) || 0) === (parseInt(parent.price, 10) || 0)) {
+      return verifyRewardSignature(parent);
+    }
+  }
+
   return false;
 }
 
@@ -134,20 +169,22 @@ export function deriveLegitimateBalance(state, existingState = null) {
   // 1. Quản lý tiền thưởng từ nhiệm vụ (Zero-Trust: 100% nhiệm vụ phải có chữ ký AI hợp lệ)
   let questEarned = 20; // Thưởng khởi đầu tân binh
   for (const q of quests) {
-    const isLegit = verifyQuestSignature(q);
-    if (!isLegit) {
-      // Chữ ký sai hoặc không có chữ ký AI -> 0 Vàng
-      tampered = true;
-      continue;
-    }
-    const reward = Math.min(40, Math.max(1, parseInt(q.rewardCoins, 10) || 10));
-    // ponytail: cap repeatable count to 20 between syncs
+    // ponytail: cap repeatable count to 1000 to allow long-term habit tracking while preventing numeric overflow
     const count = q.isRepeatable
-      ? Math.min(20, Math.max(0, parseInt(q.completedCount, 10) || 0))
-      : Math.min(20, Math.max(
+      ? Math.min(1000, Math.max(0, parseInt(q.completedCount, 10) || 0))
+      : Math.min(1000, Math.max(
           parseInt(q.completedCount, 10) || 0,
           (q.status === 'completed' || q.completed === true) ? 1 : 0
         ));
+    const isLegit = verifyQuestSignature(q);
+    if (!isLegit) {
+      // Chỉ phạt khi người dùng đã nhận thưởng (count > 0) từ nhiệm vụ không có chữ ký hợp lệ
+      if (count > 0) {
+        tampered = true;
+      }
+      continue;
+    }
+    const reward = Math.min(40, Math.max(1, parseInt(q.rewardCoins, 10) || 10));
     questEarned += reward * count;
   }
 
@@ -155,16 +192,20 @@ export function deriveLegitimateBalance(state, existingState = null) {
   const maxTrackedEarned = Math.max(20, questEarned);
 
   // 3. Tổng chi tiêu cho vật phẩm kho đồ (bảo vệ giá phần thưởng chuẩn)
+  const shopItems = Array.isArray(state?.shopItems) ? state.shopItems : [];
   let totalSpent = 0;
   for (const item of inventory) {
-    const sigStatus = verifyRewardSignature(item);
+    const sigStatus = verifyRewardSignature(item, shopItems);
     let price = Math.max(0, parseInt(item.price, 10) || 0);
     if (sigStatus === false) {
       // Bị sửa giá trong DevTools (ví dụ từ 50 xuống 1) -> Khôi phục giá tối thiểu theo Tier
       const tierMin = { common: 20, rare: 40, epic: 80, legendary: 150 };
       const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 25;
       price = Math.max(price, fallbackPrice);
-      tampered = true;
+      const declaredPrice = parseInt(item.price, 10) || 0;
+      if (declaredPrice < fallbackPrice) {
+        tampered = true;
+      }
     }
     totalSpent += price;
   }
@@ -173,9 +214,9 @@ export function deriveLegitimateBalance(state, existingState = null) {
   // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng hoặc bơm hàng ngàn quest giả
   const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
   const isAdminAdjusted = Boolean(existingState?.profile?.adminAdjusted || state?.profile?.adminAdjusted);
-  const maxAllowedCeiling = existingTotal > 0
-    ? existingTotal + 500
-    : (isAdminAdjusted ? Math.max(rawTotal, maxTrackedEarned) : maxTrackedEarned);
+  const maxAllowedCeiling = isAdminAdjusted
+    ? Math.max(rawTotal, maxTrackedEarned)
+    : (existingTotal > 0 ? existingTotal + 500 : maxTrackedEarned);
 
   if (rawTotal > maxAllowedCeiling) {
     rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxTrackedEarned;
@@ -204,9 +245,11 @@ export function deriveLegitimateBalance(state, existingState = null) {
   let rawLevel = parseInt(state?.profile?.level, 10);
   if (isNaN(rawLevel) || rawLevel < 1) rawLevel = 1;
   const existingLevel = Math.max(1, parseInt(existingState?.profile?.level, 10) || 1);
-  const maxAllowedLevel = existingTotal > 0
-    ? existingLevel + 2
-    : (isAdminAdjusted ? Math.max(rawLevel, existingLevel) : Math.min(10, Math.max(existingLevel, Math.floor(rawTotal / 40) + 1)));
+  const maxAllowedLevel = isAdminAdjusted
+    ? Math.max(rawLevel, existingLevel)
+    : (existingTotal > 0
+      ? existingLevel + 2
+      : Math.min(10, Math.max(existingLevel, Math.floor(rawTotal / 40) + 1)));
 
   if (rawLevel > maxAllowedLevel) {
     rawLevel = existingTotal > 0 ? existingLevel + 1 : Math.min(maxAllowedLevel, 5);
@@ -1357,23 +1400,39 @@ export default async function handler(req, res) {
         });
       }
 
-      // Tự động khôi phục danh dự cho người dùng bị bắt oan do bug 0 || 25 trên nhiệm vụ bounty
+      // Tự động khôi phục danh dự toàn diện cho người dùng bị bắt oan do bug chữ ký phần thưởng, quà mẫu hoặc nhiệm vụ
       const hadHealedBounty = Array.isArray(state.quests) && state.quests.some(q => q._healed);
-      if (hadHealedBounty && !balanceCheck.tampered) {
+      const hadLegitPurchases = Array.isArray(state.inventory) && state.inventory.some(i =>
+        i.shopItemId === 'shop_seed_1' || i.shopItemId === 'shop_seed_2' || i.shopItemId === 'shop_seed_3' ||
+        (i.shopItemId && Array.isArray(state.shopItems) && state.shopItems.some(s => s.id === i.shopItemId))
+      );
+      const isFalselyFlagged = (hadHealedBounty || hadLegitPurchases) && !balanceCheck.tampered;
+
+      if (isFalselyFlagged) {
         if (state.profile) {
           state.profile.isCheater = false;
-          if (state.profile.title === 'Kẻ Gian Lận ⚠️') {
+          if (state.profile.title === 'Kẻ Gian Lận ⚠️' || state.profile.title?.includes('Chuộc Tội')) {
             state.profile.title = deriveTitleForLevel(balanceCheck.level);
           }
         }
         if (existingState?.profile) {
           existingState.profile.isCheater = false;
-          if (existingState.profile.title === 'Kẻ Gian Lận ⚠️') {
+          if (existingState.profile.title === 'Kẻ Gian Lận ⚠️' || existingState.profile.title?.includes('Chuộc Tội')) {
             existingState.profile.title = deriveTitleForLevel(balanceCheck.level);
           }
           existingState.profile.cheatStrikes = 0;
+          delete existingState.profile.cheatedAt;
+          delete existingState.profile.redemptionBaseline;
         }
         await redis.zrem('levelup:cheaters', userSub);
+        updatedLedger.unshift({
+          id: `honor_restored_${serverTimestamp}`,
+          type: 'earn',
+          amount: 0,
+          title: 'Khôi phục Danh dự',
+          description: '🕊️ KHÔI PHỤC DANH DỰ: Hệ thống đã xác thực toàn diện số dư và xác nhận tài khoản hoàn toàn trung thực.',
+          timestamp: serverTimestamp
+        });
       }
       for (const q of (Array.isArray(state.quests) ? state.quests : [])) {
         delete q._healed;

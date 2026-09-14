@@ -1,7 +1,8 @@
 import assert from 'node:assert';
 import handler, {
   setRedisClientForTesting,
-  setGoogleTokenVerifierForTesting
+  setGoogleTokenVerifierForTesting,
+  signQuest
 } from '../api/sync.js';
 
 class MockRedis {
@@ -117,7 +118,7 @@ async function runTests() {
         totalCoinsEarned: 40
       },
       quests: [
-        { id: 'q1', rewardCoins: 20, status: 'completed', completed: true }
+        { id: 'q1', title: 'Task 1', type: 'focus', targetMinutes: 25, rewardCoins: 20, status: 'completed', completed: true, signature: signQuest('Task 1', 'focus', 25, 20) }
       ],
       ledger: [],
       inventory: [],
@@ -149,7 +150,7 @@ async function runTests() {
         totalCoinsEarned: 999999
       },
       quests: [
-        { id: 'q1', rewardCoins: 20, status: 'completed', completed: true }
+        { id: 'q1', title: 'Task 1', type: 'focus', targetMinutes: 25, rewardCoins: 20, status: 'completed', completed: true, signature: signQuest('Task 1', 'focus', 25, 20) }
       ],
       ledger: [],
       inventory: [],
@@ -159,12 +160,12 @@ async function runTests() {
     const { req, res } = createMockReqRes('POST', { state: tamperedState }, {}, { cookie: `levelup_session=${sessionCookie}` });
     await handler(req, res);
     assert.strictEqual(res.statusCode, 200);
-    assert.strictEqual(res.body.coins, 40, 'Server anti-cheat phải hạ số Vàng về 40');
+    assert.strictEqual(res.body.coins, 0, 'Server anti-cheat phải tịch thu số Vàng về 0');
 
     const savedRaw = await redis.get('levelup:user:google:google_user_sub_123');
     const saved = JSON.parse(savedRaw);
-    assert.strictEqual(saved.profile.coins, 40);
-    console.log('✓ Test 4: Server Anti-Cheat cưỡng chế cân bằng Vàng trên Redis.');
+    assert.strictEqual(saved.profile.coins, 0);
+    console.log('✓ Test 4: Server Anti-Cheat cưỡng chế tịch thu Vàng gian lận trên Redis.');
   }
 
   // 5. POST /api/sync?action=logout clears cookie and deletes session

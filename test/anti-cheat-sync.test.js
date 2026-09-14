@@ -525,4 +525,249 @@ const timeDeviceB_fresh = baseTime + 2000;
   console.log('✓ Test 13: Tự động phục hồi danh dự (Auto-Pardon) cho người dùng bị phạt oan do lỗi hệ thống.');
 }
 
-console.log('\n🎉 TẤT CẢ 13/13 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');
+// Test 14: Đổi quà mẫu (shop_seed_1, shop_seed_2, shop_seed_3) vào Kho Đồ (inv_...) không bị mark là Kẻ Gian Lận
+{
+  const { verifyRewardSignature } = await import('../api/sync.js');
+  // Vật phẩm kho đồ có id dạng 'inv_172...' và shopItemId = 'shop_seed_...'
+  const invSeed1 = { id: 'inv_172000001', shopItemId: 'shop_seed_1', name: '1 Ly Trà Sữa', price: 35, tier: 'rare' };
+  const invSeed2 = { id: 'inv_172000002', shopItemId: 'shop_seed_2', name: 'Lướt Mạng Xã Hội 30 Phút', price: 20, tier: 'common' };
+  const invSeed3 = { id: 'inv_172000003', shopItemId: 'shop_seed_3', name: 'Đi Xem Phim Rạp', price: 120, tier: 'epic' };
+
+  assert.strictEqual(verifyRewardSignature(invSeed1), true, 'invSeed1 phải xác thực thành công');
+  assert.strictEqual(verifyRewardSignature(invSeed2), true, 'invSeed2 phải xác thực thành công');
+  assert.strictEqual(verifyRewardSignature(invSeed3), true, 'invSeed3 phải xác thực thành công');
+
+  // Người dùng tân binh có 40 Vàng (20 khởi đầu + 20 làm quest), mua Lướt Mạng Xã Hội 20 Vàng -> còn 20 Vàng
+  const qSig = signQuest('Đọc Sách', 'focus', 25, 20);
+  const stateWithBoughtSeed = {
+    profile: {
+      coins: 20,
+      totalCoinsEarned: 40,
+      level: 1
+    },
+    quests: [
+      { id: 'q_book', title: 'Đọc Sách', type: 'focus', targetMinutes: 25, rewardCoins: 20, status: 'completed', signature: qSig }
+    ],
+    inventory: [invSeed2],
+    ledger: []
+  };
+
+  const balanceResult = deriveLegitimateBalance(stateWithBoughtSeed);
+  assert.strictEqual(balanceResult.tampered, false, 'Đổi quà mẫu không được kích hoạt cờ tampered');
+  assert.strictEqual(balanceResult.coins, 20, 'Số Vàng phải còn đúng 20');
+  assert.notStrictEqual(balanceResult.title, 'Kẻ Gian Lận ⚠️', 'Không được gắn danh hiệu Kẻ Gian Lận');
+  console.log('✓ Test 14: Đổi quà mẫu vào Kho Đồ (id: inv_..., shopItemId: shop_seed_...) xác thực trọn vẹn, không bị phạt oan.');
+}
+
+// Test 15: Đổi quà tùy chỉnh (Custom Reward) có thời lượng và chữ ký HMAC
+{
+  const { verifyRewardSignature } = await import('../api/sync.js');
+  const rewardName = '30 Phút Chơi Game';
+  const price = 40;
+  const tier = 'rare';
+  const targetMinutes = 30;
+  const hmacSig = signReward(rewardName, price, tier, targetMinutes);
+
+  const shopCatalog = [
+    { id: 'shop_custom_game', name: rewardName, price, tier, targetMinutes, signature: hmacSig }
+  ];
+
+  const invCustomItem = {
+    id: 'inv_game_123',
+    shopItemId: 'shop_custom_game',
+    name: rewardName,
+    price,
+    tier,
+    targetMinutes,
+    signature: hmacSig
+  };
+
+  assert.strictEqual(verifyRewardSignature(invCustomItem, shopCatalog), true, 'Quà tùy chỉnh phải xác thực thành công');
+
+  const qSig = signQuest('Chạy Bộ', 'focus', 25, 40);
+  const stateWithCustomReward = {
+    profile: {
+      coins: 20,
+      totalCoinsEarned: 60,
+      level: 1
+    },
+    quests: [
+      { id: 'q_run', title: 'Chạy Bộ', type: 'focus', targetMinutes: 25, rewardCoins: 40, status: 'completed', signature: qSig }
+    ],
+    shopItems: shopCatalog,
+    inventory: [invCustomItem],
+    ledger: []
+  };
+
+  const balanceResult = deriveLegitimateBalance(stateWithCustomReward);
+  assert.strictEqual(balanceResult.tampered, false, 'Quà tùy chỉnh hợp lệ không bị coi là gian lận');
+  assert.strictEqual(balanceResult.coins, 20);
+  console.log('✓ Test 15: Đổi quà tùy chỉnh có thời lượng và chữ ký HMAC xác thực chéo với shopItems thành công tuyệt đối.');
+}
+
+// Test 16: Tự động giải oan toàn diện (Systemic Auto-Healing) khi sync cho người từng bị phạt oan do đổi quà
+{
+  const userSubVictim = 'google_shop_victim_99';
+  const victimToken = 'token_shop_victim_99';
+  await mockRedis.set(`levelup:session:${victimToken}`, JSON.stringify({ sub: userSubVictim, email: 'shopvictim@gmail.com', name: 'Nạn Nhân Shop' }), 'EX', 3600);
+
+  // Lưu trạng thái bị dính cờ gian lận do bug cũ
+  const stateOldVictim = {
+    profile: {
+      nickname: 'NanNhanShop',
+      googleId: userSubVictim,
+      coins: 0,
+      totalCoinsEarned: 20,
+      title: 'Kẻ Gian Lận ⚠️',
+      isCheater: true,
+      cheatStrikes: 1,
+      cheatedAt: Date.now() - 60000
+    },
+    quests: [],
+    inventory: [
+      { id: 'inv_seed_tea', shopItemId: 'shop_seed_1', name: '1 Ly Trà Sữa', price: 35, tier: 'rare' }
+    ],
+    ledger: []
+  };
+  await mockRedis.set(`levelup:user:google:${userSubVictim}`, JSON.stringify(stateOldVictim));
+  await mockRedis.zadd('levelup:cheaters', Date.now(), userSubVictim);
+
+  // Người dùng gửi lên dữ liệu hợp lệ (có nhiệm vụ bù 35 Vàng để đổi trà sữa)
+  const qSig = signQuest('Làm Báo Cáo', 'focus', 25, 35);
+  const syncStateClean = {
+    profile: {
+      nickname: 'NanNhanShop',
+      googleId: userSubVictim,
+      coins: 20,
+      totalCoinsEarned: 55,
+      title: 'Kẻ Gian Lận ⚠️' // Đang mang danh hiệu cũ
+    },
+    quests: [
+      { id: 'q_report', title: 'Làm Báo Cáo', type: 'focus', targetMinutes: 25, rewardCoins: 35, status: 'completed', signature: qSig }
+    ],
+    inventory: [
+      { id: 'inv_seed_tea', shopItemId: 'shop_seed_1', name: '1 Ly Trà Sữa', price: 35, tier: 'rare' }
+    ],
+    ledger: []
+  };
+
+  const req = createMockReq({
+    method: 'POST',
+    headers: { Authorization: `Bearer ${victimToken}` },
+    body: {
+      nickname: 'NanNhanShop',
+      token: victimToken,
+      state: syncStateClean
+    }
+  });
+  const res = createMockRes();
+  await handler(req, res);
+
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(res.body.tampered, false, 'Không bị đánh dấu tampered');
+  assert.strictEqual(res.body.isCheater, false, 'Phải được tự động xóa cờ isCheater');
+  assert.notStrictEqual(res.body.title, 'Kẻ Gian Lận ⚠️', 'Phải được khôi phục danh hiệu thật');
+
+  // Đã xóa khỏi danh sách sổ đen
+  const inCheaterList = mockRedis.sortedSets.get('levelup:cheaters')?.has(userSubVictim);
+  assert.strictEqual(inCheaterList, false, 'Phải xóa khỏi levelup:cheaters');
+
+  // Đã đưa trở lại Leaderboard
+  const inLeaderboard = mockRedis.sortedSets.get('levelup:leaderboard')?.has(userSubVictim);
+  assert.strictEqual(inLeaderboard, true, 'Phải được phục hồi trên Bảng Xếp Hạng levelup:leaderboard');
+  console.log('✓ Test 16: Systemic Auto-Healing khôi phục danh dự, xóa khỏi Sổ Đen và đưa trở lại Leaderboard hoàn hảo.');
+}
+
+// Test 17: Chặn đứng gian lận thật: Can thiệp sửa giá vật phẩm Epic từ 120 xuống 1 Vàng trong DevTools
+{
+  const qSig = signQuest('Làm Việc', 'focus', 25, 40);
+  const hackedInventoryItem = {
+    id: 'inv_hacked_epic',
+    name: 'Phim Chiếu Rạp VIP',
+    price: 1, // Sửa từ 120 xuống 1 Vàng!
+    tier: 'epic',
+    signature: 'fake_signature_abc'
+  };
+
+  // Kiếm được: 20 (khởi đầu) + 40*2 = 100 Vàng
+  // Đã tiêu: Sàn epic là 80 Vàng
+  // Vàng hợp lệ tối đa: 100 - 80 = 20 Vàng
+  const hackerState = {
+    profile: {
+      coins: 99, // Bị sửa giá 1 Vàng nên còn 99 Vàng thay vì 20
+      totalCoinsEarned: 100,
+      level: 1
+    },
+    quests: [
+      { id: 'q_job', title: 'Làm Việc', type: 'focus', targetMinutes: 25, rewardCoins: 40, isRepeatable: true, completedCount: 2, status: 'completed', signature: qSig }
+    ],
+    inventory: [hackedInventoryItem],
+    ledger: []
+  };
+
+  const result = deriveLegitimateBalance(hackerState);
+  assert.strictEqual(result.tampered, true, 'Hành vi hạ giá vật phẩm Epic xuống 1 Vàng phải bị bắt');
+  assert.strictEqual(result.fine, 20, 'Phải phạt tịch thu 100% số Vàng hợp lệ còn lại (20 Vàng)');
+  assert.strictEqual(result.coins, 0, 'Vàng bị trừ sạch về 0');
+  assert.strictEqual(result.title, 'Kẻ Gian Lận ⚠️', 'Bị gán danh hiệu Kẻ Gian Lận');
+  console.log('✓ Test 17: Chặn đứng hành vi gian lận thật khi can thiệp sửa giá vật phẩm trong DevTools.');
+}
+
+// Test 18: Nhiệm vụ đang làm (active, chưa nhận thưởng) không bị phạt oan nếu thiếu chữ ký
+{
+  const qSig = signQuest('Học Bài', 'focus', 25, 20);
+  const stateWithActiveQuest = {
+    profile: {
+      coins: 40,
+      totalCoinsEarned: 40,
+      level: 1
+    },
+    quests: [
+      { id: 'q_completed', title: 'Học Bài', type: 'focus', targetMinutes: 25, rewardCoins: 20, status: 'completed', signature: qSig },
+      // Nhiệm vụ active chưa làm xong (count = 0)
+      { id: 'q_draft_active', title: 'Bản nháp nhiệm vụ', type: 'focus', targetMinutes: 25, rewardCoins: 15, status: 'active', completedCount: 0 }
+    ],
+    inventory: [],
+    ledger: []
+  };
+
+  const balanceResult = deriveLegitimateBalance(stateWithActiveQuest);
+  assert.strictEqual(balanceResult.tampered, false, 'Nhiệm vụ active chưa nhận thưởng không được kích hoạt án phạt gian lận');
+  assert.strictEqual(balanceResult.coins, 40, 'Số Vàng phải được bảo toàn 40');
+  console.log('✓ Test 18: Nhiệm vụ đang làm (active, count = 0) không kích hoạt false-positive gian lận.');
+}
+
+// Test 19: Nhiệm vụ lặp lại hoàn thành trên 20 lần (ví dụ: 25 lần) tính thưởng chính xác, không bị kẹp sai
+{
+  const habitSig = signQuest('Chạy Bộ Sáng', 'focus', 25, 10);
+  const longHabitQuest = {
+    id: 'q_habit_run',
+    title: 'Chạy Bộ Sáng',
+    type: 'focus',
+    targetMinutes: 25,
+    rewardCoins: 10,
+    isRepeatable: true,
+    completedCount: 25, // Đã hoàn thành 25 lần qua nhiều tuần
+    status: 'active',
+    signature: habitSig
+  };
+
+  // 20 Vàng tân binh + 25 * 10 = 270 Vàng
+  const habitState = {
+    profile: {
+      coins: 270,
+      totalCoinsEarned: 270,
+      level: 6
+    },
+    quests: [longHabitQuest],
+    inventory: [],
+    ledger: []
+  };
+
+  const balanceResult = deriveLegitimateBalance(habitState);
+  assert.strictEqual(balanceResult.tampered, false, 'Hoàn thành nhiệm vụ lặp lại 25 lần không bị coi là gian lận');
+  assert.strictEqual(balanceResult.coins, 270, 'Toàn bộ 270 Vàng kiếm được từ 25 lần chạy bộ phải được bảo toàn');
+  console.log('✓ Test 19: Nhiệm vụ lặp lại dài hạn (> 20 lần) bảo toàn trọn vẹn số Vàng tích lũy hợp lệ.');
+}
+
+console.log('\n🎉 TẤT CẢ 19/19 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');

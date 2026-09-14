@@ -3,7 +3,8 @@ import handler, {
   setRedisClientForTesting,
   setGoogleTokenVerifierForTesting,
   verifyGoogleToken,
-  sanitizeNickname
+  sanitizeNickname,
+  signQuest
 } from '../api/sync.js';
 
 // In-memory mock Redis
@@ -212,9 +213,23 @@ async function runGoogleAuthTests() {
         nickname: 'Hiệp Sĩ A',
         level: 5,
         totalCoinsEarned: 250,
-        avatar: '🏹'
+        avatar: '🏹',
+        adminAdjusted: true
       },
-      quests: [{ id: 'q1', title: 'Luyện kiếm', completed: true }]
+      quests: [
+        {
+          id: 'q1',
+          title: 'Luyện kiếm',
+          type: 'focus',
+          targetMinutes: 25,
+          rewardCoins: 40,
+          isRepeatable: true,
+          completedCount: 6,
+          completed: true,
+          status: 'completed',
+          signature: signQuest('Luyện kiếm', 'focus', 25, 40)
+        }
+      ]
     };
 
     const { req, res } = createMockReqRes(

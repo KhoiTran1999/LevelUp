@@ -2044,7 +2044,7 @@ async function buyShopItem(itemId) {
 
   const newInvItem = {
     id: 'inv_' + Date.now(),
-    shopItemId: item.id,
+    shopItemId: item.id || item.shopItemId,
     name: item.name,
     price: item.price,
     tier: item.tier,
