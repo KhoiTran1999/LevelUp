@@ -3964,8 +3964,22 @@ async function savePendingReward() {
 }
 
 // =============================================================================
-// 10. LEADERBOARD FETCHER
+// 10. LEADERBOARD FETCHER & PRESENCE
 // =============================================================================
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return 'trước đó';
+  const diffSec = Math.floor((Date.now() - Number(timestamp)) / 1000);
+  if (diffSec < 60) return 'vừa xong';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}p trước`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h trước`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+  const d = new Date(Number(timestamp));
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
 async function fetchLeaderboard() {
   const tbody = document.getElementById('leaderboard-tbody');
   if (!tbody) return;
@@ -3973,10 +3987,18 @@ async function fetchLeaderboard() {
   tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
 
   try {
-    const res = await fetch('/api/sync?action=leaderboard');
+    const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch('/api/sync?action=leaderboard', { headers, credentials: 'include' });
     if (!res.ok) throw new Error('API Error');
     const data = await res.json();
     const list = data.leaderboard || [];
+
+    // Cập nhật số lượng người online trên badge
+    const onlineBadgeCount = document.getElementById('leaderboard-online-count');
+    if (onlineBadgeCount) {
+      onlineBadgeCount.textContent = (data.onlineCount || 0).toLocaleString('vi-VN');
+    }
 
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Chưa có ai trên Bảng Xếp Hạng. Hãy đồng bộ tên của bạn để là người đầu tiên!</td></tr>';
@@ -3995,18 +4017,42 @@ async function fetchLeaderboard() {
         ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚔️</span>'">`
         : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
 
+      // Trạng thái trực tuyến & mốc thời gian hoạt động gần nhất
+      const isOnline = isMe ? true : Boolean(u.isOnline);
+      const lastActiveTime = isMe ? Date.now() : u.lastActive;
+      const statusColor = isOnline
+        ? 'bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse'
+        : 'bg-slate-400/60 ring-2 ring-white dark:ring-slate-900';
+      const statusTitle = isOnline
+        ? 'Đang trực tuyến'
+        : (lastActiveTime ? `Offline (Hoạt động ${formatTimeAgo(lastActiveTime)})` : 'Ngoại tuyến');
+
+      const avatarWithPresence = `
+        <div class="relative shrink-0 inline-flex items-center justify-center">
+          ${avatarHtml}
+          <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${statusColor}" title="${escapeHtml(statusTitle)}"></span>
+        </div>
+      `;
+
+      const statusSubtext = isOnline
+        ? '<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-none mt-0.5">Đang online</span>'
+        : `<span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal leading-none mt-0.5">Online ${escapeHtml(formatTimeAgo(lastActiveTime))}</span>`;
+
       const displayCoins = isMe ? (appState.profile?.coins ?? 0) : (typeof u.coins === 'number' ? u.coins : (u.totalCoinsEarned || 0));
 
       tr.innerHTML = `
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono whitespace-nowrap ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
         <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
           <div class="flex items-center gap-2.5 min-w-0">
-            ${avatarHtml}
-            <div class="min-w-0 flex items-center flex-wrap gap-1.5">
-              <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[130px] sm:max-w-[200px]">${escapeHtml(u.nickname)}</span>
-              ${u.role === 'admin' ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold whitespace-nowrap">👑 ADMIN</span>' : ''}
-              ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>' : ''}
-              ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-1 text-xs" data-nick="${escapeHtml(u.nickname || u.key)}" data-key="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+            ${avatarWithPresence}
+            <div class="min-w-0 flex flex-col justify-center">
+              <div class="min-w-0 flex items-center flex-wrap gap-1.5">
+                <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[120px] sm:max-w-[200px]">${escapeHtml(u.nickname)}</span>
+                ${u.role === 'admin' ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold whitespace-nowrap">👑 ADMIN</span>' : ''}
+                ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>' : ''}
+                ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-1 text-xs" data-nick="${escapeHtml(u.nickname || u.key)}" data-key="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+              </div>
+              ${statusSubtext}
             </div>
           </div>
         </td>
@@ -6714,6 +6760,16 @@ document.addEventListener('DOMContentLoaded', () => {
       hydrateFromCloud(false);
     }
   });
+
+  // Đánh dấu ngoại tuyến tức thì khi người dùng đóng tab hoặc chuyển trang
+  const sendOfflineBeacon = () => {
+    const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    if (token && navigator.sendBeacon) {
+      navigator.sendBeacon(`/api/sync?action=offline&token=${encodeURIComponent(token)}`);
+    }
+  };
+  window.addEventListener('beforeunload', sendOfflineBeacon);
+  window.addEventListener('pagehide', sendOfflineBeacon);
 
   // Lắng nghe tín hiệu đồng bộ đa tab từ BroadcastChannel khi Admin tinh chỉnh chỉ số hoặc đếm giờ
   if (typeof BroadcastChannel !== 'undefined') {

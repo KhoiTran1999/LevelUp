@@ -289,6 +289,57 @@ export function getRedis() {
   return redisClient;
 }
 
+// ponytail: Default online threshold 45s; increase if client sync heartbeat is relaxed
+export async function updateUserPresence(redis, userSub) {
+  if (!redis || !userSub || typeof redis.zadd !== 'function') return;
+  try {
+    await redis.zadd('levelup:online_users', Date.now(), String(userSub));
+  } catch (_) {}
+}
+
+export async function setOfflineUserPresence(redis, userSub) {
+  if (!redis || !userSub || typeof redis.zadd !== 'function') return;
+  try {
+    // Set score to 46s ago so user immediately registers as offline while preserving accurate recent timestamp
+    await redis.zadd('levelup:online_users', Date.now() - 46000, String(userSub));
+  } catch (_) {}
+}
+
+export async function getOnlineUsersPresence(redis, memberKeys = [], thresholdMs = 45000) {
+  const result = { isOnlineMap: new Map(), lastActiveMap: new Map(), onlineCount: 0 };
+  if (!redis) return result;
+  const now = Date.now();
+  try {
+    if (typeof redis.zcount === 'function') {
+      result.onlineCount = (await redis.zcount('levelup:online_users', now - thresholdMs, '+inf')) || 0;
+    }
+    const cleanKeys = Array.from(new Set(memberKeys.filter(Boolean))).map(String);
+    if (cleanKeys.length > 0) {
+      if (typeof redis.zmscore === 'function') {
+        const scores = await redis.zmscore('levelup:online_users', ...cleanKeys);
+        cleanKeys.forEach((key, idx) => {
+          if (scores && scores[idx] !== null && scores[idx] !== undefined) {
+            const score = Number(scores[idx]);
+            result.lastActiveMap.set(key, score);
+            result.isOnlineMap.set(key, now - score <= thresholdMs);
+          }
+        });
+      } else if (typeof redis.zscore === 'function') {
+        const promises = cleanKeys.map(k => redis.zscore('levelup:online_users', k));
+        const scores = await Promise.all(promises);
+        cleanKeys.forEach((key, idx) => {
+          if (scores[idx] !== null && scores[idx] !== undefined) {
+            const score = Number(scores[idx]);
+            result.lastActiveMap.set(key, score);
+            result.isOnlineMap.set(key, now - score <= thresholdMs);
+          }
+        });
+      }
+    }
+  } catch (_) {}
+  return result;
+}
+
 export function sanitizeNickname(raw) {
   if (!raw || typeof raw !== 'string') return '';
   // Normalize Vietnamese accents and special characters to clean ASCII for indexing
@@ -509,6 +560,33 @@ export default async function handler(req, res) {
       });
     }
 
+    // Heartbeat: Ghi nhận trạng thái đang online của người chơi
+    if (action === 'heartbeat') {
+      let callerSub = null;
+      if (token) {
+        const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+        if (caller?.sub) callerSub = caller.sub;
+      }
+      if (callerSub) {
+        await updateUserPresence(redis, callerSub);
+      }
+      const presence = await getOnlineUsersPresence(redis, callerSub ? [callerSub] : []);
+      return res.status(200).json({ success: true, onlineCount: presence.onlineCount });
+    }
+
+    // Offline Beacon: Ghi nhận trạng thái ngoại tuyến khi người dùng đóng tab / rời trang
+    if (action === 'offline') {
+      let callerSub = null;
+      if (token) {
+        const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+        if (caller?.sub) callerSub = caller.sub;
+      }
+      if (callerSub) {
+        await setOfflineUserPresence(redis, callerSub);
+      }
+      return res.status(200).json({ success: true });
+    }
+
     // 1. Google Authentication Endpoint (POST /api/sync?action=google_auth)
     if (req.method === 'POST' && action === 'google_auth') {
       const idToken = req.body?.idToken || token;
@@ -522,6 +600,7 @@ export default async function handler(req, res) {
       }
 
       const { sub, email, name, picture } = googleUser;
+      await updateUserPresence(redis, sub);
       const isAdmin = (email && ADMIN_EMAILS.includes(email)) || (Boolean(ADMIN_TOKEN) && token === ADMIN_TOKEN);
       const userKey = `levelup:user:google:${sub}`;
 
@@ -661,8 +740,10 @@ export default async function handler(req, res) {
           let profile = { nickname: memberKey, level: 1, title: 'Tập sự' };
           let subId = memberKey;
 
+          let lastSynced = null;
           try {
             const parsed = JSON.parse(rawData);
+            lastSynced = parsed.lastSyncedAt || parsed.lastModified || null;
             subId = parsed.googleId || parsed.profile?.googleId || memberKey;
             if (parsed.profile) {
               const isAdminMember = (parsed.profile.googleEmail && ADMIN_EMAILS.includes(parsed.profile.googleEmail)) ||
@@ -685,11 +766,41 @@ export default async function handler(req, res) {
           }
           seenSubs.add(subId);
 
-          leaderboard.push({ ...profile, key: memberKey, score });
+          leaderboard.push({
+            ...profile,
+            key: memberKey,
+            googleId: subId,
+            score,
+            lastSyncedAt: lastSynced
+          });
           if (leaderboard.length >= 50) break;
         }
 
-        return res.status(200).json({ leaderboard });
+        // Tích hợp presence: Lấy trạng thái online và thời điểm hoạt động gần nhất
+        const memberKeyList = leaderboard.flatMap(u => [u.key, u.googleId].filter(Boolean));
+        const presence = await getOnlineUsersPresence(redis, memberKeyList);
+        leaderboard.forEach(u => {
+          const keys = [u.key, u.googleId].filter(Boolean);
+          let isOnline = false;
+          let lastActive = u.lastSyncedAt || null;
+          for (const k of keys) {
+            if (presence.isOnlineMap.get(k)) isOnline = true;
+            if (presence.lastActiveMap.has(k)) {
+              lastActive = Math.max(lastActive || 0, presence.lastActiveMap.get(k));
+            }
+          }
+          u.isOnline = isOnline;
+          u.lastActive = lastActive;
+        });
+
+        // Nếu caller gửi token, tự động làm mới presence cho chính họ
+        if (token) {
+          authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS })
+            .then(caller => caller?.sub && updateUserPresence(redis, caller.sub))
+            .catch(() => {});
+        }
+
+        return res.status(200).json({ leaderboard, onlineCount: presence.onlineCount });
       }
 
       // 2.2 Sổ Đen Kẻ Gian Lận (Cheaters / Hall of Shame)
@@ -956,6 +1067,8 @@ export default async function handler(req, res) {
       if (!targetSub) {
         return res.status(401).json({ error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.' });
       }
+
+      await updateUserPresence(redis, targetSub);
 
       let userKey = `levelup:user:google:${targetSub}`;
       let rawData = await redis.get(userKey);
@@ -1320,6 +1433,12 @@ export default async function handler(req, res) {
       // 3.5 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
       if (action === 'logout') {
         if (token) {
+          try {
+            const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+            if (caller?.sub) {
+              await setOfflineUserPresence(redis, caller.sub);
+            }
+          } catch (_) {}
           await redis.del(`levelup:session:${token}`);
         }
         res.setHeader('Set-Cookie', 'levelup_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
@@ -1337,6 +1456,7 @@ export default async function handler(req, res) {
       }
 
       const userSub = caller.sub;
+      await updateUserPresence(redis, userSub);
       const userEmail = caller.email || '';
       const userName = caller.name || '';
       const userPicture = caller.picture || '';
