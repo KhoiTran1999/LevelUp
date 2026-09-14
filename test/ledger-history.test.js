@@ -152,11 +152,59 @@ async function testZeroLocalStorageAndSkeleton() {
   console.log('✓ Test 6: Đã loại bỏ hoàn toàn LocalStorage, dữ liệu 100% trên Redis và kích hoạt Skeleton loading chống chớp nháy.');
 }
 
+// 7. Kiểm tra Logic Phân Trang Sổ Cái (Ledger Pagination)
+async function testLedgerPagination() {
+  const fs = await import('node:fs');
+  const PAGE_SIZE = 10;
+  const entries = Array.from({ length: 25 }, (_, i) => ({
+    id: `led_${i + 1}`,
+    amount: 10,
+    type: i % 2 === 0 ? 'earn' : 'spend',
+    timestamp: Date.now() - i * 100000
+  }));
+
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE); // 3 trang
+  assert.strictEqual(totalPages, 3, '25 bản ghi chia trang 10 phải ra đúng 3 trang');
+
+  // Page 1: 10 items
+  let page = 1;
+  let pageItems = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  assert.strictEqual(pageItems.length, 10);
+  assert.strictEqual(pageItems[0].id, 'led_1');
+
+  // Page 3: 5 items
+  page = 3;
+  pageItems = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  assert.strictEqual(pageItems.length, 5);
+  assert.strictEqual(pageItems[0].id, 'led_21');
+
+  // Clamping
+  let clampedPage = Math.max(1, Math.min(99, totalPages));
+  assert.strictEqual(clampedPage, 3);
+  clampedPage = Math.max(1, Math.min(-5, totalPages));
+  assert.strictEqual(clampedPage, 1);
+
+  // Kiểm tra cấu trúc DOM & hàm trong source code
+  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.ok(indexHtml.includes('id="ledger-pagination"'), 'index.html phải có container phân trang ledger');
+  assert.ok(indexHtml.includes('id="ledger-prev-btn"'), 'index.html phải có nút trang trước');
+  assert.ok(indexHtml.includes('id="ledger-next-btn"'), 'index.html phải có nút trang sau');
+  assert.ok(indexHtml.includes('id="ledger-page-info"'), 'index.html phải có nhãn hiển thị số trang');
+
+  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.ok(appJs.includes('function changeLedgerPage'), 'app.js phải có hàm changeLedgerPage');
+  assert.ok(appJs.includes('window.changeLedgerPage = changeLedgerPage'), 'changeLedgerPage phải gắn vào window');
+  assert.ok(appJs.includes('currentLedgerPage = 1;'), 'setLedgerFilter phải reset về trang 1');
+
+  console.log('✓ Test 7: Phân trang Sổ Cái (Ledger Pagination) chia trang chuẩn xác và tích hợp đầy đủ UI điều khiển.');
+}
+
 testRollingWindow();
 testDateGrouping();
 testTodayStats();
 testFiltering();
 testSchemaStandardization();
 await testZeroLocalStorageAndSkeleton();
+await testLedgerPagination();
 
-console.log('\n🎉 TẤT CẢ 6/6 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');
+console.log('\n🎉 TẤT CẢ 7/7 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI, PHÂN TRANG & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');

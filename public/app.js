@@ -5579,9 +5579,18 @@ function addLedgerEntry(entry) {
 }
 
 let currentLedgerFilter = 'all';
+let currentLedgerPage = 1;
+const LEDGER_PAGE_SIZE = 10; // ponytail: Cố định 10 giao dịch/trang, nâng cấp dropdown chọn page size nếu người dùng yêu cầu
+
+function changeLedgerPage(delta) {
+  currentLedgerPage += delta;
+  renderLedger();
+}
+window.changeLedgerPage = changeLedgerPage;
 
 function setLedgerFilter(filter) {
   currentLedgerFilter = filter;
+  currentLedgerPage = 1;
   const filterBtns = {
     all: document.getElementById('ledger-filter-all'),
     earn: document.getElementById('ledger-filter-earn'),
@@ -5637,13 +5646,22 @@ function renderLedger() {
 
   // 2. Lọc theo danh mục (Tất cả / Thu / Chi)
   const filtered = ledger.filter(e => currentLedgerFilter === 'all' || e.type === currentLedgerFilter);
+  const paginationEl = document.getElementById('ledger-pagination');
   if (filtered.length === 0) {
     list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch vàng nào được ghi nhận.</div>';
+    if (paginationEl) paginationEl.classList.add('hidden');
     return;
   }
 
+  const totalPages = Math.ceil(filtered.length / LEDGER_PAGE_SIZE) || 1;
+  if (currentLedgerPage > totalPages) currentLedgerPage = totalPages;
+  if (currentLedgerPage < 1) currentLedgerPage = 1;
+
+  const startIdx = (currentLedgerPage - 1) * LEDGER_PAGE_SIZE;
+  const pageItems = filtered.slice(startIdx, startIdx + LEDGER_PAGE_SIZE);
+
   // 3. Gom nhóm theo ngày và hiển thị
-  const grouped = groupLedgerByDate(filtered);
+  const grouped = groupLedgerByDate(pageItems);
   list.innerHTML = Object.entries(grouped).map(([dateLabel, items]) => `
     <div>
       <div class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
@@ -5671,6 +5689,21 @@ function renderLedger() {
       </div>
     </div>
   `).join('');
+
+  // 4. Cập nhật thanh phân trang
+  if (paginationEl) {
+    if (totalPages <= 1) {
+      paginationEl.classList.add('hidden');
+    } else {
+      paginationEl.classList.remove('hidden');
+      const prevBtn = document.getElementById('ledger-prev-btn');
+      const nextBtn = document.getElementById('ledger-next-btn');
+      const pageInfo = document.getElementById('ledger-page-info');
+      if (prevBtn) prevBtn.disabled = currentLedgerPage <= 1;
+      if (nextBtn) nextBtn.disabled = currentLedgerPage >= totalPages;
+      if (pageInfo) pageInfo.textContent = `Trang ${currentLedgerPage} / ${totalPages} (${filtered.length} giao dịch)`;
+    }
+  }
 }
 
 function renderAll() {
