@@ -725,7 +725,7 @@
                   Số Vàng muốn gửi vào Bể:
                 </label>
                 <div class="relative flex items-center">
-                  <input type="number" id="input-deposit-amount" min="1" placeholder="Nhập số Vàng..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition font-mono pr-10">
+                  <input type="number" id="input-deposit-amount" min="1" oninput="onDepositAmountInput(this.value)" placeholder="Nhập số Vàng..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition font-mono pr-10">
                   <span class="absolute right-3 pointer-events-none flex items-center"><span class="coin-icon"></span></span>
                 </div>
               </div>
@@ -738,6 +738,60 @@
                 <button type="button" onclick="setDepositAmount(50)" class="px-2 py-0.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-slate-700 dark:text-slate-300 transition cursor-pointer">50</button>
                 <button type="button" onclick="setDepositAmount(100)" class="px-2 py-0.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-slate-700 dark:text-slate-300 transition cursor-pointer">100</button>
                 <button type="button" onclick="setDepositMax()" class="px-2 py-0.5 rounded-lg text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold transition cursor-pointer">Tối Đa</button>
+              </div>
+
+              <!-- Máy tính dự tính tiền lãi tiết kiệm -->
+              <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
+                    <span>🧮</span> <span>Dự Tính Lãi Tiết Kiệm</span>
+                  </span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                    Lãi thả nổi: <b id="calc-deposit-rate-label" class="text-emerald-600 dark:text-emerald-400 font-mono">2.0%/ngày</b>
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label for="calc-deposit-coins" class="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Số Vàng tính lãi:</label>
+                    <div class="relative flex items-center">
+                      <input type="number" id="calc-deposit-coins" min="1" value="50" oninput="updateDepositCalculator()" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono pr-7">
+                      <span class="absolute right-2 pointer-events-none flex items-center scale-90"><span class="coin-icon"></span></span>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="calc-deposit-days" class="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Thời gian gửi:</label>
+                    <div class="relative flex items-center">
+                      <input type="number" id="calc-deposit-days" min="1" max="365" value="7" oninput="updateDepositCalculator()" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono pr-11">
+                      <span class="absolute right-2 text-[10px] text-slate-400 pointer-events-none">ngày</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick days selection -->
+                <div class="flex items-center gap-1 text-[10px] flex-wrap">
+                  <span class="text-slate-400 shrink-0">Kỳ hạn mẫu:</span>
+                  <button type="button" onclick="setCalcDays(3)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">3 ngày</button>
+                  <button type="button" onclick="setCalcDays(7)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">7 ngày</button>
+                  <button type="button" onclick="setCalcDays(14)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">14 ngày</button>
+                  <button type="button" onclick="setCalcDays(30)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">30 ngày</button>
+                </div>
+
+                <!-- Kết quả tính toán -->
+                <div class="pt-2 border-t border-emerald-500/20 flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Lãi dự kiến nhận:</span>
+                    <span class="text-sm font-extrabold font-mono text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+                      +<span id="calc-deposit-result-interest">7</span> <span class="coin-icon"></span>
+                    </span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Tổng nhận về (Gốc + Lãi):</span>
+                    <span class="text-xs font-bold font-mono text-slate-700 dark:text-slate-300 inline-flex items-center gap-1">
+                      <span id="calc-deposit-result-total">57</span> <span class="coin-icon"></span>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -786,6 +840,10 @@
               <div class="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
                 <span>Thời hạn còn lại:</span>
                 <span id="bank-loan-days-left" class="font-semibold text-amber-600">7 ngày</span>
+              </div>
+              <div class="text-[10px] text-rose-600/90 dark:text-rose-400/90 mt-1.5 pt-1.5 border-t border-blue-500/15 flex items-start gap-1">
+                <span class="shrink-0">⚠️</span>
+                <span>Hết 7 ngày chưa trả hết: Tạm đóng băng Cửa Hàng & Kho Quà, tự động trích 100% Vàng thưởng để siết nợ.</span>
               </div>
             </div>
 
@@ -901,6 +959,18 @@
                   <span>50% (Khuyên dùng)</span>
                   <span>80% (Hạn mức cao nhất)</span>
                 </div>
+              </div>
+
+              <!-- Quy định thời hạn nợ & Chế tài quá hạn 7 ngày -->
+              <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
+                <div class="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs">
+                  <span>⏱️</span> <span>Quy định kỳ hạn & Chế tài quá hạn:</span>
+                </div>
+                <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-slate-600 dark:text-slate-300">
+                  <li><strong>Thời hạn tối đa: 7 ngày</strong> kể từ thời điểm giải ngân.</li>
+                  <li><strong>Hàng ngày:</strong> Tự động trích theo tỷ lệ đã chọn từ Vàng thưởng nhiệm vụ để trả nợ dần.</li>
+                  <li><strong class="text-rose-600 dark:text-rose-400">Nếu quá hạn 7 ngày:</strong> Đóng băng Cửa Hàng, khóa Kho Quà và tự động trích <strong>100% Vàng thưởng</strong> cho đến khi trả hết.</li>
+                </ul>
               </div>
 
               <!-- Lời khuyên ân cần từ AI Thống Đốc -->
@@ -1911,6 +1981,16 @@
                 Khi kéo thanh trích nợ từ 50% lên <strong class="text-blue-600 dark:text-blue-400 font-bold">80%</strong>, hệ số cam kết tăng lên mức cao nhất <strong class="text-slate-900 dark:text-white font-mono">x1.5 lần</strong> (hạn mức tối đa có thể chạm tới <strong class="text-emerald-600 dark:text-emerald-400 font-mono">600 Vàng</strong>).
               </p>
             </div>
+          </div>
+
+          <!-- Lưu ý kỳ hạn & Chế tài quá hạn -->
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] space-y-1">
+            <div class="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 text-xs">
+              <span>⚠️</span> <span>Lưu ý quan trọng về thời hạn 7 ngày:</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-400 text-[10px] leading-relaxed">
+              Mọi khoản vay đều có thời hạn tối đa <strong>7 ngày</strong>. Hãy duy trì làm việc đều đặn để trích nợ. Nếu sau 7 ngày chưa tất toán, tài khoản sẽ bị đóng băng Cửa Hàng, khóa Kho Quà và bị trích 100% Vàng thưởng nhiệm vụ để siết nợ.
+            </p>
           </div>
         </div>
 

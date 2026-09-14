@@ -7000,6 +7000,8 @@ function renderBankUI(pool, userBank, creditLimit) {
   const elUserInt = document.getElementById('bank-user-interest');
   if (elUserInt) elUserInt.textContent = '+' + (userBank?.depositInterest || 0).toLocaleString('vi-VN');
 
+  updateDepositCalculator(rates.depositRate);
+
   // 4. Quầy Vay Vàng (Borrower)
   const elBadge = document.getElementById('bank-credit-limit-badge');
   if (elBadge) elBadge.innerHTML = `<span>Hạn mức: ${creditLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
@@ -7172,14 +7174,62 @@ async function loadBankAiCommentary(pool) {
   elCommentary.textContent = fallback;
 }
 
+function updateDepositCalculator(overrideRate) {
+  const inputCoins = document.getElementById('calc-deposit-coins');
+  const inputDays = document.getElementById('calc-deposit-days');
+  const elRateLabel = document.getElementById('calc-deposit-rate-label');
+  const elInterest = document.getElementById('calc-deposit-result-interest');
+  const elTotal = document.getElementById('calc-deposit-result-total');
+
+  const coins = Math.max(0, parseInt(inputCoins?.value, 10) || 0);
+  const days = Math.max(0, parseInt(inputDays?.value, 10) || 0);
+
+  const rates = currentBankPool?.depositRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool);
+  const rate = typeof overrideRate === 'number' ? overrideRate : (rates.depositRate || 0.02);
+
+  if (elRateLabel) {
+    elRateLabel.textContent = `${(rate * 100).toFixed(1)}%/ngày`;
+  }
+
+  const interest = Math.floor(coins * rate * days);
+  const total = coins + interest;
+
+  if (elInterest) elInterest.textContent = interest.toLocaleString('vi-VN');
+  if (elTotal) elTotal.textContent = total.toLocaleString('vi-VN');
+}
+
+function setCalcDays(days) {
+  const inputDays = document.getElementById('calc-deposit-days');
+  if (inputDays) {
+    inputDays.value = days;
+    updateDepositCalculator();
+  }
+}
+
+function onDepositAmountInput(val) {
+  const coins = parseInt(val, 10);
+  const calcCoins = document.getElementById('calc-deposit-coins');
+  if (calcCoins && !isNaN(coins) && coins > 0) {
+    calcCoins.value = coins;
+    updateDepositCalculator();
+  }
+}
+
 function setDepositAmount(amount) {
   const input = document.getElementById('input-deposit-amount');
-  if (input) input.value = amount;
+  if (input) {
+    input.value = amount;
+    onDepositAmountInput(amount);
+  }
 }
 
 function setDepositMax() {
   const input = document.getElementById('input-deposit-amount');
-  if (input) input.value = Math.max(0, appState.profile?.coins || 0);
+  const maxCoins = Math.max(0, appState.profile?.coins || 0);
+  if (input) {
+    input.value = maxCoins;
+    onDepositAmountInput(maxCoins);
+  }
 }
 
 async function executeBankDeposit() {
@@ -8165,6 +8215,9 @@ async function executeBankRepay() {
 
 window.loadBankState = loadBankState;
 window.renderAdminBankTelemetry = renderAdminBankTelemetry;
+window.updateDepositCalculator = updateDepositCalculator;
+window.setCalcDays = setCalcDays;
+window.onDepositAmountInput = onDepositAmountInput;
 window.setDepositAmount = setDepositAmount;
 window.setDepositMax = setDepositMax;
 window.executeBankDeposit = executeBankDeposit;

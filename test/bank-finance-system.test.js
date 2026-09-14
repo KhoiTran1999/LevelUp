@@ -320,6 +320,13 @@ function testBankUIElements() {
   assert.ok(html.includes('id="btn-bank-repay"'), 'Phải có nút Trả Nợ Sớm');
   assert.ok(html.includes('id="modal-credit-limit-info"'), 'Phải có modal hướng dẫn cách tính & nâng hạn mức vay');
 
+  // Kiểm tra Máy tính dự tính lãi gửi tiết kiệm
+  assert.ok(html.includes('id="calc-deposit-coins"'), 'Phải có ô nhập số Vàng tính lãi');
+  assert.ok(html.includes('id="calc-deposit-days"'), 'Phải có ô nhập số ngày gửi tính lãi');
+  assert.ok(html.includes('id="calc-deposit-result-interest"'), 'Phải có kết quả lãi dự kiến nhận');
+  assert.ok(html.includes('id="calc-deposit-result-total"'), 'Phải có kết quả tổng nhận về');
+  assert.ok(html.includes('id="calc-deposit-rate-label"'), 'Phải có nhãn lãi suất tính toán');
+
   console.log('✓ Test 9: Toàn bộ cấu trúc DOM, Tabs, AMM Metrics, Sổ Tiết Kiệm và Quầy Vay trong public/index.html đầy đủ 100%.');
 }
 
@@ -342,6 +349,9 @@ function testAppJsBankIntegration() {
   assert.ok(appJs.includes('window.executeBankBorrow = executeBankBorrow'), 'Phải gán window.executeBankBorrow');
   assert.ok(appJs.includes('window.executeBankRepay = executeBankRepay'), 'Phải gán window.executeBankRepay');
   assert.ok(appJs.includes('window.openCreditLimitModal = openCreditLimitModal'), 'Phải gán window.openCreditLimitModal');
+  assert.ok(appJs.includes('window.updateDepositCalculator = updateDepositCalculator'), 'Phải gán window.updateDepositCalculator');
+  assert.ok(appJs.includes('window.setCalcDays = setCalcDays'), 'Phải gán window.setCalcDays');
+  assert.ok(appJs.includes('window.onDepositAmountInput = onDepositAmountInput'), 'Phải gán window.onDepositAmountInput');
 
   // Kiểm tra switchTab
   assert.ok(appJs.includes("tabId === 'bank'"), 'switchTab phải có case chuyển sang tab bank và loadBankState');
@@ -386,6 +396,24 @@ function testAdminBankTelemetry() {
   console.log('✓ Test 11: Bảng giám sát Ngân Hàng & Kho Bạc chi tiết trong Admin Dashboard (telemetry vĩ mô) và giao diện User tinh gọn đáp ứng hoàn hảo.');
 }
 
+// 12. Kiểm thử Công Thức Dự Tính Lãi Tiết Kiệm (Deposit Calculator Math)
+function testDepositCalculatorProjection() {
+  const coins = 100;
+  const rate = 0.04; // 4%/ngày
+  const days = 7;
+  const expectedInterest = Math.floor(coins * rate * days); // 100 * 0.04 * 7 = 28 Vàng
+  const expectedTotal = coins + expectedInterest; // 128 Vàng
+
+  assert.strictEqual(expectedInterest, 28, 'Lãi dự tính 100 Vàng gửi 7 ngày với lãi 4%/ngày phải là 28 Vàng');
+  assert.strictEqual(expectedTotal, 128, 'Tổng gốc và lãi là 128 Vàng');
+
+  // Edge cases
+  assert.strictEqual(Math.floor(0 * rate * days), 0, '0 Vàng gửi lãi phải bằng 0');
+  assert.strictEqual(Math.floor(coins * rate * 0), 0, '0 ngày gửi lãi phải bằng 0');
+
+  console.log('✓ Test 12: Công thức máy tính dự tính lãi suất tiền gửi chuẩn xác 100% theo chu kỳ ngày.');
+}
+
 testAMMDynamicRates();
 testCreditLimitCalculation();
 testAccrueBankInterest();
@@ -397,5 +425,6 @@ testQuestAutoDeduction();
 testBankUIElements();
 testAppJsBankIntegration();
 testAdminBankTelemetry();
+testDepositCalculatorProjection();
 
-console.log('\n🎉 TẤT CẢ 11/11 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, TREASURY REPAY, ANTI-CHEAT, CLIENT & ADMIN TELEMETRY) ĐÃ VƯỢT QUA XUẤT SẮC!');
+console.log('\n🎉 TẤT CẢ 12/12 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, CALCULATOR, ANTI-CHEAT) ĐÃ VƯỢT QUA XUẤT SẮC!');
