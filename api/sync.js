@@ -152,6 +152,156 @@ export function verifyRewardSignature(r, shopItems = []) {
 }
 
 /**
+ * Dynamic Interest Rate AMM for LevelUp 3-Party Finance
+ * U = Total Borrowed / (Pool Gold + Total Borrowed)
+ * Deposit rate: 1% to 8% daily (clamp)
+ * Borrow rate: 4% to 18% daily (clamp)
+ * Spread: Borrow rate - Deposit rate >= 3%
+ */
+export function calculateBankRates(poolState = {}) {
+  const p = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
+  const b = Math.max(0, parseInt(poolState?.totalBorrowed, 10) || 0);
+  const total = p + b;
+  const u = total > 0 ? b / total : 0;
+  const clampedU = Math.min(1, Math.max(0, u));
+
+  // Dynamic rates (per 24h)
+  const depositRate = Number((Math.min(0.08, Math.max(0.01, 0.02 + 0.04 * clampedU))).toFixed(4));
+  const borrowRate = Number((Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * clampedU))).toFixed(4));
+  const spread = Number((borrowRate - depositRate).toFixed(4));
+
+  return {
+    utilization: Number(clampedU.toFixed(4)),
+    depositRate,
+    borrowRate,
+    spread
+  };
+}
+
+export function calculateCreditLimit(profile = {}, autoDeductPercent = 0.50) {
+  const lvl = Math.max(1, parseInt(profile?.level, 10) || 1);
+  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
+  const totalEarned = Math.max(20, parseInt(profile?.totalCoinsEarned, 10) || 20);
+
+  // Base hard cap limit
+  const baseLimit = Math.min(400, (lvl * 25) + (streak * 5) + Math.floor(totalEarned * 0.1));
+
+  // Commitment factor based on user selected deduction rate (0.30 - 0.80)
+  const clampedRate = Math.min(0.80, Math.max(0.30, Number(autoDeductPercent) || 0.50));
+  const kDeduct = 0.7 + ((clampedRate - 0.30) / 0.50) * 0.8; // 0.7 to 1.5
+
+  return Math.max(20, Math.floor(baseLimit * kDeduct));
+}
+
+/**
+ * Accrue user bank interest (deposit yield & loan debt interest)
+ * Enforce 7-day overdue freeze rule
+ */
+export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
+  if (!bankData || typeof bankData !== 'object') {
+    return {
+      deposited: 0,
+      depositInterest: 0,
+      lastDepositAt: now,
+      loan: null,
+      isFrozen: false
+    };
+  }
+
+  const copy = {
+    ...bankData,
+    deposited: Math.max(0, parseInt(bankData.deposited, 10) || 0),
+    depositInterest: Math.max(0, parseInt(bankData.depositInterest, 10) || 0),
+    isFrozen: Boolean(bankData.isFrozen)
+  };
+
+  // 1. Accrue deposit interest
+  if (copy.deposited > 0) {
+    const lastDep = parseInt(copy.lastDepositAt, 10) || now;
+    const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
+    if (elapsedDays > 0) {
+      const depRate = Number(rates?.depositRate) || 0.02;
+      const interestEarned = Math.floor(copy.deposited * depRate * elapsedDays);
+      if (interestEarned > 0) {
+        copy.depositInterest += interestEarned;
+        copy.lastDepositAt = now;
+      }
+    }
+  } else {
+    copy.lastDepositAt = now;
+  }
+
+  // 2. Accrue loan debt interest & check overdue
+  if (copy.loan && parseInt(copy.loan.debt, 10) > 0) {
+    const loan = {
+      ...copy.loan,
+      principal: Math.max(0, parseInt(copy.loan.principal, 10) || 0),
+      debt: Math.max(0, parseInt(copy.loan.debt, 10) || 0),
+      borrowRate: Number(copy.loan.borrowRate) || rates?.borrowRate || 0.06,
+      autoDeductPercent: Math.min(0.80, Math.max(0.30, Number(copy.loan.autoDeductPercent) || 0.50)),
+      isOverdue: Boolean(copy.loan.isOverdue)
+    };
+
+    const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
+    const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
+    const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
+
+    // Check overdue (> 7 days since loan creation without full repayment)
+    if ((now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000) {
+      loan.isOverdue = true;
+      copy.isFrozen = true;
+    }
+
+    if (elapsedDays >= 1) {
+      const daysCount = Math.floor(elapsedDays);
+      const interest = Math.ceil(loan.debt * loan.borrowRate * daysCount);
+      loan.debt += interest;
+      loan.lastAccruedAt = lastAcc + (daysCount * 24 * 60 * 60 * 1000);
+    }
+
+    copy.loan = loan;
+  }
+
+  return copy;
+}
+
+export async function getGlobalBankState(redis) {
+  const defaultBank = {
+    poolGold: 500, // Kho bạc bảo chứng ban đầu
+    totalBorrowed: 0,
+    reserveFund: 150, // Quỹ dự phòng ban đầu
+    totalDeposited: 0,
+    bailoutDebt: 0, // Nợ cứu trợ kho bạc
+    lastAccruedAt: Date.now()
+  };
+
+  if (!redis) return defaultBank;
+  try {
+    const raw = await redis.get('levelup:bank:pool');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        poolGold: Math.max(0, parseInt(parsed.poolGold, 10) || 0),
+        totalBorrowed: Math.max(0, parseInt(parsed.totalBorrowed, 10) || 0),
+        reserveFund: Math.max(0, parseInt(parsed.reserveFund, 10) || 0),
+        totalDeposited: Math.max(0, parseInt(parsed.totalDeposited, 10) || 0),
+        bailoutDebt: Math.max(0, parseInt(parsed.bailoutDebt, 10) || 0),
+        lastAccruedAt: parseInt(parsed.lastAccruedAt, 10) || Date.now()
+      };
+    }
+    await redis.set('levelup:bank:pool', JSON.stringify(defaultBank));
+  } catch (_) {}
+  return defaultBank;
+}
+
+export async function saveGlobalBankState(redis, bankState) {
+  if (!redis || !bankState) return;
+  try {
+    await redis.set('levelup:bank:pool', JSON.stringify(bankState));
+  } catch (_) {}
+}
+
+/**
  * Anti-Cheat: Validate and derive legitimate coin balance from quests, ledger, and inventory
  * Cryptographically verifies AI signatures on quests and shop prices. Zero-trust: quests without AI signatures award 0 coins.
  */
@@ -232,11 +382,14 @@ export function deriveLegitimateBalance(state, existingState = null) {
     tampered = true;
   }
 
-  // Số coin hiện tại không thể lớn hơn (tổng kiếm được - tổng đã tiêu)
-  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent) {
-    rawTotal = rawCoins + totalSpent;
+  // Số coin hiện tại không thể lớn hơn (tổng kiếm được - tổng đã tiêu + khoản vay đang mở - số coin đã gửi vào ngân hàng)
+  const activeLoanPrincipal = Math.max(0, parseInt(state?.profile?.bank?.loan?.principal, 10) || 0);
+  const depositedCoins = Math.max(0, parseInt(state?.profile?.bank?.deposited, 10) || 0);
+
+  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent + activeLoanPrincipal - depositedCoins) {
+    rawTotal = Math.max(rawTotal, rawCoins + totalSpent + depositedCoins - activeLoanPrincipal);
   }
-  const maxCurrent = Math.max(0, rawTotal - totalSpent);
+  const maxCurrent = Math.max(0, rawTotal - totalSpent + activeLoanPrincipal - depositedCoins);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
     tampered = true;
@@ -713,8 +866,41 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. GET /api/sync: Leaderboard, check_nickname, hoặc tải dữ liệu người dùng
+    // 2. GET /api/sync: Leaderboard, check_nickname, bank_state hoặc tải dữ liệu người dùng
     if (req.method === 'GET') {
+      // 2.0 Bể Thanh Khoản & Trạng Thái Ngân Hàng Hệ Thống (Bank State)
+      if (action === 'bank_state') {
+        const poolState = await getGlobalBankState(redis);
+        const rates = calculateBankRates(poolState);
+        let userBank = null;
+        let creditLimit = 50;
+
+        if (token) {
+          try {
+            const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+            if (caller?.sub) {
+              const rawUser = await redis.get(`levelup:user:google:${caller.sub}`);
+              if (rawUser) {
+                const uState = JSON.parse(rawUser);
+                const currentBank = uState?.profile?.bank || { deposited: 0, depositInterest: 0, loan: null, isFrozen: false };
+                userBank = accrueUserBank(currentBank, rates);
+                creditLimit = calculateCreditLimit(uState?.profile || {}, userBank?.loan?.autoDeductPercent || 0.5);
+              }
+            }
+          } catch (_) {}
+        }
+
+        return res.status(200).json({
+          success: true,
+          pool: {
+            ...poolState,
+            ...rates
+          },
+          userBank,
+          creditLimit
+        });
+      }
+
       // 2.1 Bảng xếp hạng (Leaderboard)
       if (action === 'leaderboard') {
         // ponytail: top 50 entries ceiling; upgrade to cursor pagination when player count > 1000
@@ -1426,6 +1612,289 @@ export default async function handler(req, res) {
             success: true,
             clearedAll: true,
             message: `Đã xóa toàn bộ lịch sử thu chi của "${userData.profile?.nickname || targetSub}".`
+          });
+        }
+      }
+
+      // 3.4 Các thao tác Ngân Hàng 3 Bên (Banking Actions: deposit, withdraw, borrow, repay)
+      if (action === 'bank_deposit' || action === 'bank_withdraw' || action === 'bank_borrow' || action === 'bank_repay') {
+        if (!token) {
+          return res.status(401).json({ error: 'Cần đăng nhập Google để thực hiện giao dịch ngân hàng.' });
+        }
+        const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
+        if (!caller || !caller.sub) {
+          return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.' });
+        }
+
+        const userSub = caller.sub;
+        const userKey = `levelup:user:google:${userSub}`;
+        const rawUser = await redis.get(userKey);
+        if (!rawUser) {
+          return res.status(404).json({ error: 'Không tìm thấy hồ sơ người chơi.' });
+        }
+
+        let uState = JSON.parse(rawUser);
+        if (!uState.profile) uState.profile = {};
+        if (!uState.profile.bank) {
+          uState.profile.bank = { deposited: 0, depositInterest: 0, lastDepositAt: Date.now(), loan: null, isFrozen: false };
+        }
+        if (!Array.isArray(uState.ledger)) uState.ledger = [];
+
+        const serverTimestamp = Date.now();
+        const poolState = await getGlobalBankState(redis);
+        const rates = calculateBankRates(poolState);
+
+        // Đồng bộ lãi suất cho tài khoản trước khi giao dịch
+        uState.profile.bank = accrueUserBank(uState.profile.bank, rates, serverTimestamp);
+
+        // --- ACTION 1: GỬI TIẾT KIỆM (bank_deposit) ---
+        if (action === 'bank_deposit') {
+          const depositAmt = Math.max(0, parseInt(req.body?.amount, 10) || 0);
+          if (depositAmt <= 0) {
+            return res.status(400).json({ error: 'Số Vàng gửi tiết kiệm phải lớn hơn 0.' });
+          }
+          const userCoins = Math.max(0, parseInt(uState.profile.coins, 10) || 0);
+          if (userCoins < depositAmt) {
+            return res.status(400).json({ error: `Số dư Vàng không đủ (hiện có: ${userCoins} Vàng).` });
+          }
+
+          uState.profile.coins = userCoins - depositAmt;
+          uState.profile.bank.deposited = (parseInt(uState.profile.bank.deposited, 10) || 0) + depositAmt;
+          uState.profile.bank.lastDepositAt = serverTimestamp;
+
+          poolState.poolGold += depositAmt;
+          poolState.totalDeposited = (poolState.totalDeposited || 0) + depositAmt;
+
+          uState.ledger.unshift({
+            id: `bank_dep_${serverTimestamp}`,
+            type: 'spend',
+            category: 'bank_deposit',
+            amount: depositAmt,
+            title: 'Gửi tiết kiệm Ngân Hàng',
+            description: `🏦 Đã gửi ${depositAmt} Vàng vào Bể thanh khoản. Lãi suất hiện tại: ${(rates.depositRate * 100).toFixed(1)}%/ngày.`,
+            timestamp: serverTimestamp
+          });
+          if (uState.ledger.length > 100) uState.ledger.splice(100);
+
+          await saveGlobalBankState(redis, poolState);
+          await redis.set(userKey, JSON.stringify(uState), 'EX', 180 * 24 * 3600);
+
+          const updatedRates = calculateBankRates(poolState);
+          return res.status(200).json({
+            success: true,
+            message: `Gửi tiết kiệm thành công ${depositAmt} Vàng!`,
+            userBank: uState.profile.bank,
+            coins: uState.profile.coins,
+            pool: { ...poolState, ...updatedRates }
+          });
+        }
+
+        // --- ACTION 2: RÚT TIẾT KIỆM (bank_withdraw) ---
+        if (action === 'bank_withdraw') {
+          const deposited = Math.max(0, parseInt(uState.profile.bank.deposited, 10) || 0);
+          const interest = Math.max(0, parseInt(uState.profile.bank.depositInterest, 10) || 0);
+          const totalAvailable = deposited + interest;
+
+          if (totalAvailable <= 0) {
+            return res.status(400).json({ error: 'Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi để rút.' });
+          }
+
+          const reqAmt = req.body?.amount === 'all' || !req.body?.amount ? totalAvailable : Math.max(1, parseInt(req.body.amount, 10) || totalAvailable);
+          const withdrawAmt = Math.min(totalAvailable, reqAmt);
+
+          // Tách phần gốc và lãi rút ra
+          let interestWithdrawn = 0;
+          let principalWithdrawn = 0;
+          if (withdrawAmt >= totalAvailable) {
+            interestWithdrawn = interest;
+            principalWithdrawn = deposited;
+          } else if (withdrawAmt <= interest) {
+            interestWithdrawn = withdrawAmt;
+          } else {
+            interestWithdrawn = interest;
+            principalWithdrawn = withdrawAmt - interest;
+          }
+
+          // PROTOCOL BẢO LÃNH CỨU TRỢ KHO BẠC 100% (REVERSIBLE BAILOUT)
+          let bailoutInjected = 0;
+          if (poolState.poolGold < withdrawAmt) {
+            bailoutInjected = withdrawAmt - poolState.poolGold;
+            poolState.bailoutDebt = (poolState.bailoutDebt || 0) + bailoutInjected;
+            poolState.poolGold += bailoutInjected;
+          }
+
+          poolState.poolGold = Math.max(0, poolState.poolGold - withdrawAmt);
+          poolState.totalDeposited = Math.max(0, (poolState.totalDeposited || 0) - principalWithdrawn);
+
+          uState.profile.bank.deposited = Math.max(0, deposited - principalWithdrawn);
+          uState.profile.bank.depositInterest = Math.max(0, interest - interestWithdrawn);
+          uState.profile.bank.lastDepositAt = serverTimestamp;
+
+          uState.profile.coins = (parseInt(uState.profile.coins, 10) || 0) + withdrawAmt;
+          uState.profile.totalCoinsEarned = (parseInt(uState.profile.totalCoinsEarned, 10) || 0) + interestWithdrawn;
+
+          const bailoutNotice = bailoutInjected > 0 ? ` (Bảo lãnh 100% từ Kho Bạc Hệ Thống: Ứng cứu khẩn cấp ${bailoutInjected} Vàng)` : '';
+          uState.ledger.unshift({
+            id: `bank_wit_${serverTimestamp}`,
+            type: 'earn',
+            category: 'bank_withdraw',
+            amount: withdrawAmt,
+            title: 'Rút tiền gửi Ngân Hàng',
+            description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${bailoutNotice}`,
+            timestamp: serverTimestamp
+          });
+          if (uState.ledger.length > 100) uState.ledger.splice(100);
+
+          await saveGlobalBankState(redis, poolState);
+          await redis.set(userKey, JSON.stringify(uState), 'EX', 180 * 24 * 3600);
+
+          const updatedRates = calculateBankRates(poolState);
+          return res.status(200).json({
+            success: true,
+            message: `Rút tiền thành công ${withdrawAmt} Vàng!${bailoutInjected > 0 ? ' Kho Bạc Hệ Thống đã bảo lãnh thanh khoản 100%.' : ''}`,
+            withdrawn: withdrawAmt,
+            bailoutInjected,
+            userBank: uState.profile.bank,
+            coins: uState.profile.coins,
+            pool: { ...poolState, ...updatedRates }
+          });
+        }
+
+        // --- ACTION 3: VAY VÀNG (bank_borrow) ---
+        if (action === 'bank_borrow') {
+          const borrowAmt = Math.max(0, parseInt(req.body?.amount, 10) || 0);
+          if (borrowAmt <= 0) {
+            return res.status(400).json({ error: 'Số Vàng vay phải lớn hơn 0.' });
+          }
+
+          if (uState.profile.bank.loan && (parseInt(uState.profile.bank.loan.debt, 10) || 0) > 0) {
+            return res.status(400).json({ error: 'Bạn đang có một khoản vay chưa thanh toán hết. Vui lòng tất toán khoản nợ hiện tại trước khi đăng ký vay mới!' });
+          }
+
+          const autoDeduct = Math.min(0.80, Math.max(0.30, Number(req.body?.autoDeductPercent) || 0.50));
+          const maxLimit = calculateCreditLimit(uState.profile, autoDeduct);
+          if (borrowAmt > maxLimit) {
+            return res.status(400).json({ error: `Số Vàng vay (${borrowAmt}) vượt quá hạn mức tín dụng tối đa (${maxLimit}) của bạn!` });
+          }
+
+          // Bảo lãnh Kho Bạc nếu Bể không đủ thanh khoản để giải ngân
+          let bailoutInjected = 0;
+          if (poolState.poolGold < borrowAmt) {
+            bailoutInjected = borrowAmt - poolState.poolGold;
+            poolState.bailoutDebt = (poolState.bailoutDebt || 0) + bailoutInjected;
+            poolState.poolGold += bailoutInjected;
+          }
+
+          poolState.poolGold = Math.max(0, poolState.poolGold - borrowAmt);
+          poolState.totalBorrowed = (poolState.totalBorrowed || 0) + borrowAmt;
+
+          uState.profile.coins = (parseInt(uState.profile.coins, 10) || 0) + borrowAmt;
+          uState.profile.bank.loan = {
+            principal: borrowAmt,
+            debt: borrowAmt,
+            borrowRate: rates.borrowRate,
+            autoDeductPercent: autoDeduct,
+            borrowedAt: serverTimestamp,
+            lastAccruedAt: serverTimestamp,
+            isOverdue: false
+          };
+          uState.profile.bank.isFrozen = false;
+
+          uState.ledger.unshift({
+            id: `bank_bor_${serverTimestamp}`,
+            type: 'earn',
+            category: 'bank_borrow',
+            amount: borrowAmt,
+            title: 'Vay Vàng Ngân Hàng',
+            description: `🏦 Đã vay ${borrowAmt} Vàng. Lãi suất: ${(rates.borrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${(autoDeduct * 100).toFixed(0)}% mỗi nhiệm vụ.`,
+            timestamp: serverTimestamp
+          });
+          if (uState.ledger.length > 100) uState.ledger.splice(100);
+
+          await saveGlobalBankState(redis, poolState);
+          await redis.set(userKey, JSON.stringify(uState), 'EX', 180 * 24 * 3600);
+
+          const updatedRates = calculateBankRates(poolState);
+          return res.status(200).json({
+            success: true,
+            message: `Giải ngân thành công khoản vay ${borrowAmt} Vàng!`,
+            loan: uState.profile.bank.loan,
+            coins: uState.profile.coins,
+            pool: { ...poolState, ...updatedRates }
+          });
+        }
+
+        // --- ACTION 4: TRẢ NỢ (bank_repay) ---
+        if (action === 'bank_repay') {
+          const loan = uState.profile.bank.loan;
+          const currentDebt = Math.max(0, parseInt(loan?.debt, 10) || 0);
+          if (!loan || currentDebt <= 0) {
+            return res.status(400).json({ error: 'Bạn không có khoản nợ nào cần thanh toán!' });
+          }
+
+          const userCoins = Math.max(0, parseInt(uState.profile.coins, 10) || 0);
+          if (userCoins <= 0) {
+            return res.status(400).json({ error: 'Số dư Vàng trong ví bằng 0, không thể trả nợ!' });
+          }
+
+          const reqAmt = req.body?.amount === 'all' || !req.body?.amount ? currentDebt : Math.max(1, parseInt(req.body.amount, 10) || currentDebt);
+          const payAmt = Math.min(userCoins, Math.min(currentDebt, reqAmt));
+
+          uState.profile.coins = userCoins - payAmt;
+          loan.debt = currentDebt - payAmt;
+
+          const principalPaid = Math.min(loan.principal || 0, payAmt);
+          loan.principal = Math.max(0, (loan.principal || 0) - principalPaid);
+
+          poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - principalPaid);
+          poolState.poolGold += payAmt;
+
+          // HOÀN TRẢ NGƯỢC LẠI KHO BẠC HỆ THỐNG KHI PHỤC HỒI THANH KHOẢN
+          let treasuryRepaid = 0;
+          if (poolState.bailoutDebt > 0) {
+            treasuryRepaid = Math.min(poolState.bailoutDebt, Math.floor(payAmt * 0.5));
+            poolState.bailoutDebt -= treasuryRepaid;
+            poolState.reserveFund = (poolState.reserveFund || 0) + (payAmt - treasuryRepaid);
+          } else {
+            const profit = payAmt - principalPaid;
+            if (profit > 0) {
+              poolState.reserveFund = (poolState.reserveFund || 0) + profit;
+            }
+          }
+
+          let debtCleared = false;
+          if (loan.debt <= 0) {
+            debtCleared = true;
+            uState.profile.bank.loan = null;
+            uState.profile.bank.isFrozen = false;
+            if (uState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
+              uState.profile.title = deriveTitleForLevel(uState.profile.level || 1);
+            }
+          }
+
+          uState.ledger.unshift({
+            id: `bank_rep_${serverTimestamp}`,
+            type: 'spend',
+            category: 'bank_repay',
+            amount: payAmt,
+            title: 'Trả nợ Ngân Hàng',
+            description: `🏦 Đã trả ${payAmt} Vàng nợ Ngân Hàng.${debtCleared ? ' Chúc mừng bạn đã thanh toán toàn bộ nợ!' : ` Nợ còn lại: ${loan.debt} Vàng.`}${treasuryRepaid > 0 ? ` (Đã hoàn ${treasuryRepaid} Vàng cho Kho Bạc Hệ Thống)` : ''}`,
+            timestamp: serverTimestamp
+          });
+          if (uState.ledger.length > 100) uState.ledger.splice(100);
+
+          await saveGlobalBankState(redis, poolState);
+          await redis.set(userKey, JSON.stringify(uState), 'EX', 180 * 24 * 3600);
+
+          const updatedRates = calculateBankRates(poolState);
+          return res.status(200).json({
+            success: true,
+            message: debtCleared ? 'Bạn đã tất toán toàn bộ khoản nợ!' : `Đã thanh toán ${payAmt} Vàng. Nợ còn lại: ${loan.debt} Vàng.`,
+            debtCleared,
+            treasuryRepaid,
+            loan: uState.profile.bank.loan,
+            coins: uState.profile.coins,
+            pool: { ...poolState, ...updatedRates }
           });
         }
       }

@@ -123,7 +123,14 @@ const DEFAULT_STATE = {
     googlePicture: '',
     googleToken: '',
     sessionToken: '',
-    hasOnboarded: false
+    hasOnboarded: false,
+    bank: {
+      deposited: 0,
+      depositInterest: 0,
+      lastDepositAt: 0,
+      loan: null,
+      isFrozen: false
+    }
   },
   quests: [
     {
@@ -363,7 +370,10 @@ function deriveLegitimateBalance(state) {
     rawTotal = rawCoins + totalSpent;
   }
 
-  const maxCurrent = Math.max(0, rawTotal - totalSpent);
+  // Tương thích tài sản Ngân Hàng (Khoản vay & Tiền gửi) để không phạt nhầm số dư hợp lệ
+  const activeLoanPrincipal = Math.max(0, parseInt(state?.profile?.bank?.loan?.principal, 10) || 0);
+  const depositedCoins = Math.max(0, parseInt(state?.profile?.bank?.deposited, 10) || 0);
+  const maxCurrent = Math.max(0, rawTotal - totalSpent + activeLoanPrincipal - depositedCoins);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
     tampered = true;
@@ -2005,7 +2015,38 @@ async function completeQuest(questId, skipConfirm = false) {
       quest.completedAt = Date.now();
     }
 
-    appState.profile.coins += quest.rewardCoins;
+    let earnedCoins = quest.rewardCoins;
+    let deductedForLoan = 0;
+    let loanCleared = false;
+
+    // Tự động trích nợ Ngân Hàng nếu người chơi có khoản vay đang hoạt động
+    if (appState.profile?.bank?.loan && (parseInt(appState.profile.bank.loan.debt, 10) || 0) > 0) {
+      const loan = appState.profile.bank.loan;
+      const isOverdue = loan.isOverdue || (Date.now() - (parseInt(loan.borrowedAt, 10) || Date.now())) >= 7 * 24 * 60 * 60 * 1000;
+      if (isOverdue) {
+        loan.isOverdue = true;
+        appState.profile.bank.isFrozen = true;
+        appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+      }
+      const deductRate = isOverdue ? 1.0 : Math.min(0.80, Math.max(0.30, Number(loan.autoDeductPercent) || 0.50));
+      deductedForLoan = Math.min(loan.debt, Math.floor(earnedCoins * deductRate));
+      if (deductedForLoan > 0) {
+        loan.debt -= deductedForLoan;
+        loan.principal = Math.max(0, (loan.principal || 0) - Math.min(loan.principal || 0, deductedForLoan));
+        earnedCoins -= deductedForLoan;
+
+        if (loan.debt <= 0) {
+          loanCleared = true;
+          appState.profile.bank.loan = null;
+          appState.profile.bank.isFrozen = false;
+          if (appState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
+            updateTitleByLevel();
+          }
+        }
+      }
+    }
+
+    appState.profile.coins += earnedCoins;
     appState.profile.totalCoinsEarned += quest.rewardCoins;
     addEXP(quest.rewardCoins * 3);
 
@@ -2019,11 +2060,27 @@ async function completeQuest(questId, skipConfirm = false) {
       timestamp: Date.now()
     });
 
+    if (deductedForLoan > 0) {
+      addLedgerEntry({
+        id: 'bank_ded_' + (Date.now() + 1),
+        type: 'spend',
+        category: 'bank_deduct',
+        amount: deductedForLoan,
+        title: 'Trích nợ nhiệm vụ Ngân Hàng',
+        description: `🏦 Đã tự động trích ${deductedForLoan} Vàng từ nhiệm vụ "${quest.title}" để trả nợ.${loanCleared ? ' Khoản nợ đã được tất toán!' : ` Nợ còn lại: ${appState.profile.bank?.loan?.debt || 0} Vàng.`}`,
+        timestamp: Date.now() + 1
+      });
+    }
+
     sfx.playCoin();
-    showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`, 'gold', {
-      label: 'Hoàn tác',
-      onClick: () => undoCompleteQuest(quest.id)
-    });
+    if (deductedForLoan > 0) {
+      showToast(`+${earnedCoins} VÀNG (Đã trích ${deductedForLoan} Vàng trả nợ)! Hoàn thành: "${quest.title}"`, 'gold');
+    } else {
+      showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`, 'gold', {
+        label: 'Hoàn tác',
+        onClick: () => undoCompleteQuest(quest.id)
+      });
+    }
     triggerSave(true);
     renderHeader();
     renderQuests();
@@ -2386,6 +2443,12 @@ async function buyShopItem(itemId) {
   const item = appState.shopItems.find(i => i.id === itemId);
   if (!item) return;
 
+  // Đóng băng Cửa Hàng nếu có nợ quá hạn 7 ngày
+  if (appState.profile?.bank?.isFrozen || (appState.profile?.bank?.loan && appState.profile.bank.loan.isOverdue)) {
+    showToast('Tài khoản đang bị đóng băng do nợ quá hạn! Hãy hoàn thành nhiệm vụ để trả nợ trước khi đổi quà.', 'error');
+    return;
+  }
+
   if (appState.profile.coins < item.price) {
     showToast(`Chưa đủ vàng! Bạn cần thêm ${item.price - appState.profile.coins} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
     return;
@@ -2514,6 +2577,12 @@ async function refundInventoryItem(invId, skipConfirm = false) {
 async function useInventoryItem(invId, skipConfirm = false) {
   const item = appState.inventory.find(i => i.id === invId);
   if (!item) return;
+
+  // Đóng băng Cửa Hàng & Kho Quà nếu nợ quá hạn
+  if (appState.profile?.bank?.isFrozen || (appState.profile?.bank?.loan && appState.profile.bank.loan.isOverdue)) {
+    showToast('Tài khoản đang bị đóng băng do nợ quá hạn! Hãy hoàn thành nhiệm vụ để trả nợ trước khi sử dụng quà.', 'error');
+    return;
+  }
 
   // Case 1: Quà này đang được đếm giờ
   if (activeRewardItem && activeRewardItem.id === invId) {
@@ -4376,22 +4445,37 @@ async function fetchAdminUsers() {
     let totalCoins = 0;
     let totalLevels = 0;
     let cheatersCount = 0;
+    let overdueCount = 0;
 
     adminUsersList.forEach(u => {
       totalCoins += (typeof u.coins === 'number' ? u.coins : 0);
       totalLevels += (u.level || 1);
       if (u.isCheater) cheatersCount++;
+      if (u.bank?.loan?.isOverdue || u.bank?.isFrozen) overdueCount++;
     });
 
     const statTotalUsers = document.getElementById('admin-stat-total-users');
     const statTotalCoins = document.getElementById('admin-stat-total-coins');
     const statAvgLevel = document.getElementById('admin-stat-avg-level');
     const statCheaters = document.getElementById('admin-stat-cheaters-count');
+    const elAdminOverdue = document.getElementById('admin-bank-overdue-count');
 
     if (statTotalUsers) statTotalUsers.textContent = totalUsers.toLocaleString('vi-VN');
     if (statTotalCoins) statTotalCoins.textContent = totalCoins.toLocaleString('vi-VN');
     if (statAvgLevel) statAvgLevel.textContent = `Lv. ${totalUsers > 0 ? (totalLevels / totalUsers).toFixed(1) : 1}`;
     if (statCheaters) statCheaters.textContent = cheatersCount.toString();
+    if (elAdminOverdue) elAdminOverdue.textContent = overdueCount.toString();
+
+    // Tải thông tin tài chính Ngân hàng và Kho bạc cho Admin
+    try {
+      const bankRes = await fetch('/api/sync?action=bank_state', { credentials: 'include' });
+      if (bankRes.ok) {
+        const bData = await bankRes.json();
+        if (bData.pool) {
+          renderAdminBankTelemetry(bData.pool, bData.rates);
+        }
+      }
+    } catch (_) {}
 
     renderAdminDashboard();
   } catch (err) {
@@ -6014,6 +6098,8 @@ function switchTab(tabId) {
     updateCheatersBadge();
   } else if (tabId === 'admin') {
     fetchAdminUsers();
+  } else if (tabId === 'bank') {
+    loadBankState();
   }
 }
 
@@ -6741,6 +6827,751 @@ async function initStartupFlow() {
   openModal('modal-welcome');
   renderGoogleSignInButton();
 }
+
+// =============================================================================
+// 13.6. BANKING FINANCIAL ENGINE & AMM STATE MANAGEMENT (AI Central Bank)
+// =============================================================================
+
+let currentBankPool = {
+  poolGold: 500,
+  totalBorrowed: 0,
+  reserveFund: 150,
+  totalDeposited: 0,
+  bailoutDebt: 0
+};
+
+let bankCommentaryCache = { text: '', timestamp: 0 };
+
+function calculateLocalBankRates(poolState) {
+  const poolGold = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
+  const totalBorrowed = Math.max(0, parseInt(poolState?.totalBorrowed, 10) || 0);
+  const totalLiquidity = poolGold + totalBorrowed;
+  const utilization = totalLiquidity > 0 ? Math.min(1.0, Math.max(0.0, totalBorrowed / totalLiquidity)) : 0;
+  const depositRate = Math.min(0.08, Math.max(0.01, 0.02 + 0.04 * utilization));
+  const borrowRate = Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * utilization));
+  return {
+    utilization,
+    depositRate,
+    borrowRate,
+    spread: borrowRate - depositRate
+  };
+}
+
+function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
+  const level = Math.max(1, parseInt(profile?.level, 10) || 1);
+  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
+  const totalEarned = Math.max(0, parseInt(profile?.totalCoinsEarned, 10) || 0);
+  const rawBase = level * 25 + streak * 5 + Math.floor(totalEarned * 0.1);
+  const baseLimit = Math.min(400, rawBase);
+  const rate = Math.min(0.80, Math.max(0.30, Number(autoDeductPercent) || 0.50));
+  const kDeduct = 0.7 + ((rate - 0.30) / 0.50) * 0.8;
+  return Math.floor(baseLimit * kDeduct);
+}
+
+function ensureUserBankProfile() {
+  if (!appState.profile) appState.profile = {};
+  if (!appState.profile.bank) {
+    appState.profile.bank = {
+      deposited: 0,
+      depositInterest: 0,
+      lastDepositAt: Date.now(),
+      loan: null,
+      isFrozen: false
+    };
+  }
+  return appState.profile.bank;
+}
+
+async function loadBankState() {
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+  ensureUserBankProfile();
+
+  let poolData = currentBankPool;
+  let userBank = appState.profile.bank;
+  let creditLimit = calculateLocalCreditLimit(appState.profile, userBank.loan?.autoDeductPercent || 0.50);
+
+  try {
+    const res = await fetch(`/api/sync?action=bank_state&token=${encodeURIComponent(token || '')}&ts=${Date.now()}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.pool) {
+        currentBankPool = data.pool;
+        poolData = data.pool;
+      }
+      if (data.userBank) {
+        appState.profile.bank = data.userBank;
+        userBank = data.userBank;
+      }
+      if (data.creditLimit) {
+        creditLimit = data.creditLimit;
+      }
+    }
+  } catch (err) {
+    console.warn('Không thể kết nối đến máy chủ Ngân Hàng, sử dụng dữ liệu cục bộ:', err);
+  }
+
+  renderBankUI(poolData, userBank, creditLimit);
+  loadBankAiCommentary(poolData);
+}
+
+function renderBankUI(pool, userBank, creditLimit) {
+  // 1. Kiểm tra nợ quá hạn 7 ngày
+  const isOverdue = userBank?.loan?.isOverdue || (userBank?.loan && (Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) >= 7 * 24 * 60 * 60 * 1000);
+  if (isOverdue && userBank?.loan) {
+    userBank.loan.isOverdue = true;
+    userBank.isFrozen = true;
+    appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+  }
+
+  const overdueBanner = document.getElementById('bank-overdue-banner');
+  if (overdueBanner) {
+    if (userBank?.isFrozen || isOverdue) {
+      overdueBanner.classList.remove('hidden');
+    } else {
+      overdueBanner.classList.add('hidden');
+    }
+  }
+
+  // 2. Chỉ số AMM Bể Vàng & Lãi suất động
+  const rates = pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+
+  const elPoolGold = document.getElementById('bank-pool-gold');
+  if (elPoolGold) elPoolGold.textContent = (pool.poolGold ?? 500).toLocaleString('vi-VN');
+
+  const elBorrowed = document.getElementById('bank-total-borrowed');
+  if (elBorrowed) elBorrowed.textContent = (pool.totalBorrowed ?? 0).toLocaleString('vi-VN');
+
+  const elUtil = document.getElementById('bank-utilization-pct');
+  if (elUtil) elUtil.textContent = Math.round((rates.utilization || 0) * 100) + '%';
+
+  const elDepRate = document.getElementById('bank-deposit-rate');
+  if (elDepRate) elDepRate.textContent = ((rates.depositRate || 0.02) * 100).toFixed(1) + '%/ngày';
+
+  const elBorRate = document.getElementById('bank-borrow-rate');
+  if (elBorRate) elBorRate.textContent = ((rates.borrowRate || 0.05) * 100).toFixed(1) + '%/ngày';
+
+  const elReserve = document.getElementById('bank-reserve-fund');
+  if (elReserve) elReserve.textContent = (pool.reserveFund ?? 150).toLocaleString('vi-VN');
+
+  const elBailout = document.getElementById('bank-bailout-status');
+  if (elBailout) {
+    if ((pool.bailoutDebt || 0) > 0) {
+      elBailout.className = 'text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5 flex items-center gap-1';
+      elBailout.innerHTML = `<span>⚠️</span> <span>Kho Bạc bảo lãnh (${pool.bailoutDebt} 🪙)</span>`;
+    } else {
+      elBailout.className = 'text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 flex items-center gap-1';
+      elBailout.innerHTML = `<span>🛡️</span> <span>Kho Bạc an toàn</span>`;
+    }
+  }
+
+  // 3. Sổ Tiết Kiệm (Depositor)
+  const elUserDep = document.getElementById('bank-user-deposited');
+  if (elUserDep) elUserDep.textContent = (userBank?.deposited || 0).toLocaleString('vi-VN');
+
+  const elUserInt = document.getElementById('bank-user-interest');
+  if (elUserInt) elUserInt.textContent = '+' + (userBank?.depositInterest || 0).toLocaleString('vi-VN');
+
+  // 4. Quầy Vay Vàng (Borrower)
+  const elBadge = document.getElementById('bank-credit-limit-badge');
+  if (elBadge) elBadge.textContent = `Hạn mức: ${creditLimit} 🪙`;
+
+  const activeBox = document.getElementById('bank-loan-active-box');
+  const formBox = document.getElementById('bank-loan-form-box');
+  const btnBorrow = document.getElementById('btn-bank-borrow');
+  const btnRepay = document.getElementById('btn-bank-repay');
+
+  if (userBank?.loan && (userBank.loan.debt || 0) > 0) {
+    if (activeBox) activeBox.classList.remove('hidden');
+    if (formBox) formBox.classList.add('hidden');
+    if (btnBorrow) {
+      btnBorrow.disabled = true;
+      btnBorrow.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+    if (btnRepay) {
+      btnRepay.disabled = false;
+      btnRepay.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    const elDebt = document.getElementById('bank-current-debt');
+    if (elDebt) elDebt.textContent = `${userBank.loan.debt} 🪙`;
+
+    const elDeductRate = document.getElementById('bank-active-deduct-rate');
+    if (elDeductRate) elDeductRate.textContent = `${Math.round((userBank.loan.autoDeductPercent || 0.5) * 100)}%`;
+
+    const elDaysLeft = document.getElementById('bank-loan-days-left');
+    if (elDaysLeft) {
+      const daysPassed = Math.floor((Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) / (24 * 60 * 60 * 1000));
+      const daysLeft = Math.max(0, 7 - daysPassed);
+      if (userBank.loan.isOverdue || daysLeft === 0) {
+        elDaysLeft.textContent = 'Đã quá hạn ⚠️';
+        elDaysLeft.className = 'font-bold text-rose-600';
+      } else {
+        elDaysLeft.textContent = `${daysLeft} ngày`;
+        elDaysLeft.className = 'font-semibold text-amber-600';
+      }
+    }
+  } else {
+    if (activeBox) activeBox.classList.add('hidden');
+    if (formBox) formBox.classList.remove('hidden');
+    if (btnBorrow) {
+      btnBorrow.disabled = false;
+      btnBorrow.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    if (btnRepay) {
+      btnRepay.disabled = true;
+      btnRepay.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  // 5. Cập nhật bảng đo lường vĩ mô AMM chi tiết trong Admin Dashboard (nếu có)
+  renderAdminBankTelemetry(pool, rates);
+}
+
+function renderAdminBankTelemetry(pool, rates) {
+  if (!pool) return;
+  const pRates = rates || (pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool));
+
+  const elAdminPool = document.getElementById('admin-bank-pool-gold');
+  if (elAdminPool) elAdminPool.textContent = (pool.poolGold ?? 500).toLocaleString('vi-VN');
+
+  const elAdminBorrowed = document.getElementById('admin-bank-total-borrowed');
+  if (elAdminBorrowed) elAdminBorrowed.textContent = (pool.totalBorrowed ?? 0).toLocaleString('vi-VN');
+
+  const uPct = Math.round((pRates.utilization || 0) * 100);
+  const elAdminUtil = document.getElementById('admin-bank-utilization-pct');
+  if (elAdminUtil) elAdminUtil.textContent = `${uPct}%`;
+
+  const elAdminUtilBar = document.getElementById('admin-bank-utilization-bar');
+  if (elAdminUtilBar) {
+    elAdminUtilBar.style.width = `${Math.min(100, Math.max(0, uPct))}%`;
+    if (uPct > 80) {
+      elAdminUtilBar.className = 'bg-rose-500 h-1.5 rounded-full transition-all duration-300';
+    } else if (uPct > 50) {
+      elAdminUtilBar.className = 'bg-amber-500 h-1.5 rounded-full transition-all duration-300';
+    } else {
+      elAdminUtilBar.className = 'bg-blue-600 h-1.5 rounded-full transition-all duration-300';
+    }
+  }
+
+  const elAdminReserve = document.getElementById('admin-bank-reserve-fund');
+  if (elAdminReserve) elAdminReserve.textContent = (pool.reserveFund ?? 150).toLocaleString('vi-VN');
+
+  const elAdminBailoutDebt = document.getElementById('admin-bank-bailout-debt');
+  if (elAdminBailoutDebt) elAdminBailoutDebt.textContent = (pool.bailoutDebt ?? 0).toLocaleString('vi-VN');
+
+  const elAdminBailoutText = document.getElementById('admin-bank-bailout-status-text');
+  const elAdminHealth = document.getElementById('admin-bank-health-badge');
+  if ((pool.bailoutDebt || 0) > 0) {
+    if (elAdminBailoutText) {
+      elAdminBailoutText.textContent = `Kho Bạc Đang Cứu Trợ (${pool.bailoutDebt} 🪙)`;
+      elAdminBailoutText.className = 'text-[9px] text-amber-600 dark:text-amber-400 font-bold';
+    }
+    if (elAdminHealth) {
+      elAdminHealth.className = 'text-[11px] font-bold px-2.5 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1';
+      elAdminHealth.innerHTML = '<span>⚠️</span> <span>Cứu Trợ Kích Hoạt</span>';
+    }
+  } else {
+    if (elAdminBailoutText) {
+      elAdminBailoutText.textContent = 'Kho Bạc An Toàn';
+      elAdminBailoutText.className = 'text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold';
+    }
+    if (elAdminHealth) {
+      elAdminHealth.className = 'text-[11px] font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1';
+      elAdminHealth.innerHTML = '<span>🛡️</span> <span>Hệ Thống An Toàn</span>';
+    }
+  }
+
+  const elAdminDepRate = document.getElementById('admin-bank-deposit-rate');
+  if (elAdminDepRate) elAdminDepRate.textContent = ((pRates.depositRate || 0.02) * 100).toFixed(1) + '%/ngày';
+
+  const elAdminBorRate = document.getElementById('admin-bank-borrow-rate');
+  if (elAdminBorRate) elAdminBorRate.textContent = ((pRates.borrowRate || 0.05) * 100).toFixed(1) + '%/ngày';
+
+  const elAdminSpread = document.getElementById('admin-bank-spread');
+  if (elAdminSpread) {
+    const spreadVal = pRates.spread !== undefined ? pRates.spread : ((pRates.borrowRate || 0.05) - (pRates.depositRate || 0.02));
+    elAdminSpread.textContent = (spreadVal * 100).toFixed(1) + '%';
+  }
+
+  const elAdminTotalDep = document.getElementById('admin-bank-total-deposited');
+  if (elAdminTotalDep) elAdminTotalDep.textContent = (pool.totalDeposited ?? 0).toLocaleString('vi-VN');
+}
+
+async function loadBankAiCommentary(pool) {
+  const elCommentary = document.getElementById('bank-ai-commentary');
+  if (!elCommentary) return;
+
+  // Cache bản tin trong 2 phút để tối ưu hiệu năng
+  if (bankCommentaryCache.text && Date.now() - bankCommentaryCache.timestamp < 120000) {
+    elCommentary.textContent = bankCommentaryCache.text;
+    return;
+  }
+
+  try {
+    const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        action: 'bank_market_commentary',
+        payload: { poolState: pool }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.commentary) {
+        bankCommentaryCache = { text: data.commentary, timestamp: Date.now() };
+        elCommentary.textContent = data.commentary;
+        return;
+      }
+    }
+  } catch (_) {}
+
+  const rates = calculateLocalBankRates(pool);
+  let fallback = '';
+  if ((pool.bailoutDebt || 0) > 0) {
+    fallback = `Kho Bạc Hệ Thống đang bảo lãnh ${pool.bailoutDebt} Vàng thanh khoản 100%! Hãy cày nhiệm vụ và gửi tiết kiệm ngay để nhận lãi suất cao ngất ngưởng ${(rates.depositRate * 100).toFixed(1)}%/ngày!`;
+  } else if (rates.utilization > 0.6) {
+    fallback = `Bể Vàng đang sôi động! Lãi suất gửi tiết kiệm đang ở mức cao ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội vàng cho các hiệp sĩ chăm chỉ tích lũy tài sản!`;
+  } else {
+    fallback = `Bể thanh khoản dồi dào Vàng nhàn rỗi! Lãi suất vay ưu đãi chỉ ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Hãy tạm ứng Vàng nếu bạn cần đổi quà thư giãn ngay hôm nay!`;
+  }
+  bankCommentaryCache = { text: fallback, timestamp: Date.now() };
+  elCommentary.textContent = fallback;
+}
+
+function setDepositAmount(amount) {
+  const input = document.getElementById('input-deposit-amount');
+  if (input) input.value = amount;
+}
+
+function setDepositMax() {
+  const input = document.getElementById('input-deposit-amount');
+  if (input) input.value = Math.max(0, appState.profile?.coins || 0);
+}
+
+async function executeBankDeposit() {
+  const input = document.getElementById('input-deposit-amount');
+  const amount = parseInt(input?.value, 10);
+  if (!amount || amount <= 0) {
+    showToast('Vui lòng nhập số Vàng muốn gửi hợp lệ (> 0)!', 'error');
+    return;
+  }
+  if (amount > (appState.profile?.coins || 0)) {
+    showToast(`Số dư không đủ! Bạn chỉ có ${appState.profile?.coins || 0} Vàng trong ví.`, 'error');
+    return;
+  }
+
+  const ok = await confirmAction({
+    title: 'Gửi Tiết Kiệm Ngân Hàng?',
+    message: `Bạn có chắc muốn gửi ${amount} Vàng vào Bể thanh khoản để nhận lãi thụ động mỗi ngày?`,
+    detail: `💰 Vàng trong ví: ${appState.profile.coins} ➔ Còn lại: ${appState.profile.coins - amount}\n🛡️ Vốn được bảo lãnh 100%, có thể rút bất kỳ lúc nào.`,
+    confirmText: 'Gửi Ngay 📥',
+    cancelText: 'Hủy',
+    icon: '🌱',
+    btnColor: 'emerald'
+  });
+  if (!ok) return;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+  let serverSuccess = false;
+
+  if (token) {
+    try {
+      const res = await fetch('/api/sync?action=bank_deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        appState.profile.coins = data.coins;
+        appState.profile.bank = data.userBank;
+        currentBankPool = data.pool;
+        serverSuccess = true;
+        showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Giao dịch thất bại trên máy chủ!', 'error');
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi kết nối khi gửi tiết kiệm, thực hiện lưu cục bộ:', e);
+    }
+  }
+
+  if (!serverSuccess) {
+    ensureUserBankProfile();
+    appState.profile.coins -= amount;
+    appState.profile.bank.deposited = (appState.profile.bank.deposited || 0) + amount;
+    appState.profile.bank.lastDepositAt = Date.now();
+    currentBankPool.poolGold = (currentBankPool.poolGold || 500) + amount;
+    currentBankPool.totalDeposited = (currentBankPool.totalDeposited || 0) + amount;
+
+    addLedgerEntry({
+      id: 'bank_dep_' + Date.now(),
+      type: 'spend',
+      category: 'bank_deposit',
+      amount: amount,
+      title: 'Gửi tiết kiệm Ngân Hàng',
+      description: `🏦 Đã gửi ${amount} Vàng vào Bể thanh khoản (Chế độ cục bộ).`,
+      timestamp: Date.now()
+    });
+    showToast(`Đã gửi ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+  }
+
+  sfx.playCoin();
+  if (input) input.value = '';
+  triggerSave(true);
+  renderHeader();
+  renderLedger();
+  loadBankState();
+}
+
+async function executeBankWithdraw() {
+  ensureUserBankProfile();
+  const bank = appState.profile.bank;
+  const deposited = bank.deposited || 0;
+  const interest = bank.depositInterest || 0;
+  const totalAvailable = deposited + interest;
+
+  if (totalAvailable <= 0) {
+    showToast('Bạn không có Vàng gửi hoặc tiền lãi để rút!', 'info');
+    return;
+  }
+
+  const ok = await confirmAction({
+    title: 'Rút Tiết Kiệm Về Ví?',
+    message: `Rút toàn bộ ${totalAvailable} Vàng (${deposited} Vàng gốc + ${interest} Vàng lãi) về ví?`,
+    detail: `💰 Số dư ví sẽ tăng từ ${appState.profile.coins} ➔ ${appState.profile.coins + totalAvailable} Vàng.`,
+    confirmText: 'Rút Toàn Bộ 📤',
+    cancelText: 'Giữ Lại Sinh Lời',
+    icon: '📤',
+    btnColor: 'emerald'
+  });
+  if (!ok) return;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+  let serverSuccess = false;
+
+  if (token) {
+    try {
+      const res = await fetch('/api/sync?action=bank_withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: 'all' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        appState.profile.coins = data.coins;
+        appState.profile.bank = data.userBank;
+        currentBankPool = data.pool;
+        serverSuccess = true;
+        showToast(data.message || `Đã rút thành công ${totalAvailable} Vàng!`, 'gold');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Rút tiền thất bại trên máy chủ!', 'error');
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi kết nối khi rút tiết kiệm, thực hiện lưu cục bộ:', e);
+    }
+  }
+
+  if (!serverSuccess) {
+    let bailoutInjected = 0;
+    if (currentBankPool.poolGold < totalAvailable) {
+      bailoutInjected = totalAvailable - currentBankPool.poolGold;
+      currentBankPool.bailoutDebt = (currentBankPool.bailoutDebt || 0) + bailoutInjected;
+      currentBankPool.poolGold += bailoutInjected;
+    }
+    currentBankPool.poolGold = Math.max(0, currentBankPool.poolGold - totalAvailable);
+    currentBankPool.totalDeposited = Math.max(0, (currentBankPool.totalDeposited || 0) - deposited);
+
+    appState.profile.coins += totalAvailable;
+    appState.profile.totalCoinsEarned += interest;
+    bank.deposited = 0;
+    bank.depositInterest = 0;
+    bank.lastDepositAt = Date.now();
+
+    const bailoutNotice = bailoutInjected > 0 ? ` (Bảo lãnh 100% từ Kho Bạc Hệ Thống: Cứu trợ ${bailoutInjected} Vàng)` : '';
+    addLedgerEntry({
+      id: 'bank_wit_' + Date.now(),
+      type: 'earn',
+      category: 'bank_withdraw',
+      amount: totalAvailable,
+      title: 'Rút tiền gửi Ngân Hàng',
+      description: `🏦 Đã rút ${totalAvailable} Vàng (${deposited} gốc + ${interest} lãi) từ Ngân Hàng.${bailoutNotice}`,
+      timestamp: Date.now()
+    });
+    showToast(`Đã rút thành công ${totalAvailable} Vàng!${bailoutInjected > 0 ? ' Kho Bạc đã bảo lãnh 100% thanh khoản!' : ''}`, 'gold');
+  }
+
+  sfx.playCoin();
+  triggerSave(true);
+  renderHeader();
+  renderLedger();
+  loadBankState();
+}
+
+function onDeductPercentChange(val) {
+  const numVal = parseInt(val, 10) || 50;
+  const label = document.getElementById('deduct-percent-label');
+  if (label) label.textContent = `${numVal}%`;
+
+  const finalLimit = calculateLocalCreditLimit(appState.profile, numVal / 100);
+  const badge = document.getElementById('bank-credit-limit-badge');
+  if (badge) badge.textContent = `Hạn mức: ${finalLimit} 🪙`;
+
+  const appraisal = document.getElementById('bank-appraisal-box');
+  if (appraisal) {
+    if (numVal >= 70) {
+      appraisal.innerHTML = `🔥 <strong>Tuyệt vời!</strong> Bạn cam kết trích ${numVal}% tiền thưởng nhiệm vụ để tất toán nhanh. AI cấp cho bạn hạn mức cao nhất (${finalLimit} Vàng)!`;
+    } else if (numVal <= 40) {
+      appraisal.innerHTML = `🌿 Trích nhẹ nhàng ${numVal}% tiền thưởng giúp bạn thong thả làm việc. Hạn mức khả dụng là ${finalLimit} Vàng.`;
+    } else {
+      appraisal.innerHTML = `💡 <em>Tỷ lệ ${numVal}% cân bằng lý tưởng giữa việc trả nợ và giữ lại Vàng tiêu xài cho các nhiệm vụ tiếp theo! Hạn mức: ${finalLimit} 🪙</em>`;
+    }
+  }
+}
+
+async function executeBankBorrow() {
+  ensureUserBankProfile();
+  const bank = appState.profile.bank;
+  if (bank.loan && (bank.loan.debt || 0) > 0) {
+    showToast('Bạn đang có khoản vay chưa thanh toán! Vui lòng tất toán trước khi vay thêm.', 'error');
+    return;
+  }
+
+  const inputAmount = document.getElementById('input-borrow-amount');
+  const inputDeduct = document.getElementById('input-deduct-percent');
+  const borrowAmt = parseInt(inputAmount?.value, 10);
+  const deductPct = parseInt(inputDeduct?.value, 10) || 50;
+  const autoDeduct = deductPct / 100;
+
+  if (!borrowAmt || borrowAmt <= 0) {
+    showToast('Vui lòng nhập số Vàng muốn vay hợp lệ (> 0)!', 'error');
+    return;
+  }
+
+  const maxLimit = calculateLocalCreditLimit(appState.profile, autoDeduct);
+  if (borrowAmt > maxLimit) {
+    showToast(`Số Vàng vay (${borrowAmt}) vượt quá hạn mức tối đa (${maxLimit}) của bạn!`, 'error');
+    return;
+  }
+
+  const ok = await confirmAction({
+    title: 'Xác Nhận Vay Vàng Tức Thời?',
+    message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
+    detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)`,
+    confirmText: 'Vay Ngay ⚡',
+    cancelText: 'Hủy',
+    icon: '⚡',
+    btnColor: 'blue'
+  });
+  if (!ok) return;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+  let serverSuccess = false;
+
+  if (token) {
+    try {
+      const res = await fetch('/api/sync?action=bank_borrow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: borrowAmt,
+          autoDeductPercent: autoDeduct
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        appState.profile.coins = data.coins;
+        appState.profile.bank.loan = data.loan;
+        appState.profile.bank.isFrozen = false;
+        currentBankPool = data.pool;
+        serverSuccess = true;
+        showToast(data.message || `Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Vay Vàng thất bại trên máy chủ!', 'error');
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi kết nối khi vay Vàng, thực hiện lưu cục bộ:', e);
+    }
+  }
+
+  if (!serverSuccess) {
+    const rates = calculateLocalBankRates(currentBankPool);
+    let bailoutInjected = 0;
+    if (currentBankPool.poolGold < borrowAmt) {
+      bailoutInjected = borrowAmt - currentBankPool.poolGold;
+      currentBankPool.bailoutDebt = (currentBankPool.bailoutDebt || 0) + bailoutInjected;
+      currentBankPool.poolGold += bailoutInjected;
+    }
+    currentBankPool.poolGold = Math.max(0, currentBankPool.poolGold - borrowAmt);
+    currentBankPool.totalBorrowed = (currentBankPool.totalBorrowed || 0) + borrowAmt;
+
+    appState.profile.coins += borrowAmt;
+    appState.profile.bank.loan = {
+      principal: borrowAmt,
+      debt: borrowAmt,
+      borrowRate: rates.borrowRate,
+      autoDeductPercent: autoDeduct,
+      borrowedAt: Date.now(),
+      lastAccruedAt: Date.now(),
+      isOverdue: false
+    };
+    appState.profile.bank.isFrozen = false;
+
+    addLedgerEntry({
+      id: 'bank_bor_' + Date.now(),
+      type: 'earn',
+      category: 'bank_borrow',
+      amount: borrowAmt,
+      title: 'Vay Vàng Ngân Hàng',
+      description: `🏦 Đã vay ${borrowAmt} Vàng (Lãi suất: ${(rates.borrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${deductPct}% mỗi nhiệm vụ).`,
+      timestamp: Date.now()
+    });
+    showToast(`Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
+  }
+
+  sfx.playFanfare();
+  if (inputAmount) inputAmount.value = '';
+  triggerSave(true);
+  renderHeader();
+  renderLedger();
+  loadBankState();
+}
+
+async function executeBankRepay() {
+  ensureUserBankProfile();
+  const loan = appState.profile.bank.loan;
+  const currentDebt = loan?.debt || 0;
+  if (!loan || currentDebt <= 0) {
+    showToast('Bạn không có khoản nợ nào cần thanh toán!', 'info');
+    return;
+  }
+  const userCoins = appState.profile.coins || 0;
+  if (userCoins <= 0) {
+    showToast('Ví của bạn không còn Vàng để trả nợ!', 'error');
+    return;
+  }
+
+  const payAmt = Math.min(userCoins, currentDebt);
+  const ok = await confirmAction({
+    title: 'Trả Nợ Sớm?',
+    message: `Dùng ${payAmt} Vàng trong ví để trả bớt khoản nợ ${currentDebt} Vàng?`,
+    detail: `💰 Vàng trong ví: ${userCoins} ➔ ${userCoins - payAmt}\n📉 Nợ còn lại: ${currentDebt - payAmt} Vàng.`,
+    confirmText: 'Trả Nợ 💳',
+    cancelText: 'Hủy',
+    icon: '💳',
+    btnColor: 'amber'
+  });
+  if (!ok) return;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+  let serverSuccess = false;
+
+  if (token) {
+    try {
+      const res = await fetch('/api/sync?action=bank_repay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: payAmt })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        appState.profile.coins = data.coins;
+        appState.profile.bank.loan = data.loan;
+        if (data.loanCleared) {
+          appState.profile.bank.loan = null;
+          appState.profile.bank.isFrozen = false;
+          if (appState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
+            updateTitleByLevel();
+          }
+        }
+        currentBankPool = data.pool;
+        serverSuccess = true;
+        showToast(data.message || `Đã trả ${payAmt} Vàng!`, 'success');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Trả nợ thất bại trên máy chủ!', 'error');
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi kết nối khi trả nợ, thực hiện lưu cục bộ:', e);
+    }
+  }
+
+  if (!serverSuccess) {
+    appState.profile.coins -= payAmt;
+    loan.debt -= payAmt;
+    loan.principal = Math.max(0, (loan.principal || 0) - Math.min(loan.principal || 0, payAmt));
+    currentBankPool.poolGold += payAmt;
+    currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - payAmt);
+
+    // Hoàn nợ kho bạc nếu có
+    if (currentBankPool.bailoutDebt > 0) {
+      const treasuryRepay = Math.min(currentBankPool.bailoutDebt, Math.floor(payAmt * 0.5));
+      currentBankPool.bailoutDebt -= treasuryRepay;
+      currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + (payAmt - treasuryRepay);
+    }
+
+    let loanCleared = false;
+    if (loan.debt <= 0) {
+      loanCleared = true;
+      appState.profile.bank.loan = null;
+      appState.profile.bank.isFrozen = false;
+      if (appState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
+        updateTitleByLevel();
+      }
+    }
+
+    addLedgerEntry({
+      id: 'bank_rep_' + Date.now(),
+      type: 'spend',
+      category: 'bank_repay',
+      amount: payAmt,
+      title: 'Trả nợ sớm Ngân Hàng',
+      description: `🏦 Đã trả ${payAmt} Vàng.${loanCleared ? ' Khoản nợ đã được tất toán!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
+      timestamp: Date.now()
+    });
+    showToast(`Đã trả thành công ${payAmt} Vàng!${loanCleared ? ' Chúc mừng bạn đã tất toán toàn bộ nợ!' : ''}`, 'success');
+  }
+
+  sfx.playCoin();
+  triggerSave(true);
+  renderHeader();
+  renderLedger();
+  loadBankState();
+}
+
+window.loadBankState = loadBankState;
+window.renderAdminBankTelemetry = renderAdminBankTelemetry;
+window.setDepositAmount = setDepositAmount;
+window.setDepositMax = setDepositMax;
+window.executeBankDeposit = executeBankDeposit;
+window.executeBankWithdraw = executeBankWithdraw;
+window.onDeductPercentChange = onDeductPercentChange;
+window.executeBankBorrow = executeBankBorrow;
+window.executeBankRepay = executeBankRepay;
 
 // =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT

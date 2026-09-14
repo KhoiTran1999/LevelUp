@@ -6,7 +6,9 @@ import {
   getAdminConfig,
   checkRateLimit,
   signQuest,
-  signReward
+  signReward,
+  calculateBankRates,
+  calculateCreditLimit
 } from './sync.js';
 dotenv.config();
 
@@ -1145,6 +1147,114 @@ Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
         return res.status(200).json({
           approved: Boolean(result.approved),
           feedback: (result.feedback || (result.approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim()
+        });
+      }
+
+      // ==========================================
+      // 7. BANK CREDIT APPRAISE (AI Thẩm định hạn mức vay)
+      // ==========================================
+      case 'bank_credit_appraise': {
+        const userProfile = payload?.profile || {};
+        const autoDeduct = Math.min(0.80, Math.max(0.30, Number(payload?.autoDeductPercent) || 0.50));
+        const requestedAmount = Math.max(0, parseInt(payload?.requestedAmount, 10) || 0);
+        const poolState = payload?.poolState || {};
+        const rates = calculateBankRates(poolState);
+        const creditLimit = calculateCreditLimit(userProfile, autoDeduct);
+
+        let aiAdvice = '';
+        let warning = '';
+        const level = Math.max(1, parseInt(userProfile?.level, 10) || 1);
+        const streak = Math.max(0, parseInt(userProfile?.streak, 10) || 0);
+
+        if (API_KEY) {
+          try {
+            const systemPrompt = `Bạn là Thống Đốc Ngân Hàng Trung Ương AI của LevelUp RPG.
+Nhiệm vụ: Thẩm định khoản vay Vàng cho người chơi và đưa ra lời khuyên ân cần, động viên.
+QUY TẮC QUAN TRỌNG VỀ GIỌNG ĐIỆU:
+- Dùng từ ngữ đơn giản, gần gũi, đời thường, tuyệt đối KHÔNG dùng thuật ngữ tài chính khó hiểu (như "tỷ lệ đòn bẩy", "thẩm định tín dụng phức tạp", "rủi ro thanh khoản vĩ mô").
+- Giải thích rõ cơ chế trích nợ tự động một cách dễ hiểu: "Mỗi khi bạn làm xong một việc, hệ thống sẽ trích ${(autoDeduct * 100).toFixed(0)}% tiền thưởng để trả nợ dần, bạn không lo phải gom tiền trả một lần".
+- Nếu người chơi chọn trích nợ cao (60% - 80%), khen ngợi tinh thần quyết tâm trả nợ nhanh.
+- Nếu họ vay số lượng lớn so với cấp độ, nhắc họ chăm chỉ làm nhiệm vụ để không bị quá hạn.
+- Trả về JSON định dạng:
+{
+  "advice": "Lời khuyên ngắn gọn (2-3 câu), thân thiện, động viên",
+  "warning": "Lưu ý nếu có về thời hạn 7 ngày để tránh bị khóa cửa hàng"
+}`;
+            const userPrompt = `Người chơi Level ${level}, chuỗi chăm chỉ ${streak} ngày.
+Hạn mức tối đa được cấp: ${creditLimit} Vàng.
+Số Vàng người chơi muốn vay: ${requestedAmount || creditLimit} Vàng.
+Tỷ lệ trích tiền thưởng nhiệm vụ để trả nợ: ${(autoDeduct * 100).toFixed(0)}%.
+Lãi suất vay hiện tại: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+
+            const aiRes = await callAI(systemPrompt, userPrompt, 0.3);
+            aiAdvice = aiRes?.advice || '';
+            warning = aiRes?.warning || '';
+          } catch (_) {}
+        }
+
+        if (!aiAdvice) {
+          const deductPct = Math.round(autoDeduct * 100);
+          aiAdvice = `Hệ thống cấp cho bạn hạn mức ${creditLimit} Vàng dựa trên cấp độ ${level} và chuỗi ngày chăm chỉ ${streak} ngày. Mỗi khi xong nhiệm vụ, ${deductPct}% Vàng thưởng sẽ được tự động trích trả nợ giúp bạn thanh thản làm việc!`;
+          warning = `Hãy nhớ hoàn thành nhiệm vụ đều đặn trong vòng 7 ngày để trả hết nợ và giữ cho cửa hàng luôn mở nhé!`;
+        }
+
+        return res.status(200).json({
+          creditLimit,
+          recommendedAmount: Math.min(creditLimit, requestedAmount || creditLimit),
+          borrowRate: rates.borrowRate,
+          autoDeductPercent: autoDeduct,
+          advice: aiAdvice,
+          warning: warning || 'Hãy nhớ trả nợ trong vòng 7 ngày để tránh bị tạm khóa đổi quà nhé!'
+        });
+      }
+
+      // ==========================================
+      // 8. BANK MARKET COMMENTARY (AI Bản tin thị trường Bể Vàng)
+      // ==========================================
+      case 'bank_market_commentary': {
+        const poolState = payload?.poolState || {};
+        const rates = calculateBankRates(poolState);
+        const poolGold = Math.max(0, parseInt(poolState.poolGold, 10) || 0);
+        const totalBorrowed = Math.max(0, parseInt(poolState.totalBorrowed, 10) || 0);
+        const bailoutDebt = Math.max(0, parseInt(poolState.bailoutDebt, 10) || 0);
+        const utilization = rates.utilization;
+
+        let commentary = '';
+        if (API_KEY) {
+          try {
+            const systemPrompt = `Bạn là Thống Đốc Ngân Hàng AI vui tính của vương quốc LevelUp RPG.
+Nhiệm vụ: Viết một bản tin tài chính thị trường cực kỳ ngắn gọn (2-3 câu), hài hước, mang tính chất RPG game.
+QUY TẮC:
+- Dùng từ ngữ đời thường, bình dân, không dùng từ ngữ tài chính vĩ mô phức tạp.
+- Nếu Kho Bạc đang cứu trợ (bailoutDebt > 0): Thông báo Kho Bạc Hệ Thống đang bảo lãnh 100% thanh khoản, kêu gọi hiệp sĩ cày nhiệm vụ gửi tiết kiệm nhận lãi suất cao ngất ngưởng để hỗ trợ thị trường.
+- Nếu Bể dồi dào Vàng (utilization < 0.4): Khuyên người chơi vay Vàng giá rẻ để đổi quà thư giãn, nạp năng lượng.
+- Nếu Bể khan hiếm Vàng (utilization > 0.7): Khen ngợi ai gửi tiết kiệm lúc này vì lãi suất gửi đang rất hời!
+- Trả về JSON: { "commentary": "..." }`;
+
+            const userPrompt = `Vàng trong Bể: ${poolGold}, Đang cho vay: ${totalBorrowed}, Nợ cứu trợ Kho Bạc: ${bailoutDebt}, Tỷ lệ sử dụng bể: ${(utilization * 100).toFixed(1)}%, Lãi gửi: ${(rates.depositRate * 100).toFixed(1)}%/ngày, Lãi vay: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+            const aiRes = await callAI(systemPrompt, userPrompt, 0.4);
+            commentary = aiRes?.commentary || '';
+          } catch (_) {}
+        }
+
+        if (!commentary) {
+          if (bailoutDebt > 0) {
+            commentary = `🛡️ Kho Bạc Hệ Thống đang bảo lãnh khẩn cấp ${bailoutDebt} Vàng để đảm bảo tiền gửi an toàn 100%. Lãi suất gửi tiết kiệm đang ở mức cao ${(rates.depositRate * 100).toFixed(1)}%/ngày, hãy nhanh tay gửi Vàng sinh sôi!`;
+          } else if (utilization > 0.7) {
+            commentary = `🔥 Nhu cầu vay Vàng đang rất lớn! Ngân Hàng đang tăng lãi suất gửi lên ${(rates.depositRate * 100).toFixed(1)}%/ngày. Cơ hội tuyệt vời cho các hiệp sĩ chăm chỉ gửi Vàng tích lũy tài sản!`;
+          } else if (utilization < 0.3) {
+            commentary = `🌊 Bể Vàng đang rất dồi dào và lãi vay hạ nhiệt chỉ còn ${(rates.borrowRate * 100).toFixed(1)}%/ngày. Nếu cần chút Vàng đổi quà thư giãn, hãy vay nhanh và trả dần qua nhiệm vụ nhé!`;
+          } else {
+            commentary = `⚖️ Thị trường tài chính đang vận hành ổn định và cân bằng. Lãi gửi tiết kiệm ${(rates.depositRate * 100).toFixed(1)}%/ngày và lãi vay ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
+          }
+        }
+
+        return res.status(200).json({
+          commentary,
+          rates,
+          poolGold,
+          totalBorrowed,
+          bailoutDebt
         });
       }
 
