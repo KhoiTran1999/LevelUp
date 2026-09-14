@@ -189,10 +189,19 @@ const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r
     'api/ai.js phải ưu tiên trích xuất thông số từ selectedOpt trong debate_reward'
   );
 
+  // Kiểm tra bank_debate_loan
+  assert.ok(
+    aiJs.includes('selectedOption.newAmount !== undefined') &&
+    aiJs.includes('selectedOption.newBorrowRate !== undefined') &&
+    aiJs.includes('selectedOption.newAutoDeductPercent !== undefined'),
+    'api/ai.js phải ưu tiên trích xuất thông số từ selectedOption trong bank_debate_loan'
+  );
+
   // Kiểm tra tự động accepted = true khi chọn phương án hoặc người dùng chốt
   assert.ok(
-    aiJs.includes('const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt)'),
-    'api/ai.js phải bảo đảm accepted = true khi người dùng bấm chọn phương án'
+    aiJs.includes('const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt)') &&
+    aiJs.includes('const isAccepted = Boolean(result.accepted) || Boolean(selectedOption)'),
+    'api/ai.js phải bảo đảm accepted = true khi người dùng bấm chọn phương án ở tất cả các luồng'
   );
 
   console.log('✓ Test 5: Ưu tiên tuyệt đối phương án được chọn (selectedOption), loại bỏ 100% lỗi đóng băng thông số.');

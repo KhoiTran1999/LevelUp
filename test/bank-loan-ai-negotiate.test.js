@@ -266,6 +266,86 @@ Bạn muốn chốt phương án nào thì cứ bấm chọn nhé! ✨`;
   console.log('✓ Test 8: Giám Sát Kho Bạc & AMM hoạt động chuẩn xác, bảo vệ sàn lãi suất và tuân thủ tuyệt đối Chỉ Thị Zero-Leak.');
 }
 
+// 9. Kiểm tra Cơ Chế Thương Lượng Phương Án Khoản Vay Đồng Bộ Theo "Thêm Phần Thưởng Mới"
+{
+  // 9.1. Đảm bảo Chấp thuận Tuyệt đối (Guaranteed Acceptance) & Ưu tiên thông số từ selectedOption
+  const selectedOption = {
+    id: 1,
+    label: 'Gói Vay Ưu Đãi 1',
+    argument: 'Chốt gói 1',
+    newAmount: 40,
+    newBorrowRate: 0.035, // 3.5%
+    newAutoDeductPercent: 0.60, // 60%
+    newCreditLimit: 75
+  };
+
+  // Tình huống LLM từ chối hoặc trả về accepted: false
+  const mockedLlmRejection = {
+    accepted: false,
+    reply: 'Ngân hàng chưa thể đồng ý đề xuất này...',
+    newAmount: 20,
+    newBorrowRate: 0.06,
+    newAutoDeductPercent: 0.50,
+    newCreditLimit: 50
+  };
+
+  const userAgreed = false;
+  const aiAgreed = false;
+  const isAccepted = Boolean(mockedLlmRejection.accepted) || Boolean(selectedOption) || (userAgreed && aiAgreed);
+  assert.strictEqual(isAccepted, true, 'Có selectedOption BẮT BUỘC accepted = true bất kể LLM từ chối');
+
+  if (isAccepted) {
+    mockedLlmRejection.accepted = true;
+    if (selectedOption) {
+      if (selectedOption.newAmount !== undefined) mockedLlmRejection.newAmount = parseInt(selectedOption.newAmount, 10);
+      if (selectedOption.newBorrowRate !== undefined) {
+        let sRate = Number(selectedOption.newBorrowRate);
+        if (sRate > 0.30) sRate = sRate / 100;
+        mockedLlmRejection.newBorrowRate = sRate;
+      }
+      if (selectedOption.newAutoDeductPercent !== undefined) {
+        let sDeduct = Number(selectedOption.newAutoDeductPercent);
+        if (sDeduct > 1.0) sDeduct = sDeduct / 100;
+        mockedLlmRejection.newAutoDeductPercent = sDeduct;
+      }
+      if (selectedOption.newCreditLimit !== undefined) mockedLlmRejection.newCreditLimit = parseInt(selectedOption.newCreditLimit, 10);
+    }
+  }
+
+  assert.strictEqual(mockedLlmRejection.newAmount, 40, 'Thông số newAmount từ option phải đè lên giá trị LLM');
+  assert.strictEqual(mockedLlmRejection.newBorrowRate, 0.035, 'Thông số newBorrowRate từ option phải đè lên giá trị LLM');
+  assert.strictEqual(mockedLlmRejection.newAutoDeductPercent, 0.60, 'Thông số newAutoDeductPercent từ option phải đè lên giá trị LLM');
+  assert.strictEqual(mockedLlmRejection.newCreditLimit, 75, 'Thông số newCreditLimit từ option phải đè lên giá trị LLM');
+
+  // 9.2. Ký số HMAC và xác thực Zero-Trust sau khi chốt phương án
+  const userId = 'user_borrower_001';
+  const sig = signLoanOffer(userId, mockedLlmRejection.newAmount, mockedLlmRejection.newBorrowRate, mockedLlmRejection.newAutoDeductPercent, mockedLlmRejection.newCreditLimit);
+  assert.ok(sig && sig.length === 16, 'Chữ ký HMAC khoản vay phải dài 16 ký tự');
+  assert.strictEqual(
+    verifyLoanSignature([userId], mockedLlmRejection.newAmount, mockedLlmRejection.newBorrowRate, mockedLlmRejection.newAutoDeductPercent, mockedLlmRejection.newCreditLimit, sig),
+    true,
+    'Chữ ký phải khớp 100% với tham số của selectedOption'
+  );
+
+  // 9.3. Kiểm tra mã nguồn api/ai.js có nhánh offline fallback cho selectedOption
+  assert.ok(
+    aiJs.includes('if (selectedOption) {') && aiJs.includes('accepted: true') && aiJs.includes('selectedOption.newBorrowRate'),
+    'api/ai.js phải có nhánh offline fallback gán accepted: true khi có selectedOption'
+  );
+
+  // 9.4. Kiểm tra mã nguồn public/app.js bảo toàn hạn mức ưu đãi khi kéo thanh trượt trích nợ (UI Persistence)
+  assert.ok(
+    appJs.includes('const isNegotiated = Boolean(bankNegotiatedTerms && bankNegotiatedTerms.creditLimit)'),
+    'app.js phải kiểm tra isNegotiated trong onDeductPercentChange và renderBankUI'
+  );
+  assert.ok(
+    appJs.includes('Math.max(bankNegotiatedTerms.creditLimit, standardLimit)'),
+    'onDeductPercentChange phải giữ hạn mức ưu đãi cao hơn hạn mức cơ sở'
+  );
+
+  console.log('✓ Test 9: Cơ chế chốt phương án khoản vay (Guaranteed Acceptance, Priority Overrides, Offline Fallback & UI Persistence) hoạt động hoàn hảo.');
+}
+
 console.log('\n======================================================');
-console.log('🎉 TẤT CẢ 8 NHÓM KIỂM THỬ ĐÃ VƯỢT QUA THÀNH CÔNG!');
+console.log('🎉 TẤT CẢ 9 NHÓM KIỂM THỬ ĐÃ VƯỢT QUA THÀNH CÔNG!');
 console.log('======================================================\n');

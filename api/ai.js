@@ -1698,7 +1698,16 @@ ${questSummary}
           const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp/i.test(argument);
           const isLimitNegotiate = /nâng\s*hạn\s*mức|tăng\s*hạn\s*mức|hạn\s*mức\s*cao/i.test(argument);
 
-          if (isRateNegotiate && (streak >= 2 || level >= 2)) {
+          if (selectedOption) {
+            result = {
+              accepted: true,
+              reply: `Mình rất vui được chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Thông số khoản vay đã được cập nhật ưu đãi. ✨`,
+              newAmount: selectedOption.newAmount,
+              newBorrowRate: selectedOption.newBorrowRate,
+              newAutoDeductPercent: selectedOption.newAutoDeductPercent,
+              newCreditLimit: selectedOption.newCreditLimit
+            };
+          } else if (isRateNegotiate && (streak >= 2 || level >= 2)) {
             const discountedRate = Math.max(macro.depositFloor, Number((currentRate - 0.02).toFixed(4)));
             const suggestDeduct = macro.liquidityStatus === 'tight' ? Math.max(0.60, currentDeduct) : currentDeduct;
             const tightNote = macro.liquidityStatus === 'tight' && suggestDeduct > currentDeduct
@@ -1738,28 +1747,37 @@ ${questSummary}
         const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|sẵn sàng|mình duyệt|mình chấp thuận)\b/i.test(result.reply);
 
-        if (selectedOption || (userAgreed && aiAgreed)) {
+        const isAccepted = Boolean(result.accepted) || Boolean(selectedOption) || (userAgreed && aiAgreed);
+        if (isAccepted) {
           result.accepted = true;
-        }
 
-        if (selectedOption) {
-          if (selectedOption.newAmount !== undefined) result.newAmount = parseInt(selectedOption.newAmount, 10);
-          if (selectedOption.newBorrowRate !== undefined) {
-            let sRate = Number(selectedOption.newBorrowRate);
-            if (sRate > 0.30) sRate = sRate / 100;
-            result.newBorrowRate = sRate;
+          // Selected option parameters take absolute priority over echoed LLM values
+          if (selectedOption) {
+            if (selectedOption.newAmount !== undefined) result.newAmount = parseInt(selectedOption.newAmount, 10);
+            if (selectedOption.newBorrowRate !== undefined) {
+              let sRate = Number(selectedOption.newBorrowRate);
+              if (sRate > 0.30) sRate = sRate / 100;
+              result.newBorrowRate = sRate;
+            }
+            if (selectedOption.newAutoDeductPercent !== undefined) {
+              let sDeduct = Number(selectedOption.newAutoDeductPercent);
+              if (sDeduct > 1.0) sDeduct = sDeduct / 100;
+              result.newAutoDeductPercent = sDeduct;
+            }
+            if (selectedOption.newCreditLimit !== undefined) result.newCreditLimit = parseInt(selectedOption.newCreditLimit, 10);
+
+            if (!result.reply || (!aiAgreed && !result.accepted)) {
+              result.reply = `Mình hoàn toàn nhất trí chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Thông số khoản vay đã được cập nhật chuẩn xác. Chúc bạn làm việc hiệu quả và sớm tất toán nợ! ✨`;
+            }
           }
-          if (selectedOption.newAutoDeductPercent !== undefined) {
-            let sDeduct = Number(selectedOption.newAutoDeductPercent);
-            if (sDeduct > 1.0) sDeduct = sDeduct / 100;
-            result.newAutoDeductPercent = sDeduct;
-          }
-          if (selectedOption.newCreditLimit !== undefined) result.newCreditLimit = parseInt(selectedOption.newCreditLimit, 10);
         }
 
         // Sanitize numbers
         let cleanAmount = parseInt(result.newAmount, 10);
-        if (isNaN(cleanAmount) || cleanAmount <= 0) cleanAmount = currentAmount;
+        if (isNaN(cleanAmount) || cleanAmount <= 0) {
+          const replyAmountMatch = result.reply?.match(/(?:vay|mức\s*vay|khoản\s*vay|số\s*vàng(?:\s*vay)?|còn)[:\s]*(\d+)\s*vàng/i) || result.reply?.match(/(\d+)\s*vàng/i);
+          cleanAmount = replyAmountMatch ? parseInt(replyAmountMatch[1], 10) : currentAmount;
+        }
 
         let cleanRate = Number(result.newBorrowRate);
         if (isNaN(cleanRate) || cleanRate <= 0) {
@@ -1773,7 +1791,10 @@ ${questSummary}
         cleanRate = Math.min(0.20, Math.max(macro.depositFloor, Number(cleanRate.toFixed(4))));
 
         let cleanDeduct = Number(result.newAutoDeductPercent);
-        if (isNaN(cleanDeduct) || cleanDeduct <= 0) cleanDeduct = currentDeduct;
+        if (isNaN(cleanDeduct) || cleanDeduct <= 0) {
+          const replyDeductMatch = result.reply?.match(/(?:trích|trích\s*nợ|tỷ\s*lệ)[:\s]*(\d+)\s*%/i);
+          cleanDeduct = replyDeductMatch ? parseInt(replyDeductMatch[1], 10) / 100 : currentDeduct;
+        }
         // Tự động chuẩn hóa nếu AI trả về dạng số nguyên 50 -> 0.50
         if (cleanDeduct > 1.0) {
           cleanDeduct = cleanDeduct / 100;
@@ -1781,7 +1802,10 @@ ${questSummary}
         cleanDeduct = Math.min(0.80, Math.max(0.30, Number(cleanDeduct.toFixed(2))));
 
         let cleanLimit = parseInt(result.newCreditLimit, 10);
-        if (isNaN(cleanLimit) || cleanLimit <= 0) cleanLimit = currentLimit;
+        if (isNaN(cleanLimit) || cleanLimit <= 0) {
+          const replyLimitMatch = result.reply?.match(/(?:hạn\s*mức(?:\s*(?:lên|mới))?|cấp\s*hạn\s*mức)[:\s]*(\d+)\s*vàng/i);
+          cleanLimit = replyLimitMatch ? parseInt(replyLimitMatch[1], 10) : currentLimit;
+        }
         cleanLimit = Math.max(cleanAmount, cleanLimit);
 
         result.newAmount = cleanAmount;
@@ -1797,7 +1821,7 @@ ${questSummary}
         if (!Array.isArray(result.options) || result.options.length === 0) {
           result.options = parseDebateOptionsFromText(result.reply, 'loan');
         } else {
-          result.options = result.options.map(opt => {
+          result.options = result.options.map((opt, idx) => {
             let optRate = Number(opt.newBorrowRate);
             if (!isNaN(optRate)) {
               if (optRate > 0.30) optRate = optRate / 100;
@@ -1808,6 +1832,9 @@ ${questSummary}
               if (optDeduct > 1.0) optDeduct = optDeduct / 100;
               opt.newAutoDeductPercent = Math.min(0.80, Math.max(0.30, Number(optDeduct.toFixed(2))));
             }
+            if (opt.newAmount !== undefined) opt.newAmount = parseInt(opt.newAmount, 10);
+            if (opt.newCreditLimit !== undefined) opt.newCreditLimit = parseInt(opt.newCreditLimit, 10);
+            if (!opt.argument) opt.argument = `Chốt phương án ${opt.id || idx + 1}`;
             return opt;
           });
         }

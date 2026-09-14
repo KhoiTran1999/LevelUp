@@ -7042,8 +7042,25 @@ function renderBankUI(pool, userBank, creditLimit) {
   updateDepositCalculator(rates.depositRate);
 
   // 4. Quầy Vay Vàng (Borrower)
+  const isNegotiated = Boolean(bankNegotiatedTerms && bankNegotiatedTerms.creditLimit);
+  const effectiveLimit = isNegotiated
+    ? Math.max(bankNegotiatedTerms.creditLimit, creditLimit)
+    : creditLimit;
   const elBadge = document.getElementById('bank-credit-limit-badge');
-  if (elBadge) elBadge.innerHTML = `<span>Hạn mức: ${creditLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+  if (elBadge) {
+    if (isNegotiated) {
+      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
+    } else {
+      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+    }
+  }
+
+  const negotiatedBadge = document.getElementById('bank-negotiated-badge');
+  const negotiatedTermsSpan = document.getElementById('bank-negotiated-terms');
+  if (negotiatedBadge && negotiatedTermsSpan && bankNegotiatedTerms) {
+    negotiatedTermsSpan.textContent = `Lãi ${(bankNegotiatedTerms.borrowRate * 100).toFixed(1)}%/ngày • Hạn mức ${bankNegotiatedTerms.creditLimit} Vàng • Trích ${Math.round(bankNegotiatedTerms.autoDeductPercent * 100)}%`;
+    negotiatedBadge.classList.remove('hidden');
+  }
 
   const activeBox = document.getElementById('bank-loan-active-box');
   const formBox = document.getElementById('bank-loan-form-box');
@@ -7497,9 +7514,20 @@ function onDeductPercentChange(val) {
   const label = document.getElementById('deduct-percent-label');
   if (label) label.textContent = `${numVal}%`;
 
-  const finalLimit = calculateLocalCreditLimit(appState.profile, numVal / 100);
+  const standardLimit = calculateLocalCreditLimit(appState.profile, numVal / 100);
+  const isNegotiated = Boolean(bankNegotiatedTerms && bankNegotiatedTerms.creditLimit);
+  const finalLimit = isNegotiated
+    ? Math.max(bankNegotiatedTerms.creditLimit, standardLimit)
+    : standardLimit;
+
   const badge = document.getElementById('bank-credit-limit-badge');
-  if (badge) badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+  if (badge) {
+    if (isNegotiated) {
+      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
+    } else {
+      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+    }
+  }
 
   const appraisal = document.getElementById('bank-appraisal-box');
   if (appraisal) {
@@ -7820,7 +7848,13 @@ function initBankDebateChat(forceReset = false) {
       const idx = parseInt(btn.getAttribute('data-bank-opt-idx'), 10);
       const opt = initialOptions[idx];
       if (opt) {
-        sendBankDebateMessage(opt.argument || opt.label, opt);
+        chatLogs.querySelectorAll('.bank-debate-option-btn').forEach(b => {
+          b.disabled = true;
+          b.classList.add('opacity-50', 'pointer-events-none');
+        });
+        btn.classList.remove('opacity-50');
+        btn.classList.add('ring-2', 'ring-blue-500', 'bg-blue-100', 'dark:bg-blue-900/40');
+        sendBankDebateMessage(opt.argument || `Chốt ${opt.label || ('Gói ' + (idx + 1))}`, opt);
       }
     });
   });
@@ -7945,16 +7979,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
       botIcon: '🤖',
       options: data.options,
       mode: 'loan',
-      onSelectOption: (opt) => {
-        const cleanOpt = { ...opt };
-        if (cleanOpt.newBorrowRate !== undefined && Number(cleanOpt.newBorrowRate) > 0.30) {
-          cleanOpt.newBorrowRate = Number(cleanOpt.newBorrowRate) / 100;
-        }
-        if (cleanOpt.newAutoDeductPercent !== undefined && Number(cleanOpt.newAutoDeductPercent) > 1.0) {
-          cleanOpt.newAutoDeductPercent = Number(cleanOpt.newAutoDeductPercent) / 100;
-        }
-        sendBankDebateMessage(cleanOpt.argument || `Chốt phương án ${cleanOpt.id}`, cleanOpt);
-      }
+      onSelectOption: (opt) => sendBankDebateMessage(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
     currentBankDebateHistory.push({ user: argument, arbiter: data.reply });
