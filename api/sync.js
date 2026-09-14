@@ -213,7 +213,12 @@ export function deriveLegitimateBalance(state, existingState = null) {
   // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
   // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng hoặc bơm hàng ngàn quest giả
   const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
-  const isAdminAdjusted = Boolean(existingState?.profile?.adminAdjusted || state?.profile?.adminAdjusted);
+  const isAdminAdjusted = Boolean(
+    existingState?.profile?.adminAdjusted ||
+    state?.profile?.adminAdjusted ||
+    existingState?.profile?.role === 'admin' ||
+    state?.profile?.role === 'admin'
+  );
   const maxAllowedCeiling = isAdminAdjusted
     ? Math.max(rawTotal, maxTrackedEarned)
     : (existingTotal > 0 ? existingTotal + 500 : maxTrackedEarned);
@@ -952,7 +957,12 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.' });
       }
 
-      const rawData = await redis.get(`levelup:user:google:${targetSub}`);
+      let userKey = `levelup:user:google:${targetSub}`;
+      let rawData = await redis.get(userKey);
+      if (!rawData) {
+        userKey = `levelup:user:${targetSub}`;
+        rawData = await redis.get(userKey);
+      }
       if (!rawData) {
         return res.status(200).json({ found: false, googleId: targetSub });
       }
@@ -961,7 +971,7 @@ export default async function handler(req, res) {
       const isCallerAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
       if (isCallerAdmin && data.profile && data.profile.role !== 'admin') {
         data.profile.role = 'admin';
-        await redis.set(`levelup:user:google:${targetSub}`, JSON.stringify(data), 'EX', 180 * 24 * 3600);
+        await redis.set(userKey, JSON.stringify(data), 'EX', 180 * 24 * 3600);
       }
       return res.status(200).json({
         found: true,
@@ -1097,6 +1107,21 @@ export default async function handler(req, res) {
           if (mappedSub) {
             userKey = `levelup:user:google:${mappedSub}`;
             rawUserData = await redis.get(userKey);
+            if (!rawUserData) {
+              userKey = `levelup:user:${mappedSub}`;
+              rawUserData = await redis.get(userKey);
+            }
+          }
+        }
+        if (!rawUserData && targetSub.includes('@')) {
+          const emailSub = await redis.get(`levelup:google:email:${targetSub.toLowerCase().trim()}`);
+          if (emailSub) {
+            userKey = `levelup:user:google:${emailSub}`;
+            rawUserData = await redis.get(userKey);
+            if (!rawUserData) {
+              userKey = `levelup:user:${emailSub}`;
+              rawUserData = await redis.get(userKey);
+            }
           }
         }
         if (!rawUserData) {
@@ -1105,6 +1130,9 @@ export default async function handler(req, res) {
 
         const userData = JSON.parse(rawUserData);
         if (!userData.profile) userData.profile = {};
+
+        const canonicalSub = userData.googleId || userData.profile?.googleId || userData.profile?.sub ||
+          (userKey.startsWith('levelup:user:google:') ? userKey.replace('levelup:user:google:', '') : targetSub);
 
         const oldCoins = typeof userData.profile.coins === 'number' ? userData.profile.coins : (userData.profile.totalCoinsEarned || 20);
         const oldLevel = userData.profile.level || 1;
@@ -1138,14 +1166,23 @@ export default async function handler(req, res) {
           userData.profile.isCheater = isCheater;
           if (isCheater) {
             userData.profile.title = 'Kẻ Gian Lận ⚠️';
-            await redis.zrem('levelup:leaderboard', targetSub);
-            await redis.zadd('levelup:cheaters', serverTimestamp, targetSub);
+            await redis.zrem('levelup:leaderboard', canonicalSub);
+            if (targetSub !== canonicalSub) {
+              await redis.zrem('levelup:leaderboard', targetSub);
+            }
+            await redis.zadd('levelup:cheaters', serverTimestamp, canonicalSub);
+            if (targetSub !== canonicalSub) {
+              await redis.zrem('levelup:cheaters', targetSub);
+            }
           } else {
             userData.profile.cheatStrikes = 0;
             delete userData.profile.cheatedAt;
             delete userData.profile.redemptionBaseline;
             userData.profile.title = deriveTitleForLevel(userData.profile.level || 1);
-            await redis.zrem('levelup:cheaters', targetSub);
+            await redis.zrem('levelup:cheaters', canonicalSub);
+            if (targetSub !== canonicalSub) {
+              await redis.zrem('levelup:cheaters', targetSub);
+            }
           }
         }
 
@@ -1176,13 +1213,23 @@ export default async function handler(req, res) {
 
         // Lưu lại vào Redis
         await redis.set(userKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+        const canonicalGoogleKey = `levelup:user:google:${canonicalSub}`;
+        if (canonicalGoogleKey !== userKey) {
+          await redis.set(canonicalGoogleKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+        }
 
         // Đồng bộ Bảng Xếp Hạng nếu không phải kẻ gian lận
         if (!userData.profile.isCheater) {
           const finalLevel = userData.profile.level || 1;
           const finalCoins = userData.profile.coins || 0;
           const score = (finalLevel * 1000) + finalCoins;
-          await redis.zadd('levelup:leaderboard', score, targetSub);
+          await redis.zadd('levelup:leaderboard', score, canonicalSub);
+          if (targetSub !== canonicalSub) {
+            await redis.zrem('levelup:leaderboard', targetSub);
+          }
+        }
+        if (typeof redis.sadd === 'function') {
+          await redis.sadd('levelup:all_users', canonicalSub);
         }
 
         return res.status(200).json({

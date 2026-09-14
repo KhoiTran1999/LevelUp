@@ -343,13 +343,22 @@ function deriveLegitimateBalance(state) {
     totalSpent += Math.max(0, parseInt(item.price, 10) || 0);
   }
 
-  if (rawTotal > maxEarned + 500) {
+  // ponytail: Khi Admin tinh chỉnh hoặc tài khoản có quyền Admin, cho phép số Vàng vượt trần nhiệm vụ thông thường
+  const isAdminAdjusted = Boolean(state?.profile?.adminAdjusted || state?.profile?.role === 'admin');
+  const maxAllowedCeiling = isAdminAdjusted ? Math.max(rawTotal, maxEarned) : maxEarned + 500;
+
+  if (rawTotal > maxAllowedCeiling) {
     rawTotal = maxEarned;
     tampered = true;
   }
   if (rawTotal < 0) {
     rawTotal = 0;
     tampered = true;
+  }
+
+  // ponytail: Bảo đảm tổng số Vàng kiếm được bao quát số dư hiện tại và chi tiêu khi được Admin cấp
+  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent) {
+    rawTotal = rawCoins + totalSpent;
   }
 
   const maxCurrent = Math.max(0, rawTotal - totalSpent);
@@ -4263,13 +4272,26 @@ async function submitAdminUserEdit() {
     }
 
     // Nếu sửa chính tài khoản đang đăng nhập của Admin: Cập nhật live UI ngay lập tức
-    const isSelf = (appState.profile.googleId && targetSub === appState.profile.googleId) ||
-                   (appState.profile.sub && targetSub === appState.profile.sub);
+    const mySub = appState.profile.googleId || appState.profile.sub;
+    const myNick = (appState.profile.nickname || '').toLowerCase().trim();
+    const myEmail = (appState.profile.email || '').toLowerCase().trim();
+    const targetUser = Array.isArray(adminUsersList) ? adminUsersList.find(u => u.sub === targetSub) : null;
+    const isSelf = Boolean(
+      (mySub && targetSub === mySub) ||
+      (targetUser && mySub && targetUser.sub === mySub) ||
+      (targetUser && myNick && targetUser.nickname?.toLowerCase().trim() === myNick) ||
+      (targetUser && myEmail && targetUser.email?.toLowerCase().trim() === myEmail) ||
+      (myNick && targetSub.toLowerCase().trim() === myNick)
+    );
     if (isSelf) {
       appState.profile.coins = coins;
       appState.profile.level = level;
       appState.profile.exp = isNaN(exp) ? 0 : exp;
+      appState.profile.totalCoinsEarned = Math.max(coins, appState.profile.totalCoinsEarned || 20);
       appState.profile.adminAdjusted = true;
+      const now = Date.now();
+      appState.lastModified = now;
+      appState.lastSyncedAt = now;
       if (isCheater) {
         appState.profile.isCheater = true;
         appState.profile.title = 'Kẻ Gian Lận ⚠️';
@@ -4278,6 +4300,19 @@ async function submitAdminUserEdit() {
         updateTitleByLevel();
       }
       renderAll();
+    }
+
+    // Gửi tín hiệu thông báo đa tab qua BroadcastChannel để các tab khác tự động nạp dữ liệu mới
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const syncChannel = new BroadcastChannel('levelup_sync_channel');
+        syncChannel.postMessage({
+          type: 'ADMIN_SYNC_UPDATE',
+          targetSub,
+          timestamp: Date.now()
+        });
+        syncChannel.close();
+      } catch (_) {}
     }
 
     showToast(data.message || 'Cập nhật chỉ số người chơi thành công!', 'success');
@@ -6203,6 +6238,20 @@ document.addEventListener('DOMContentLoaded', () => {
       hydrateFromCloud(false);
     }
   });
+
+  // Lắng nghe tín hiệu đồng bộ đa tab từ BroadcastChannel khi Admin tinh chỉnh chỉ số
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.onmessage = (event) => {
+        if (event.data?.type === 'ADMIN_SYNC_UPDATE') {
+          if (appState.profile?.googleId && appState.profile?.nickname) {
+            hydrateFromCloud(false);
+          }
+        }
+      };
+    } catch (_) {}
+  }
 
   // Navigation Tab buttons (Desktop & Mobile)
   document.querySelectorAll('.nav-tab, .mobile-nav-btn').forEach(btn => {
