@@ -2970,6 +2970,11 @@ function updateVerdictDisplay() {
 
   const lockedMinutes = document.getElementById('verdict-locked-minutes');
   if (lockedMinutes) lockedMinutes.textContent = `${currentPendingVerdict.targetMinutes} Phút`;
+
+  const speechEl = document.getElementById('verdict-speech');
+  if (speechEl && currentPendingVerdict.verdict) {
+    speechEl.textContent = `"${currentPendingVerdict.verdict}"`;
+  }
 }
 
 function renderVerdictStep() {
@@ -3224,6 +3229,9 @@ function parseDebateOptionsFromText(text, type = 'reward') {
 
   return rawOptions.map(opt => {
     let mins = 0;
+    const isBounty = /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay|bounty)/i.test(opt.text);
+    const mentionsProofReq = /(?:cần|yêu\s*cầu|chụp)\s*ảnh/i.test(opt.text);
+    const mentionsProofWaive = /(?:miễn|không\s*cần|bỏ)\s*ảnh/i.test(opt.text);
     if (type === 'reward' && /(?:nhiệm\s*vụ|làm\s*(?:thêm|nốt)).*?\d+\s*phút/i.test(opt.text)) {
       const rewardDurMatch = opt.text.match(/(?:đổi|thời\s*(?:lượng|gian)|xem|chơi|thành).*?(\d+)\s*phút/i);
       if (rewardDurMatch) {
@@ -3235,6 +3243,7 @@ function parseDebateOptionsFromText(text, type = 'reward') {
       mins = extractDurationFromText(opt.text);
     }
 
+    let gold = undefined;
     let loanRate = undefined;
     let loanDeduct = undefined;
     let loanLimit = undefined;
@@ -3281,8 +3290,16 @@ function parseDebateOptionsFromText(text, type = 'reward') {
       if (loanDeduct !== undefined) details.push(`Trích ${(loanDeduct * 100).toFixed(0)}%`);
       if (loanLimit !== undefined) details.push(`Hạn mức ${loanLimit} Vàng`);
     } else {
-      if (mins > 0) details.push(`${mins} phút`);
+      if (mins > 0) {
+        details.push(`${mins} phút`);
+      } else if (isBounty) {
+        details.push('Không cần bấm giờ');
+      }
       if (gold !== undefined) details.push(`${gold} Vàng`);
+      if (type === 'quest') {
+        if (mentionsProofReq) details.push('Cần ảnh');
+        else if (mentionsProofWaive) details.push('Miễn ảnh');
+      }
     }
     if (details.length > 0) {
       label += ` (${details.join(' • ')})`;
@@ -3304,11 +3321,20 @@ function parseDebateOptionsFromText(text, type = 'reward') {
     } else if (type === 'reward') {
       if (gold !== undefined) payload.newPrice = gold;
       if (mins > 0) payload.newTargetMinutes = mins;
+      else if (isBounty) payload.newTargetMinutes = 0;
       if (gold !== undefined && gold < 30) payload.newTier = 'common';
       if (newName) payload.newName = newName;
     } else {
       if (gold !== undefined) payload.newRewardCoins = gold;
-      if (mins > 0) payload.newTargetMinutes = mins;
+      if (mins > 0) {
+        payload.newTargetMinutes = mins;
+        payload.newType = 'focus';
+      } else if (isBounty) {
+        payload.newTargetMinutes = 0;
+        payload.newType = 'bounty';
+      }
+      if (mentionsProofReq) payload.newRequiresProof = true;
+      else if (mentionsProofWaive) payload.newRequiresProof = false;
       if (newName) payload.newTitle = newName;
     }
 
@@ -3582,8 +3608,8 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
     if (data.accepted) {
       if (data.newTitle) currentPendingVerdict.title = data.newTitle;
       if (data.newDescription !== undefined) currentPendingVerdict.description = data.newDescription;
-      if (data.newRewardCoins) currentPendingVerdict.rewardCoins = data.newRewardCoins;
-      if (data.newTargetMinutes !== undefined) currentPendingVerdict.targetMinutes = data.newTargetMinutes;
+      if (data.newRewardCoins !== undefined && Number(data.newRewardCoins) > 0) currentPendingVerdict.rewardCoins = Number(data.newRewardCoins);
+      if (data.newTargetMinutes !== undefined) currentPendingVerdict.targetMinutes = Number(data.newTargetMinutes);
       if (data.signature) currentPendingVerdict.signature = data.signature;
       if (data.newType) {
         currentPendingVerdict.type = data.newType;
@@ -3597,6 +3623,10 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
         currentPendingVerdict.proofGuidance = data.newProofGuidance;
       }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
+      if (data.reply) currentPendingVerdict.verdict = data.reply;
+
+      const verdictModNotice = document.getElementById('verdict-modified-notice');
+      if (verdictModNotice) verdictModNotice.classList.add('hidden');
 
       // Refresh locked specs display card and badges
       updateVerdictDisplay();

@@ -68,6 +68,34 @@ const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r
   assert.strictEqual(sanitizedNeg.type, 'focus', 'Việc nhà đã thương lượng phải GIỮ NGUYÊN loại focus');
   assert.strictEqual(sanitizedNeg.rewardCoins, 12, 'Việc nhà đã thương lượng phải GIỮ NGUYÊN 12 Vàng thỏa thuận');
 
+  // Trường hợp học tập 25 phút ban đầu 10 Vàng, thương lượng nâng lên 20 Vàng:
+  // Không bị kẹp về 15 Vàng do trần thông thường
+  const negotiatedStudy = {
+    title: 'Luyện đề thi tiếng Anh 25 phút',
+    type: 'focus',
+    targetMinutes: 25,
+    rewardCoins: 20,
+    category: 'study',
+    isNegotiated: true
+  };
+  const sanitizedStudy = sanitizeEvaluatedQuest(negotiatedStudy, negotiatedStudy.title, '');
+  assert.strictEqual(sanitizedStudy.targetMinutes, 25, 'Thời gian 25 phút phải được giữ nguyên');
+  assert.strictEqual(sanitizedStudy.rewardCoins, 20, 'Mức thưởng 20 Vàng sau thương lượng KHÔNG ĐƯỢC bị kẹp về 15 Vàng');
+
+  // Trường hợp việc không bấm giờ (bounty) thương lượng lên 20 Vàng:
+  // Không bị kẹp về 10 Vàng do trần bounty thông thường
+  const negotiatedBounty = {
+    title: 'Dọn dẹp kho đồ gia đình',
+    type: 'bounty',
+    targetMinutes: 0,
+    rewardCoins: 20,
+    category: 'chore',
+    isNegotiated: true
+  };
+  const sanitizedBounty = sanitizeEvaluatedQuest(negotiatedBounty, negotiatedBounty.title, '');
+  assert.strictEqual(sanitizedBounty.targetMinutes, 0, 'Việc bounty targetMinutes = 0');
+  assert.strictEqual(sanitizedBounty.rewardCoins, 20, 'Việc bounty thương lượng 20 Vàng KHÔNG ĐƯỢC bị kẹp về 10 Vàng');
+
   console.log('✓ Test 2: sanitizeEvaluatedQuest tôn trọng tuyệt đối thỏa thuận thương lượng (isNegotiated: true), không đè nén sai lệch.');
 }
 

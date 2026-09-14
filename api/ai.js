@@ -188,7 +188,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     `${verdict} ${modificationReason} ${result.chunkingPlan || ''} ${stripDiacritics(verdict + ' ' + modificationReason)}`
   );
   // ponytail: only chunk into Chapter 1 if input is actually a multi-chapter study task; upgrade if supporting other curriculum formats
-  const isCrammedStudy = isStudyOrWork && (hasMultiChapterInOrig || hasMultiChapterInTitle || Boolean(result.isOverloaded) || mentionsOverload);
+  const isCrammedStudy = !result.isNegotiated && isStudyOrWork && (hasMultiChapterInOrig || hasMultiChapterInTitle || Boolean(result.isOverloaded) || mentionsOverload);
 
   if (isCrammedStudy) {
     // If title still has multi-chapter wording or is identical to original crammed title
@@ -228,10 +228,12 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   // ponytail: enforce hard economic boundaries against prompt injection / jailbreak
   if (type === 'bounty') {
     targetMinutes = 0;
-    rewardCoins = Math.min(rewardCoins, 10);
+    rewardCoins = Math.min(rewardCoins, result.isNegotiated ? 25 : 10);
   } else {
     targetMinutes = Math.max(15, Math.min(180, targetMinutes));
-    const maxCoinsByTime = targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : 40);
+    const maxCoinsByTime = result.isNegotiated
+      ? (targetMinutes <= 25 ? 35 : (targetMinutes <= 50 ? 50 : 60))
+      : (targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : 40));
     rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
   }
 
@@ -948,6 +950,9 @@ Trả về ĐÚNG định dạng JSON:
             if (selectedOpt.newType !== undefined) result.newType = selectedOpt.newType;
             if (selectedOpt.newRequiresProof !== undefined) result.newRequiresProof = selectedOpt.newRequiresProof;
             if (selectedOpt.newTitle) result.newTitle = selectedOpt.newTitle;
+            if (!result.reply || (!aiAgreed && !result.accepted)) {
+              result.reply = `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`;
+            }
           }
 
           if (extractedCoins === undefined) {
