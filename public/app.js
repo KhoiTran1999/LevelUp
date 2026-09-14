@@ -1439,6 +1439,13 @@ function renderFocusStationUI() {
     }
     if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
   }
+
+  const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
+  station.querySelectorAll('.btn-timer-adjust').forEach((btn, idx) => {
+    btn.textContent = isReward ? (idx === 0 ? '-1m' : '-5m') : (idx === 0 ? '+1m' : '+5m');
+    btn.dataset.delta = isReward ? (idx === 0 ? '-60' : '-300') : (idx === 0 ? '60' : '300');
+    btn.title = isReward ? (idx === 0 ? 'Giảm 1 phút hưởng thụ' : 'Giảm 5 phút hưởng thụ') : (idx === 0 ? 'Thêm 1 phút tập trung' : 'Thêm 5 phút tập trung');
+  });
 }
 
 async function startFocusTimer(quest) {
@@ -1712,6 +1719,29 @@ function clearFocusTimerSession(syncToCloud = true) {
 
 function adjustTimer(deltaSec) {
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
+  const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
+
+  // ponytail: reward timers only allow decrementing; quest timers only allow incrementing. Add custom step rules if multi-tier rewards need it.
+  if (isReward) {
+    if (deltaSec > 0) {
+      showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
+      sfx.playClick();
+      return;
+    }
+    const newRemaining = focusRemainingSeconds + deltaSec;
+    if (newRemaining <= 0) {
+      focusRemainingSeconds = 0;
+      updateTimerDisplay();
+      rewardTimerFinished();
+      return;
+    }
+    focusRemainingSeconds = newRemaining;
+    updateTimerDisplay();
+    saveFocusTimerState(true, true);
+    sfx.playClick();
+    showToast(`Đã giảm thời gian: -${Math.abs(deltaSec / 60)}p`, 'info');
+    return;
+  }
 
   // Anti-Cheat: Chặn mọi hành vi giảm thời gian
   if (deltaSec < 0) {
@@ -1732,19 +1762,50 @@ function adjustTimer(deltaSec) {
 
 function openEditTimerModal() {
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
+  const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
   const minInput = document.getElementById('input-edit-minutes');
   const secInput = document.getElementById('input-edit-seconds');
+  const titleEl = document.querySelector('#modal-edit-focus-timer h3 span:last-child');
   if (minInput && secInput) {
     const totalSecs = Math.round(focusRemainingSeconds);
     minInput.value = Math.floor(totalSecs / 60);
     secInput.value = totalSecs % 60;
-    minInput.min = activeFocusQuest ? (activeFocusQuest.targetMinutes || 1) : 1;
+    minInput.min = isReward ? 0 : (activeFocusQuest ? (activeFocusQuest.targetMinutes || 1) : 1);
+    if (isReward) {
+      minInput.max = Math.floor(totalSecs / 60);
+      if (titleEl) titleEl.textContent = 'Giảm Thời Gian Hưởng Thụ';
+    } else {
+      minInput.removeAttribute('max');
+      if (titleEl) titleEl.textContent = 'Điều Chỉnh Thời Gian';
+    }
   }
   openModal('modal-edit-focus-timer');
 }
 
 function saveEditTimer(mins, secs) {
-  const total = Math.max(1, mins * 60 + secs);
+  const total = Math.max(0, mins * 60 + secs);
+  const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
+
+  if (isReward) {
+    if (total > Math.round(focusRemainingSeconds)) {
+      showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
+      return;
+    }
+    if (total <= 0) {
+      closeModal('modal-edit-focus-timer');
+      focusRemainingSeconds = 0;
+      updateTimerDisplay();
+      rewardTimerFinished();
+      return;
+    }
+    focusRemainingSeconds = total;
+    updateTimerDisplay();
+    saveFocusTimerState(true, true);
+    sfx.playClick();
+    closeModal('modal-edit-focus-timer');
+    showToast(`Đã giảm thời gian: ${mins}p ${secs}s`, 'success');
+    return;
+  }
 
   // Anti-Cheat: Không cho phép đặt thời gian thấp hơn mức cam kết của nhiệm vụ
   if (activeFocusQuest) {
@@ -6712,8 +6773,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.btn-preset-time').forEach(btn => {
     btn.addEventListener('click', () => {
       const mins = parseInt(btn.dataset.mins, 10) || 25;
+      const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
       if (activeFocusQuest && mins < activeFocusQuest.targetMinutes) {
         showToast(`Không thể chọn mốc thấp hơn ${activeFocusQuest.targetMinutes} phút do AI đã định giá!`, 'error');
+        sfx.playClick();
+        return;
+      }
+      if (isReward && mins * 60 > focusRemainingSeconds) {
+        showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
         sfx.playClick();
         return;
       }

@@ -196,4 +196,13 @@ console.log('✓ Test 10: Khi đổi quà (buyShopItem), hệ thống tự độ
   console.log('✓ Test 12: Hệ thống tự động trích xuất thời lượng từ tên phần thưởng ("Xem Youtube 30 phút" -> 30p) và mặc định 30p cho giải trí.');
 }
 
-console.log('\n🎉 TẤT CẢ 12/12 TEST TÍNH NĂNG THỜI GIAN VÀ ĐẾM GIỜ PHẦN THƯỞNG ĐÃ VƯỢT QUA XUẤT SẮC!');
+// 13. Kiểm tra đếm ngược thời gian phần thưởng: chỉ được trừ xuống, không cho cộng lên
+{
+  assert.ok(appJs.includes("Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!"), 'app.js phải chặn hành vi cộng thêm thời gian khi đang hưởng thụ phần thưởng');
+  assert.ok(appJs.includes("btn.textContent = isReward ? (idx === 0 ? '-1m' : '-5m')"), 'renderFocusStationUI phải đổi nút nhanh thành -1m và -5m khi đang hưởng thụ');
+  assert.ok(appJs.includes("btn.dataset.delta = isReward ? (idx === 0 ? '-60' : '-300')"), 'renderFocusStationUI phải đổi delta thành số âm (-60, -300) khi đang hưởng thụ');
+  assert.ok(appJs.includes("if (total > Math.round(focusRemainingSeconds))"), 'saveEditTimer phải chặn lưu thời gian lớn hơn thời gian còn lại khi là phần thưởng');
+  console.log('✓ Test 13: Đếm ngược phần thưởng chỉ cho phép trừ xuống (-1m, -5m, chỉnh giảm), chặn đứng mọi hành vi cộng thêm thời gian hưởng thụ.');
+}
+
+console.log('\n🎉 TẤT CẢ 13/13 TEST TÍNH NĂNG THỜI GIAN VÀ ĐẾM GIỜ PHẦN THƯỞNG ĐÃ VƯỢT QUA XUẤT SẮC!');
