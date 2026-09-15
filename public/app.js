@@ -141,6 +141,7 @@ const DEFAULT_STATE = {
       rank: 'C',
       rewardCoins: 12,
       targetMinutes: 25,
+      icon: '📖',
       advice: 'Bật chế độ Không làm phiền trên điện thoại trước khi bấm giờ.',
       verdict: '25 phút tập trung sâu là khoảng thời gian chuẩn mực. Hãy hoàn thành đủ giờ để nhận thưởng!',
       isRepeatable: true,
@@ -156,6 +157,7 @@ const DEFAULT_STATE = {
       rank: 'E',
       rewardCoins: 5,
       targetMinutes: 0,
+      icon: '🧹',
       advice: 'Làm dứt khoát trong 5 - 10 phút.',
       verdict: 'Công việc nhanh gọn có kết quả rõ ràng. Đánh dấu xong để nhận ngay 5 Vàng!',
       isRepeatable: false,
@@ -2793,6 +2795,34 @@ async function deleteInventoryItem(invId) {
   });
 }
 
+// ponytail: infer an appropriate emoji icon based on quest title, description or category if not explicitly set
+function getQuestIcon(q) {
+  if (q?.icon && typeof q.icon === 'string' && q.icon.trim()) {
+    return q.icon.trim();
+  }
+  const text = `${q?.title || ''} ${q?.description || ''}`.toLowerCase();
+  const clean = text.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+
+  if (/\b(doc|sach|bai|chuong|giao trinh|on thi|luyen de|viet|nghien cuu)\b/.test(clean)) return '📚';
+  if (/\b(code|lap trinh|fix|bug|deploy|test|git|feature|refactor|dev|project|du an)\b/.test(clean)) return '💻';
+  if (/\b(tap|gym|chay|the duc|hit dat|plank|squat|van dong|yoga|boi|dap xe)\b/.test(clean)) return '🏃';
+  if (/\b(don|quet|lau|rua|giat|ve sinh|ngan nap|rac|nha cua|phong)\b/.test(clean)) return '🧹';
+  if (/\b(nau|an|com|bep|cho|mon an|uong|nuoc)\b/.test(clean)) return '🍳';
+  if (/\b(tieng anh|ielts|toeic|tu vung|nghe|ngu phap|flashcard|kanji|tieng nhat)\b/.test(clean)) return '🗣️';
+  if (/\b(email|hop|meeting|bao cao|ke hoach|tai lieu|deadline|goi|call|khach hang)\b/.test(clean)) return '💼';
+  if (/\b(ngu|nghi ngoi|thien|relax|thu gian|tam)\b/.test(clean)) return '🌿';
+  if (/\b(ve|nhac|dan|hat|piano|guitar|sang tao|thiet ke|design)\b/.test(clean)) return '🎨';
+  if (/\b(mua|sam|chi tieu|tien|ngan hang|tiet kiem)\b/.test(clean)) return '💰';
+
+  if (q?.category === 'study') return '📚';
+  if (q?.category === 'work') return '💻';
+  if (q?.category === 'fitness') return '🏃';
+  if (q?.category === 'chore') return '🧹';
+  if (q?.type === 'focus') return '⏳';
+  return '🎯';
+}
+window.getQuestIcon = getQuestIcon;
+
 // =============================================================================
 // 8. STRICT AI ARBITER EVALUATION & DEBATE
 // =============================================================================
@@ -2859,6 +2889,7 @@ async function submitQuestToAI() {
       rank: data.rank || calculateRank(data.rewardCoins || 10),
       verdict: data.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
       advice: data.advice || 'Tập trung hoàn thành từng bước một.',
+      icon: (data.icon && typeof data.icon === 'string') ? data.icon.trim() : '',
       isRepeatable: Boolean(isRepeatable),
       requiresProof: Boolean(data.requiresProof),
       proofGuidance: data.proofGuidance || ''
@@ -2951,6 +2982,9 @@ function updateVerdictDisplay() {
   if (verdictCoins) verdictCoins.innerHTML = `${COIN_ICON_HTML} ${currentPendingVerdict.rewardCoins} Vàng`;
 
   // AI-locked display card
+  const lockedIcon = document.getElementById('verdict-locked-icon');
+  if (lockedIcon) lockedIcon.textContent = getQuestIcon(currentPendingVerdict);
+
   const lockedTitle = document.getElementById('verdict-locked-title');
   if (lockedTitle) lockedTitle.textContent = currentPendingVerdict.title;
 
@@ -3020,6 +3054,7 @@ function openQuestRenegotiateModal(questId) {
     targetMinutes: quest.targetMinutes !== undefined ? Number(quest.targetMinutes) : (quest.type === 'bounty' ? 0 : 25),
     signature: quest.signature || '',
     advice: quest.advice || 'Tập trung hoàn thành từng bước một.',
+    icon: quest.icon || getQuestIcon(quest),
     verdict: quest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
     isRepeatable: Boolean(quest.isRepeatable),
     requiresProof: Boolean(quest.requiresProof),
@@ -3092,6 +3127,7 @@ async function acceptVerdictAndCreateQuest() {
       targetQuest.rewardCoins = currentPendingVerdict.rewardCoins;
       targetQuest.targetMinutes = currentPendingVerdict.targetMinutes !== undefined ? Number(currentPendingVerdict.targetMinutes) : 0;
       targetQuest.signature = currentPendingVerdict.signature || targetQuest.signature || '';
+      targetQuest.icon = currentPendingVerdict.icon || targetQuest.icon || getQuestIcon(targetQuest);
       targetQuest.advice = currentPendingVerdict.advice;
       targetQuest.verdict = currentPendingVerdict.verdict;
       targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
@@ -3125,6 +3161,7 @@ async function acceptVerdictAndCreateQuest() {
     rewardCoins: currentPendingVerdict.rewardCoins,
     targetMinutes: currentPendingVerdict.targetMinutes !== undefined ? Number(currentPendingVerdict.targetMinutes) : 0,
     signature: currentPendingVerdict.signature || '',
+    icon: currentPendingVerdict.icon || getQuestIcon(currentPendingVerdict),
     advice: currentPendingVerdict.advice,
     verdict: currentPendingVerdict.verdict,
     isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
@@ -3621,6 +3658,9 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       }
       if (data.newProofGuidance !== undefined) {
         currentPendingVerdict.proofGuidance = data.newProofGuidance;
+      }
+      if (data.newIcon) {
+        currentPendingVerdict.icon = data.newIcon;
       }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
       if (data.reply) currentPendingVerdict.verdict = data.reply;
@@ -5339,9 +5379,14 @@ function renderQuests() {
         </div>
 
         <!-- Zone 2: Body (Title & Readable Context) -->
-        <div class="mb-3">
-          <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
-          ${q.description ? `<p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
+        <div class="flex items-start gap-3 my-2">
+          <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0 ${isCompleted ? 'opacity-60 grayscale' : ''}">
+            ${escapeHtml(getQuestIcon(q))}
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
+            ${q.description ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
+          </div>
         </div>
       </div>
 

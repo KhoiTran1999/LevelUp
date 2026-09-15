@@ -269,6 +269,9 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     proofGuidance = '';
   }
 
+  // ponytail: strip HTML tags from icon to prevent stored XSS via AI output
+  const icon = (result.icon || '').replace(/<[^>]*>/g, '').trim().slice(0, 10);
+
   return {
     ...result,
     title,
@@ -280,6 +283,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     rank: calculateRank(rewardCoins),
     requiresProof,
     proofGuidance,
+    icon,
     verdict,
     isModified,
     modificationReason
@@ -729,6 +733,7 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
   "rank": "E" | "D" | "C" | "B" | "A" | "S",
   "requiresProof": boolean,
   "proofGuidance": "Hướng dẫn ngắn gọn người dùng chụp gì nếu requiresProof = true (dưới 20 từ), nếu false thì để chuỗi rỗng",
+  "icon": "1 emoji đại diện phù hợp nhất cho nhiệm vụ này (VD: 📚, 💻, 🧹, 🏃, 📝, 🎯)",
   "verdict": "Nhận xét súc tích (1-2 câu, dưới 30 từ), chỉ nêu loại việc và cơ sở định giá Vàng, không văn mẫu lê thê",
   "advice": "1 mẹo nhỏ cụ thể và thực tế giúp hoàn thành phiên này (dưới 15 từ)"
 }`;
@@ -1002,6 +1007,7 @@ Trả về ĐÚNG định dạng JSON:
             rank: result.newRank,
             requiresProof: negotiatedProof,
             proofGuidance: result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || ''),
+            icon: quest.icon,
             isNegotiated: true
           };
           const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
@@ -1011,6 +1017,7 @@ Trả về ĐÚNG định dạng JSON:
           result.newTargetMinutes = clean.targetMinutes;
           result.newRewardCoins = clean.rewardCoins;
           result.newRank = clean.rank;
+          result.newIcon = clean.icon || quest.icon;
 
           // If debate explicitly negotiated proof requirement, honor the decision unless it's a trivial routine task
           if (hasExplicitProofDecision && !clean.isTrivialTask) {
