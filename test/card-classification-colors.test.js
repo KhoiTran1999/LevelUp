@@ -34,17 +34,10 @@ expectedRewardTiers.forEach(tier => {
 });
 console.log('✓ Test 2: Hệ thống class CSS cho 4 bậc Tier phần thưởng (common, rare, epic, legendary) đã được định nghĩa đầy đủ.');
 
-// 2. Kiểm tra HTML có dropdown chọn sắp xếp nhiệm vụ và phần thưởng
-assert.ok(indexHtml.includes('id="select-quest-sort"'), 'index.html phải có dropdown id="select-quest-sort"');
-assert.ok(indexHtml.includes('value="rank-desc"'), 'select-quest-sort phải có tùy chọn rank-desc (Hạng: Cao → Thấp)');
-assert.ok(indexHtml.includes('value="rank-asc"'), 'select-quest-sort phải có tùy chọn rank-asc (Hạng: Thấp → Cao)');
-assert.ok(indexHtml.includes('value="newest"'), 'select-quest-sort phải có tùy chọn newest (Mới nhất)');
-
-assert.ok(indexHtml.includes('id="select-shop-sort"'), 'index.html phải có dropdown id="select-shop-sort"');
-assert.ok(indexHtml.includes('value="tier-desc"'), 'select-shop-sort phải có tùy chọn tier-desc (Phẩm chất: Cao → Thấp)');
-assert.ok(indexHtml.includes('value="tier-asc"'), 'select-shop-sort phải có tùy chọn tier-asc (Phẩm chất: Thấp → Cao)');
-assert.ok(indexHtml.includes('value="price-asc"'), 'select-shop-sort phải có tùy chọn price-asc (Giá: Thấp → Cao)');
-console.log('✓ Test 3: Giao diện HTML tích hợp đầy đủ bộ chọn dropdown sắp xếp theo thứ hạng từ cao xuống thấp.');
+// 2. Kiểm tra HTML đã loại bỏ dropdown sort để tránh vỡ layout ribbon
+assert.ok(!indexHtml.includes('id="select-quest-sort"'), 'index.html đã loại bỏ dropdown select-quest-sort thừa thãi');
+assert.ok(!indexHtml.includes('id="select-shop-sort"'), 'index.html đã loại bỏ dropdown select-shop-sort thừa thãi');
+console.log('✓ Test 3: Giao diện HTML đã gỡ bỏ các nút sort thừa thãi, khôi phục layout ribbon gọn gàng nguyên bản.');
 
 // 3. Kiểm tra app.js gán class phân loại vào thẻ
 assert.ok(appJs.includes('quest-card-rank-${rank}'), 'renderQuests phải inject quest-card-rank-${rank} vào card.className');

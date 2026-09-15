@@ -5269,11 +5269,7 @@ window.updateAdminNavVisibility = updateAdminNavVisibility;
 // =============================================================================
 // 12. RENDER FUNCTIONS (Theme-aware & High Contrast)
 // =============================================================================
-let currentQuestFilter = 'all';
-let currentQuestSort = 'rank-desc';
-let currentShopSort = 'tier-desc';
-window.currentQuestSort = currentQuestSort;
-window.currentShopSort = currentShopSort;
+let currentQuestFilter = 'active';
 
 function renderHeader() {
   const p = appState.profile;
@@ -5343,20 +5339,10 @@ function renderQuests() {
     const bActive = b.status === 'active' ? 1 : 0;
     if (aActive !== bActive) return bActive - aActive;
 
-    if (currentQuestSort === 'rank-desc') {
-      const scoreA = rankScores[(a.rank || 'E').toUpperCase()] ?? 1;
-      const scoreB = rankScores[(b.rank || 'E').toUpperCase()] ?? 1;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return (b.rewardCoins || 0) - (a.rewardCoins || 0);
-    } else if (currentQuestSort === 'rank-asc') {
-      const scoreA = rankScores[(a.rank || 'E').toUpperCase()] ?? 1;
-      const scoreB = rankScores[(b.rank || 'E').toUpperCase()] ?? 1;
-      if (scoreA !== scoreB) return scoreA - scoreB;
-      return (a.rewardCoins || 0) - (b.rewardCoins || 0);
-    } else if (currentQuestSort === 'newest') {
-      return (b.createdAt || 0) - (a.createdAt || 0);
-    }
-    return 0;
+    const scoreA = rankScores[(a.rank || 'E').toUpperCase()] ?? 1;
+    const scoreB = rankScores[(b.rank || 'E').toUpperCase()] ?? 1;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return (b.rewardCoins || 0) - (a.rewardCoins || 0);
   });
 
   const activeCount = appState.quests.filter(q => q.status === 'active').length;
@@ -5596,28 +5582,16 @@ function renderShop() {
     return;
   }
 
-  // Sắp xếp phần thưởng Cửa Hàng (mặc định: Cực phẩm -> Phổ thông, Giá cao -> thấp)
+  // Sắp xếp phần thưởng Cửa Hàng: Cực phẩm -> Phổ thông, Giá cao -> thấp
   let items = [...appState.shopItems];
   const tierScores = { legendary: 4, epic: 3, rare: 2, common: 1 };
   items.sort((a, b) => {
     const rawTierA = (a.tier || 'rare').toLowerCase();
     const rawTierB = (b.tier || 'rare').toLowerCase();
-    if (currentShopSort === 'tier-desc') {
-      const scoreA = tierScores[rawTierA] ?? 1;
-      const scoreB = tierScores[rawTierB] ?? 1;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return (b.price || 0) - (a.price || 0);
-    } else if (currentShopSort === 'tier-asc') {
-      const scoreA = tierScores[rawTierA] ?? 1;
-      const scoreB = tierScores[rawTierB] ?? 1;
-      if (scoreA !== scoreB) return scoreA - scoreB;
-      return (a.price || 0) - (b.price || 0);
-    } else if (currentShopSort === 'price-asc') {
-      return (a.price || 0) - (b.price || 0);
-    } else if (currentShopSort === 'newest') {
-      return (b.createdAt || 0) - (a.createdAt || 0);
-    }
-    return 0;
+    const scoreA = tierScores[rawTierA] ?? 1;
+    const scoreB = tierScores[rawTierB] ?? 1;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return (b.price || 0) - (a.price || 0);
   });
 
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
@@ -6283,11 +6257,57 @@ function switchTab(tabId) {
   }
 
   const isAdmin = isUserAdmin();
+  const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin'].includes(tabId);
+
+  // Close any open more menus
+  document.getElementById('nav-more-menu')?.classList.add('hidden');
+  document.getElementById('mobile-more-menu')?.classList.add('hidden');
+
+  // Sync desktop more toggle button
+  const btnNavMore = document.getElementById('btn-nav-more');
+  if (btnNavMore) {
+    btnNavMore.className = `nav-more-toggle flex items-center gap-1 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition border shrink-0 whitespace-nowrap cursor-pointer ${
+      isMoreTab
+        ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border-amber-500/40 shadow-xs font-bold'
+        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border-transparent'
+    }`;
+  }
+
+  // Sync mobile more toggle button
+  const btnMobileMore = document.getElementById('btn-mobile-more');
+  if (btnMobileMore) {
+    btnMobileMore.className = `mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition cursor-pointer ${
+      isMoreTab
+        ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs'
+        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+    }`;
+  }
 
   // Sync desktop tabs
   document.querySelectorAll('.nav-tab').forEach(b => {
     const isActive = b.dataset.tab === tabId;
     const isAdminBtn = b.id === 'nav-tab-admin' || b.dataset.tab === 'admin';
+
+    if (b.classList.contains('nav-more-item')) {
+      if (isAdminBtn && !isAdmin) {
+        b.className = 'nav-tab nav-more-item hidden items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left';
+        return;
+      }
+      if (isAdminBtn) {
+        b.className = `nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
+          isActive
+            ? 'active bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold'
+            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+        }`;
+        return;
+      }
+      b.className = `nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
+        isActive
+          ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 font-bold'
+          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`;
+      return;
+    }
 
     if (isAdminBtn && !isAdmin) {
       b.className = 'nav-tab hidden items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap';
@@ -6314,6 +6334,27 @@ function switchTab(tabId) {
   document.querySelectorAll('.mobile-nav-btn').forEach(b => {
     const isActive = b.dataset.tab === tabId;
     const isAdminBtn = b.id === 'mobile-nav-admin' || b.dataset.tab === 'admin';
+
+    if (b.classList.contains('mobile-more-item')) {
+      if (isAdminBtn && !isAdmin) {
+        b.className = 'mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left';
+        return;
+      }
+      if (isAdminBtn) {
+        b.className = `mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left ${
+          isActive
+            ? 'active bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold'
+            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+        }`;
+        return;
+      }
+      b.className = `mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left ${
+        isActive
+          ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold'
+          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`;
+      return;
+    }
 
     if (isAdminBtn && !isAdmin) {
       b.className = 'mobile-nav-btn hidden flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition';
@@ -8635,6 +8676,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // More Tabs Dropdown / Popover (Desktop & Mobile)
+  const btnNavMore = document.getElementById('btn-nav-more');
+  const navMoreMenu = document.getElementById('nav-more-menu');
+  if (btnNavMore && navMoreMenu) {
+    btnNavMore.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navMoreMenu.classList.toggle('hidden');
+    });
+  }
+
+  const btnMobileMore = document.getElementById('btn-mobile-more');
+  const mobileMoreMenu = document.getElementById('mobile-more-menu');
+  if (btnMobileMore && mobileMoreMenu) {
+    btnMobileMore.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileMoreMenu.classList.toggle('hidden');
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#nav-more-dropdown-container')) {
+      navMoreMenu?.classList.add('hidden');
+    }
+    if (!e.target.closest('#btn-mobile-more') && !e.target.closest('#mobile-more-menu')) {
+      mobileMoreMenu?.classList.add('hidden');
+    }
+  });
+
   // Leaderboard Sub-tabs (Bảng Hiệp Sĩ & Sổ Đen Gian Lận)
   const btnSubtabRanking = document.getElementById('btn-subtab-ranking');
   if (btnSubtabRanking) {
@@ -8655,35 +8724,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.quest-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.quest-filter').forEach(b => {
-        b.className = 'quest-filter px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium';
+        b.className = 'quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0';
       });
-      btn.className = 'quest-filter active px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold';
+      btn.className = 'quest-filter active px-2 sm:px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold whitespace-nowrap shrink-0';
       currentQuestFilter = btn.dataset.filter;
       renderQuests();
     });
   });
-
-  // Quest sorting dropdown
-  const questSortSelect = document.getElementById('select-quest-sort');
-  if (questSortSelect) {
-    questSortSelect.value = currentQuestSort;
-    questSortSelect.addEventListener('change', (e) => {
-      currentQuestSort = e.target.value;
-      window.currentQuestSort = currentQuestSort;
-      renderQuests();
-    });
-  }
-
-  // Shop sorting dropdown
-  const shopSortSelect = document.getElementById('select-shop-sort');
-  if (shopSortSelect) {
-    shopSortSelect.value = currentShopSort;
-    shopSortSelect.addEventListener('change', (e) => {
-      currentShopSort = e.target.value;
-      window.currentShopSort = currentShopSort;
-      renderShop();
-    });
-  }
 
   // Theme Toggle Button
   const themeToggle = document.getElementById('toggle-theme-btn');

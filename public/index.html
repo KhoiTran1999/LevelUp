@@ -153,23 +153,35 @@
           <span class="lg:hidden">Thưởng</span>
           <span id="badge-rewards-total" class="text-[11px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
         </button>
-        <button data-tab="leaderboard" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
-          <span>🏆</span>
-          <span class="hidden lg:inline">Bảng Xếp Hạng</span>
-          <span class="lg:hidden">Xếp Hạng</span>
-        </button>
-        <button data-tab="ledger" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
-          <span>📖</span>
-          <span>Lịch Sử</span>
-        </button>
-        <button data-tab="bank" class="nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap">
-          <span>🏦</span>
-          <span>Ngân Hàng</span>
-        </button>
-        <button id="nav-tab-admin" data-tab="admin" class="nav-tab hidden items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-500/20 shrink-0 whitespace-nowrap">
-          <span>👑</span>
-          <span>Quản Trị</span>
-        </button>
+
+        <!-- Dropdown Xem Thêm -->
+        <div class="relative inline-block text-left" id="nav-more-dropdown-container">
+          <button id="btn-nav-more" type="button" class="nav-more-toggle flex items-center gap-1 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent shrink-0 whitespace-nowrap cursor-pointer">
+            <span>⋯</span>
+            <span>Xem Thêm</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+          <div id="nav-more-menu" class="hidden absolute left-0 mt-1.5 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-50">
+            <button data-tab="leaderboard" class="nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+              <span>🏆</span>
+              <span>Bảng Xếp Hạng</span>
+            </button>
+            <button data-tab="ledger" class="nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+              <span>📖</span>
+              <span>Lịch Sử</span>
+            </button>
+            <button data-tab="bank" class="nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+              <span>🏦</span>
+              <span>Ngân Hàng</span>
+            </button>
+            <button id="nav-tab-admin" data-tab="admin" class="nav-tab nav-more-item hidden items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition text-left">
+              <span>👑</span>
+              <span>Quản Trị</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </nav>
@@ -247,23 +259,13 @@
     <section id="tab-quests" class="tab-pane block">
 
       <!-- Filter and Action Ribbon -->
-      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-2 flex-wrap">
-          <div class="flex items-center gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-            <button data-filter="all" class="quest-filter active px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">Tất cả</button>
-            <button data-filter="active" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Chưa xong</button>
-            <button data-filter="completed" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đã xong</button>
-          </div>
-          <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-            <span class="text-slate-400 text-xs">⚡</span>
-            <select id="select-quest-sort" class="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
-              <option value="rank-desc">Hạng: Cao → Thấp</option>
-              <option value="rank-asc">Hạng: Thấp → Cao</option>
-              <option value="newest">Mới nhất</option>
-            </select>
-          </div>
+      <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6">
+        <div class="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm shrink-0">
+          <button data-filter="all" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Tất cả</button>
+          <button data-filter="active" class="quest-filter active px-2 sm:px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold whitespace-nowrap shrink-0">Chưa xong</button>
+          <button data-filter="completed" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Đã xong</button>
         </div>
-        <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
+        <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
           <span class="text-sm">⚔️</span>
           <span>+ Nhiệm vụ mới</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
@@ -433,33 +435,22 @@
     <!-- ==================== TAB 2: UNIFIED REWARDS & INVENTORY ==================== -->
     <section id="tab-shop" class="tab-pane hidden">
       <!-- Subtabs and Action Ribbon -->
-      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-2 flex-wrap">
-          <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
-            <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
-              <span class="text-sm sm:text-base leading-none">🏪</span>
-              <span class="inline-flex items-center gap-1 whitespace-nowrap">
-                <span>Cửa Hàng</span>
-                <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
-              </span>
-            </button>
-            <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
-              <span class="text-sm sm:text-base leading-none">🎒</span>
-              <span class="inline-flex items-center gap-1 whitespace-nowrap">
-                <span>Kho Quà</span>
-                <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
-              </span>
-            </button>
-          </div>
-          <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-            <span class="text-slate-400 text-xs">💎</span>
-            <select id="select-shop-sort" class="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
-              <option value="tier-desc">Phẩm chất: Cao → Thấp</option>
-              <option value="tier-asc">Phẩm chất: Thấp → Cao</option>
-              <option value="price-asc">Giá: Thấp → Cao</option>
-              <option value="newest">Mới nhất</option>
-            </select>
-          </div>
+      <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
+        <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
+          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
+            <span class="text-sm sm:text-base leading-none">🏪</span>
+            <span class="inline-flex items-center gap-1 whitespace-nowrap">
+              <span>Cửa Hàng</span>
+              <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
+            </span>
+          </button>
+          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+            <span class="text-sm sm:text-base leading-none">🎒</span>
+            <span class="inline-flex items-center gap-1 whitespace-nowrap">
+              <span>Kho Quà</span>
+              <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
+            </span>
+          </button>
         </div>
         <button id="btn-open-add-reward-nav" class="btn-action-reward inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="text-sm">🎁</span>
@@ -1254,7 +1245,28 @@
   <!-- MOBILE BOTTOM NAVIGATION BAR (iOS / Android Native Feel)                -->
   <!-- ======================================================================= -->
   <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
-    <div class="flex items-center justify-around py-1.5 px-1 sm:px-2">
+    <!-- Popover Menu for More Tabs -->
+    <div id="mobile-more-menu" class="hidden absolute bottom-full mb-2 right-3 w-52 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-lg">
+      <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 px-3 py-1.5 font-mono">Tính năng khác</div>
+      <button data-tab="leaderboard" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+        <span class="text-base">🏆</span>
+        <span class="whitespace-nowrap">Bảng Xếp Hạng</span>
+      </button>
+      <button data-tab="ledger" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+        <span class="text-base">📖</span>
+        <span class="whitespace-nowrap">Lịch Sử</span>
+      </button>
+      <button data-tab="bank" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+        <span class="text-base">🏦</span>
+        <span class="whitespace-nowrap">Ngân Hàng</span>
+      </button>
+      <button id="mobile-nav-admin" data-tab="admin" class="mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition text-left">
+        <span class="text-base">👑</span>
+        <span class="whitespace-nowrap">Quản Trị</span>
+      </button>
+    </div>
+
+    <div class="flex items-center justify-around py-1.5 px-3 max-w-md mx-auto">
       <button data-tab="quests" class="mobile-nav-btn active flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs transition">
         <span class="text-lg leading-none">📜</span>
         <span class="text-[10px] whitespace-nowrap">Nhiệm Vụ</span>
@@ -1263,21 +1275,9 @@
         <span class="text-lg leading-none">🎁</span>
         <span class="text-[10px] whitespace-nowrap">Phần Thưởng</span>
       </button>
-      <button data-tab="leaderboard" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
-        <span class="text-lg leading-none">🏆</span>
-        <span class="text-[10px] whitespace-nowrap">Xếp Hạng</span>
-      </button>
-      <button data-tab="ledger" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
-        <span class="text-lg leading-none">📖</span>
-        <span class="text-[10px] whitespace-nowrap">Lịch Sử</span>
-      </button>
-      <button data-tab="bank" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
-        <span class="text-lg leading-none">🏦</span>
-        <span class="text-[10px] whitespace-nowrap">Ngân Hàng</span>
-      </button>
-      <button id="mobile-nav-admin" data-tab="admin" class="mobile-nav-btn hidden flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-purple-600 dark:text-purple-400 font-medium transition">
-        <span class="text-lg leading-none">👑</span>
-        <span class="text-[10px] whitespace-nowrap">Quản Trị</span>
+      <button id="btn-mobile-more" type="button" class="mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition">
+        <span class="text-lg leading-none">⋯</span>
+        <span class="text-[10px] whitespace-nowrap">Xem Thêm</span>
       </button>
     </div>
   </nav>
