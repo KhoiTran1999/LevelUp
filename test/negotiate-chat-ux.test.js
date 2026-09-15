@@ -58,7 +58,7 @@ console.log('✓ Test 6: Sự kiện bàn phím Enter và thao tác 1-chạm và
 // 7. Kiểm tra cuộn dừng ở đầu tin nhắn AI & Mở rộng không gian hiển thị khung chat
 assert.ok(appJs.includes('rowRect.top - containerRect.top + container.scrollTop'), 'appendAiChatBubble phải tính toán vị trí đỉnh tin nhắn AI để dừng ở đầu tin');
 assert.ok(indexHtml.includes('min-h-[260px] max-h-80 sm:max-h-[380px]'), 'Cả hai khung chat nhiệm vụ và phần thưởng phải được mở rộng chiều cao');
-assert.ok(indexHtml.includes('id="modal-reward" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">\n    <div class="rpg-panel rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg'), 'Modal phần thưởng phải được mở rộng chiều rộng sm:max-w-lg');
+assert.ok(indexHtml.includes('id="modal-reward" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">\n    <div class="rpg-panel rounded-2xl w-full sm:max-w-lg'), 'Modal phần thưởng phải được mở rộng chiều rộng sm:max-w-lg');
 console.log('✓ Test 7: Khung chat được mở rộng không gian và tin nhắn AI tự động dừng tại đầu tin nhắn giúp dễ đọc.');
 
 // 8. Kiểm tra hộp thoại xác nhận trước khi chấp nhận và thêm nhiệm vụ (bao gồm tần suất và yêu cầu chụp ảnh)
