@@ -5642,7 +5642,6 @@ function renderShop() {
       epic: 'QUÝ GIÁ',
       legendary: 'CỰC PHẨM'
     };
-    const rawTier = (item.tier || 'rare').toLowerCase();
 
     card.innerHTML = `
       <div>
