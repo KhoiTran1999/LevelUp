@@ -18,6 +18,7 @@ const API_KEY = process.env.CUSTOM_AI_API_KEY || '';
 const MODEL = process.env.CUSTOM_AI_MODEL || process.env.MODEL_WORKER || 'gpt-4o-mini';
 
 // Helper to call OpenAI-compatible completion with JSON output
+// ponytail: 25s timeout ceiling prevents hanging; triggers deterministic fallback
 async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 = null) {
   if (!API_KEY) {
     throw new Error('CUSTOM_AI_API_KEY is not configured');
@@ -30,6 +31,7 @@ async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 =
 
   const response = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
+    signal: AbortSignal.timeout(25000),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${API_KEY}`

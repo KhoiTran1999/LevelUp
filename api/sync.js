@@ -454,15 +454,20 @@ export function deriveLegitimateBalance(state, existingState = null) {
 }
 
 export function getRedis() {
+  if (redisClient) {
+    return redisClient;
+  }
   if (!process.env.REDIS_URL) {
     return null;
   }
-  if (!redisClient) {
-    redisClient = new Redis(process.env.REDIS_URL, {
-      connectTimeout: 5000,
-      maxRetriesPerRequest: 2,
-      lazyConnect: true
-    });
+  redisClient = new Redis(process.env.REDIS_URL, {
+    connectTimeout: 5000,
+    maxRetriesPerRequest: 2,
+    lazyConnect: true
+  });
+  // ponytail: catch unhandled socket errors to prevent process exit
+  if (typeof redisClient.on === 'function') {
+    redisClient.on('error', (err) => console.warn('Redis socket warning:', err.message));
   }
   return redisClient;
 }
@@ -933,11 +938,24 @@ export default async function handler(req, res) {
         const leaderboard = [];
         const seenSubs = new Set();
 
+        const memberEntries = [];
         for (let i = 0; i < topUsers.length; i += 2) {
-          const memberKey = topUsers[i];
-          const score = parseInt(topUsers[i + 1], 10);
+          memberEntries.push({ key: topUsers[i], score: parseInt(topUsers[i + 1], 10) });
+        }
 
-          let rawData = await redis.get(`levelup:user:google:${memberKey}`);
+        let rawGoogleList = [];
+        const googleKeys = memberEntries.map(e => `levelup:user:google:${e.key}`);
+        if (googleKeys.length > 0) {
+          if (typeof redis.mget === 'function') {
+            rawGoogleList = await redis.mget(...googleKeys);
+          } else {
+            rawGoogleList = await Promise.all(googleKeys.map(k => redis.get(k)));
+          }
+        }
+
+        for (let i = 0; i < memberEntries.length; i++) {
+          const { key: memberKey, score } = memberEntries[i];
+          let rawData = rawGoogleList[i];
           if (!rawData) {
             // Hỗ trợ legacy member key nếu có
             rawData = await redis.get(`levelup:user:${memberKey}`);
@@ -1042,11 +1060,25 @@ export default async function handler(req, res) {
         const cheaterEntries = await redis.zrevrange('levelup:cheaters', 0, 49, 'WITHSCORES');
         const cheaters = [];
 
+        const cheaterList = [];
         for (let i = 0; i < cheaterEntries.length; i += 2) {
-          const memberKey = cheaterEntries[i];
-          const cheatedAt = parseInt(cheaterEntries[i + 1], 10);
+          cheaterList.push({ key: cheaterEntries[i], cheatedAt: parseInt(cheaterEntries[i + 1], 10) });
+        }
 
-          let rawData = await redis.get(`levelup:user:google:${memberKey}`);
+        let rawCheaterGoogleList = [];
+        const cheaterGoogleKeys = cheaterList.map(e => `levelup:user:google:${e.key}`);
+        if (cheaterGoogleKeys.length > 0) {
+          if (typeof redis.mget === 'function') {
+            rawCheaterGoogleList = await redis.mget(...cheaterGoogleKeys);
+          } else {
+            rawCheaterGoogleList = await Promise.all(cheaterGoogleKeys.map(k => redis.get(k)));
+          }
+        }
+
+        for (let i = 0; i < cheaterList.length; i++) {
+          const { key: memberKey, cheatedAt } = cheaterList[i];
+
+          let rawData = rawCheaterGoogleList[i];
           if (!rawData) rawData = await redis.get(`levelup:user:${memberKey}`);
           if (!rawData) {
             const mappedSub = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(memberKey)}`);

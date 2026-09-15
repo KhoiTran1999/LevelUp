@@ -21,7 +21,16 @@ app.all('/api/ai', (req, res) => aiHandler(req, res));
 app.all('/api/sync', (req, res) => syncHandler(req, res));
 
 // Serve static frontend
-app.use(express.static(path.join(__dirname, 'public')));
+// ponytail: static asset cache 1h default, 1d immutable for media/icons
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(png|svg|ico|webp|jpg|jpeg|gif|woff2?)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    }
+  }
+}));
 
 // Fallback to index.html for SPA
 app.get('*', (req, res) => {

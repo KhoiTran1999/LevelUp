@@ -545,12 +545,16 @@ function triggerSave(needsCloud = true, immediate = false, timerAction = null) {
   }
 }
 
+let isHydrating = false;
+
 async function hydrateFromCloud(isManual = false) {
+  if (isHydrating) return;
   const nick = appState.profile?.nickname;
   const googleId = appState.profile?.googleId;
   const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token || getOrCreateUserToken();
 
   if (!googleId || !nick || !token) return;
+  isHydrating = true;
 
   const syncDot = document.getElementById('sync-indicator');
   const modalSyncState = document.getElementById('modal-sync-state');
@@ -661,6 +665,8 @@ async function hydrateFromCloud(isManual = false) {
     }
   } catch (err) {
     console.warn('Hydrate from cloud failed:', err.message);
+  } finally {
+    isHydrating = false;
   }
 }
 
@@ -5332,6 +5338,8 @@ function renderQuests() {
   }
   empty.classList.add('hidden');
   grid.innerHTML = '';
+  // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
+  const fragment = document.createDocumentFragment();
 
   filtered.forEach(q => {
     const isCompleted = q.status === 'completed';
@@ -5524,8 +5532,9 @@ function renderQuests() {
       completeBtn.addEventListener('click', () => completeQuest(q.id));
     }
 
-    grid.appendChild(card);
+    fragment.appendChild(card);
   });
+  grid.appendChild(fragment);
 }
 
 function renderShop() {
@@ -5555,6 +5564,8 @@ function renderShop() {
     return;
   }
 
+  // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
+  const fragment = document.createDocumentFragment();
   appState.shopItems.forEach(item => {
     const canAfford = appState.profile.coins >= item.price;
     const coinsNeeded = Math.max(0, item.price - appState.profile.coins);
@@ -5655,8 +5666,9 @@ function renderShop() {
       buyShopItem(item.id);
     });
 
-    grid.appendChild(card);
+    fragment.appendChild(card);
   });
+  grid.appendChild(fragment);
 }
 
 function renderInventory() {
@@ -5676,6 +5688,8 @@ function renderInventory() {
   empty.classList.add('hidden');
   grid.innerHTML = '';
 
+  // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
+  const fragment = document.createDocumentFragment();
   appState.inventory.forEach(item => {
     const isThisActiveReward = Boolean(activeRewardItem && activeRewardItem.id === item.id);
     const durationMins = extractRewardDuration(item);
@@ -5808,8 +5822,9 @@ function renderInventory() {
       useBtn.addEventListener('click', () => useInventoryItem(item.id));
     }
 
-    grid.appendChild(card);
+    fragment.appendChild(card);
   });
+  grid.appendChild(fragment);
 }
 
 function addLedgerEntry(entry) {
