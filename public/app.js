@@ -5270,6 +5270,10 @@ window.updateAdminNavVisibility = updateAdminNavVisibility;
 // 12. RENDER FUNCTIONS (Theme-aware & High Contrast)
 // =============================================================================
 let currentQuestFilter = 'all';
+let currentQuestSort = 'rank-desc';
+let currentShopSort = 'tier-desc';
+window.currentQuestSort = currentQuestSort;
+window.currentShopSort = currentShopSort;
 
 function renderHeader() {
   const p = appState.profile;
@@ -5328,6 +5332,33 @@ function renderQuests() {
     filtered = appState.quests.filter(q => q.status === 'completed');
   }
 
+  // Sắp xếp nhiệm vụ: Ghim việc đang làm lên đầu, việc active trước completed, theo Rank & Vàng từ cao xuống thấp
+  const rankScores = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 };
+  filtered = [...filtered].sort((a, b) => {
+    const aFocus = (activeFocusQuest && activeFocusQuest.id === a.id) ? 1 : 0;
+    const bFocus = (activeFocusQuest && activeFocusQuest.id === b.id) ? 1 : 0;
+    if (aFocus !== bFocus) return bFocus - aFocus;
+
+    const aActive = a.status === 'active' ? 1 : 0;
+    const bActive = b.status === 'active' ? 1 : 0;
+    if (aActive !== bActive) return bActive - aActive;
+
+    if (currentQuestSort === 'rank-desc') {
+      const scoreA = rankScores[(a.rank || 'E').toUpperCase()] ?? 1;
+      const scoreB = rankScores[(b.rank || 'E').toUpperCase()] ?? 1;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return (b.rewardCoins || 0) - (a.rewardCoins || 0);
+    } else if (currentQuestSort === 'rank-asc') {
+      const scoreA = rankScores[(a.rank || 'E').toUpperCase()] ?? 1;
+      const scoreB = rankScores[(b.rank || 'E').toUpperCase()] ?? 1;
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      return (a.rewardCoins || 0) - (b.rewardCoins || 0);
+    } else if (currentQuestSort === 'newest') {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    return 0;
+  });
+
   const activeCount = appState.quests.filter(q => q.status === 'active').length;
   if (activeCountBadge) activeCountBadge.textContent = activeCount;
 
@@ -5350,8 +5381,9 @@ function renderQuests() {
       appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
     );
     const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
+    const rank = (q.rank || 'E').toUpperCase();
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative ${
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative quest-card-rank-${rank} ${
       isCurrentlyFocusing
         ? 'ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 bg-amber-500/5 border-amber-500/50'
         : isCompleted
@@ -5564,14 +5596,39 @@ function renderShop() {
     return;
   }
 
+  // Sắp xếp phần thưởng Cửa Hàng (mặc định: Cực phẩm -> Phổ thông, Giá cao -> thấp)
+  let items = [...appState.shopItems];
+  const tierScores = { legendary: 4, epic: 3, rare: 2, common: 1 };
+  items.sort((a, b) => {
+    const rawTierA = (a.tier || 'rare').toLowerCase();
+    const rawTierB = (b.tier || 'rare').toLowerCase();
+    if (currentShopSort === 'tier-desc') {
+      const scoreA = tierScores[rawTierA] ?? 1;
+      const scoreB = tierScores[rawTierB] ?? 1;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return (b.price || 0) - (a.price || 0);
+    } else if (currentShopSort === 'tier-asc') {
+      const scoreA = tierScores[rawTierA] ?? 1;
+      const scoreB = tierScores[rawTierB] ?? 1;
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      return (a.price || 0) - (b.price || 0);
+    } else if (currentShopSort === 'price-asc') {
+      return (a.price || 0) - (b.price || 0);
+    } else if (currentShopSort === 'newest') {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    return 0;
+  });
+
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
   const fragment = document.createDocumentFragment();
-  appState.shopItems.forEach(item => {
+  items.forEach(item => {
     const canAfford = appState.profile.coins >= item.price;
     const coinsNeeded = Math.max(0, item.price - appState.profile.coins);
     const durationMins = extractRewardDuration(item);
+    const rawTier = (item.tier || 'rare').toLowerCase();
     const card = document.createElement('div');
-    card.className = 'rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group';
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier}`;
 
     const tierColors = {
       common: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
@@ -5688,13 +5745,35 @@ function renderInventory() {
   empty.classList.add('hidden');
   grid.innerHTML = '';
 
+  // Sắp xếp Kho Quà: Đang dùng ghim đầu, Chưa dùng xếp trước Đã dùng, Quà chưa dùng xếp Tier cao -> thấp
+  let invItems = [...appState.inventory];
+  const tierScores = { legendary: 4, epic: 3, rare: 2, common: 1 };
+  invItems.sort((a, b) => {
+    const aActive = (activeRewardItem && activeRewardItem.id === a.id) ? 1 : 0;
+    const bActive = (activeRewardItem && activeRewardItem.id === b.id) ? 1 : 0;
+    if (aActive !== bActive) return bActive - aActive;
+
+    const aUsed = a.isUsed ? 1 : 0;
+    const bUsed = b.isUsed ? 1 : 0;
+    if (aUsed !== bUsed) return aUsed - bUsed;
+
+    if (!a.isUsed && !b.isUsed) {
+      const scoreA = tierScores[(a.tier || 'rare').toLowerCase()] ?? 1;
+      const scoreB = tierScores[(b.tier || 'rare').toLowerCase()] ?? 1;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return (b.price || 0) - (a.price || 0);
+    }
+    return (b.purchasedAt || 0) - (a.purchasedAt || 0);
+  });
+
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
   const fragment = document.createDocumentFragment();
-  appState.inventory.forEach(item => {
+  invItems.forEach(item => {
     const isThisActiveReward = Boolean(activeRewardItem && activeRewardItem.id === item.id);
     const durationMins = extractRewardDuration(item);
+    const rawTier = (item.tier || 'rare').toLowerCase();
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group ${
+    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier} ${
       isThisActiveReward
         ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20 bg-purple-500/5 border-purple-500/50'
         : (item.isUsed ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : '')
@@ -8584,6 +8663,28 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQuests();
     });
   });
+
+  // Quest sorting dropdown
+  const questSortSelect = document.getElementById('select-quest-sort');
+  if (questSortSelect) {
+    questSortSelect.value = currentQuestSort;
+    questSortSelect.addEventListener('change', (e) => {
+      currentQuestSort = e.target.value;
+      window.currentQuestSort = currentQuestSort;
+      renderQuests();
+    });
+  }
+
+  // Shop sorting dropdown
+  const shopSortSelect = document.getElementById('select-shop-sort');
+  if (shopSortSelect) {
+    shopSortSelect.value = currentShopSort;
+    shopSortSelect.addEventListener('change', (e) => {
+      currentShopSort = e.target.value;
+      window.currentShopSort = currentShopSort;
+      renderShop();
+    });
+  }
 
   // Theme Toggle Button
   const themeToggle = document.getElementById('toggle-theme-btn');

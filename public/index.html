@@ -247,11 +247,21 @@
     <section id="tab-quests" class="tab-pane block">
 
       <!-- Filter and Action Ribbon -->
-      <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-          <button data-filter="all" class="quest-filter active px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">Tất cả</button>
-          <button data-filter="active" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Chưa xong</button>
-          <button data-filter="completed" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đã xong</button>
+      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4 sm:mb-6">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
+            <button data-filter="all" class="quest-filter active px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">Tất cả</button>
+            <button data-filter="active" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Chưa xong</button>
+            <button data-filter="completed" class="quest-filter px-2.5 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium">Đã xong</button>
+          </div>
+          <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
+            <span class="text-slate-400 text-xs">⚡</span>
+            <select id="select-quest-sort" class="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
+              <option value="rank-desc">Hạng: Cao → Thấp</option>
+              <option value="rank-asc">Hạng: Thấp → Cao</option>
+              <option value="newest">Mới nhất</option>
+            </select>
+          </div>
         </div>
         <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
           <span class="text-sm">⚔️</span>
@@ -423,22 +433,33 @@
     <!-- ==================== TAB 2: UNIFIED REWARDS & INVENTORY ==================== -->
     <section id="tab-shop" class="tab-pane hidden">
       <!-- Subtabs and Action Ribbon -->
-      <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
-          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
-            <span class="text-sm sm:text-base leading-none">🏪</span>
-            <span class="inline-flex items-center gap-1 whitespace-nowrap">
-              <span>Cửa Hàng</span>
-              <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
-            </span>
-          </button>
-          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
-            <span class="text-sm sm:text-base leading-none">🎒</span>
-            <span class="inline-flex items-center gap-1 whitespace-nowrap">
-              <span>Kho Quà</span>
-              <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
-            </span>
-          </button>
+      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4 sm:mb-6">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
+            <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
+              <span class="text-sm sm:text-base leading-none">🏪</span>
+              <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                <span>Cửa Hàng</span>
+                <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
+              </span>
+            </button>
+            <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+              <span class="text-sm sm:text-base leading-none">🎒</span>
+              <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                <span>Kho Quà</span>
+                <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
+              </span>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
+            <span class="text-slate-400 text-xs">💎</span>
+            <select id="select-shop-sort" class="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
+              <option value="tier-desc">Phẩm chất: Cao → Thấp</option>
+              <option value="tier-asc">Phẩm chất: Thấp → Cao</option>
+              <option value="price-asc">Giá: Thấp → Cao</option>
+              <option value="newest">Mới nhất</option>
+            </select>
+          </div>
         </div>
         <button id="btn-open-add-reward-nav" class="btn-action-reward inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="text-sm">🎁</span>

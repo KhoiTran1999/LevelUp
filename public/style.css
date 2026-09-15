@@ -168,6 +168,119 @@ html.dark .rank-badge-S {
   border-color: rgba(245, 158, 11, 0.5);
 }
 
+/* ==========================================================================
+   RPG Card Classification Tiers (Quests & Rewards)
+   High-contrast color tint, distinct top accent border & reactive hover glow
+   ========================================================================== */
+
+/* 1. Common / Rank E (Slate) */
+.quest-card-rank-E,
+.reward-card-tier-common {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-top: 3px solid #94a3b8;
+  background: linear-gradient(180deg, rgba(226, 232, 240, 0.5) 0%, var(--panel-bg) 60%);
+}
+html.dark .quest-card-rank-E,
+html.dark .reward-card-tier-common {
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  border-top: 3px solid #64748b;
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.35) 0%, var(--panel-bg) 60%);
+}
+.quest-card-rank-E:hover,
+.reward-card-tier-common:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 10px 25px -4px rgba(100, 116, 139, 0.2);
+}
+
+/* 2. Rank D (Emerald) */
+.quest-card-rank-D {
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-top: 3px solid #22c55e;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.08) 0%, var(--panel-bg) 60%);
+}
+html.dark .quest-card-rank-D {
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-top: 3px solid #22c55e;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.13) 0%, var(--panel-bg) 60%);
+}
+.quest-card-rank-D:hover {
+  border-color: #22c55e;
+  box-shadow: 0 10px 25px -4px rgba(34, 197, 94, 0.22);
+}
+
+/* 3. Rare / Rank C (Cyan) */
+.quest-card-rank-C,
+.reward-card-tier-rare {
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-top: 3px solid #06b6d4;
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.08) 0%, var(--panel-bg) 60%);
+}
+html.dark .quest-card-rank-C,
+html.dark .reward-card-tier-rare {
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  border-top: 3px solid #06b6d4;
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.13) 0%, var(--panel-bg) 60%);
+}
+.quest-card-rank-C:hover,
+.reward-card-tier-rare:hover {
+  border-color: #06b6d4;
+  box-shadow: 0 10px 25px -4px rgba(6, 182, 212, 0.22);
+}
+
+/* 4. Epic / Rank B (Purple) */
+.quest-card-rank-B,
+.reward-card-tier-epic {
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-top: 3px solid #a855f7;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.09) 0%, var(--panel-bg) 60%);
+}
+html.dark .quest-card-rank-B,
+html.dark .reward-card-tier-epic {
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-top: 3px solid #a855f7;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.14) 0%, var(--panel-bg) 60%);
+}
+.quest-card-rank-B:hover,
+.reward-card-tier-epic:hover {
+  border-color: #a855f7;
+  box-shadow: 0 10px 25px -4px rgba(168, 85, 247, 0.25);
+}
+
+/* 5. Rank A (Orange) */
+.quest-card-rank-A {
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-top: 3px solid #f97316;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.09) 0%, var(--panel-bg) 60%);
+}
+html.dark .quest-card-rank-A {
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-top: 3px solid #f97316;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.15) 0%, var(--panel-bg) 60%);
+}
+.quest-card-rank-A:hover {
+  border-color: #f97316;
+  box-shadow: 0 10px 25px -4px rgba(249, 115, 22, 0.25);
+}
+
+/* 6. Legendary / Rank S (Gold/Amber) */
+.quest-card-rank-S,
+.reward-card-tier-legendary {
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-top: 3px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.03) 40%, var(--panel-bg) 75%);
+}
+html.dark .quest-card-rank-S,
+html.dark .reward-card-tier-legendary {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-top: 3px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.16) 0%, rgba(239, 68, 68, 0.05) 40%, var(--panel-bg) 75%);
+}
+.quest-card-rank-S:hover,
+.reward-card-tier-legendary:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.3);
+}
+
 /* Sub-panel (Verdicts, quotes, advice) */
 .sub-panel {
   background-color: var(--subpanel-bg);
