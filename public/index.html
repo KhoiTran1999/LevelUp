@@ -548,11 +548,11 @@
     <section id="tab-ledger" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
         <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">LỊCH SỬ THU CHI VÀNG</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng và đổi quà.</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng, đổi quà và giao dịch tiết kiệm / vay Ngân Hàng.</p>
       </div>
 
       <!-- Mini stats summary -->
-      <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-amber-500/20 shadow-xs flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base shrink-0">📥</div>
           <div>
@@ -567,13 +567,28 @@
             <div id="ledger-stat-spend" class="text-sm sm:text-base font-bold font-mono text-rose-600 dark:text-rose-400">-0 <span class="coin-icon"></span></div>
           </div>
         </div>
+        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-emerald-500/20 shadow-xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base shrink-0">🏦</div>
+          <div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Đang tiết kiệm</div>
+            <div id="ledger-stat-bank-deposit" class="text-sm sm:text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">0 <span class="coin-icon"></span></div>
+          </div>
+        </div>
+        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-blue-500/20 shadow-xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base shrink-0">💳</div>
+          <div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Dư nợ hiện tại</div>
+            <div id="ledger-stat-bank-debt" class="text-sm sm:text-base font-bold font-mono text-blue-600 dark:text-blue-400">0 <span class="coin-icon"></span></div>
+          </div>
+        </div>
       </div>
 
       <!-- Filter tabs -->
-      <div class="flex items-center gap-2 mb-3">
-        <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs">Tất Cả</button>
-        <button id="ledger-filter-earn" onclick="setLedgerFilter('earn')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Thu Nhập (+)</button>
-        <button id="ledger-filter-spend" onclick="setLedgerFilter('spend')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Đổi Quà (-)</button>
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer">Tất Cả</button>
+        <button id="ledger-filter-earn" onclick="setLedgerFilter('earn')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Thu Nhập (+)</button>
+        <button id="ledger-filter-spend" onclick="setLedgerFilter('spend')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Đổi Quà (-)</button>
+        <button id="ledger-filter-bank" onclick="setLedgerFilter('bank')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">🏦 Tiết Kiệm & Vay</button>
       </div>
 
       <div class="rpg-panel rounded-2xl p-3 sm:p-4">
@@ -622,8 +637,8 @@
               </p>
             </div>
           </div>
-          <button id="btn-refresh-bank" onclick="loadBankState()" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0">
-            <span>🔄</span> <span>Cập Nhật</span>
+          <button id="btn-refresh-bank" onclick="loadBankState(true)" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span id="btn-refresh-bank-icon" class="inline-block transition-transform">🔄</span> <span id="btn-refresh-bank-text">Cập Nhật</span>
           </button>
         </div>
 
@@ -641,7 +656,6 @@
               </div>
               <div class="min-w-0">
                 <div class="text-[11px] text-slate-600 dark:text-slate-400 font-semibold truncate">Lãi Tiết Kiệm Hôm Nay</div>
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Vốn bảo đảm 100% · Rút bất kỳ lúc nào</div>
               </div>
             </div>
             <div class="text-right shrink-0">
@@ -656,7 +670,6 @@
               </div>
               <div class="min-w-0">
                 <div class="text-[11px] text-slate-600 dark:text-slate-400 font-semibold truncate">Lãi Vay Nhanh Hôm Nay</div>
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Trích Vàng tự động · Không lo trả một lần</div>
               </div>
             </div>
             <div class="text-right shrink-0">
@@ -691,9 +704,6 @@
                   <p class="text-[11px] text-slate-500 dark:text-slate-400">Gửi Vàng nhàn rỗi nhận lãi thụ động 1% - 8%/ngày</p>
                 </div>
               </div>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                100% Vốn Bảo Đảm
-              </span>
             </div>
 
             <!-- Tóm tắt tài sản gửi -->
@@ -837,7 +847,15 @@
                 <span>Thời hạn còn lại:</span>
                 <span id="bank-loan-days-left" class="font-semibold text-amber-600">7 ngày</span>
               </div>
-              <div class="text-[10px] text-rose-600/90 dark:text-rose-400/90 mt-1.5 pt-1.5 border-t border-blue-500/15 flex items-start gap-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
+                <span>Lãi suất phạt tất toán sớm:</span>
+                <span id="bank-early-repay-penalty-label" class="font-semibold text-amber-600 dark:text-amber-400">5% phí trả trước hạn</span>
+              </div>
+              <div class="text-[10px] text-amber-700 dark:text-amber-300/90 mt-1.5 pt-1.5 border-t border-blue-500/15 flex items-start gap-1">
+                <span class="shrink-0">📢</span>
+                <span><strong>Thông báo:</strong> Bấm "Trả Nợ Sớm" bằng ví Vàng chịu <strong>phí phạt 5%</strong> (tối thiểu 1 🪙). Để không tốn phí, hãy làm nhiệm vụ để hệ thống tự động trích nợ <strong>0% phí phạt</strong>!</span>
+              </div>
+              <div class="text-[10px] text-rose-600/90 dark:text-rose-400/90 mt-1 pt-1 border-t border-blue-500/15 flex items-start gap-1">
                 <span class="shrink-0">⚠️</span>
                 <span>Hết 7 ngày chưa trả hết: Tạm đóng băng Cửa Hàng & Kho Quà, tự động trích 100% Vàng thưởng để tự động trừ dần nợ.</span>
               </div>
@@ -966,6 +984,7 @@
                   <li><strong>Thời hạn tối đa: 7 ngày</strong> kể từ thời điểm nhận Vàng vay.</li>
                   <li><strong>Hàng ngày:</strong> Tự động trích theo tỷ lệ đã chọn từ Vàng thưởng nhiệm vụ để trả nợ dần.</li>
                   <li><strong class="text-rose-600 dark:text-rose-400">Nếu quá hạn 7 ngày:</strong> Đóng băng Cửa Hàng, khóa Kho Quà và tự động trích <strong>100% Vàng thưởng</strong> cho đến khi trả hết.</li>
+                  <li><strong class="text-amber-700 dark:text-amber-400">Phí phạt tất toán sớm:</strong> Nếu tự bấm trả nợ sớm bằng Vàng trong ví trước hạn 7 ngày, hệ thống tính <strong>phí phạt 5%</strong> (tối thiểu 1 Vàng) để bảo toàn quỹ thanh khoản. Trả nợ dần qua làm nhiệm vụ được <strong>miễn 100% phí phạt</strong>.</li>
                 </ul>
               </div>
 
@@ -1980,12 +1999,15 @@
           </div>
 
           <!-- Lưu ý kỳ hạn & Xử lý khi trễ hạn -->
-          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] space-y-1">
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] space-y-1.5">
             <div class="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 text-xs">
-              <span>⚠️</span> <span>Lưu ý quan trọng về thời hạn 7 ngày:</span>
+              <span>⚠️</span> <span>Lưu ý quan trọng về kỳ hạn & tất toán:</span>
             </div>
             <p class="text-slate-600 dark:text-slate-400 text-[10px] leading-relaxed">
-              Mọi khoản vay đều có thời hạn tối đa <strong>7 ngày</strong>. Hãy duy trì làm việc đều đặn để trích nợ. Nếu sau 7 ngày chưa trả hết nợ, tài khoản sẽ bị đóng băng Cửa Hàng, khóa Kho Quà và tự động trích 100% Vàng thưởng nhiệm vụ để trả dần nợ.
+              Mọi khoản vay có thời hạn tối đa <strong>7 ngày</strong>. Nếu sau 7 ngày chưa trả hết nợ, tài khoản sẽ bị đóng băng Cửa Hàng, khóa Kho Quà và tự động trích 100% Vàng thưởng nhiệm vụ để trả dần nợ.
+            </p>
+            <p class="text-amber-700 dark:text-amber-300 text-[10px] leading-relaxed font-medium pt-1 border-t border-amber-500/20">
+              💡 <strong>Phí phạt tất toán sớm:</strong> Nếu tự bấm "Trả Nợ Sớm" bằng ví Vàng trước hạn 7 ngày, hệ thống sẽ áp dụng <strong>phí phạt 5%</strong> (tối thiểu 1 Vàng) để bảo toàn thanh khoản. Bạn nên tiếp tục làm nhiệm vụ để hệ thống tự trích nợ dần hoàn toàn <strong>miễn phí phạt (0%)</strong>.
             </p>
           </div>
         </div>

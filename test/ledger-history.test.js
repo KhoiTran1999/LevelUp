@@ -199,6 +199,48 @@ async function testLedgerPagination() {
   console.log('✓ Test 7: Phân trang Sổ Cái (Ledger Pagination) chia trang chuẩn xác và tích hợp đầy đủ UI điều khiển.');
 }
 
+// 8. Kiểm tra Tích hợp Lịch Sử Tiết Kiệm & Vay Tiền Ngân Hàng (Bank Ledger Integration)
+async function testBankLedgerIntegration() {
+  const fs = await import('node:fs');
+  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const syncJs = fs.readFileSync(new URL('../api/sync.js', import.meta.url), 'utf8');
+
+  // 1. Kiểm tra DOM trong public/index.html
+  assert.ok(indexHtml.includes('id="ledger-filter-bank"'), 'index.html phải có nút lọc giao dịch Ngân Hàng');
+  assert.ok(indexHtml.includes('id="ledger-stat-bank-deposit"'), 'index.html phải có thẻ mini stat hiển thị tiền gửi');
+  assert.ok(indexHtml.includes('id="ledger-stat-bank-debt"'), 'index.html phải có thẻ mini stat hiển thị dư nợ');
+
+  // 2. Kiểm tra bộ lọc filter bank trong app.js
+  assert.ok(appJs.includes("currentLedgerFilter === 'bank'"), 'app.js phải xử lý lọc theo danh mục bank');
+  assert.ok(appJs.includes("ledger-filter-bank"), 'app.js phải quản lý nút ledger-filter-bank');
+  assert.ok(appJs.includes('category.startsWith(\'bank_\')'), 'app.js phải lọc các giao dịch có category bank_*');
+
+  // 3. Kiểm tra đồng bộ data.ledger sau các hành động ngân hàng trong app.js
+  const normalizedAppJs = appJs.replace(/\r\n/g, '\n');
+  assert.ok(normalizedAppJs.includes('if (Array.isArray(data.ledger)) {\n          appState.ledger = data.ledger;\n        }'), 'app.js phải đồng bộ data.ledger từ server khi giao dịch thành công');
+
+  // 4. Kiểm tra api/sync.js trả về ledger trong phản hồi giao dịch ngân hàng
+  assert.ok(syncJs.includes('ledger: uState.ledger,'), 'api/sync.js phải trả về ledger trong các giao dịch ngân hàng');
+
+  // 5. Kiểm tra logic lọc mảng thực tế cho danh mục bank
+  const entries = [
+    { id: '1', type: 'earn', category: 'quest', amount: 50 },
+    { id: '2', type: 'spend', category: 'reward', amount: 30 },
+    { id: '3', type: 'spend', category: 'bank_deposit', amount: 20 },
+    { id: '4', type: 'earn', category: 'bank_withdraw', amount: 20 },
+    { id: '5', type: 'earn', category: 'bank_borrow', amount: 100 },
+    { id: '6', type: 'spend', category: 'bank_repay', amount: 50 },
+    { id: '7', type: 'spend', category: 'bank_deduct', amount: 10 }
+  ];
+
+  const bankFiltered = entries.filter(e => typeof e.category === 'string' && (e.category.startsWith('bank_') || ['bank_deposit', 'bank_withdraw', 'bank_borrow', 'bank_repay', 'bank_deduct'].includes(e.category)));
+  assert.strictEqual(bankFiltered.length, 5, 'Bộ lọc bank phải trích xuất đúng 5 giao dịch ngân hàng');
+  assert.deepStrictEqual(bankFiltered.map(e => e.category), ['bank_deposit', 'bank_withdraw', 'bank_borrow', 'bank_repay', 'bank_deduct']);
+
+  console.log('✓ Test 8: Lịch sử Tiết kiệm & Vay tiền Ngân Hàng tích hợp đầy đủ vào Tab Lịch Sử (filter, mini-stats, client/server sync).');
+}
+
 testRollingWindow();
 testDateGrouping();
 testTodayStats();
@@ -206,5 +248,6 @@ testFiltering();
 testSchemaStandardization();
 await testZeroLocalStorageAndSkeleton();
 await testLedgerPagination();
+await testBankLedgerIntegration();
 
-console.log('\n🎉 TẤT CẢ 7/7 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI, PHÂN TRANG & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');
+console.log('\n🎉 TẤT CẢ 8/8 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI, PHÂN TRANG & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');

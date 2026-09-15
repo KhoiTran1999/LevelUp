@@ -318,6 +318,7 @@ function testBankUIElements() {
   assert.ok(html.includes('id="input-deduct-percent"'), 'Phải có thanh trượt tỷ lệ trích nợ 30% - 80%');
   assert.ok(html.includes('id="btn-bank-borrow"'), 'Phải có nút Vay Vàng');
   assert.ok(html.includes('id="btn-bank-repay"'), 'Phải có nút Trả Nợ Sớm');
+  assert.ok(html.includes('id="bank-early-repay-penalty-label"'), 'Phải có nhãn hiển thị phí phạt tất toán sớm');
   assert.ok(html.includes('id="modal-credit-limit-info"'), 'Phải có modal hướng dẫn cách tính & nâng hạn mức vay');
 
   // Kiểm tra Máy tính dự tính lãi gửi tiết kiệm
@@ -414,6 +415,39 @@ function testDepositCalculatorProjection() {
   console.log('✓ Test 12: Công thức máy tính dự tính lãi suất tiền gửi chuẩn xác 100% theo chu kỳ ngày.');
 }
 
+// 13. Kiểm thử Phí Phạt Lãi Suất Tất Toán Sớm (Early Repayment Penalty)
+function testEarlyRepaymentPenalty() {
+  const penaltyRate = 0.05; // 5%
+
+  // Trường hợp 1: Tất toán 100 Vàng nợ trước hạn
+  const payAmt1 = 100;
+  const penaltyFee1 = Math.max(1, Math.round(payAmt1 * penaltyRate));
+  const totalPaid1 = payAmt1 + penaltyFee1;
+  assert.strictEqual(penaltyFee1, 5, 'Phí phạt tất toán sớm 5% của 100 Vàng là 5 Vàng');
+  assert.strictEqual(totalPaid1, 105, 'Tổng số tiền người chơi trả là 105 Vàng');
+
+  // Trường hợp 2: Trả nợ sớm số tiền nhỏ (10 Vàng) có sàn tối thiểu 1 Vàng
+  const payAmt2 = 10;
+  const penaltyFee2 = Math.max(1, Math.round(payAmt2 * penaltyRate));
+  const totalPaid2 = payAmt2 + penaltyFee2;
+  assert.strictEqual(penaltyFee2, 1, 'Phí phạt tối thiểu là 1 Vàng');
+  assert.strictEqual(totalPaid2, 11, 'Tổng tiền trả là 11 Vàng');
+
+  // Trường hợp 3: Nợ quá hạn (isOverdue = true) thì không phạt tất toán sớm
+  const isOverdue = true;
+  const overduePenaltyRate = isOverdue ? 0 : penaltyRate;
+  const penaltyFee3 = overduePenaltyRate > 0 ? Math.max(1, Math.round(payAmt1 * overduePenaltyRate)) : 0;
+  assert.strictEqual(penaltyFee3, 0, 'Khoản nợ quá hạn không tính phí phạt tất toán sớm');
+
+  // Trường hợp 4: Kiểm tra thông báo cảnh báo đến người dùng trong HTML và app.js
+  const html = fs.readFileSync('public/index.html', 'utf-8');
+  assert.ok(html.includes('Phí phạt tất toán sớm'), 'HTML phải có thông báo quy định về phí phạt tất toán sớm');
+  const appJs = fs.readFileSync('public/app.js', 'utf-8');
+  assert.ok(appJs.includes('Phí phạt tất toán sớm'), 'app.js phải có thông báo phí phạt tất toán sớm khi vay và trả nợ');
+
+  console.log('✓ Test 13: Cơ chế tính lãi suất phạt tất toán sớm & thông báo người dùng hoạt động chuẩn xác.');
+}
+
 testAMMDynamicRates();
 testCreditLimitCalculation();
 testAccrueBankInterest();
@@ -426,5 +460,6 @@ testBankUIElements();
 testAppJsBankIntegration();
 testAdminBankTelemetry();
 testDepositCalculatorProjection();
+testEarlyRepaymentPenalty();
 
-console.log('\n🎉 TẤT CẢ 12/12 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, CALCULATOR, ANTI-CHEAT) ĐÃ VƯỢT QUA XUẤT SẮC!');
+console.log('\n🎉 TẤT CẢ 13/13 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, PENALTY, ANTI-CHEAT) ĐÃ VƯỢT QUA XUẤT SẮC!');

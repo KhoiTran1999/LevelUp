@@ -1472,7 +1472,7 @@ Trả về ĐÚNG định dạng JSON:
   "totalEstimatedDebt": number,
   "repaymentPlan": "Kế hoạch trả nợ cụ thể: nêu rõ làm việc gì, bao nhiêu lần, tính cả tiền lãi phát sinh để trả sạch nợ trong bao nhiêu ngày",
   "advice": "Lời khuyên ngắn gọn (2-3 câu), thân thiện, động viên",
-  "warning": "Lưu ý nếu có về thời hạn 7 ngày để tránh bị khóa đổi quà",
+  "warning": "Lưu ý nếu có về thời hạn 7 ngày và nhắc người chơi: trả nợ qua làm nhiệm vụ được miễn phí phạt (nếu tự bấm trả nợ sớm bằng ví Vàng sẽ chịu phí phạt tất toán 5%)",
   "options": [
     {
       "id": 1,

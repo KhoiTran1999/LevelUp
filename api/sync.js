@@ -1710,6 +1710,7 @@ export default async function handler(req, res) {
             message: `Gửi tiết kiệm thành công ${depositAmt} Vàng!`,
             userBank: uState.profile.bank,
             coins: uState.profile.coins,
+            ledger: uState.ledger,
             pool: { ...poolState, ...updatedRates }
           });
         }
@@ -1781,6 +1782,7 @@ export default async function handler(req, res) {
             bailoutInjected,
             userBank: uState.profile.bank,
             coins: uState.profile.coins,
+            ledger: uState.ledger,
             pool: { ...poolState, ...updatedRates }
           });
         }
@@ -1866,6 +1868,7 @@ export default async function handler(req, res) {
             message: `Giải ngân thành công khoản vay ${borrowAmt} Vàng!`,
             loan: uState.profile.bank.loan,
             coins: uState.profile.coins,
+            ledger: uState.ledger,
             pool: { ...poolState, ...updatedRates }
           });
         }
@@ -1884,9 +1887,26 @@ export default async function handler(req, res) {
           }
 
           const reqAmt = req.body?.amount === 'all' || !req.body?.amount ? currentDebt : Math.max(1, parseInt(req.body.amount, 10) || currentDebt);
-          const payAmt = Math.min(userCoins, Math.min(currentDebt, reqAmt));
+          const isOverdue = Boolean(loan.isOverdue);
+          const penaltyRate = isOverdue ? 0 : 0.05; // 5% phí phạt tất toán sớm khi chưa quá hạn
+          let payAmt = Math.min(currentDebt, reqAmt);
+          let penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
 
-          uState.profile.coins = userCoins - payAmt;
+          if (payAmt + penaltyFee > userCoins) {
+            payAmt = Math.max(1, Math.floor((userCoins - (penaltyRate > 0 ? 1 : 0)) / (1 + penaltyRate)));
+            penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
+            while (payAmt > 0 && payAmt + penaltyFee > userCoins) {
+              payAmt--;
+              penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
+            }
+          }
+
+          const totalPaid = payAmt + penaltyFee;
+          if (totalPaid <= 0 || totalPaid > userCoins) {
+            return res.status(400).json({ error: 'Số Vàng trong ví không đủ để thanh toán nợ kèm phí phạt tất toán sớm!' });
+          }
+
+          uState.profile.coins = userCoins - totalPaid;
           loan.debt = currentDebt - payAmt;
 
           const principalPaid = Math.min(loan.principal || 0, payAmt);
@@ -1895,12 +1915,15 @@ export default async function handler(req, res) {
           poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - principalPaid);
           poolState.poolGold += payAmt;
 
+          // Phí phạt tất toán sớm bổ sung thẳng vào Quỹ dự phòng Kho Bạc
+          poolState.reserveFund = (poolState.reserveFund || 0) + penaltyFee;
+
           // HOÀN TRẢ NGƯỢC LẠI KHO BẠC HỆ THỐNG KHI PHỤC HỒI THANH KHOẢN
           let treasuryRepaid = 0;
           if (poolState.bailoutDebt > 0) {
-            treasuryRepaid = Math.min(poolState.bailoutDebt, Math.floor(payAmt * 0.5));
+            treasuryRepaid = Math.min(poolState.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
             poolState.bailoutDebt -= treasuryRepaid;
-            poolState.reserveFund = (poolState.reserveFund || 0) + (payAmt - treasuryRepaid);
+            poolState.reserveFund = (poolState.reserveFund || 0) + (totalPaid - treasuryRepaid);
           } else {
             const profit = payAmt - principalPaid;
             if (profit > 0) {
@@ -1922,9 +1945,9 @@ export default async function handler(req, res) {
             id: `bank_rep_${serverTimestamp}`,
             type: 'spend',
             category: 'bank_repay',
-            amount: payAmt,
-            title: 'Trả nợ Ngân Hàng',
-            description: `🏦 Đã trả ${payAmt} Vàng nợ Ngân Hàng.${debtCleared ? ' Chúc mừng bạn đã thanh toán toàn bộ nợ!' : ` Nợ còn lại: ${loan.debt} Vàng.`}${treasuryRepaid > 0 ? ` (Đã hoàn ${treasuryRepaid} Vàng cho Kho Bạc Hệ Thống)` : ''}`,
+            amount: totalPaid,
+            title: 'Trả nợ sớm Ngân Hàng',
+            description: `🏦 Đã trả ${payAmt} Vàng nợ${penaltyFee > 0 ? ` + ${penaltyFee} Vàng phí phạt tất toán sớm (5%)` : ''}.${debtCleared ? ' Chúc mừng bạn đã tất toán toàn bộ nợ!' : ` Nợ còn lại: ${loan.debt} Vàng.`}${treasuryRepaid > 0 ? ` (Đã hoàn ${treasuryRepaid} Vàng cho Kho Bạc Hệ Thống)` : ''}`,
             timestamp: serverTimestamp
           });
           if (uState.ledger.length > 100) uState.ledger.splice(100);
@@ -1935,11 +1958,17 @@ export default async function handler(req, res) {
           const updatedRates = calculateBankRates(poolState);
           return res.status(200).json({
             success: true,
-            message: debtCleared ? 'Bạn đã tất toán toàn bộ khoản nợ!' : `Đã thanh toán ${payAmt} Vàng. Nợ còn lại: ${loan.debt} Vàng.`,
+            message: debtCleared
+              ? `Tất toán thành công toàn bộ nợ! (Nợ: ${payAmt} 🪙${penaltyFee > 0 ? `, Phí phạt tất toán 5%: ${penaltyFee} 🪙` : ''})`
+              : `Đã thanh toán ${payAmt} Vàng nợ${penaltyFee > 0 ? ` (+${penaltyFee} Vàng phí phạt tất toán 5%)` : ''}. Nợ còn lại: ${loan.debt} Vàng.`,
             debtCleared,
             treasuryRepaid,
+            payAmt,
+            penaltyFee,
+            totalPaid,
             loan: uState.profile.bank.loan,
             coins: uState.profile.coins,
+            ledger: uState.ledger,
             pool: { ...poolState, ...updatedRates }
           });
         }

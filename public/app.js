@@ -5792,14 +5792,15 @@ function setLedgerFilter(filter) {
   const filterBtns = {
     all: document.getElementById('ledger-filter-all'),
     earn: document.getElementById('ledger-filter-earn'),
-    spend: document.getElementById('ledger-filter-spend')
+    spend: document.getElementById('ledger-filter-spend'),
+    bank: document.getElementById('ledger-filter-bank')
   };
   Object.entries(filterBtns).forEach(([k, btn]) => {
     if (!btn) return;
     if (k === filter) {
-      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs';
+      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer';
     } else {
-      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer';
     }
   });
   renderLedger();
@@ -5825,7 +5826,7 @@ function renderLedger() {
 
   const ledger = Array.isArray(appState.ledger) ? appState.ledger : [];
 
-  // 1. Cập nhật thống kê nhanh trong ngày
+  // 1. Cập nhật thống kê nhanh trong ngày & Ngân Hàng
   const todayStr = new Date().toDateString();
   let todayEarn = 0;
   let todaySpend = 0;
@@ -5842,8 +5843,26 @@ function renderLedger() {
   if (earnEl) earnEl.innerHTML = `+${todayEarn} ${COIN_ICON_HTML}`;
   if (spendEl) spendEl.innerHTML = `-${todaySpend} ${COIN_ICON_HTML}`;
 
-  // 2. Lọc theo danh mục (Tất cả / Thu / Chi)
-  const filtered = ledger.filter(e => currentLedgerFilter === 'all' || e.type === currentLedgerFilter);
+  const bankDepositEl = document.getElementById('ledger-stat-bank-deposit');
+  const bankDebtEl = document.getElementById('ledger-stat-bank-debt');
+  const userBank = appState.profile?.bank || {};
+  if (bankDepositEl) {
+    const totalSaving = (parseInt(userBank.deposited, 10) || 0) + (parseInt(userBank.depositInterest, 10) || 0);
+    bankDepositEl.innerHTML = `${totalSaving} ${COIN_ICON_HTML}`;
+  }
+  if (bankDebtEl) {
+    const currentDebt = parseInt(userBank.loan?.debt, 10) || 0;
+    bankDebtEl.innerHTML = `${currentDebt} ${COIN_ICON_HTML}`;
+  }
+
+  // 2. Lọc theo danh mục (Tất cả / Thu / Chi / Ngân Hàng)
+  const filtered = ledger.filter(e => {
+    if (currentLedgerFilter === 'all') return true;
+    if (currentLedgerFilter === 'bank') {
+      return typeof e.category === 'string' && (e.category.startsWith('bank_') || ['bank_deposit', 'bank_withdraw', 'bank_borrow', 'bank_repay', 'bank_deduct'].includes(e.category));
+    }
+    return e.type === currentLedgerFilter;
+  });
   const paginationEl = document.getElementById('ledger-pagination');
   if (filtered.length === 0) {
     list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch vàng nào được ghi nhận.</div>';
@@ -5868,14 +5887,48 @@ function renderLedger() {
       <div class="space-y-2">
         ${items.map(entry => {
           const isEarn = entry.type === 'earn';
+          const isBank = typeof entry.category === 'string' && entry.category.startsWith('bank_');
+
+          // ponytail: Phân loại icon và badge trực quan cho giao dịch Ngân Hàng, Nhiệm vụ và Đổi quà
+          let icon = isEarn ? '📥' : '📤';
+          let categoryBadge = '';
+          if (entry.category === 'bank_deposit') {
+            icon = '🏦';
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">Tiết Kiệm</span>';
+          } else if (entry.category === 'bank_withdraw') {
+            icon = '💰';
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">Rút Tiền</span>';
+          } else if (entry.category === 'bank_borrow') {
+            icon = '⚡';
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">Vay Vàng</span>';
+          } else if (entry.category === 'bank_repay') {
+            icon = '💳';
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400">Trả Nợ</span>';
+          } else if (entry.category === 'bank_deduct') {
+            icon = '✂️';
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400">Trích Nợ</span>';
+          } else if (entry.category === 'quest') {
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">Nhiệm Vụ</span>';
+          } else if (entry.category === 'reward') {
+            categoryBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">Đổi Quà</span>';
+          }
+
           const timeStr = new Date(entry.timestamp || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          const displayTitle = entry.title || entry.description || 'Giao dịch';
+          const displayDesc = entry.description && entry.description !== entry.title ? entry.description : '';
+
           return `
-            <div class="p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs shadow-xs">
+            <div class="p-3 rounded-xl bg-white dark:bg-slate-900/60 border ${isBank ? 'border-amber-500/20' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-3 text-xs shadow-xs">
               <div class="flex items-center gap-2.5 min-w-0">
-                <span class="text-base shrink-0">${isEarn ? '📥' : '📤'}</span>
+                <span class="text-base shrink-0">${icon}</span>
                 <div class="min-w-0">
-                  <div class="font-semibold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(entry.description || '')}</div>
-                  <div class="text-[10px] text-slate-400 font-mono">${timeStr}</div>
+                  <div class="font-semibold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
+                    ${categoryBadge}
+                    <span class="truncate">${escapeHtml(displayTitle)}</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 truncate mt-0.5">
+                    <span class="font-mono">${timeStr}</span>${displayDesc ? ` · ${escapeHtml(displayDesc)}` : ''}
+                  </div>
                 </div>
               </div>
               <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
@@ -6951,6 +7004,14 @@ function ensureUserBankProfile() {
 }
 
 async function loadBankState() {
+  const isManual = Boolean(arguments[0]);
+  const btnRefresh = document.getElementById('btn-refresh-bank');
+  const icon = document.getElementById('btn-refresh-bank-icon');
+  if (isManual && btnRefresh) {
+    btnRefresh.disabled = true;
+    if (icon) icon.classList.add('animate-spin');
+  }
+
   const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
   ensureUserBankProfile();
 
@@ -6976,10 +7037,21 @@ async function loadBankState() {
     }
   } catch (err) {
     console.warn('Không thể kết nối đến máy chủ Ngân Hàng, sử dụng dữ liệu cục bộ:', err);
+  } finally {
+    if (isManual && btnRefresh) {
+      setTimeout(() => {
+        btnRefresh.disabled = false;
+        if (icon) icon.classList.remove('animate-spin');
+      }, 350);
+    }
   }
 
   renderBankUI(poolData, userBank, creditLimit);
   loadBankAiCommentary(poolData);
+
+  if (isManual) {
+    showToast('Đã cập nhật dữ liệu Ngân Hàng mới nhất!', 'info');
+  }
 }
 
 function renderBankUI(pool, userBank, creditLimit) {
@@ -7096,6 +7168,13 @@ function renderBankUI(pool, userBank, creditLimit) {
         elDaysLeft.textContent = `${daysLeft} ngày`;
         elDaysLeft.className = 'font-semibold text-amber-600';
       }
+    }
+
+    const elPenalty = document.getElementById('bank-early-repay-penalty-label');
+    if (elPenalty) {
+      elPenalty.textContent = userBank.loan.isOverdue
+        ? 'Đã quá hạn (Không phạt tất toán sớm)'
+        : '5% phí trả trước hạn';
     }
   } else {
     if (activeBox) activeBox.classList.add('hidden');
@@ -7329,6 +7408,9 @@ async function executeBankDeposit() {
         appState.profile.coins = data.coins;
         appState.profile.bank = data.userBank;
         currentBankPool = data.pool;
+        if (Array.isArray(data.ledger)) {
+          appState.ledger = data.ledger;
+        }
         serverSuccess = true;
         showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm!`, 'success');
       } else {
@@ -7410,6 +7492,9 @@ async function executeBankWithdraw() {
         appState.profile.coins = data.coins;
         appState.profile.bank = data.userBank;
         currentBankPool = data.pool;
+        if (Array.isArray(data.ledger)) {
+          appState.ledger = data.ledger;
+        }
         serverSuccess = true;
         showToast(data.message || `Đã rút thành công ${totalAvailable} Vàng!`, 'gold');
       } else {
@@ -8078,7 +8163,7 @@ async function executeBankBorrow() {
   const ok = await confirmAction({
     title: 'Xác Nhận Vay Vàng Tức Thời?',
     message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
-    detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ${negotiatedRateText}\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)`,
+    detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ${negotiatedRateText}\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)\n💡 Phí phạt tất toán sớm: 5% nếu tự trả nợ bằng ví Vàng trước hạn (làm việc trả dần được miễn 100% phí phạt).`,
     confirmText: 'Vay Ngay ⚡',
     cancelText: 'Hủy',
     icon: '⚡',
@@ -8113,6 +8198,9 @@ async function executeBankBorrow() {
         appState.profile.bank.loan = data.loan;
         appState.profile.bank.isFrozen = false;
         currentBankPool = data.pool;
+        if (Array.isArray(data.ledger)) {
+          appState.ledger = data.ledger;
+        }
         serverSuccess = true;
         showToast(data.message || `Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
       } else {
@@ -8187,12 +8275,40 @@ async function executeBankRepay() {
     return;
   }
 
-  const payAmt = Math.min(userCoins, currentDebt);
+  // Lãi suất phạt tất toán sớm (5% phí trả trước hạn, tối thiểu 1 Vàng khi chưa quá hạn)
+  const isOverdue = Boolean(loan.isOverdue);
+  const penaltyRate = isOverdue ? 0 : 0.05;
+  let payAmt = Math.min(userCoins, currentDebt);
+  let penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
+
+  if (payAmt + penaltyFee > userCoins) {
+    // Điều chỉnh payAmt sao cho tổng chi (payAmt + penaltyFee) <= userCoins
+    payAmt = Math.max(1, Math.floor((userCoins - (penaltyRate > 0 ? 1 : 0)) / (1 + penaltyRate)));
+    penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
+    while (payAmt > 0 && payAmt + penaltyFee > userCoins) {
+      payAmt--;
+      penaltyFee = (!isOverdue && payAmt > 0) ? Math.max(1, Math.round(payAmt * penaltyRate)) : 0;
+    }
+  }
+
+  const totalDeduct = payAmt + penaltyFee;
+  if (totalDeduct <= 0 || totalDeduct > userCoins) {
+    showToast('Số Vàng trong ví không đủ để thanh toán nợ kèm phí phạt tất toán sớm!', 'error');
+    return;
+  }
+
+  const isFullSettlement = payAmt >= currentDebt;
   const ok = await confirmAction({
-    title: 'Trả Nợ Sớm?',
-    message: `Dùng ${payAmt} Vàng trong ví để trả bớt khoản nợ ${currentDebt} Vàng?`,
-    detail: `💰 Vàng trong ví: ${userCoins} ➔ ${userCoins - payAmt}\n📉 Nợ còn lại: ${currentDebt - payAmt} Vàng.`,
-    confirmText: 'Trả Nợ 💳',
+    title: isFullSettlement ? 'Tất Toán Nợ Sớm?' : 'Trả Nợ Sớm?',
+    message: isFullSettlement
+      ? (penaltyFee > 0
+          ? `Tất toán toàn bộ ${payAmt} Vàng nợ với phí phạt tất toán sớm 5% (+${penaltyFee} Vàng)?`
+          : `Tất toán toàn bộ ${payAmt} Vàng nợ quá hạn?`)
+      : (penaltyFee > 0
+          ? `Dùng ${payAmt} Vàng trả nợ + ${penaltyFee} Vàng phí phạt tất toán sớm (5%)?`
+          : `Dùng ${payAmt} Vàng trong ví để trả bớt khoản nợ?`),
+    detail: `💰 Vàng trong ví: ${userCoins} ➔ ${userCoins - totalDeduct}\n💳 Số nợ thanh toán: -${payAmt} Vàng${penaltyFee > 0 ? `\n⚡ Phí phạt tất toán sớm (5%): +${penaltyFee} Vàng` : ''}\n📉 Nợ còn lại: ${Math.max(0, currentDebt - payAmt)} Vàng.${penaltyFee > 0 ? '\n\n💡 Mẹo: Bạn có thể tiếp tục hoàn thành nhiệm vụ để hệ thống tự trích nợ dần hoàn toàn miễn phí phạt (0%)!' : ''}`,
+    confirmText: `Trả Nợ (${totalDeduct} 🪙)`,
     cancelText: 'Hủy',
     icon: '💳',
     btnColor: 'amber'
@@ -8216,7 +8332,10 @@ async function executeBankRepay() {
         const data = await res.json();
         appState.profile.coins = data.coins;
         appState.profile.bank.loan = data.loan;
-        if (data.loanCleared) {
+        if (Array.isArray(data.ledger)) {
+          appState.ledger = data.ledger;
+        }
+        if (data.loanCleared || data.debtCleared || !data.loan) {
           appState.profile.bank.loan = null;
           appState.profile.bank.isFrozen = false;
           if (appState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
@@ -8225,7 +8344,7 @@ async function executeBankRepay() {
         }
         currentBankPool = data.pool;
         serverSuccess = true;
-        showToast(data.message || `Đã trả ${payAmt} Vàng!`, 'success');
+        showToast(data.message || `Đã trả ${payAmt} Vàng${penaltyFee > 0 ? ` (phí phạt: ${penaltyFee} Vàng)` : ''}!`, 'success');
       } else {
         const errData = await res.json().catch(() => ({}));
         showToast(errData.error || 'Trả nợ thất bại trên máy chủ!', 'error');
@@ -8237,17 +8356,18 @@ async function executeBankRepay() {
   }
 
   if (!serverSuccess) {
-    appState.profile.coins -= payAmt;
-    loan.debt -= payAmt;
+    appState.profile.coins -= totalDeduct;
+    loan.debt = Math.max(0, loan.debt - payAmt);
     loan.principal = Math.max(0, (loan.principal || 0) - Math.min(loan.principal || 0, payAmt));
     currentBankPool.poolGold += payAmt;
     currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - payAmt);
+    currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + penaltyFee;
 
     // Hoàn nợ kho bạc nếu có
     if (currentBankPool.bailoutDebt > 0) {
-      const treasuryRepay = Math.min(currentBankPool.bailoutDebt, Math.floor(payAmt * 0.5));
+      const treasuryRepay = Math.min(currentBankPool.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
       currentBankPool.bailoutDebt -= treasuryRepay;
-      currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + (payAmt - treasuryRepay);
+      currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + (totalDeduct - treasuryRepay);
     }
 
     let loanCleared = false;
@@ -8264,12 +8384,12 @@ async function executeBankRepay() {
       id: 'bank_rep_' + Date.now(),
       type: 'spend',
       category: 'bank_repay',
-      amount: payAmt,
+      amount: totalDeduct,
       title: 'Trả nợ sớm Ngân Hàng',
-      description: `🏦 Đã trả ${payAmt} Vàng.${loanCleared ? ' Khoản nợ đã được trả hết!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
+      description: `🏦 Đã trả ${payAmt} Vàng nợ${penaltyFee > 0 ? ` + ${penaltyFee} Vàng phí phạt tất toán sớm (5%)` : ''}.${loanCleared ? ' Khoản nợ đã được tất toán!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
       timestamp: Date.now()
     });
-    showToast(`Đã trả thành công ${payAmt} Vàng!${loanCleared ? ' Chúc mừng bạn đã trả hết toàn bộ nợ!' : ''}`, 'success');
+    showToast(`Đã trả thành công ${payAmt} Vàng${penaltyFee > 0 ? ` (phí phạt: ${penaltyFee} Vàng)` : ''}!${loanCleared ? ' Chúc mừng bạn đã tất toán toàn bộ nợ!' : ''}`, 'success');
   }
 
   sfx.playCoin();
