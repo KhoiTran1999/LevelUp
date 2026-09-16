@@ -4228,6 +4228,9 @@ async function savePendingReward() {
 // =============================================================================
 // 10. LEADERBOARD FETCHER & PRESENCE
 // =============================================================================
+let currentLeaderboardData = [];
+let currentLeaderboardSearch = '';
+
 function formatTimeAgo(timestamp) {
   if (!timestamp) return 'trước đó';
   const diffSec = Math.floor((Date.now() - Number(timestamp)) / 1000);
@@ -4242,8 +4245,261 @@ function formatTimeAgo(timestamp) {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
+function renderLeaderboardPodium(list) {
+  const podiumEl = document.getElementById('leaderboard-podium');
+  if (!podiumEl) return;
+  if (!list || list.length === 0) {
+    podiumEl.innerHTML = '';
+    podiumEl.classList.add('hidden');
+    return;
+  }
+  podiumEl.classList.remove('hidden');
+
+  const top1 = list[0];
+  const top2 = list[1] || null;
+  const top3 = list[2] || null;
+
+  function getCoins(u) {
+    const isMe = (appState.profile.googleId && (u.key === appState.profile.googleId || u.googleId === appState.profile.googleId)) ||
+                 (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
+    return isMe ? (appState.profile?.coins ?? 0) : (typeof u.coins === 'number' ? u.coins : (u.totalCoinsEarned || 0));
+  }
+
+  function getPodiumAvatar(u, sizeClass, ringClass = '') {
+    const isMe = (appState.profile.googleId && (u.key === appState.profile.googleId || u.googleId === appState.profile.googleId)) ||
+                 (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
+    const isOnline = isMe ? true : Boolean(u.isOnline);
+    const statusColor = isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400/60';
+    const avatarImg = isAvatarUrl(u.avatar)
+      ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="${sizeClass} rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 ${ringClass} inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-xl sm:text-2xl\\'>⚔️</span>'">`
+      : `<span class="text-xl sm:text-2xl">${escapeHtml(u.avatar || '⚔️')}</span>`;
+
+    return `
+      <div class="relative inline-flex items-center justify-center">
+        ${avatarImg}
+        <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${statusColor}"></span>
+      </div>
+    `;
+  }
+
+  let html = '';
+
+  // Rank 2 Card (Left / Bạc)
+  if (top2) {
+    html += `
+      <div class="order-1 flex flex-col items-center text-center p-2 sm:p-3.5 rounded-2xl rpg-panel leaderboard-podium-card podium-rank-2 relative">
+        <div class="absolute -top-2.5 sm:-top-3.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 shadow-xs flex items-center gap-0.5 whitespace-nowrap">
+          <span>🥈</span><span>#2</span>
+        </div>
+        <div class="mt-2 sm:mt-2.5 mb-1 sm:mb-1.5">
+          ${getPodiumAvatar(top2, 'w-9 h-9 sm:w-12 sm:h-12')}
+        </div>
+        <div class="font-bold text-[11px] sm:text-sm text-slate-900 dark:text-slate-100 truncate max-w-[85px] sm:max-w-[130px] md:max-w-[160px]" title="${escapeHtml(top2.nickname)}">
+          ${escapeHtml(top2.nickname)}
+        </div>
+        <div class="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-full">
+          <span class="font-mono font-semibold text-amber-600 dark:text-amber-400">Lv.${top2.level || 1}</span>
+          <span class="hidden md:inline">• ${escapeHtml(top2.title || 'Hiệp Sĩ')}</span>
+        </div>
+        <div class="mt-1.5 sm:mt-2 font-mono font-bold text-[11px] sm:text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+          ${COIN_ICON_HTML} <span>${getCoins(top2).toLocaleString('vi-VN')}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    html += `<div class="order-1"></div>`;
+  }
+
+  // Rank 1 Card (Center / Vàng) - Taller Elevated
+  if (top1) {
+    html += `
+      <div class="order-2 flex flex-col items-center text-center p-2.5 sm:p-5 rounded-2xl rpg-panel leaderboard-podium-card podium-rank-1 relative -mt-2 sm:-mt-4">
+        <div class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-yellow-300 flex items-center gap-1 whitespace-nowrap">
+          <span class="crown-float text-xs sm:text-sm">👑</span><span>#1 QUÁN QUÂN</span>
+        </div>
+        <div class="mt-2.5 sm:mt-3 mb-1 sm:mb-1.5">
+          ${getPodiumAvatar(top1, 'w-11 h-11 sm:w-15 sm:h-15', 'ring-2 sm:ring-4 ring-yellow-400/80 shadow-md')}
+        </div>
+        <div class="font-black text-xs sm:text-base text-yellow-600 dark:text-yellow-400 truncate max-w-[95px] sm:max-w-[150px] md:max-w-[190px]" title="${escapeHtml(top1.nickname)}">
+          ${escapeHtml(top1.nickname)}
+        </div>
+        <div class="text-[10px] sm:text-xs text-amber-700/90 dark:text-amber-300/90 mt-0.5 truncate max-w-full">
+          <span class="font-mono font-bold">Lv.${top1.level || 1}</span>
+          <span class="hidden md:inline">• ${escapeHtml(top1.title || 'Vua Đấu Xếp Hạng')}</span>
+        </div>
+        <div class="mt-1.5 sm:mt-2 font-mono font-extrabold text-xs sm:text-sm text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 bg-amber-500/15 px-2 sm:px-3 py-0.5 rounded-full">
+          ${COIN_ICON_HTML} <span>${getCoins(top1).toLocaleString('vi-VN')}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Rank 3 Card (Right / Đồng)
+  if (top3) {
+    html += `
+      <div class="order-3 flex flex-col items-center text-center p-2 sm:p-3.5 rounded-2xl rpg-panel leaderboard-podium-card podium-rank-3 relative">
+        <div class="absolute -top-2.5 sm:-top-3.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-xs flex items-center gap-0.5 whitespace-nowrap">
+          <span>🥉</span><span>#3</span>
+        </div>
+        <div class="mt-2 sm:mt-2.5 mb-1 sm:mb-1.5">
+          ${getPodiumAvatar(top3, 'w-9 h-9 sm:w-12 sm:h-12')}
+        </div>
+        <div class="font-bold text-[11px] sm:text-sm text-slate-900 dark:text-slate-100 truncate max-w-[85px] sm:max-w-[130px] md:max-w-[160px]" title="${escapeHtml(top3.nickname)}">
+          ${escapeHtml(top3.nickname)}
+        </div>
+        <div class="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-full">
+          <span class="font-mono font-semibold text-amber-600 dark:text-amber-400">Lv.${top3.level || 1}</span>
+          <span class="hidden md:inline">• ${escapeHtml(top3.title || 'Hiệp Sĩ')}</span>
+        </div>
+        <div class="mt-1.5 sm:mt-2 font-mono font-bold text-[11px] sm:text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+          ${COIN_ICON_HTML} <span>${getCoins(top3).toLocaleString('vi-VN')}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    html += `<div class="order-3"></div>`;
+  }
+
+  podiumEl.innerHTML = html;
+}
+
+function renderLeaderboardTable(list) {
+  const tbody = document.getElementById('leaderboard-tbody');
+  if (!tbody) return;
+
+  const searchQuery = (currentLeaderboardSearch || '').trim().toLowerCase();
+  const displayList = searchQuery
+    ? list.filter(u => (u.nickname || '').toLowerCase().includes(searchQuery))
+    : list;
+
+  if (displayList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs font-medium">🔍 Không tìm thấy hiệp sĩ nào phù hợp với "${escapeHtml(searchQuery)}"</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  displayList.forEach((u, idx) => {
+    const isMe = (appState.profile.googleId && (u.key === appState.profile.googleId || u.googleId === appState.profile.googleId)) ||
+                 (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
+    const tr = document.createElement('tr');
+    tr.className = `hover:bg-slate-100/80 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-amber-500/10 font-bold' : ''}`;
+
+    const actualRank = list.indexOf(u);
+    const rankIndex = actualRank >= 0 ? actualRank : idx;
+    const medal = rankIndex === 0 ? '🥇' : rankIndex === 1 ? '🥈' : rankIndex === 2 ? '🥉' : `#${rankIndex + 1}`;
+
+    const avatarHtml = isAvatarUrl(u.avatar)
+      ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚔️</span>'">`
+      : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
+
+    // Trạng thái trực tuyến & mốc thời gian hoạt động gần nhất
+    const isOnline = isMe ? true : Boolean(u.isOnline);
+    const lastActiveTime = isMe ? Date.now() : u.lastActive;
+    const statusColor = isOnline
+      ? 'bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse'
+      : 'bg-slate-400/60 ring-2 ring-white dark:ring-slate-900';
+    const statusTitle = isOnline
+      ? 'Đang trực tuyến'
+      : (lastActiveTime ? `Offline (Hoạt động ${formatTimeAgo(lastActiveTime)})` : 'Ngoại tuyến');
+
+    const avatarWithPresence = `
+      <div class="relative shrink-0 inline-flex items-center justify-center">
+        ${avatarHtml}
+        <span class="absolute -bottom-0.5 -right-0.5 w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full ${statusColor}" title="${escapeHtml(statusTitle)}"></span>
+      </div>
+    `;
+
+    const statusSubtext = isOnline
+      ? '<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-none mt-0.5">Đang online</span>'
+      : `<span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal leading-none mt-0.5">Online ${escapeHtml(formatTimeAgo(lastActiveTime))}</span>`;
+
+    const displayCoins = isMe ? (appState.profile?.coins ?? 0) : (typeof u.coins === 'number' ? u.coins : (u.totalCoinsEarned || 0));
+
+    tr.innerHTML = `
+      <td class="py-2.5 sm:py-3 px-2 sm:px-4 text-center sm:text-left font-mono whitespace-nowrap ${rankIndex < 3 ? 'text-base sm:text-lg' : 'text-slate-500 text-xs sm:text-sm'}">${medal}</td>
+      <td class="py-2.5 sm:py-3 px-2 sm:px-4">
+        <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          ${avatarWithPresence}
+          <div class="min-w-0 flex flex-col justify-center">
+            <div class="min-w-0 flex items-center flex-wrap gap-1">
+              <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[110px] sm:max-w-[180px] md:max-w-[240px]">${escapeHtml(u.nickname)}</span>
+              ${u.role === 'admin' ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500 text-white font-bold whitespace-nowrap">👑 ADMIN</span>' : ''}
+              ${isMe ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>' : ''}
+              ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-1 text-xs" data-nick="${escapeHtml(u.nickname || u.key)}" data-key="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
+            </div>
+            <!-- Dòng phụ hiển thị trên mobile -->
+            <div class="sm:hidden text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+              <span class="font-mono font-semibold text-amber-600 dark:text-amber-400">Lv.${u.level || 1}</span>
+              <span>•</span>
+              <span class="truncate max-w-[100px]">${escapeHtml(u.title || 'Thành viên')}</span>
+            </div>
+            <!-- Dòng trạng thái online trên desktop / tablet -->
+            <div class="hidden sm:block">
+              ${statusSubtext}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell whitespace-nowrap">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">${escapeHtml(u.title || 'Thành viên')}</span>
+      </td>
+      <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center font-mono text-xs text-slate-600 dark:text-slate-300 hidden sm:table-cell whitespace-nowrap">
+        <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-bold">Lv. ${u.level || 1}</span>
+      </td>
+      <td class="py-2.5 sm:py-3 px-2 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"><span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${displayCoins.toLocaleString('vi-VN')}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (appState.profile.role === 'admin') {
+    tbody.querySelectorAll('.btn-admin-del').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const targetNick = btn.dataset.nick;
+        const targetKey = btn.dataset.key || targetNick;
+        const ok = await confirmAction({
+          title: 'Xóa Tài Khoản Leaderboard',
+          message: `Bạn có chắc chắn muốn xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
+          detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
+          confirmText: 'Xóa Vĩnh Viễn',
+          cancelText: 'Giữ Lại',
+          icon: '🗑️',
+          btnColor: 'rose'
+        });
+        if (!ok) return;
+        try {
+          const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
+          const res = await fetch('/api/sync?action=admin_remove', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              nickname: appState.profile.nickname,
+              targetNickname: targetNick,
+              targetSub: targetKey
+            })
+          });
+          if (res.ok) {
+            showToast(`Đã xóa "${targetNick}" khỏi hệ thống!`, 'success');
+            fetchLeaderboard();
+          } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Lỗi khi xóa tài khoản', 'error');
+          }
+        } catch (err) {
+          showToast('Lỗi: ' + err.message, 'error');
+        }
+      });
+    });
+  }
+}
+
 async function fetchLeaderboard() {
   const tbody = document.getElementById('leaderboard-tbody');
+  const podiumEl = document.getElementById('leaderboard-podium');
   if (!tbody) return;
 
   tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
@@ -4255,6 +4511,7 @@ async function fetchLeaderboard() {
     if (!res.ok) throw new Error('API Error');
     const data = await res.json();
     const list = data.leaderboard || [];
+    currentLeaderboardData = list;
 
     // Cập nhật số lượng người online trên badge
     const onlineBadgeCount = document.getElementById('leaderboard-online-count');
@@ -4263,112 +4520,13 @@ async function fetchLeaderboard() {
     }
 
     if (list.length === 0) {
+      if (podiumEl) { podiumEl.innerHTML = ''; podiumEl.classList.add('hidden'); }
       tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Chưa có ai trên Bảng Xếp Hạng. Hãy đồng bộ tên của bạn để là người đầu tiên!</td></tr>';
       return;
     }
 
-    tbody.innerHTML = '';
-    list.forEach((u, idx) => {
-      const isMe = (appState.profile.googleId && (u.key === appState.profile.googleId || u.googleId === appState.profile.googleId)) ||
-                   (u.nickname?.toLowerCase() === appState.profile.nickname?.toLowerCase());
-      const tr = document.createElement('tr');
-      tr.className = `hover:bg-slate-100/80 dark:hover:bg-slate-900/60 transition ${isMe ? 'bg-amber-500/10 font-bold' : ''}`;
-
-      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
-      const avatarHtml = isAvatarUrl(u.avatar)
-        ? `<img referrerpolicy="no-referrer" src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.nickname || 'Avatar')}" class="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 inline-block" onerror="this.onerror=null;this.outerHTML='<span class=\\'text-base sm:text-lg shrink-0\\'>⚔️</span>'">`
-        : `<span class="text-base sm:text-lg shrink-0">${escapeHtml(u.avatar || '⚔️')}</span>`;
-
-      // Trạng thái trực tuyến & mốc thời gian hoạt động gần nhất
-      const isOnline = isMe ? true : Boolean(u.isOnline);
-      const lastActiveTime = isMe ? Date.now() : u.lastActive;
-      const statusColor = isOnline
-        ? 'bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse'
-        : 'bg-slate-400/60 ring-2 ring-white dark:ring-slate-900';
-      const statusTitle = isOnline
-        ? 'Đang trực tuyến'
-        : (lastActiveTime ? `Offline (Hoạt động ${formatTimeAgo(lastActiveTime)})` : 'Ngoại tuyến');
-
-      const avatarWithPresence = `
-        <div class="relative shrink-0 inline-flex items-center justify-center">
-          ${avatarHtml}
-          <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${statusColor}" title="${escapeHtml(statusTitle)}"></span>
-        </div>
-      `;
-
-      const statusSubtext = isOnline
-        ? '<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-none mt-0.5">Đang online</span>'
-        : `<span class="text-[10px] text-slate-400 dark:text-slate-500 font-normal leading-none mt-0.5">Online ${escapeHtml(formatTimeAgo(lastActiveTime))}</span>`;
-
-      const displayCoins = isMe ? (appState.profile?.coins ?? 0) : (typeof u.coins === 'number' ? u.coins : (u.totalCoinsEarned || 0));
-
-      tr.innerHTML = `
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 font-mono whitespace-nowrap ${idx < 3 ? 'text-base sm:text-lg' : 'text-slate-500'}">${medal}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
-          <div class="flex items-center gap-2.5 min-w-0">
-            ${avatarWithPresence}
-            <div class="min-w-0 flex flex-col justify-center">
-              <div class="min-w-0 flex items-center flex-wrap gap-1.5">
-                <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[120px] sm:max-w-[200px]">${escapeHtml(u.nickname)}</span>
-                ${u.role === 'admin' ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold whitespace-nowrap">👑 ADMIN</span>' : ''}
-                ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-bold whitespace-nowrap">BẠN</span>' : ''}
-                ${appState.profile.role === 'admin' && !isMe ? `<button class="btn-admin-del text-rose-500 hover:text-rose-700 ml-1 text-xs" data-nick="${escapeHtml(u.nickname || u.key)}" data-key="${escapeHtml(u.key || u.nickname)}" title="Xóa tài khoản này (Quyền Admin)">🗑️</button>` : ''}
-              </div>
-              ${statusSubtext}
-            </div>
-          </div>
-        </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs text-amber-600 dark:text-amber-400/90 hidden sm:table-cell whitespace-nowrap">${escapeHtml(u.title || 'Thành viên')}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Lv. ${u.level || 1}</td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"><span class="inline-flex items-center gap-1 justify-end">${COIN_ICON_HTML} ${displayCoins}</span></td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    if (appState.profile.role === 'admin') {
-      tbody.querySelectorAll('.btn-admin-del').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const targetNick = btn.dataset.nick;
-          const targetKey = btn.dataset.key || targetNick;
-          const ok = await confirmAction({
-            title: 'Xóa Tài Khoản Leaderboard',
-            message: `Bạn có chắc chắn muốn xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
-            detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
-            confirmText: 'Xóa Vĩnh Viễn',
-            cancelText: 'Giữ Lại',
-            icon: '🗑️',
-            btnColor: 'rose'
-          });
-          if (!ok) return;
-          try {
-            const token = appState.profile.googleToken || appState.profile.token || getOrCreateUserToken();
-            const res = await fetch('/api/sync?action=admin_remove', {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                nickname: appState.profile.nickname,
-                targetNickname: targetNick,
-                targetSub: targetKey
-              })
-            });
-            if (res.ok) {
-              showToast(`Đã xóa "${targetNick}" khỏi hệ thống!`, 'success');
-              fetchLeaderboard();
-            } else {
-              const err = await res.json().catch(() => ({}));
-              showToast(err.error || 'Lỗi khi xóa tài khoản', 'error');
-            }
-          } catch (err) {
-            showToast('Lỗi: ' + err.message, 'error');
-          }
-        });
-      });
-    }
+    renderLeaderboardPodium(list);
+    renderLeaderboardTable(list);
 
     updateCheatersBadge();
   } catch (err) {
@@ -4454,8 +4612,8 @@ async function fetchCheaters() {
         : 'Gần đây';
 
       const adminActionHtml = isAdmin ? `
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center whitespace-nowrap">
-          <button type="button" class="btn-pardon-row inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-sm" data-nick="${escapeHtml(c.nickname || c.key)}" data-key="${escapeHtml(c.key || c.nickname)}" title="Ân xá cho tài khoản này">
+        <td class="py-2.5 sm:py-3 px-2 sm:px-4 text-center whitespace-nowrap">
+          <button type="button" class="btn-pardon-row inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow-sm active:scale-95" data-nick="${escapeHtml(c.nickname || c.key)}" data-key="${escapeHtml(c.key || c.nickname)}" title="Ân xá cho tài khoản này">
             <span>🕊️</span>
             <span>Ân Xá</span>
           </button>
@@ -4463,24 +4621,29 @@ async function fetchCheaters() {
       ` : '';
 
       tr.innerHTML = `
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4">
-          <div class="flex items-center gap-2.5 min-w-0">
+        <td class="py-2.5 sm:py-3 px-2 sm:px-4">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
             ${avatarHtml}
-            <div class="min-w-0 flex items-center flex-wrap gap-1.5">
-              <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[130px] sm:max-w-[200px]">${escapeHtml(c.nickname)}</span>
-              ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500 text-white font-bold whitespace-nowrap">BẠN</span>' : ''}
+            <div class="min-w-0 flex flex-col justify-center">
+              <div class="min-w-0 flex items-center flex-wrap gap-1.5">
+                <span class="text-slate-900 dark:text-slate-100 font-semibold truncate max-w-[120px] sm:max-w-[190px]">${escapeHtml(c.nickname)}</span>
+                ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500 text-white font-bold whitespace-nowrap">BẠN</span>' : ''}
+              </div>
+              <div class="sm:hidden text-[10px] text-rose-500/90 font-mono mt-0.5">
+                ${c.cheatStrikes || 1} lần vi phạm • ${formattedTime}
+              </div>
             </div>
           </div>
         </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs whitespace-nowrap">
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs whitespace-nowrap hidden sm:table-cell">
           <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             ${escapeHtml(c.title || 'Kẻ Gian Lận ⚠️')}
           </span>
         </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center font-mono text-xs font-bold text-rose-500 whitespace-nowrap">
+        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center font-mono text-xs font-bold text-rose-500 whitespace-nowrap hidden sm:table-cell">
           ${c.cheatStrikes || 1} lần
         </td>
-        <td class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+        <td class="py-2.5 sm:py-3 px-2 sm:px-4 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
           ${formattedTime}
         </td>
         ${adminActionHtml}
@@ -4546,20 +4709,20 @@ function switchLeaderboardSubtab(subtab) {
 
   if (subtab === 'cheaters') {
     if (btnRanking) {
-      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-yellow-500/20 hover:text-yellow-600 dark:hover:text-yellow-400 flex items-center gap-1.5';
+      btnRanking.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-yellow-500/20 hover:text-yellow-600 dark:hover:text-yellow-400 flex items-center gap-1.5 shrink-0';
     }
     if (btnCheaters) {
-      btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-rose-500 text-white shadow-sm flex items-center gap-1.5';
+      btnCheaters.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-rose-500 text-white shadow-sm flex items-center gap-1.5 shrink-0';
     }
     if (viewRanking) viewRanking.classList.add('hidden');
     if (viewCheaters) viewCheaters.classList.remove('hidden');
     fetchCheaters();
   } else {
     if (btnRanking) {
-      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5';
+      btnRanking.className = 'px-3.5 py-2 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5 shrink-0';
     }
     if (btnCheaters) {
-      btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5';
+      btnCheaters.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5 shrink-0';
     }
     if (viewRanking) viewRanking.classList.remove('hidden');
     if (viewCheaters) viewCheaters.classList.add('hidden');
@@ -5402,6 +5565,76 @@ function renderHeader() {
   if (profExpText) profExpText.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
 }
 
+/**
+ * Tự động đo đạc và quản lý nút "...xem thêm" / "Thu gọn ▲" cho thẻ Nhiệm vụ và Phần thưởng.
+ * Mặc định: 1 dòng (line-clamp-1).
+ * Chỉ hiện nút toggle khi nội dung vượt quá 1 dòng (từ dòng 2 trở lên).
+ * Khi mở rộng: giới hạn chiều cao tối đa (max-height) và kích hoạt thanh cuộn dọc (overflow-y-auto).
+ */
+function setupCardDescToggle(card, descSelector) {
+  const descP = card.querySelector(descSelector);
+  const toggleBtn = card.querySelector('.btn-toggle-desc');
+  if (!descP || !toggleBtn) return;
+
+  const checkOverflow = () => {
+    if (descP.classList.contains('expanded')) return;
+    const isVisible = descP.clientHeight > 0;
+    // Kiểm tra tràn 1 dòng:
+    // Nếu phần tử hiển thị: so sánh scrollHeight vs clientHeight (có dung sai 1px cho subpixel rendering)
+    // Nếu phần tử đang ở tab ẩn: kiểm tra có chứa ký tự xuống dòng hoặc độ dài văn bản
+    const isMultiLine = isVisible
+      ? (descP.scrollHeight > descP.clientHeight + 1)
+      : (descP.textContent.includes('\n') || descP.textContent.trim().length > 38);
+
+    if (isMultiLine) {
+      toggleBtn.classList.remove('hidden');
+    } else {
+      toggleBtn.classList.add('hidden');
+    }
+  };
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isClamped = descP.classList.contains('line-clamp-1');
+    if (isClamped) {
+      descP.classList.remove('line-clamp-1');
+      descP.classList.add('expanded');
+      toggleBtn.textContent = 'Thu gọn ▲';
+    } else {
+      descP.classList.remove('expanded');
+      descP.classList.add('line-clamp-1');
+      descP.scrollTop = 0;
+      toggleBtn.textContent = '...xem thêm';
+    }
+  });
+
+  checkOverflow();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(checkOverflow);
+  }
+}
+window.setupCardDescToggle = setupCardDescToggle;
+
+function refreshAllCardDescToggles() {
+  const activeTabPane = document.querySelector('.tab-pane:not(.hidden)');
+  if (!activeTabPane) return;
+  const cards = activeTabPane.querySelectorAll('.rpg-card');
+  cards.forEach(card => {
+    const descP = card.querySelector('.quest-desc-text, .reward-desc-text');
+    const toggleBtn = card.querySelector('.btn-toggle-desc');
+    if (!descP || !toggleBtn) return;
+    if (descP.classList.contains('expanded')) return;
+    if (descP.clientHeight > 0) {
+      if (descP.scrollHeight > descP.clientHeight + 1) {
+        toggleBtn.classList.remove('hidden');
+      } else {
+        toggleBtn.classList.add('hidden');
+      }
+    }
+  });
+}
+window.refreshAllCardDescToggles = refreshAllCardDescToggles;
+
 function renderQuests() {
   const grid = document.getElementById('quests-grid');
   const empty = document.getElementById('quests-empty');
@@ -5520,8 +5753,8 @@ function renderQuests() {
             <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
             ${q.description ? `
               <div class="mt-1">
-                <p class="quest-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(q.description)}</p>
-                ${(q.description.length > 55 || q.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+                <p class="quest-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(q.description)}</p>
+                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
               </div>
             ` : ''}
           </div>
@@ -5613,23 +5846,7 @@ function renderQuests() {
     }
 
     // Toggle description expand / collapse
-    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
-    if (toggleDescBtn) {
-      toggleDescBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const descP = card.querySelector('.quest-desc-text');
-        if (descP) {
-          const isClamped = descP.classList.contains('line-clamp-2');
-          if (isClamped) {
-            descP.classList.remove('line-clamp-2');
-            toggleDescBtn.textContent = 'Thu gọn ▲';
-          } else {
-            descP.classList.add('line-clamp-2');
-            toggleDescBtn.textContent = '...xem thêm';
-          }
-        }
-      });
-    }
+    setupCardDescToggle(card, '.quest-desc-text');
 
     const toggleRepeatBtn = card.querySelector('.btn-toggle-repeat');
     if (toggleRepeatBtn) {
@@ -5689,6 +5906,9 @@ function renderQuests() {
     fragment.appendChild(card);
   });
   grid.appendChild(fragment);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshAllCardDescToggles);
+  }
 }
 
 function renderShop() {
@@ -5800,8 +6020,8 @@ function renderShop() {
             <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">${escapeHtml(item.name)}</h3>
             ${item.description ? `
               <div class="mt-1">
-                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(item.description)}</p>
-                ${(item.description.length > 55 || item.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description)}</p>
+                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
               </div>
             ` : ''}
           </div>
@@ -5846,23 +6066,7 @@ function renderShop() {
     }
 
     // Toggle description expand / collapse
-    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
-    if (toggleDescBtn) {
-      toggleDescBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const descP = card.querySelector('.reward-desc-text');
-        if (descP) {
-          const isClamped = descP.classList.contains('line-clamp-2');
-          if (isClamped) {
-            descP.classList.remove('line-clamp-2');
-            toggleDescBtn.textContent = 'Thu gọn ▲';
-          } else {
-            descP.classList.add('line-clamp-2');
-            toggleDescBtn.textContent = '...xem thêm';
-          }
-        }
-      });
-    }
+    setupCardDescToggle(card, '.reward-desc-text');
 
     card.querySelector('.btn-del-shop-item').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5884,6 +6088,9 @@ function renderShop() {
     fragment.appendChild(card);
   });
   grid.appendChild(fragment);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshAllCardDescToggles);
+  }
 }
 
 function renderInventory() {
@@ -5999,8 +6206,8 @@ function renderInventory() {
             <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${item.isUsed && !isThisActiveReward ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
             ${item.description ? `
               <div class="mt-1">
-                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(item.description)}</p>
-                ${(item.description.length > 55 || item.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description)}</p>
+                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
               </div>
             ` : ''}
             <p class="mt-1 text-xs text-slate-400 dark:text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</p>
@@ -6098,27 +6305,14 @@ function renderInventory() {
     }
 
     // Toggle description expand / collapse
-    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
-    if (toggleDescBtn) {
-      toggleDescBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const descP = card.querySelector('.reward-desc-text');
-        if (descP) {
-          const isClamped = descP.classList.contains('line-clamp-2');
-          if (isClamped) {
-            descP.classList.remove('line-clamp-2');
-            toggleDescBtn.textContent = 'Thu gọn ▲';
-          } else {
-            descP.classList.add('line-clamp-2');
-            toggleDescBtn.textContent = '...xem thêm';
-          }
-        }
-      });
-    }
+    setupCardDescToggle(card, '.reward-desc-text');
 
     fragment.appendChild(card);
   });
   grid.appendChild(fragment);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshAllCardDescToggles);
+  }
 }
 
 function addLedgerEntry(entry) {
@@ -6463,6 +6657,10 @@ function switchRewardSubtab(subtab) {
     if (paneShop) paneShop.classList.remove('hidden');
     if (paneInv) paneInv.classList.add('hidden');
   }
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshAllCardDescToggles);
+  }
 }
 window.switchRewardSubtab = switchRewardSubtab;
 
@@ -6654,6 +6852,12 @@ function switchTab(tabId) {
     fetchAdminUsers();
   } else if (tabId === 'bank') {
     loadBankState();
+  }
+
+  if (['quests', 'shop'].includes(tabId)) {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(refreshAllCardDescToggles);
+    }
   }
 }
 
@@ -8977,6 +9181,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Leaderboard Refresh & Search Controls
+  const btnRefreshLeaderboard = document.getElementById('btn-refresh-leaderboard');
+  if (btnRefreshLeaderboard) {
+    btnRefreshLeaderboard.addEventListener('click', () => {
+      sfx.playClick();
+      btnRefreshLeaderboard.classList.add('animate-spin');
+      fetchLeaderboard().finally(() => {
+        setTimeout(() => btnRefreshLeaderboard.classList.remove('animate-spin'), 600);
+      });
+    });
+  }
+
+  const inputSearchLeaderboard = document.getElementById('leaderboard-search-input');
+  if (inputSearchLeaderboard) {
+    inputSearchLeaderboard.addEventListener('input', (e) => {
+      currentLeaderboardSearch = e.target.value || '';
+      renderLeaderboardTable(currentLeaderboardData);
+    });
+  }
+
   // Quest filters
   document.querySelectorAll('.quest-filter').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -9469,6 +9693,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (noteZone) noteZone.classList.add('hidden');
       }
     }
+  });
+
+  // Tự động đo đạc lại nút Xem thêm/Thu gọn khi co giãn cửa sổ hoặc xoay màn hình thiết bị
+  let cardDescResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(cardDescResizeTimer);
+    cardDescResizeTimer = setTimeout(refreshAllCardDescToggles, 150);
   });
 
   // Open Shop Reward Modal (Desktop, Mobile & Global)

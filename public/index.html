@@ -489,67 +489,92 @@
 
     <!-- ==================== TAB 4: LEADERBOARD ==================== -->
     <section id="tab-leaderboard" class="tab-pane hidden">
-      <div class="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-2">
+      <!-- Header Banner & Online Presence -->
+      <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-yellow-600 dark:text-yellow-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ với số Vàng hiện có nhiều nhất (Đồng bộ trực tuyến).</p>
+          <div class="flex items-center gap-2">
+            <span class="text-xl sm:text-2xl">🏆</span>
+            <h2 class="font-rpg-title font-extrabold text-lg sm:text-2xl text-yellow-600 dark:text-yellow-400 tracking-tight">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Những hiệp sĩ chăm chỉ với số Vàng hiện có nhiều nhất (Đồng bộ trực tuyến).</p>
         </div>
-        <div id="leaderboard-online-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span id="leaderboard-online-count">0</span>&nbsp;đang online
+        <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+          <div id="leaderboard-online-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="leaderboard-online-count">0</span>&nbsp;đang online
+          </div>
+          <button id="btn-refresh-leaderboard" type="button" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-yellow-500/10 hover:text-yellow-600 dark:hover:text-yellow-400 border border-slate-200 dark:border-slate-800 transition flex items-center gap-1 shadow-xs active:scale-95" title="Cập nhật bảng xếp hạng">
+            <span class="text-xs">🔄</span>
+            <span class="hidden sm:inline">Làm mới</span>
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 mb-4">
-        <button id="btn-subtab-ranking" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5">
-          <span>🏆</span>
-          <span>Bảng Hiệp Sĩ</span>
-        </button>
-        <button id="btn-subtab-cheaters" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5">
-          <span>⚠️</span>
-          <span>Sổ Đen Vi Phạm</span>
-          <span id="badge-cheaters-count" class="hidden text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono leading-none">0</span>
-        </button>
+      <!-- Subtabs & Quick Search Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <button id="btn-subtab-ranking" type="button" class="px-3.5 py-2 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5 shrink-0">
+            <span>🏆</span>
+            <span>Bảng Hiệp Sĩ</span>
+          </button>
+          <button id="btn-subtab-cheaters" type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5 shrink-0">
+            <span>⚠️</span>
+            <span>Sổ Đen Vi Phạm</span>
+            <span id="badge-cheaters-count" class="hidden text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono leading-none">0</span>
+          </button>
+        </div>
+        <div class="relative w-full sm:w-60">
+          <input id="leaderboard-search-input" type="text" placeholder="Tìm kiếm hiệp sĩ..." class="w-full px-3 py-1.5 pl-8 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-yellow-500 dark:focus:border-yellow-400 text-slate-800 dark:text-slate-100 placeholder-slate-400 transition" />
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔍</span>
+        </div>
       </div>
 
       <!-- VIEW 1: BẢNG XẾP HẠNG HIỆP SĨ -->
-      <div id="view-leaderboard-ranking" class="rpg-panel rounded-2xl p-2 sm:p-4 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[500px] sm:min-w-full text-left text-xs sm:text-sm">
-            <thead class="text-[10px] sm:text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800 font-mono">
-              <tr>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 whitespace-nowrap">Hạng</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 whitespace-nowrap">Thành viên</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 hidden sm:table-cell whitespace-nowrap">Danh hiệu</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Cấp độ</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Vàng Hiện Có</th>
-              </tr>
-            </thead>
-            <tbody id="leaderboard-tbody" class="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
-              <!-- Rows rendered dynamically -->
-            </tbody>
-          </table>
+      <div id="view-leaderboard-ranking" class="space-y-3 sm:space-y-4">
+        <!-- Top 3 Podium Cards -->
+        <div id="leaderboard-podium" class="grid grid-cols-3 gap-2 sm:gap-3.5 items-end">
+          <!-- Rendered dynamically: Rank 2 (Left), Rank 1 (Center elevated), Rank 3 (Right) -->
+        </div>
+
+        <!-- Detailed Leaderboard Table Card -->
+        <div class="rpg-panel rounded-2xl p-2 sm:p-4 overflow-hidden shadow-sm">
+          <div class="overflow-x-auto -mx-2 sm:mx-0">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead class="text-[10px] sm:text-xs uppercase text-slate-400 dark:text-slate-500 border-b border-slate-200/80 dark:border-slate-800 font-mono">
+                <tr>
+                  <th class="py-2.5 sm:py-3 px-2 sm:px-4 text-center sm:text-left whitespace-nowrap w-12 sm:w-16">Hạng</th>
+                  <th class="py-2.5 sm:py-3 px-2 sm:px-4 whitespace-nowrap">Hiệp Sĩ</th>
+                  <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 hidden sm:table-cell whitespace-nowrap">Danh hiệu</th>
+                  <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center hidden sm:table-cell whitespace-nowrap">Cấp độ</th>
+                  <th class="py-2.5 sm:py-3 px-2 sm:px-4 text-right whitespace-nowrap">Vàng Hiện Có</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <!-- Rows rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- VIEW 2: SỔ ĐEN KẺ GIAN LẬN -->
       <div id="view-leaderboard-cheaters" class="hidden rpg-panel rounded-2xl p-2 sm:p-4 overflow-hidden border border-rose-500/20 bg-rose-950/5">
         <div class="p-3 mb-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
-          <span>⚠️</span>
+          <span class="text-base shrink-0">⚠️</span>
           <span>Danh sách tài khoản can thiệp dữ liệu bị tạm ngừng vinh danh Bảng Xếp Hạng. Cần hoàn thành 5 phiên tập trung hợp lệ hoặc được Quản trị viên mở khóa.</span>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[500px] sm:min-w-full text-left text-xs sm:text-sm">
-            <thead class="text-[10px] sm:text-xs uppercase text-slate-500 border-b border-rose-500/20 font-mono">
+        <div class="overflow-x-auto -mx-2 sm:mx-0">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead class="text-[10px] sm:text-xs uppercase text-slate-400 dark:text-slate-500 border-b border-rose-500/20 font-mono">
               <tr>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 whitespace-nowrap">Thành viên</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 whitespace-nowrap">Trạng thái / Danh hiệu</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center whitespace-nowrap">Số lần vi phạm</th>
-                <th class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-right whitespace-nowrap">Thời gian</th>
-                <th id="th-admin-actions" class="py-2.5 sm:py-3 px-2.5 sm:px-4 text-center whitespace-nowrap hidden">Hành động</th>
+                <th class="py-2.5 sm:py-3 px-2 sm:px-4 whitespace-nowrap">Hiệp Sĩ Vi Phạm</th>
+                <th class="py-2.5 sm:py-3 px-2 sm:px-4 whitespace-nowrap hidden sm:table-cell">Trạng thái / Danh hiệu</th>
+                <th class="py-2.5 sm:py-3 px-2 sm:px-4 text-center whitespace-nowrap hidden sm:table-cell">Số lần vi phạm</th>
+                <th class="py-2.5 sm:py-3 px-2 sm:px-4 text-right whitespace-nowrap">Thời gian</th>
+                <th id="th-admin-actions" class="py-2.5 sm:py-3 px-2 sm:px-4 text-center whitespace-nowrap hidden">Hành động</th>
               </tr>
             </thead>
-            <tbody id="cheaters-tbody" class="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
+            <tbody id="cheaters-tbody" class="divide-y divide-rose-500/10 dark:divide-slate-800/60 font-medium">
               <!-- Cheater rows rendered dynamically -->
             </tbody>
           </table>
