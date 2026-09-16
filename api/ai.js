@@ -3,6 +3,8 @@ import {
   extractToken,
   getRedis,
   authenticateCaller,
+  getUserCloudData,
+  getGlobalBankState,
   getAdminConfig,
   checkRateLimit,
   signQuest,
@@ -90,6 +92,995 @@ async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 =
   }
 }
 
+/**
+ * ponytail: Safe JSON extractor for LLM messages.
+ * Prevents raw JSON dumps from leaking into user chat bubbles.
+ */
+export function parseAIJsonContent(rawContent) {
+  if (!rawContent || typeof rawContent !== 'string') return null;
+  let cleaned = rawContent.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/i, '').replace(/```\s*$/, '');
+  }
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (_) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
+/**
+ * ponytail: Normalize structured options from AI JSON responses into UI-ready button payloads.
+ */
+export function normalizeDebateOptions(rawOptions, domain = 'quest') {
+  if (!Array.isArray(rawOptions) || rawOptions.length === 0) return [];
+  return rawOptions.map((opt, idx) => ({
+    id: opt.id || idx + 1,
+    label: opt.label || `Phương án ${idx + 1}`,
+    argument: opt.argument || `Chốt phương án ${idx + 1}: ${opt.label || ''}`,
+    ...(opt.newRewardCoins !== undefined ? { newRewardCoins: parseInt(opt.newRewardCoins, 10) } : {}),
+    ...(opt.newTargetMinutes !== undefined ? { newTargetMinutes: parseInt(opt.newTargetMinutes, 10) } : {}),
+    ...(opt.newType ? { newType: opt.newType } : {}),
+    ...(opt.newTitle ? { newTitle: opt.newTitle } : {}),
+    ...(opt.newRequiresProof !== undefined ? { newRequiresProof: Boolean(opt.newRequiresProof) } : {}),
+    ...(opt.newPrice !== undefined ? { newPrice: parseInt(opt.newPrice, 10) } : {}),
+    ...(opt.newTier ? { newTier: opt.newTier } : {}),
+    ...(opt.newName ? { newName: opt.newName } : {}),
+    ...(opt.newAmount !== undefined ? { newAmount: parseInt(opt.newAmount, 10) } : {}),
+    ...(opt.newBorrowRate !== undefined ? { newBorrowRate: Number(opt.newBorrowRate) } : {}),
+    ...(opt.newAutoDeductPercent !== undefined ? { newAutoDeductPercent: Number(opt.newAutoDeductPercent) } : {}),
+    ...(opt.newCreditLimit !== undefined ? { newCreditLimit: parseInt(opt.newCreditLimit, 10) } : {})
+  }));
+}
+
+// =============================================================================
+// AI TOOL CALLING ENGINE & NEGOTIATION TOOLS
+// =============================================================================
+
+export async function callAIWithTools(messages, tools = [], temperature = 0.3) {
+  if (!API_KEY) {
+    throw new Error('CUSTOM_AI_API_KEY is not configured');
+  }
+
+  const payload = {
+    model: MODEL,
+    messages,
+    temperature,
+    stream: false
+  };
+
+  if (Array.isArray(tools) && tools.length > 0) {
+    payload.tools = tools;
+    payload.tool_choice = 'auto';
+  }
+
+  const response = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(40000),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`AI Gateway Error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const choice = data.choices?.[0];
+  if (!choice || !choice.message) {
+    throw new Error('Empty response from AI Gateway');
+  }
+
+  return choice.message;
+}
+
+export const TOOL_GET_MY_USER_DATA = {
+  type: 'function',
+  function: {
+    name: 'get_my_user_data',
+    description: 'Tra cứu thông tin hồ sơ của người chơi hiện tại đang thương lượng (chỉ đọc dữ liệu của chính người chơi này). Giúp AI nắm số Vàng, chuỗi chăm chỉ, cấp độ, danh sách việc hoặc nợ để thương lượng hợp lý.',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['all', 'profile', 'quests', 'shop_items', 'bank_and_debt', 'ledger'],
+          description: 'Nhóm dữ liệu cần xem: profile (cấp, vàng, chuỗi), quests (danh sách việc), shop_items (quà), bank_and_debt (tiết kiệm, nợ), ledger (lịch sử), all (tất cả)'
+        }
+      },
+      required: ['category']
+    }
+  }
+};
+
+export const TOOL_GET_BANK_MARKET_STATUS = {
+  type: 'function',
+  function: {
+    name: 'get_bank_market_status',
+    description: 'Tra cứu trạng thái kho bạc ngân hàng (lãi suất sàn bảo vệ, lãi suất thị trường chuẩn, tình trạng thanh khoản dồi dào hay thắt chặt).',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  }
+};
+
+export const TOOL_UPDATE_QUEST_PARAMETERS = {
+  type: 'function',
+  function: {
+    name: 'update_quest_parameters',
+    description: 'Thực hiện hành động cập nhật và chốt thông số nhiệm vụ sau khi đạt thỏa thuận với người dùng. Tự động tính chữ ký số bảo mật HMAC.',
+    parameters: {
+      type: 'object',
+      properties: {
+        accepted: { type: 'boolean', description: 'true nếu đồng ý thỏa thuận, false nếu từ chối' },
+        reply: { type: 'string', description: 'Lời phản hồi thân thiện, ấm áp, giải thích bằng tiếng Việt đời thường, tuyệt đối không dùng thuật ngữ kỹ thuật' },
+        newRewardCoins: { type: 'number', description: 'Số Vàng thưởng sau thỏa thuận' },
+        newTargetMinutes: { type: 'number', description: 'Số phút đếm giờ: 0 cho việc không cần bấm giờ, 15, 25, 50 cho việc hẹn giờ tập trung' },
+        newType: { type: 'string', enum: ['focus', 'bounty'], description: 'focus: việc hẹn giờ tập trung; bounty: việc không cần bấm giờ' },
+        newTitle: { type: 'string', description: 'Tên nhiệm vụ mới nếu có điều chỉnh' },
+        newDescription: { type: 'string', description: 'Mô tả nhiệm vụ' },
+        newRequiresProof: { type: 'boolean', description: 'Có yêu cầu chụp ảnh bằng chứng hay không' },
+        newProofGuidance: { type: 'string', description: 'Hướng dẫn chụp ảnh nếu có yêu cầu' },
+        newCategory: { type: 'string', enum: ['study', 'work', 'fitness', 'chore', 'habit', 'trivial'] }
+      },
+      required: ['accepted', 'reply']
+    }
+  }
+};
+
+export const TOOL_UPDATE_REWARD_PARAMETERS = {
+  type: 'function',
+  function: {
+    name: 'update_reward_parameters',
+    description: 'Thực hiện hành động cập nhật và chốt giá Vàng cùng thời gian của phần thưởng Cửa Hàng sau khi thương lượng.',
+    parameters: {
+      type: 'object',
+      properties: {
+        accepted: { type: 'boolean', description: 'true nếu đồng ý điều chỉnh, false nếu từ chối giữ nguyên' },
+        reply: { type: 'string', description: 'Lời phản hồi ân cần, giải thích giá trị món quà, khích lệ người chơi' },
+        newPrice: { type: 'number', description: 'Mức giá Vàng sau khi chốt' },
+        newTargetMinutes: { type: 'number', description: 'Thời gian tận hưởng (phút), 0 nếu nhận ngay không cần đếm giờ' },
+        newTier: { type: 'string', enum: ['common', 'rare', 'epic', 'legendary'] },
+        newName: { type: 'string', description: 'Tên phần thưởng mới nếu có đổi' },
+        newDescription: { type: 'string', description: 'Mô tả phần thưởng' },
+        newCategory: { type: 'string', enum: ['entertainment', 'treat', 'item', 'milestone', 'harmful'] }
+      },
+      required: ['accepted', 'reply']
+    }
+  }
+};
+
+export const TOOL_UPDATE_LOAN_TERMS = {
+  type: 'function',
+  function: {
+    name: 'update_loan_terms',
+    description: 'Thực hiện hành động phê duyệt hoặc điều chỉnh gói vay vốn ngân hàng cho người dùng.',
+    parameters: {
+      type: 'object',
+      properties: {
+        accepted: { type: 'boolean', description: 'true nếu chấp thuận ưu đãi, false nếu giữ nguyên hoặc từ chối' },
+        reply: { type: 'string', description: 'Lời phản hồi tâm lý, khen ngợi tinh thần làm việc, giải thích ân cần' },
+        newAmount: { type: 'number', description: 'Số Vàng vay được duyệt' },
+        newBorrowRate: { type: 'number', description: 'Lãi suất ngày dạng số thập phân, ví dụ 0.03 cho 3%/ngày' },
+        newAutoDeductPercent: { type: 'number', description: 'Tỷ lệ trích nợ dạng thập phân, ví dụ 0.50 cho 50%, 0.60 cho 60%' },
+        newCreditLimit: { type: 'number', description: 'Hạn mức tín dụng được cấp' }
+      },
+      required: ['accepted', 'reply']
+    }
+  }
+};
+
+export const TOOL_SUGGEST_NEGOTIATION_OPTIONS = {
+  type: 'function',
+  function: {
+    name: 'suggest_negotiation_options',
+    description: 'Tạo danh sách 2-3 nút bấm phương án lựa chọn khi người chơi cần phương án thay thế hoặc chưa thống nhất được.',
+    parameters: {
+      type: 'object',
+      properties: {
+        domain: { type: 'string', enum: ['quest', 'reward', 'loan'] },
+        reply: { type: 'string', description: 'Lời dẫn giải thích các phương án cho bạn ấy' },
+        options: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              label: { type: 'string', description: 'Tên phương án hiển thị trên nút bấm (kèm Vàng / thời gian / lãi)' },
+              argument: { type: 'string', description: 'Câu chốt khi bấm nút' },
+              newRewardCoins: { type: 'number' },
+              newTargetMinutes: { type: 'number' },
+              newType: { type: 'string', enum: ['focus', 'bounty'] },
+              newRequiresProof: { type: 'boolean' },
+              newPrice: { type: 'number' },
+              newTier: { type: 'string' },
+              newAmount: { type: 'number' },
+              newBorrowRate: { type: 'number' },
+              newAutoDeductPercent: { type: 'number' },
+              newCreditLimit: { type: 'number' }
+            },
+            required: ['id', 'label', 'argument']
+          }
+        }
+      },
+      required: ['domain', 'reply', 'options']
+    }
+  }
+};
+
+export async function handleGetMyUserData(category = 'all', callerSub, redis, draftContext = {}) {
+  if (!callerSub) {
+    return { error: 'Không xác định được danh tính người chơi.' };
+  }
+
+  const cloud = (redis && callerSub) ? await getUserCloudData(redis, callerSub) : null;
+  const profile = cloud?.profile || draftContext.profile || {};
+  const quests = (cloud?.quests && cloud.quests.length > 0) ? cloud.quests : (draftContext.quests || []);
+  const shopItems = (cloud?.shopItems && cloud.shopItems.length > 0) ? cloud.shopItems : (draftContext.shopItems || []);
+  const bank = profile.bank || cloud?.bank || draftContext.bank || { deposited: 0, depositInterest: 0, loan: null };
+  const ledger = (cloud?.ledger && cloud.ledger.length > 0) ? cloud.ledger.slice(0, 8) : [];
+
+  switch (category) {
+    case 'profile':
+      return {
+        level: profile.level || 1,
+        coins: profile.coins || 0,
+        streak: profile.streak || 0,
+        title: profile.title || 'Tập Sự',
+        nickname: profile.nickname || 'Hiệp Sĩ'
+      };
+    case 'quests':
+      return {
+        activeQuests: quests.filter(q => q.status === 'active' || !q.completed).slice(0, 6).map(q => ({
+          title: q.title,
+          type: q.type,
+          targetMinutes: q.targetMinutes,
+          rewardCoins: q.rewardCoins,
+          requiresProof: Boolean(q.requiresProof)
+        })),
+        totalQuests: quests.length
+      };
+    case 'shop_items':
+      return {
+        shopItems: shopItems.slice(0, 6).map(s => ({
+          name: s.name,
+          price: s.price,
+          tier: s.tier,
+          targetMinutes: s.targetMinutes || 0
+        }))
+      };
+    case 'bank_and_debt':
+      return {
+        coins: profile.coins || 0,
+        deposited: bank.deposited || 0,
+        loan: bank.loan ? {
+          amount: bank.loan.amount,
+          borrowRate: bank.loan.borrowRate,
+          autoDeductPercent: bank.loan.autoDeductPercent
+        } : null,
+        isFrozen: Boolean(bank.isFrozen)
+      };
+    case 'ledger':
+      return {
+        recentTransactions: ledger.map(l => ({
+          type: l.type,
+          amount: l.amount,
+          category: l.category || l.description,
+          title: l.title
+        }))
+      };
+    case 'all':
+    default:
+      return {
+        profile: {
+          level: profile.level || 1,
+          coins: profile.coins || 0,
+          streak: profile.streak || 0,
+          title: profile.title || 'Tập Sự'
+        },
+        currentQuestsCount: quests.length,
+        currentShopCount: shopItems.length,
+        hasActiveLoan: Boolean(bank.loan),
+        coins: profile.coins || 0
+      };
+  }
+}
+
+export async function handleGetBankMarketStatus(redis, callerSub, draftProfile = {}) {
+  const poolState = redis ? await getGlobalBankState(redis) : {};
+  const macro = analyzeMacroTelemetry(poolState);
+  let creditLimit = 50;
+  if (callerSub && redis) {
+    const cloud = await getUserCloudData(redis, callerSub);
+    const profile = cloud?.profile || draftProfile || {};
+    creditLimit = calculateCreditLimit(profile, 0.5);
+  }
+  return {
+    depositFloor: macro.depositFloor,
+    standardBorrowRate: macro.borrowRate,
+    liquidityStatus: macro.liquidityStatus,
+    userCreditLimit: creditLimit
+  };
+}
+
+export function handleUpdateQuestParameters(params = {}, quest = {}) {
+  const accepted = Boolean(params.accepted);
+  let cleanReward = quest.rewardCoins;
+  let cleanMinutes = quest.targetMinutes;
+  let cleanType = quest.type;
+  let cleanProof = quest.requiresProof;
+  let cleanTitle = params.newTitle || quest.title || 'Nhiệm vụ mới';
+  let cleanDesc = params.newDescription !== undefined ? params.newDescription : (quest.description || '');
+
+  if (accepted) {
+    if (params.newRewardCoins !== undefined) cleanReward = parseInt(params.newRewardCoins, 10) || cleanReward;
+    if (params.newTargetMinutes !== undefined) cleanMinutes = parseInt(params.newTargetMinutes, 10);
+    if (params.newType) cleanType = params.newType;
+    else if (cleanMinutes !== undefined) cleanType = cleanMinutes > 0 ? 'focus' : 'bounty';
+    if (params.newRequiresProof !== undefined) cleanProof = Boolean(params.newRequiresProof);
+  }
+
+  const rawDebate = {
+    title: cleanTitle,
+    description: cleanDesc,
+    category: params.newCategory || quest.category,
+    type: cleanType || (cleanMinutes > 0 ? 'focus' : 'bounty'),
+    targetMinutes: cleanMinutes !== undefined ? cleanMinutes : (quest.targetMinutes || 0),
+    rewardCoins: cleanReward !== undefined ? cleanReward : 10,
+    rank: params.newRank,
+    requiresProof: cleanProof,
+    proofGuidance: params.newProofGuidance || quest.proofGuidance || '',
+    icon: quest.icon,
+    isNegotiated: true
+  };
+
+  const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
+  const signature = accepted
+    ? signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof)
+    : (quest.signature || '');
+
+  return {
+    accepted,
+    reply: params.reply || 'Mình đã ghi nhận ý kiến của bạn.',
+    newTitle: clean.title,
+    newDescription: clean.description,
+    newType: clean.type,
+    newTargetMinutes: clean.targetMinutes,
+    newRewardCoins: clean.rewardCoins,
+    newRank: clean.rank,
+    newRequiresProof: clean.requiresProof,
+    newProofGuidance: clean.proofGuidance,
+    newIcon: clean.icon || quest.icon,
+    signature
+  };
+}
+
+export function handleUpdateRewardParameters(params = {}, reward = {}) {
+  const accepted = Boolean(params.accepted);
+  let cleanPrice = reward.price !== undefined ? reward.price : 30;
+  let cleanMinutes = reward.targetMinutes || 0;
+  let cleanTier = reward.tier || 'rare';
+  let cleanName = params.newName || reward.name || 'Phần thưởng';
+  let cleanDesc = params.newDescription !== undefined ? params.newDescription : (reward.description || '');
+
+  if (accepted) {
+    if (params.newPrice !== undefined) cleanPrice = parseInt(params.newPrice, 10) || cleanPrice;
+    if (params.newTargetMinutes !== undefined) cleanMinutes = parseInt(params.newTargetMinutes, 10);
+    if (params.newTier) cleanTier = params.newTier;
+  }
+
+  const rawDebate = {
+    name: cleanName,
+    description: cleanDesc,
+    category: params.newCategory || reward.category,
+    price: cleanPrice,
+    tier: cleanTier,
+    targetMinutes: cleanMinutes,
+    isNegotiated: true
+  };
+
+  const clean = sanitizeEvaluatedReward(rawDebate, reward.name, reward.description);
+  const signature = accepted
+    ? signReward(clean.name, clean.price, clean.tier, clean.targetMinutes)
+    : (reward.signature || '');
+
+  return {
+    accepted,
+    reply: params.reply || 'Mình đã ghi nhận ý kiến của bạn.',
+    newName: clean.name,
+    newDescription: clean.description,
+    newPrice: clean.price,
+    newTier: clean.tier,
+    newTargetMinutes: clean.targetMinutes,
+    signature
+  };
+}
+
+export function handleUpdateLoanTerms(params = {}, loan = {}, callerId = 'guest', macro = {}) {
+  const accepted = Boolean(params.accepted);
+  let cleanAmount = parseInt(params.newAmount ?? loan.amount, 10) || 30;
+  let cleanRate = Number(params.newBorrowRate ?? loan.borrowRate ?? macro.borrowRate ?? 0.05);
+  if (cleanRate > 0.30) cleanRate = cleanRate / 100;
+  const floor = macro.depositFloor || 0.015;
+  cleanRate = Math.min(0.20, Math.max(floor, Number(cleanRate.toFixed(4))));
+
+  let cleanDeduct = Number(params.newAutoDeductPercent ?? loan.autoDeductPercent ?? 0.50);
+  if (cleanDeduct > 1.0) cleanDeduct = cleanDeduct / 100;
+  cleanDeduct = Math.min(0.80, Math.max(0.30, Number(cleanDeduct.toFixed(2))));
+
+  let cleanLimit = parseInt(params.newCreditLimit ?? loan.creditLimit, 10) || 50;
+  cleanLimit = Math.max(cleanAmount, cleanLimit);
+
+  const signature = accepted
+    ? signLoanOffer(callerId, cleanAmount, cleanRate, cleanDeduct, cleanLimit)
+    : (loan.signature || '');
+
+  return {
+    accepted,
+    reply: params.reply || 'Mình đã ghi nhận ý kiến thương lượng khoản vay của bạn.',
+    newAmount: cleanAmount,
+    newBorrowRate: cleanRate,
+    newAutoDeductPercent: cleanDeduct,
+    newCreditLimit: cleanLimit,
+    signature
+  };
+}
+
+export function handleSuggestNegotiationOptions(params = {}) {
+  const domain = params.domain || 'quest';
+  const rawOptions = Array.isArray(params.options) ? params.options : [];
+  const options = rawOptions.map((opt, idx) => ({
+    id: opt.id || idx + 1,
+    label: opt.label || `Phương án ${idx + 1}`,
+    argument: opt.argument || `Chốt phương án ${idx + 1}`,
+    ...(opt.newRewardCoins !== undefined ? { newRewardCoins: parseInt(opt.newRewardCoins, 10) } : {}),
+    ...(opt.newTargetMinutes !== undefined ? { newTargetMinutes: parseInt(opt.newTargetMinutes, 10) } : {}),
+    ...(opt.newType ? { newType: opt.newType } : {}),
+    ...(opt.newRequiresProof !== undefined ? { newRequiresProof: Boolean(opt.newRequiresProof) } : {}),
+    ...(opt.newPrice !== undefined ? { newPrice: parseInt(opt.newPrice, 10) } : {}),
+    ...(opt.newTier ? { newTier: opt.newTier } : {}),
+    ...(opt.newAmount !== undefined ? { newAmount: parseInt(opt.newAmount, 10) } : {}),
+    ...(opt.newBorrowRate !== undefined ? { newBorrowRate: Number(opt.newBorrowRate) } : {}),
+    ...(opt.newAutoDeductPercent !== undefined ? { newAutoDeductPercent: Number(opt.newAutoDeductPercent) } : {}),
+    ...(opt.newCreditLimit !== undefined ? { newCreditLimit: parseInt(opt.newCreditLimit, 10) } : {})
+  }));
+
+  return {
+    accepted: false,
+    reply: params.reply || 'Dưới đây là một số phương án gợi ý cho bạn nè:',
+    options
+  };
+}
+
+export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
+  if (selectedOpt) {
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`,
+      newRewardCoins: selectedOpt.newRewardCoins,
+      newTargetMinutes: selectedOpt.newTargetMinutes,
+      newType: selectedOpt.newType,
+      newRequiresProof: selectedOpt.newRequiresProof,
+      newTitle: selectedOpt.newTitle
+    }, quest);
+  }
+
+  // Explicit user parameters extraction (e.g. "10 phút", "7 vàng", "không cần bấm giờ")
+  const explicitMinsMatch = argument.match(/(\d+)\s*(?:phút|min|p\b)/i);
+  const isNoTimerMatch = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ|hoàn\s*thành\s*ngay|bounty)/i.test(argument);
+  const requestedMins = isNoTimerMatch ? 0 : (explicitMinsMatch ? parseInt(explicitMinsMatch[1], 10) : null);
+  const explicitCoinsMatch = argument.match(/(\d+)\s*vàng/i);
+  const requestedCoins = explicitCoinsMatch ? parseInt(explicitCoinsMatch[1], 10) : null;
+
+  if (requestedMins !== null || requestedCoins !== null) {
+    const finalMins = requestedMins !== null
+      ? Math.min(180, Math.max(0, requestedMins))
+      : (quest.targetMinutes !== undefined ? quest.targetMinutes : (quest.type === 'focus' ? 25 : 0));
+    const finalCoins = requestedCoins !== null
+      ? Math.min(40, Math.max(1, requestedCoins))
+      : (quest.rewardCoins || 10);
+    const finalType = finalMins > 0 ? 'focus' : 'bounty';
+    const minsText = finalMins > 0 ? `${finalMins} phút` : 'không cần bấm giờ';
+
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Mình hoàn toàn đồng ý điều chỉnh thời gian thành ${minsText} và mức thưởng ${finalCoins} Vàng theo đề xuất của bạn nhé! Chúc bạn thực hiện thật vui vẻ và sảng khoái! ✨`,
+      newTargetMinutes: finalMins,
+      newRewardCoins: finalCoins,
+      newType: finalType
+    }, quest);
+  }
+
+  const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau|nấu)/i.test(quest.title + ' ' + argument);
+  const isBountyReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay|bounty)/i.test(argument);
+  const wantsMoreCoins = /(?:tăng|thêm|nâng).*(?:thưởng|vàng)|xin.*(?:thưởng|vàng)/i.test(argument);
+  const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
+  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+
+  if (isBountyReq || (isChore && wantsMoreCoins)) {
+    const coins = Math.min(5, Math.max(quest.rewardCoins || 3, 5));
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Việc này là việc nhanh gọn, mình đồng ý để bạn hoàn thành ngay không cần bấm giờ với mức thưởng ${coins} Vàng nhé! ✨`,
+      newType: 'bounty',
+      newTargetMinutes: 0,
+      newRewardCoins: coins
+    }, quest);
+  }
+
+  if (wantsLessTime) {
+    const newMins = Math.max(10, Math.floor((quest.targetMinutes || 25) * 0.7));
+    const newCoins = Math.max(5, Math.floor((quest.rewardCoins || 10) * 0.8));
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Mình đồng ý điều chỉnh thời gian tập trung xuống ${newMins} phút và mức thưởng ${newCoins} Vàng để bạn bắt đầu dễ dàng hơn nhé! ✨`,
+      newTargetMinutes: newMins,
+      newRewardCoins: newCoins,
+      newType: 'focus'
+    }, quest);
+  }
+
+  if (wantsMoreCoins) {
+    const newCoins = Math.min(25, (quest.rewardCoins || 10) + 3);
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Lý do của bạn rất xác đáng! Mình đồng ý nâng mức thưởng lên ${newCoins} Vàng nhé. Cố gắng hoàn thành thật tốt nha! ✨`,
+      newRewardCoins: newCoins,
+      newTargetMinutes: quest.targetMinutes || 25,
+      newType: quest.type || 'focus'
+    }, quest);
+  }
+
+  if (userAgreed) {
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Tuyệt vời, tụi mình đã thống nhất thông số nhiệm vụ này nhé! Bạn có thể nhận việc và bắt đầu ngay. ✨`,
+      newRewardCoins: quest.rewardCoins,
+      newTargetMinutes: quest.targetMinutes,
+      newType: quest.type
+    }, quest);
+  }
+
+  const optRes = handleSuggestNegotiationOptions({
+    domain: 'quest',
+    reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để cân bằng nỗ lực, tụi mình giữ mức này nhé. Dưới đây là các phương án khả thi hơn nè:\n- Phương án 1: Giữ nguyên mức thưởng ${quest.rewardCoins} Vàng và rút ngắn còn 20 phút.\n- Phương án 2: Hoàn thành ngay không cần bấm giờ với mức thưởng 5 Vàng.`,
+    options: [
+      { id: 1, label: `Phương án 1 (20 phút • ${quest.rewardCoins} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${quest.rewardCoins} Vàng`, newTargetMinutes: 20, newRewardCoins: quest.rewardCoins, newType: 'focus' },
+      { id: 2, label: `Phương án 2 (Không cần bấm giờ • 5 Vàng)`, argument: `Chốt phương án 2: Không cần bấm giờ, 5 Vàng`, newTargetMinutes: 0, newRewardCoins: 5, newType: 'bounty' }
+    ]
+  });
+  return {
+    ...handleUpdateQuestParameters({ accepted: false, reply: optRes.reply }, quest),
+    options: optRes.options
+  };
+}
+
+export function runDeterministicRewardDebate(reward, argument, selectedOpt) {
+  if (selectedOpt) {
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Mình rất vui được chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Phần thưởng đã được cập nhật giá và thời lượng mới. ✨`,
+      newPrice: selectedOpt.newPrice,
+      newTargetMinutes: selectedOpt.newTargetMinutes,
+      newTier: selectedOpt.newTier,
+      newName: selectedOpt.newName
+    }, reward);
+  }
+
+  // Explicit user parameters extraction (e.g. "15 vàng", "20 phút")
+  const explicitCoinsMatch = argument.match(/(\d+)\s*vàng/i);
+  const explicitMinsMatch = argument.match(/(\d+)\s*(?:phút|min|p\b)/i);
+  const requestedCoins = explicitCoinsMatch ? parseInt(explicitCoinsMatch[1], 10) : null;
+  const requestedMins = explicitMinsMatch ? parseInt(explicitMinsMatch[1], 10) : null;
+
+  if (requestedCoins !== null || requestedMins !== null) {
+    const finalPrice = requestedCoins !== null ? Math.max(5, requestedCoins) : (reward.price || 20);
+    const finalMins = requestedMins !== null ? Math.max(0, requestedMins) : (reward.targetMinutes || 0);
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Mình nhất trí điều chỉnh phần thưởng thành giá ${finalPrice} Vàng${finalMins > 0 ? ` và thời gian ${finalMins} phút` : ''} theo đề xuất của bạn nhé! ✨`,
+      newPrice: finalPrice,
+      newTargetMinutes: finalMins,
+      newTier: finalPrice < 30 ? 'common' : (finalPrice < 70 ? 'rare' : reward.tier)
+    }, reward);
+  }
+
+  const isLowerPriceReq = /(?:giảm|hạ|bớt|rẻ).*(?:giá|vàng)/i.test(argument);
+  const isLowerTimeReq = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
+  const isNoTimerReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ)/i.test(argument);
+  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+
+  if (isNoTimerReq) {
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Được chứ! Mình chuyển phần thưởng này sang dạng đổi quà nhận ngay không cần bấm giờ nhé. ✨`,
+      newPrice: reward.price,
+      newTargetMinutes: 0,
+      newTier: reward.tier
+    }, reward);
+  }
+
+  if (isLowerPriceReq && isLowerTimeReq) {
+    const newPrice = Math.max(10, Math.floor(reward.price * 0.7));
+    const newMins = Math.max(10, Math.floor((reward.targetMinutes || 30) * 0.7));
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Phương án này rất hợp lý! Mình đồng ý giảm giá xuống ${newPrice} Vàng tương ứng với ${newMins} phút tận hưởng nhé! ✨`,
+      newPrice,
+      newTargetMinutes: newMins,
+      newTier: newPrice < 30 ? 'common' : reward.tier
+    }, reward);
+  }
+
+  if (isLowerPriceReq) {
+    const optRes = handleSuggestNegotiationOptions({
+      domain: 'reward',
+      reply: `Món quà này rất giá trị nên mình giữ mức giá ${reward.price} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${Math.floor(reward.price * 0.6)} Vàng nhưng rút ngắn thời lượng còn 20 phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
+      options: [
+        { id: 1, label: `Phương án 1 (20 phút • ${Math.floor(reward.price * 0.6)} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${Math.floor(reward.price * 0.6)} Vàng`, newTargetMinutes: 20, newPrice: Math.floor(reward.price * 0.6), newTier: 'common' }
+      ]
+    });
+    return {
+      ...handleUpdateRewardParameters({ accepted: false, reply: optRes.reply }, reward),
+      options: optRes.options
+    };
+  }
+
+  if (userAgreed) {
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Tuyệt vời, tụi mình đã chốt xong phần thưởng này nhé! ✨`,
+      newPrice: reward.price,
+      newTargetMinutes: reward.targetMinutes,
+      newTier: reward.tier
+    }, reward);
+  }
+
+  return handleUpdateRewardParameters({
+    accepted: false,
+    reply: `Mình rất hiểu mong muốn của bạn, nhưng tụi mình tạm giữ thông số này để bạn có thêm động lực hoàn thành nhiệm vụ nhé! ✨`
+  }, reward);
+}
+
+export function runDeterministicLoanDebate(loan, argument, callerSub, macro = {}, selectedOption, profile = {}) {
+  const currentAmount = Math.max(10, parseInt(loan?.amount, 10) || 30);
+  const currentRate = Number(loan?.borrowRate) || macro.borrowRate || 0.05;
+  const currentDeduct = Math.min(0.80, Math.max(0.30, Number(loan?.autoDeductPercent) || 0.50));
+  const currentLimit = Math.max(20, parseInt(loan?.creditLimit, 10) || calculateCreditLimit(profile, currentDeduct));
+  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
+  const level = Math.max(1, parseInt(profile?.level, 10) || 1);
+
+  if (selectedOption) {
+    return handleUpdateLoanTerms({
+      accepted: true,
+      reply: `Mình rất vui được chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Thông số khoản vay đã được cập nhật ưu đãi. ✨`,
+      newAmount: selectedOption.newAmount,
+      newBorrowRate: selectedOption.newBorrowRate,
+      newAutoDeductPercent: selectedOption.newAutoDeductPercent,
+      newCreditLimit: selectedOption.newCreditLimit
+    }, loan, callerSub, macro);
+  }
+
+  // Explicit user loan amount extraction (e.g. "vay 40 vàng", "50 vàng")
+  const explicitAmountMatch = argument.match(/(?:vay|mượn)\s*(\d+)\s*(?:vàng)?/i) || argument.match(/(\d+)\s*vàng/i);
+  const requestedAmount = explicitAmountMatch ? parseInt(explicitAmountMatch[1], 10) : null;
+  if (requestedAmount !== null && requestedAmount > 0) {
+    const safeAmount = Math.min(currentLimit, Math.max(10, requestedAmount));
+    return handleUpdateLoanTerms({
+      accepted: true,
+      reply: `Mình đồng ý duyệt cho bạn vay ${safeAmount} Vàng theo đúng đề xuất nhé! Hãy hoàn thành nhiệm vụ để trả nợ đúng hạn nha! ✨`,
+      newAmount: safeAmount,
+      newBorrowRate: currentRate,
+      newCreditLimit: currentLimit,
+      newAutoDeductPercent: currentDeduct
+    }, loan, callerSub, macro);
+  }
+
+  const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp/i.test(argument);
+  const isLimitNegotiate = /nâng\s*hạn\s*mức|tăng\s*hạn\s*mức|hạn\s*mức\s*cao/i.test(argument);
+  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+
+  if (isRateNegotiate && (streak >= 2 || level >= 2)) {
+    const floor = macro.depositFloor || 0.015;
+    const discountedRate = Math.max(floor, Number((currentRate - 0.02).toFixed(4)));
+    const suggestDeduct = macro.liquidityStatus === 'tight' ? Math.max(0.60, currentDeduct) : currentDeduct;
+    const tightNote = macro.liquidityStatus === 'tight' && suggestDeduct > currentDeduct
+      ? ' Vì ngân hàng đang hỗ trợ cho nhiều hiệp sĩ khác, bạn hãy trích ' + Math.round(suggestDeduct * 100) + '% tiền thưởng để trả nhanh giúp kho nhé!'
+      : '';
+    return handleUpdateLoanTerms({
+      accepted: true,
+      reply: `Bạn có chuỗi chăm chỉ ${streak} ngày rất ấn tượng! Mình đồng ý giảm lãi suất ngày từ ${(currentRate * 100).toFixed(1)}%/ngày xuống chỉ còn ${(discountedRate * 100).toFixed(1)}%/ngày nhé.${tightNote} Chúc bạn hoàn thành nhiệm vụ thật vui vẻ! ✨`,
+      newAmount: currentAmount,
+      newBorrowRate: discountedRate,
+      newCreditLimit: currentLimit,
+      newAutoDeductPercent: suggestDeduct
+    }, loan, callerSub, macro);
+  }
+
+  if (isLimitNegotiate) {
+    const bonusLimit = currentLimit + (macro.liquidityStatus === 'tight' ? 15 : 25);
+    return handleUpdateLoanTerms({
+      accepted: true,
+      reply: `Thấy bạn có tinh thần làm việc tích cực, mình sẵn sàng nâng hạn mức vay cho bạn từ ${currentLimit} Vàng lên ${bonusLimit} Vàng nè! Hãy cân nhắc vay mức vừa sức để dễ trả nợ nhé. ✨`,
+      newAmount: Math.min(bonusLimit, currentAmount + 15),
+      newBorrowRate: currentRate,
+      newCreditLimit: bonusLimit,
+      newAutoDeductPercent: currentDeduct
+    }, loan, callerSub, macro);
+  }
+
+  if (userAgreed) {
+    return handleUpdateLoanTerms({
+      accepted: true,
+      reply: `Tuyệt vời, tụi mình đã thống nhất thông số khoản vay này nhé! ✨`,
+      newAmount: currentAmount,
+      newBorrowRate: currentRate,
+      newCreditLimit: currentLimit,
+      newAutoDeductPercent: currentDeduct
+    }, loan, callerSub, macro);
+  }
+
+  const floor = macro.depositFloor || 0.015;
+  const optRes = handleSuggestNegotiationOptions({
+    domain: 'loan',
+    reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để đảm bảo an toàn quỹ chung và bạn không bị áp lực trả nợ, tụi mình giữ mức này nhé. Dưới đây là 2 phương án hỗ trợ:\n- Phương án 1: Vay ${currentAmount} Vàng với lãi suất ${(Math.max(floor, currentRate - 0.01) * 100).toFixed(1)}%/ngày, trích 60% tiền thưởng để trả nhanh.\n- Phương án 2: Cấp hạn mức ${currentLimit + 15} Vàng, cho bạn vay ${currentAmount} Vàng với lãi ${(currentRate * 100).toFixed(1)}%/ngày.`,
+    options: [
+      { id: 1, label: `Phương án 1 (${currentAmount} Vàng • ${(Math.max(floor, currentRate - 0.01) * 100).toFixed(1)}%/ngày • Trích 60%)`, argument: `Chốt phương án 1: Vay ${currentAmount} Vàng, trích 60%`, newAmount: currentAmount, newBorrowRate: Math.max(floor, currentRate - 0.01), newAutoDeductPercent: 0.60, newCreditLimit: currentLimit },
+      { id: 2, label: `Phương án 2 (Hạn mức ${currentLimit + 15} Vàng • ${(currentRate * 100).toFixed(1)}%/ngày)`, argument: `Chốt phương án 2: Hạn mức ${currentLimit + 15} Vàng`, newAmount: currentAmount, newBorrowRate: currentRate, newAutoDeductPercent: currentDeduct, newCreditLimit: currentLimit + 15 }
+    ]
+  });
+
+  return {
+    ...handleUpdateLoanTerms({ accepted: false, reply: optRes.reply }, loan, callerSub, macro),
+    options: optRes.options
+  };
+}
+
+// =============================================================================
+// SERVER-SENT EVENTS (SSE) STREAMING HELPER
+// =============================================================================
+export function createSSEStream(res) {
+  if (typeof res?.setHeader === 'function') {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+  }
+  if (typeof res?.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  return {
+    send(event, data) {
+      if (typeof res?.write === 'function') {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      }
+    },
+    end(event, data) {
+      if (event && data && typeof res?.write === 'function') {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      }
+      if (typeof res?.end === 'function') {
+        res.end();
+      }
+    }
+  };
+}
+
+export async function runNegotiationAgent({
+  domain,
+  caller,
+  redis,
+  systemPrompt,
+  userPrompt,
+  targetEntity,
+  selectedOption,
+  userArgument,
+  tools,
+  onEvent
+}) {
+  const notify = (step, icon, text, pct) => {
+    if (typeof onEvent === 'function') {
+      try { onEvent('step', { step, totalSteps: 5, icon, text, pct }); } catch (_) {}
+    }
+  };
+
+  notify(1, '🔍', 'Đang tra cứu hồ sơ cá nhân & dữ liệu hiệp sĩ của bạn...', 20);
+
+  const toolsExecuted = [];
+  const callerSub = caller?.sub || 'guest';
+  const poolState = redis ? await getGlobalBankState(redis) : {};
+  const macro = analyzeMacroTelemetry(poolState);
+
+  // If user explicitly picked an interactive option, honor it directly with Action Tool
+  if (selectedOption) {
+    notify(4, '⚡', 'Đang kích hoạt công cụ áp dụng phương án bạn chọn...', 80);
+    toolsExecuted.push(`apply_selected_option:${domain}`);
+    if (domain === 'quest') {
+      const res = handleUpdateQuestParameters({
+        accepted: true,
+        reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`,
+        newRewardCoins: selectedOption.newRewardCoins,
+        newTargetMinutes: selectedOption.newTargetMinutes,
+        newType: selectedOption.newType,
+        newRequiresProof: selectedOption.newRequiresProof,
+        newTitle: selectedOption.newTitle
+      }, targetEntity);
+      notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
+      return { ...res, toolsExecuted };
+    }
+    if (domain === 'reward') {
+      const res = handleUpdateRewardParameters({
+        accepted: true,
+        reply: `Mình rất vui được chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Phần thưởng đã được cập nhật giá và thời lượng mới. ✨`,
+        newPrice: selectedOption.newPrice,
+        newTargetMinutes: selectedOption.newTargetMinutes,
+        newTier: selectedOption.newTier,
+        newName: selectedOption.newName
+      }, targetEntity);
+      notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
+      return { ...res, toolsExecuted };
+    }
+    if (domain === 'loan') {
+      const res = handleUpdateLoanTerms({
+        accepted: true,
+        reply: `Mình rất vui được chốt theo ${selectedOption.label || 'phương án bạn chọn'} nhé! Thông số khoản vay đã được cập nhật ưu đãi. ✨`,
+        newAmount: selectedOption.newAmount,
+        newBorrowRate: selectedOption.newBorrowRate,
+        newAutoDeductPercent: selectedOption.newAutoDeductPercent,
+        newCreditLimit: selectedOption.newCreditLimit
+      }, targetEntity, callerSub, macro);
+      notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
+      return { ...res, toolsExecuted };
+    }
+  }
+
+  // Try calling AI with tools if API_KEY configured
+  if (API_KEY) {
+    try {
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+
+      for (let step = 0; step < 3; step++) {
+        notify(3, '🧠', 'AI đang suy nghĩ, phân tích lập luận & cân đối hệ thống...', 55);
+        const assistantMsg = await callAIWithTools(messages, tools, 0.35);
+        messages.push(assistantMsg);
+
+        const toolCalls = assistantMsg.tool_calls;
+        if (!toolCalls || toolCalls.length === 0) {
+          const rawContent = assistantMsg.content || '';
+          const parsedJson = parseAIJsonContent(rawContent);
+          const reply = (parsedJson && typeof parsedJson.reply === 'string')
+            ? parsedJson.reply
+            : rawContent;
+          const options = (parsedJson && Array.isArray(parsedJson.options) && parsedJson.options.length > 0)
+            ? normalizeDebateOptions(parsedJson.options, domain)
+            : parseDebateOptionsFromText(reply, domain);
+          const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(userArgument);
+          const aiAgreed = /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(reply);
+          const accepted = (parsedJson && parsedJson.accepted !== undefined)
+            ? Boolean(parsedJson.accepted)
+            : (userAgreed && aiAgreed);
+
+          notify(5, '🛡️', 'Đang hoàn tất phản hồi & đóng dấu xác thực...', 95);
+          const params = {
+            ...(parsedJson || {}),
+            accepted,
+            reply
+          };
+
+          if (domain === 'quest') {
+            const res = handleUpdateQuestParameters(params, targetEntity);
+            return { ...res, options, toolsExecuted };
+          }
+          if (domain === 'reward') {
+            const res = handleUpdateRewardParameters(params, targetEntity);
+            return { ...res, options, toolsExecuted };
+          }
+          if (domain === 'loan') {
+            const res = handleUpdateLoanTerms(params, targetEntity, callerSub, macro);
+            return { ...res, options, toolsExecuted };
+          }
+        }
+
+        let finalActionDone = false;
+        let actionResult = null;
+
+        for (const tc of toolCalls) {
+          const fnName = tc.function?.name;
+          toolsExecuted.push(fnName);
+          let fnArgs = {};
+          try { fnArgs = JSON.parse(tc.function?.arguments || '{}'); } catch (_) {}
+
+          if (fnName === 'get_my_user_data') {
+            notify(2, '📊', 'AI vừa tra cứu hồ sơ cá nhân & dữ liệu hiệp sĩ của bạn...', 40);
+            const data = await handleGetMyUserData(fnArgs.category, callerSub, redis, { targetEntity });
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify(data)
+            });
+          } else if (fnName === 'get_bank_market_status') {
+            notify(2, '🏦', 'AI vừa kiểm tra thanh khoản kho bạc & trần lãi suất...', 40);
+            const status = await handleGetBankMarketStatus(redis, callerSub);
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify(status)
+            });
+          } else if (fnName === 'update_quest_parameters') {
+            notify(4, '⚡', 'AI đang kích hoạt công cụ cập nhật thông số nhiệm vụ...', 80);
+            actionResult = handleUpdateQuestParameters(fnArgs, targetEntity);
+            finalActionDone = true;
+          } else if (fnName === 'update_reward_parameters') {
+            notify(4, '⚡', 'AI đang gọi công cụ cập nhật giá & phân hạng quà...', 80);
+            actionResult = handleUpdateRewardParameters(fnArgs, targetEntity);
+            finalActionDone = true;
+          } else if (fnName === 'update_loan_terms') {
+            notify(4, '⚡', 'AI đang gọi công cụ thiết lập gói vay ưu đãi...', 80);
+            actionResult = handleUpdateLoanTerms(fnArgs, targetEntity, callerSub, macro);
+            finalActionDone = true;
+          } else if (fnName === 'suggest_negotiation_options') {
+            notify(4, '💡', 'AI đang tạo các phương án lựa chọn tối ưu...', 80);
+            actionResult = handleSuggestNegotiationOptions(fnArgs);
+            finalActionDone = true;
+          }
+        }
+
+        if (finalActionDone && actionResult) {
+          if (typeof actionResult.reply === 'string' && (actionResult.reply.trim().startsWith('{') || actionResult.reply.trim().startsWith('```json'))) {
+            const parsed = parseAIJsonContent(actionResult.reply);
+            if (parsed && typeof parsed.reply === 'string') {
+              actionResult.reply = parsed.reply;
+              if ((!actionResult.options || actionResult.options.length === 0) && Array.isArray(parsed.options)) {
+                actionResult.options = normalizeDebateOptions(parsed.options, domain);
+              }
+            }
+          }
+          if (!actionResult.options || actionResult.options.length === 0) {
+            actionResult.options = parseDebateOptionsFromText(actionResult.reply, domain);
+          }
+          notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
+          return { ...actionResult, toolsExecuted };
+        }
+      }
+    } catch (err) {
+      console.warn('[ToolCalling] Falling back to deterministic dispatcher:', err.message);
+    }
+  }
+
+  // Deterministic Fallback Dispatcher
+  notify(4, '⚙️', 'AI kích hoạt bộ quy tắc phân xử nội bộ để phản hồi...', 75);
+  toolsExecuted.push(`deterministic_fallback:${domain}`);
+  let fallbackRes = null;
+  if (domain === 'quest') {
+    fallbackRes = { ...runDeterministicQuestDebate(targetEntity, userArgument, selectedOption), toolsExecuted };
+  } else if (domain === 'reward') {
+    fallbackRes = { ...runDeterministicRewardDebate(targetEntity, userArgument, selectedOption), toolsExecuted };
+  } else if (domain === 'loan') {
+    fallbackRes = { ...runDeterministicLoanDebate(targetEntity, userArgument, callerSub, macro, selectedOption), toolsExecuted };
+  }
+  notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
+  return fallbackRes;
+}
+
 // Helper to calculate rank matching appState
 export function calculateRank(coins) {
   if (coins >= 40) return 'S';
@@ -163,8 +1154,8 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   const isTrivialTask = category === 'trivial';
   const isQuickChore = category === 'chore';
 
-  // 1. Trivial personal habits: capped at 2 coins, 0 minutes
-  if (isTrivialTask) {
+  // 1. Trivial personal habits: capped at 2 coins, 0 minutes (unless negotiated)
+  if (!result.isNegotiated && isTrivialTask) {
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, 2);
     type = 'bounty';
@@ -232,7 +1223,7 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, result.isNegotiated ? 25 : 10);
   } else {
-    targetMinutes = Math.max(15, Math.min(180, targetMinutes));
+    targetMinutes = Math.max(result.isNegotiated ? 5 : 15, Math.min(180, targetMinutes));
     const maxCoinsByTime = result.isNegotiated
       ? (targetMinutes <= 25 ? 35 : (targetMinutes <= 50 ? 50 : 60))
       : (targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : 40));
@@ -869,79 +1860,46 @@ Trả về ĐÚNG định dạng JSON:
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
-        let result = null;
-        if (API_KEY) {
-          try {
-            result = await callAI(systemPrompt, userPrompt, 0.4);
-          } catch (_) {}
-        }
+        const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
+        const sse = isStream ? createSSEStream(res) : null;
+        const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         const selectedOpt = payload?.selectedOption;
+        let result = null;
+        try {
+          result = await runNegotiationAgent({
+            domain: 'quest',
+            caller,
+            redis,
+            systemPrompt,
+            userPrompt,
+            targetEntity: quest,
+            selectedOption: selectedOpt,
+            userArgument: argument,
+            tools: [TOOL_GET_MY_USER_DATA, TOOL_UPDATE_QUEST_PARAMETERS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
+            onEvent
+          });
+        } catch (_) {}
+
+        if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
+          const parsed = parseAIJsonContent(result.reply);
+          if (parsed && typeof parsed.reply === 'string') {
+            result.reply = parsed.reply;
+            if ((!result.options || result.options.length === 0) && Array.isArray(parsed.options)) {
+              result.options = normalizeDebateOptions(parsed.options, 'quest');
+            }
+            if (parsed.accepted !== undefined && !selectedOpt && !userAgreed) {
+              result.accepted = Boolean(parsed.accepted);
+            }
+          }
+        }
+
         const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         // Deterministic fallback for quest debate if AI is offline
         if (!result) {
-          const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau|nấu)/i.test(quest.title + ' ' + argument);
-          const isBountyReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay|bounty)/i.test(argument);
-          const wantsMoreCoins = /(?:tăng|thêm|nâng).*(?:thưởng|vàng)|xin.*(?:thưởng|vàng)|\d+\s*vàng/i.test(argument);
-          const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)|\d+\s*phút/i.test(argument);
-
-          if (selectedOpt) {
-            result = {
-              accepted: true,
-              reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`,
-              newRewardCoins: selectedOpt.newRewardCoins,
-              newTargetMinutes: selectedOpt.newTargetMinutes,
-              newType: selectedOpt.newType,
-              newRequiresProof: selectedOpt.newRequiresProof
-            };
-          } else if (isBountyReq || (isChore && wantsMoreCoins)) {
-            const coins = Math.min(5, Math.max(quest.rewardCoins || 3, 5));
-            result = {
-              accepted: true,
-              reply: `Việc này là việc nhanh gọn, mình đồng ý để bạn hoàn thành ngay không cần bấm giờ với mức thưởng ${coins} Vàng nhé! ✨`,
-              newType: 'bounty',
-              newTargetMinutes: 0,
-              newRewardCoins: coins
-            };
-          } else if (wantsLessTime) {
-            const newMins = Math.max(15, Math.floor((quest.targetMinutes || 25) * 0.7));
-            const newCoins = Math.max(5, Math.floor((quest.rewardCoins || 10) * 0.8));
-            result = {
-              accepted: true,
-              reply: `Mình đồng ý điều chỉnh thời gian tập trung xuống ${newMins} phút và mức thưởng ${newCoins} Vàng để bạn bắt đầu dễ dàng hơn nhé! ✨`,
-              newTargetMinutes: newMins,
-              newRewardCoins: newCoins,
-              newType: 'focus'
-            };
-          } else if (wantsMoreCoins) {
-            const newCoins = Math.min(25, (quest.rewardCoins || 10) + 3);
-            result = {
-              accepted: true,
-              reply: `Lý do của bạn rất xác đáng! Mình đồng ý nâng mức thưởng lên ${newCoins} Vàng nhé. Cố gắng hoàn thành thật tốt nha! ✨`,
-              newRewardCoins: newCoins,
-              newTargetMinutes: quest.targetMinutes || 25,
-              newType: quest.type || 'focus'
-            };
-          } else if (userAgreed) {
-            result = {
-              accepted: true,
-              reply: `Tuyệt vời, tụi mình đã thống nhất thông số nhiệm vụ này nhé! Bạn có thể nhận việc và bắt đầu ngay. ✨`,
-              newRewardCoins: quest.rewardCoins,
-              newTargetMinutes: quest.targetMinutes,
-              newType: quest.type
-            };
-          } else {
-            result = {
-              accepted: false,
-              reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để cân bằng nỗ lực, tụi mình giữ mức này nhé. Dưới đây là các phương án khả thi hơn nè:\n- Phương án 1: Giữ nguyên mức thưởng ${quest.rewardCoins} Vàng và rút ngắn còn 20 phút.\n- Phương án 2: Hoàn thành ngay không cần bấm giờ với mức thưởng 5 Vàng.`,
-              options: [
-                { id: 1, label: `Phương án 1 (20 phút • ${quest.rewardCoins} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${quest.rewardCoins} Vàng`, newTargetMinutes: 20, newRewardCoins: quest.rewardCoins, newType: 'focus' },
-                { id: 2, label: `Phương án 2 (Không cần bấm giờ • 5 Vàng)`, argument: `Chốt phương án 2: Không cần bấm giờ, 5 Vàng`, newTargetMinutes: 0, newRewardCoins: 5, newType: 'bounty' }
-              ]
-            };
-          }
+          result = runDeterministicQuestDebate(quest, argument, selectedOpt);
         }
 
         const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
@@ -1036,6 +1994,11 @@ Trả về ĐÚNG định dạng JSON:
         }
         if (!Array.isArray(result.options) || result.options.length === 0) {
           result.options = parseDebateOptionsFromText(result.reply, 'quest');
+        }
+        if (sse) {
+          sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+          sse.end('result', result);
+          return;
         }
         return res.status(200).json(result);
       }
@@ -1226,72 +2189,46 @@ Trả về ĐÚNG định dạng JSON:
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
-        let result = null;
-        if (API_KEY) {
-          try {
-            result = await callAI(systemPrompt, userPrompt, 0.4);
-          } catch (_) {}
-        }
+        const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
+        const sse = isStream ? createSSEStream(res) : null;
+        const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         const selectedOpt = payload?.selectedOption;
+        let result = null;
+        try {
+          result = await runNegotiationAgent({
+            domain: 'reward',
+            caller,
+            redis,
+            systemPrompt,
+            userPrompt,
+            targetEntity: reward,
+            selectedOption: selectedOpt,
+            userArgument: argument,
+            tools: [TOOL_GET_MY_USER_DATA, TOOL_UPDATE_REWARD_PARAMETERS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
+            onEvent
+          });
+        } catch (_) {}
+
+        if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
+          const parsed = parseAIJsonContent(result.reply);
+          if (parsed && typeof parsed.reply === 'string') {
+            result.reply = parsed.reply;
+            if ((!result.options || result.options.length === 0) && Array.isArray(parsed.options)) {
+              result.options = normalizeDebateOptions(parsed.options, 'reward');
+            }
+            if (parsed.accepted !== undefined && !selectedOpt && !userAgreed) {
+              result.accepted = Boolean(parsed.accepted);
+            }
+          }
+        }
+
         const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         // Deterministic fallback for reward debate if AI is offline
         if (!result) {
-          const isLowerPriceReq = /(?:giảm|hạ|bớt|rẻ).*(?:giá|vàng)|\d+\s*vàng/i.test(argument);
-          const isLowerTimeReq = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)|\d+\s*phút/i.test(argument);
-          const isNoTimerReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ)/i.test(argument);
-
-          if (selectedOpt) {
-            result = {
-              accepted: true,
-              reply: `Mình rất vui được chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Phần thưởng đã được cập nhật giá và thời lượng mới. ✨`,
-              newPrice: selectedOpt.newPrice,
-              newTargetMinutes: selectedOpt.newTargetMinutes,
-              newTier: selectedOpt.newTier,
-              newName: selectedOpt.newName
-            };
-          } else if (isNoTimerReq) {
-            result = {
-              accepted: true,
-              reply: `Được chứ! Mình chuyển phần thưởng này sang dạng đổi quà nhận ngay không cần bấm giờ nhé. ✨`,
-              newPrice: reward.price,
-              newTargetMinutes: 0,
-              newTier: reward.tier
-            };
-          } else if (isLowerPriceReq && isLowerTimeReq) {
-            const newPrice = Math.max(10, Math.floor(reward.price * 0.7));
-            const newMins = Math.max(10, Math.floor((reward.targetMinutes || 30) * 0.7));
-            result = {
-              accepted: true,
-              reply: `Phương án này rất hợp lý! Mình đồng ý giảm giá xuống ${newPrice} Vàng tương ứng với ${newMins} phút tận hưởng nhé! ✨`,
-              newPrice,
-              newTargetMinutes: newMins,
-              newTier: newPrice < 30 ? 'common' : reward.tier
-            };
-          } else if (isLowerPriceReq) {
-            result = {
-              accepted: false,
-              reply: `Món quà này rất giá trị nên mình giữ mức giá ${reward.price} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${Math.floor(reward.price * 0.6)} Vàng nhưng rút ngắn thời lượng còn 20 phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
-              options: [
-                { id: 1, label: `Phương án 1 (20 phút • ${Math.floor(reward.price * 0.6)} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${Math.floor(reward.price * 0.6)} Vàng`, newTargetMinutes: 20, newPrice: Math.floor(reward.price * 0.6), newTier: 'common' }
-              ]
-            };
-          } else if (userAgreed) {
-            result = {
-              accepted: true,
-              reply: `Tuyệt vời, tụi mình đã chốt xong phần thưởng này nhé! ✨`,
-              newPrice: reward.price,
-              newTargetMinutes: reward.targetMinutes,
-              newTier: reward.tier
-            };
-          } else {
-            result = {
-              accepted: false,
-              reply: `Mình rất hiểu mong muốn của bạn, nhưng tụi mình tạm giữ thông số này để bạn có thêm động lực hoàn thành nhiệm vụ nhé! ✨`
-            };
-          }
+          result = runDeterministicRewardDebate(reward, argument, selectedOpt);
         }
 
         const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
@@ -1357,6 +2294,11 @@ Trả về ĐÚNG định dạng JSON:
         }
         if (!Array.isArray(result.options) || result.options.length === 0) {
           result.options = parseDebateOptionsFromText(result.reply, 'reward');
+        }
+        if (sse) {
+          sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang ký duyệt thông số và hoàn tất phản hồi...', pct: 100 });
+          sse.end('result', result);
+          return;
         }
         return res.status(200).json(result);
       }
@@ -1695,11 +2637,37 @@ ${questSummary}
 - Lịch sử đối thoại trước đó: ${JSON.stringify(history)}
 - Ý kiến / Đề xuất thương lượng mới của người chơi: "${argument}"`;
 
+        const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
+        const sse = isStream ? createSSEStream(res) : null;
+        const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
+
         let result = null;
-        if (API_KEY) {
-          try {
-            result = await callAI(systemPrompt, userPrompt, 0.4);
-          } catch (_) {}
+        try {
+          result = await runNegotiationAgent({
+            domain: 'loan',
+            caller,
+            redis,
+            systemPrompt,
+            userPrompt,
+            targetEntity: loan,
+            selectedOption,
+            userArgument: argument,
+            tools: [TOOL_GET_MY_USER_DATA, TOOL_GET_BANK_MARKET_STATUS, TOOL_UPDATE_LOAN_TERMS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
+            onEvent
+          });
+        } catch (_) {}
+
+        if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
+          const parsed = parseAIJsonContent(result.reply);
+          if (parsed && typeof parsed.reply === 'string') {
+            result.reply = parsed.reply;
+            if ((!result.options || result.options.length === 0) && Array.isArray(parsed.options)) {
+              result.options = normalizeDebateOptions(parsed.options, 'loan');
+            }
+            if (parsed.accepted !== undefined && !selectedOption && !userAgreed) {
+              result.accepted = Boolean(parsed.accepted);
+            }
+          }
         }
 
         // Deterministic fallback for debate if AI is offline
@@ -1848,6 +2816,11 @@ ${questSummary}
           });
         }
 
+        if (sse) {
+          sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu hợp đồng tín dụng & hoàn tất lời khuyên...', pct: 100 });
+          sse.end('result', result);
+          return;
+        }
         return res.status(200).json(result);
       }
 

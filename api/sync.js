@@ -666,6 +666,31 @@ export async function authenticateCaller(token, redis, adminConfig) {
   return null;
 }
 
+/**
+ * ponytail: Safe, user-scoped cloud state retriever.
+ * Strictly queries data belonging to userSub, preventing cross-tenant leakage.
+ */
+export async function getUserCloudData(redis, userSub) {
+  if (!redis || !userSub) return null;
+  try {
+    let raw = await redis.get(`levelup:user:google:${userSub}`);
+    if (!raw) raw = await redis.get(`levelup:user:${userSub}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      profile: parsed.profile || {},
+      bank: parsed.profile?.bank || parsed.bank || null,
+      quests: Array.isArray(parsed.quests) ? parsed.quests : [],
+      shopItems: Array.isArray(parsed.shopItems) ? parsed.shopItems : [],
+      inventory: Array.isArray(parsed.inventory) ? parsed.inventory : [],
+      ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
+      activeTimer: parsed.activeTimer || null
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 export async function verifyIsAdmin(token, redis, adminConfig) {
   if (!token || typeof token !== 'string') return false;
   const cleanToken = token.trim();

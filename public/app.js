@@ -3301,21 +3301,188 @@ function appendUserChatBubble(container, text) {
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
 }
 
-function createDebateLoadingBubble(text = 'AI đang xem xét đề xuất thương lượng của bạn...') {
+function createDebateLoadingBubble(modeOrText = 'quest') {
   const row = document.createElement('div');
-  row.className = 'flex justify-start items-start gap-2 message-fade-in';
+  row.className = 'flex justify-start items-start gap-2 message-fade-in mb-3';
+
+  let mode = 'quest';
+  let initialText = '';
+  if (modeOrText === 'reward' || modeOrText === 'loan' || modeOrText === 'quest') {
+    mode = modeOrText;
+  } else if (typeof modeOrText === 'string') {
+    initialText = modeOrText;
+    if (/phần thưởng|quà/i.test(modeOrText)) mode = 'reward';
+    else if (/khoản vay|ngân hàng|lãi/i.test(modeOrText)) mode = 'loan';
+  }
+
+  const stepsConfig = {
+    quest: [
+      { icon: '🔍', text: 'Đang tra cứu hồ sơ cá nhân & dữ liệu hiệp sĩ...' },
+      { icon: '⏱️', text: 'Đang phân tích thời gian thực hiện & mức Vàng đề xuất...' },
+      { icon: '⚖️', text: 'Đang đối chiếu nỗ lực thực tế và cân bằng hệ thống...' },
+      { icon: '⚡', text: 'Đang chọn công cụ cập nhật thông số nhiệm vụ...' },
+      { icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...' }
+    ],
+    reward: [
+      { icon: '🔍', text: 'Đang kiểm tra số Vàng tích lũy & kho phần thưởng...' },
+      { icon: '🎁', text: 'Đang xem xét giá trị quà & thời gian giải trí...' },
+      { icon: '⚖️', text: 'Đang cân đối động lực để bạn hoàn thành nhiệm vụ...' },
+      { icon: '⚡', text: 'Đang gọi công cụ cập nhật giá & phân hạng quà...' },
+      { icon: '🛡️', text: 'Đang ký duyệt thông số và hoàn tất phản hồi...' }
+    ],
+    loan: [
+      { icon: '🔍', text: 'Đang tra cứu dư nợ, chuỗi chăm chỉ & điểm tín dụng...' },
+      { icon: '🏦', text: 'Đang kiểm tra thanh khoản kho bạc & trần lãi suất...' },
+      { icon: '📊', text: 'Đang tính toán hạn mức vay & tỷ lệ trích nợ an toàn...' },
+      { icon: '⚡', text: 'Đang gọi công cụ thiết lập gói vay ưu đãi...' },
+      { icon: '🛡️', text: 'Đang đóng dấu hợp đồng tín dụng & hoàn tất lời khuyên...' }
+    ]
+  };
+
+  const steps = stepsConfig[mode] || stepsConfig.quest;
+  if (initialText) {
+    steps[0] = { icon: '🔍', text: initialText };
+  }
+  let currentStepIdx = 0;
+
   row.innerHTML = `
-    <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">🤖</div>
-    <div class="max-w-[88%] sm:max-w-[90%] bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs px-4 py-2.5 sm:py-3 text-xs sm:text-[13px] text-amber-700 dark:text-amber-300 shadow-xs flex items-center gap-2">
-      <span class="inline-flex gap-1 items-center shrink-0">
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 0ms"></span>
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 150ms"></span>
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 300ms"></span>
-      </span>
-      <span class="italic text-[11px] sm:text-xs">${escapeHtml(text)}</span>
+    <div class="w-7 h-7 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs select-none">🤖</div>
+    <div class="max-w-[88%] sm:max-w-[90%] bg-white dark:bg-slate-900 border border-amber-300/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3 sm:p-3.5 text-xs sm:text-[13px] text-amber-900 dark:text-amber-200 shadow-sm flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-2 border-b border-amber-200/50 dark:border-slate-800 pb-1.5 text-[10px] sm:text-[11px] font-semibold text-amber-700 dark:text-amber-400 select-none">
+        <span class="flex items-center gap-1.5">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="tracking-wide">AI Đang Xử Lý Thời Gian Thực</span>
+        </span>
+        <span class="step-badge font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-slate-800 text-amber-800 dark:text-amber-300">
+          Bước 1/${steps.length}
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2.5 py-0.5 min-h-[28px]">
+        <span class="step-icon text-base shrink-0 animate-pulse">${steps[0].icon}</span>
+        <span class="step-text font-medium text-slate-800 dark:text-slate-100 transition-all duration-300 leading-snug">
+          ${steps[0].text}
+        </span>
+      </div>
+
+      <div class="w-full bg-amber-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
+        <div class="step-progress bg-gradient-to-r from-amber-500 to-amber-600 h-1 rounded-full transition-all duration-500" style="width: ${(1 / steps.length) * 100}%"></div>
+      </div>
     </div>
   `;
+
+  const badgeEl = row.querySelector('.step-badge');
+  const iconEl = row.querySelector('.step-icon');
+  const textEl = row.querySelector('.step-text');
+  const progressEl = row.querySelector('.step-progress');
+
+  const intervalId = setInterval(() => {
+    if (currentStepIdx < steps.length - 1) {
+      currentStepIdx++;
+      const s = steps[currentStepIdx];
+      if (badgeEl) badgeEl.textContent = `Bước ${currentStepIdx + 1}/${steps.length}`;
+      if (iconEl) iconEl.textContent = s.icon;
+      if (textEl) {
+        textEl.style.opacity = '0';
+        setTimeout(() => {
+          textEl.textContent = s.text;
+          textEl.style.opacity = '1';
+        }, 150);
+      }
+      if (progressEl) {
+        const pct = Math.min(95, Math.round(((currentStepIdx + 1) / steps.length) * 100));
+        progressEl.style.width = `${pct}%`;
+      }
+    }
+  }, 2200);
+
+  // Nhận sự kiện thời gian thực từ luồng Server-Sent Events
+  row.updateStep = (stepData) => {
+    if (!stepData) return;
+    if (intervalId) clearInterval(intervalId); // Tắt bộ đếm giả lập khi đã có sự kiện thật
+    if (stepData.icon && iconEl) iconEl.textContent = stepData.icon;
+    if (stepData.text && textEl) {
+      textEl.style.opacity = '0';
+      setTimeout(() => {
+        textEl.textContent = stepData.text;
+        textEl.style.opacity = '1';
+      }, 120);
+    }
+    if (badgeEl && stepData.step) {
+      badgeEl.textContent = `Bước ${stepData.step}/${stepData.totalSteps || steps.length}`;
+    }
+    if (progressEl && stepData.pct !== undefined) {
+      progressEl.style.width = `${Math.min(100, Math.max(5, stepData.pct))}%`;
+    }
+  };
+
+  row.cleanup = () => {
+    if (intervalId) clearInterval(intervalId);
+  };
+
   return row;
+}
+
+// Bộ đọc luồng Server-Sent Events (SSE) thời gian thực cho thương lượng AI
+async function fetchDebateStream(url, options, onStep) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    let errJson = null;
+    try { errJson = await res.json(); } catch (_) {}
+    throw new Error(errJson?.error || `HTTP ${res.status}`);
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('text/event-stream')) {
+    // Tương thích ngược nếu server trả JSON tĩnh thông thường
+    return await res.json();
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let finalResult = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop();
+
+    for (const part of parts) {
+      if (!part.trim()) continue;
+      const lines = part.split('\n');
+      let event = 'message';
+      let dataStr = '';
+      for (const line of lines) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+      }
+      if (dataStr) {
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (event === 'step') {
+            if (typeof onStep === 'function') onStep(parsed);
+          } else if (event === 'result') {
+            finalResult = parsed;
+          } else if (event === 'error') {
+            throw new Error(parsed?.error || 'Lỗi xử lý luồng AI');
+          }
+        } catch (e) {
+          if (event === 'error') throw e;
+        }
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error('Không nhận được dữ liệu kết quả từ luồng streaming.');
+  }
+  return finalResult;
 }
 
 function parseDebateOptionsFromText(text, type = 'reward') {
@@ -3485,9 +3652,27 @@ function appendAiChatBubble(container, {
   botIcon = '🤖',
   options = [],
   onSelectOption = null,
-  mode = 'quest'
+  mode = 'quest',
+  toolsExecuted = []
 }) {
   if (!container) return;
+
+  // Unpack if reply is a JSON string (failsafe in case backend or raw model returned json)
+  if (typeof reply === 'string' && (reply.trim().startsWith('{') || reply.trim().startsWith('```json'))) {
+    try {
+      let raw = reply.trim();
+      if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+      else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/i, '').replace(/```\s*$/, '');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.reply === 'string') {
+        reply = parsed.reply;
+        if ((!options || options.length === 0) && Array.isArray(parsed.options)) {
+          options = parsed.options;
+        }
+      }
+    } catch (_) {}
+  }
+
   const row = document.createElement('div');
   row.className = 'flex justify-start items-start gap-2 message-fade-in';
 
@@ -3506,6 +3691,27 @@ function appendAiChatBubble(container, {
         ${diffTags.map(tag => `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-200 border border-emerald-400/50">${escapeHtml(tag)}</span>`).join('')}
       </div>
     `;
+  }
+
+  let toolsHtml = '';
+  if (Array.isArray(toolsExecuted) && toolsExecuted.length > 0) {
+    const executedPills = toolsExecuted.map(t => {
+      if (t === 'get_my_user_data') return '🔍 Đã đọc hồ sơ';
+      if (t === 'get_bank_market_status') return '🏦 Kiểm tra kho bạc';
+      if (t === 'update_quest_parameters') return '⚡ Cập nhật nhiệm vụ';
+      if (t === 'update_reward_parameters') return '🎁 Chốt giá quà';
+      if (t === 'update_loan_terms') return '📜 Chốt khoản vay';
+      if (t === 'suggest_negotiation_options') return '💡 Gợi ý phương án';
+      return null;
+    }).filter(Boolean);
+    if (executedPills.length > 0) {
+      toolsHtml = `
+        <div class="mt-1 flex flex-wrap items-center gap-1 opacity-75 text-[10px] text-slate-500 dark:text-slate-400">
+          <span class="font-medium">🛠️ AI Tools:</span>
+          ${executedPills.map(p => `<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">${escapeHtml(p)}</span>`).join('')}
+        </div>
+      `;
+    }
   }
 
   // Parse options if not provided directly
@@ -3544,6 +3750,7 @@ function appendAiChatBubble(container, {
         ${statusBadge}
       </div>
       <div class="text-xs sm:text-[13px] leading-relaxed break-words">${renderMarkdown(reply)}</div>
+      ${toolsHtml}
       ${diffTagsHtml}
       ${optionsHtml}
     </div>
@@ -3669,7 +3876,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
 
   appendUserChatBubble(chatLogs, argument);
 
-  const loadingBubble = createDebateLoadingBubble('AI đang xem xét đề xuất thương lượng của bạn...');
+  const loadingBubble = createDebateLoadingBubble('quest');
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
 
@@ -3682,9 +3889,12 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
 
     const prevVerdict = { ...currentPendingVerdict };
 
-    const res = await fetch('/api/ai', {
+    const data = await fetchDebateStream('/api/ai', {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'text/event-stream'
+      },
       body: JSON.stringify({
         action: 'debate_quest',
         payload: {
@@ -3693,14 +3903,31 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
           history: currentDebateHistory,
           currentRewards,
           userCoins: appState.profile?.coins || 0,
-          selectedOption
+          selectedOption,
+          stream: true
         }
       })
+    }, (stepData) => {
+      if (loadingBubble && loadingBubble.updateStep) loadingBubble.updateStep(stepData);
     });
 
-    if (!res.ok) throw new Error('AI Error');
-    const data = await res.json();
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
+
+    if (data && typeof data.reply === 'string' && (data.reply.trim().startsWith('{') || data.reply.trim().startsWith('```json'))) {
+      try {
+        let raw = data.reply.trim();
+        if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+        else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/i, '').replace(/```\s*$/, '');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.reply === 'string') {
+          data.reply = parsed.reply;
+          if ((!data.options || data.options.length === 0) && Array.isArray(parsed.options)) {
+            data.options = parsed.options;
+          }
+        }
+      } catch (_) {}
+    }
 
     const diffTags = [];
     if (data.accepted) {
@@ -3729,6 +3956,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       botIcon: '🤖',
       options: data.options,
       mode: 'quest',
+      toolsExecuted: data.toolsExecuted,
       onSelectOption: (opt) => sendDebateArgument(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
@@ -3767,6 +3995,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       sfx.playFanfare();
     }
   } catch (err) {
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
     const errRow = document.createElement('div');
     errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
@@ -4002,7 +4231,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
 
   appendUserChatBubble(chatLogs, argument);
 
-  const loadingBubble = createDebateLoadingBubble('AI đang xem xét đề xuất thương lượng phần thưởng...');
+  const loadingBubble = createDebateLoadingBubble('reward');
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
 
@@ -4016,9 +4245,12 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
 
     const prevReward = { ...currentPendingReward };
 
-    const res = await fetch('/api/ai', {
+    const data = await fetchDebateStream('/api/ai', {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'text/event-stream'
+      },
       body: JSON.stringify({
         action: 'debate_reward',
         payload: {
@@ -4027,14 +4259,31 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
           history: currentRewardDebateHistory,
           currentQuests,
           userCoins: appState.profile?.coins || 0,
-          selectedOption
+          selectedOption,
+          stream: true
         }
       })
+    }, (stepData) => {
+      if (loadingBubble && loadingBubble.updateStep) loadingBubble.updateStep(stepData);
     });
 
-    if (!res.ok) throw new Error('AI Error');
-    const data = await res.json();
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
+
+    if (data && typeof data.reply === 'string' && (data.reply.trim().startsWith('{') || data.reply.trim().startsWith('```json'))) {
+      try {
+        let raw = data.reply.trim();
+        if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+        else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/i, '').replace(/```\s*$/, '');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.reply === 'string') {
+          data.reply = parsed.reply;
+          if ((!data.options || data.options.length === 0) && Array.isArray(parsed.options)) {
+            data.options = parsed.options;
+          }
+        }
+      } catch (_) {}
+    }
 
     const diffTags = [];
     if (data.accepted) {
@@ -4062,6 +4311,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
       botIcon: '🎁',
       options: data.options,
       mode: 'reward',
+      toolsExecuted: data.toolsExecuted,
       onSelectOption: (opt) => sendRewardDebateArgument(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
@@ -4085,6 +4335,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
       sfx.playFanfare();
     }
   } catch (err) {
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
     const errRow = document.createElement('div');
     errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
@@ -8611,7 +8862,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
 
   appendUserChatBubble(chatLogs, argument);
 
-  const loadingBubble = createDebateLoadingBubble('Trợ lý AI đang xem xét đề xuất thương lượng khoản vay...');
+  const loadingBubble = createDebateLoadingBubble('loan');
   chatLogs.appendChild(loadingBubble);
   chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
 
@@ -8647,10 +8898,11 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
     };
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
-    const res = await fetch('/api/ai', {
+    const data = await fetchDebateStream('/api/ai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
@@ -8664,14 +8916,31 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
           quests: activeQuests,
           shopItems,
           earningsStats: earnings,
-          selectedOption
+          selectedOption,
+          stream: true
         }
       })
+    }, (stepData) => {
+      if (loadingBubble && loadingBubble.updateStep) loadingBubble.updateStep(stepData);
     });
 
-    if (!res.ok) throw new Error('AI Error');
-    const data = await res.json();
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
+
+    if (data && typeof data.reply === 'string' && (data.reply.trim().startsWith('{') || data.reply.trim().startsWith('```json'))) {
+      try {
+        let raw = data.reply.trim();
+        if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+        else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/i, '').replace(/```\s*$/, '');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.reply === 'string') {
+          data.reply = parsed.reply;
+          if ((!data.options || data.options.length === 0) && Array.isArray(parsed.options)) {
+            data.options = parsed.options;
+          }
+        }
+      } catch (_) {}
+    }
 
     const diffTags = [];
     if (data.accepted) {
@@ -8704,6 +8973,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
       botIcon: '🤖',
       options: data.options,
       mode: 'loan',
+      toolsExecuted: data.toolsExecuted,
       onSelectOption: (opt) => sendBankDebateMessage(opt.argument || `Chốt phương án ${opt.id}`, opt)
     });
 
@@ -8743,6 +9013,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
       if (typeof sfx !== 'undefined' && sfx.playFanfare) sfx.playFanfare();
     }
   } catch (err) {
+    if (loadingBubble && loadingBubble.cleanup) loadingBubble.cleanup();
     loadingBubble.remove();
     const errRow = document.createElement('div');
     errRow.className = 'flex justify-start items-start gap-2 message-fade-in';
