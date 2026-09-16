@@ -2267,9 +2267,15 @@ function isMobilePhone() {
     return false;
   }
 
-  // 6. Window outerWidth vs innerWidth check: DevTools window is much larger than emulated viewport
+  // 6. DevTools viewport emulation check: Desktop browser window is much larger than emulated viewport.
+  // ponytail: Guard by touchPoints <= 1 and devicePixelRatio so real phones rotated to landscape
+  // (innerWidth > innerHeight) or high-DPI screens are never falsely blocked as desktop computers.
   if (typeof window !== 'undefined' && window.outerWidth && window.innerWidth) {
-    if (window.outerWidth - window.innerWidth > 120) {
+    const dpr = window.devicePixelRatio || 1;
+    const normalizedOuterWidth = (window.outerWidth > window.innerWidth * 1.5 && dpr > 1)
+      ? window.outerWidth / dpr
+      : window.outerWidth;
+    if (touchPoints <= 1 && (normalizedOuterWidth - window.innerWidth > 120)) {
       return false;
     }
   }

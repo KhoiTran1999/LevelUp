@@ -383,6 +383,7 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
       touchPoints = 0,
       outerWidth = 0,
       innerWidth = 0,
+      dpr = 1,
       isMobileClientHint = false
     } = mockEnv;
 
@@ -397,7 +398,12 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
     if (/Windows|macOS|Linux/i.test(clientPlatform)) return false;
     if (hasFineMouse) return false;
     if (touchPoints === 1) return false;
-    if (outerWidth && innerWidth && (outerWidth - innerWidth > 120)) return false;
+
+    // DevTools viewport check guarded by touchPoints <= 1 & dpr
+    const normalizedOuterWidth = (outerWidth > innerWidth * 1.5 && dpr > 1)
+      ? outerWidth / dpr
+      : outerWidth;
+    if (touchPoints <= 1 && (normalizedOuterWidth - innerWidth > 120)) return false;
 
     return true;
   }
@@ -422,7 +428,7 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   };
   assert.strictEqual(testDeviceDetection(devToolsSpoofedIPhone), false, 'Phải bắt và chặn đứng edge case DevTools giả lập kích cỡ iPhone trên máy tính');
 
-  // 3. Điện thoại iPhone thật (Safari/Chrome iOS)
+  // 3. Điện thoại iPhone thật (Safari/Chrome iOS) - chiều dọc
   const realIPhone = {
     ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
     platform: 'iPhone',
@@ -433,7 +439,7 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   };
   assert.strictEqual(testDeviceDetection(realIPhone), true, 'iPhone thật phải được nhận diện thành công');
 
-  // 4. Điện thoại Android thật (Samsung Galaxy / Pixel)
+  // 4. Điện thoại Android thật (Samsung Galaxy / Pixel) - chiều dọc
   const realAndroid = {
     ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.94 Mobile Safari/537.36',
     platform: 'Linux aarch64',
@@ -446,7 +452,43 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   };
   assert.strictEqual(testDeviceDetection(realAndroid), true, 'Android Phone thật phải được nhận diện thành công');
 
-  console.log('✓ Test 9: Chống gian lận hoàn hảo - Chặn cả máy tính lẫn DevTools giả lập kích cỡ điện thoại.');
+  // 5. EDGE CASE: Điện thoại iPhone thật xoay ngang (Landscape mode)
+  const realIPhoneLandscape = {
+    ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+    platform: 'iPhone',
+    hasFineMouse: false,
+    touchPoints: 5,
+    outerWidth: 844,
+    innerWidth: 844
+  };
+  assert.strictEqual(testDeviceDetection(realIPhoneLandscape), true, 'iPhone thật xoay ngang (landscape) phải được nhận diện là điện thoại hợp lệ');
+
+  // 6. EDGE CASE: Điện thoại Android thật xoay ngang với màn hình độ phân giải cao (High DPI)
+  const realAndroidLandscapeHighDpi = {
+    ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.94 Mobile Safari/537.36',
+    platform: 'Linux aarch64',
+    clientPlatform: 'Android',
+    hasFineMouse: false,
+    touchPoints: 5,
+    outerWidth: 2400,
+    innerWidth: 800,
+    dpr: 3,
+    isMobileClientHint: true
+  };
+  assert.strictEqual(testDeviceDetection(realAndroidLandscapeHighDpi), true, 'Android thật xoay ngang màn hình nét cao không bị chặn nhầm là máy tính');
+
+  // 7. EDGE CASE: DevTools máy tính xoay ngang viewport (Landscape DevTools) vẫn bị chặn
+  const devToolsLandscapeSpoofed = {
+    ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+    platform: 'Win32',
+    hasFineMouse: true,
+    touchPoints: 1,
+    outerWidth: 1920,
+    innerWidth: 844
+  };
+  assert.strictEqual(testDeviceDetection(devToolsLandscapeSpoofed), false, 'DevTools giả lập xoay ngang trên PC vẫn bị chặn chính xác');
+
+  console.log('✓ Test 9: Chống gian lận hoàn hảo - Chặn cả máy tính lẫn DevTools giả lập, đồng thời hỗ trợ điện thoại xoay ngang 100%.');
 }
 
 console.log('🎉 TẤT CẢ CÁC KIỂM THỬ CHO TÍNH NĂNG ẢNH BẰNG CHỨNG ĐÃ THÀNH CÔNG RỰC RỠ!\n');
