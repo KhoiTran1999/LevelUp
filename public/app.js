@@ -2223,6 +2223,63 @@ let currentProofQuest = null;
 let currentProofBase64 = null;
 let isSubmittingProof = false;
 
+// ponytail: Strict real-mobile detector. Blocks desktop browsers and DevTools mobile emulation (anti-cheat).
+function isMobilePhone() {
+  if (typeof navigator === 'undefined') return false;
+
+  const ua = navigator.userAgent || navigator.vendor || '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileClientHint = Boolean(navigator.userAgentData?.mobile);
+
+  // 1. Must match a mobile UA or client hint
+  if (!isMobileUA && !isMobileClientHint) return false;
+
+  // --- ANTI-CHEAT DEVTOOLS & DESKTOP SPOOFING GUARDS ---
+  // 2. Desktop OS check: Host platform on Windows/Mac/Linux (DevTools keeps host platform)
+  const platform = navigator.platform || '';
+  if (/Win32|Win64|Windows|Linux x86_64/i.test(platform)) {
+    return false;
+  }
+  // MacIntel host check: on desktop Mac running DevTools iPhone mode, platform is MacIntel but touchPoints <= 1
+  if (/MacIntel/i.test(platform)) {
+    const tp = navigator.maxTouchPoints || 0;
+    if (tp <= 1 || !/iPad/i.test(ua)) {
+      return false;
+    }
+  }
+
+  // 3. UserAgentData host OS check (Chrome DevTools often leaks host OS)
+  const clientPlatform = navigator.userAgentData?.platform || '';
+  if (/Windows|macOS|Linux/i.test(clientPlatform)) {
+    return false;
+  }
+
+  // 4. Pointer / Hover hardware check: PC/Laptop mouse is active even in DevTools
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    if (window.matchMedia('(any-pointer: fine)').matches && window.matchMedia('(any-hover: hover)').matches) {
+      return false;
+    }
+  }
+
+  // 5. DevTools touch emulation check: Chrome DevTools sets maxTouchPoints = 1
+  const touchPoints = navigator.maxTouchPoints || 0;
+  if (touchPoints === 1) {
+    return false;
+  }
+
+  // 6. Window outerWidth vs innerWidth check: DevTools window is much larger than emulated viewport
+  if (typeof window !== 'undefined' && window.outerWidth && window.innerWidth) {
+    if (window.outerWidth - window.innerWidth > 120) {
+      return false;
+    }
+  }
+
+  return true;
+}
+if (typeof window !== 'undefined') {
+  window.isMobilePhone = isMobilePhone;
+}
+
 // Client-side lightweight image compressor via HTML5 Canvas
 function compressImage(file, maxWidth = 800, quality = 0.7) {
   return new Promise((resolve, reject) => {
@@ -2266,6 +2323,8 @@ function openQuestProofModal(quest) {
   currentProofBase64 = null;
   isSubmittingProof = false;
 
+  const isMobile = isMobilePhone();
+
   const rankEl = document.getElementById('proof-quest-rank');
   if (rankEl) {
     rankEl.textContent = `HẠNG ${quest.rank || 'B'}`;
@@ -2299,8 +2358,25 @@ function openQuestProofModal(quest) {
     noteInput.disabled = false;
   }
 
+  const noteZone = document.getElementById('proof-note-zone');
+  if (noteZone) {
+    if (!isMobile) {
+      noteZone.classList.add('hidden');
+    } else {
+      noteZone.classList.remove('hidden');
+    }
+  }
+
+  const desktopNoticeZone = document.getElementById('proof-desktop-notice-zone');
   const captureZone = document.getElementById('proof-capture-zone');
-  if (captureZone) captureZone.classList.remove('hidden');
+
+  if (isMobile) {
+    if (captureZone) captureZone.classList.remove('hidden');
+    if (desktopNoticeZone) desktopNoticeZone.classList.add('hidden');
+  } else {
+    if (captureZone) captureZone.classList.add('hidden');
+    if (desktopNoticeZone) desktopNoticeZone.classList.remove('hidden');
+  }
 
   const previewZone = document.getElementById('proof-preview-zone');
   if (previewZone) previewZone.classList.add('hidden');
@@ -2317,13 +2393,22 @@ function openQuestProofModal(quest) {
   const submitBtn = document.getElementById('btn-submit-proof');
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.innerHTML = `<span>Gửi AI Duyệt</span><span>📸</span>`;
+    if (!isMobile) {
+      submitBtn.classList.add('hidden');
+    } else {
+      submitBtn.classList.remove('hidden');
+      submitBtn.innerHTML = `<span>Gửi AI Duyệt</span><span>📸</span>`;
+    }
   }
 
   openModal('modal-quest-proof');
 }
 
 async function submitQuestProofToAI() {
+  if (!isMobilePhone()) {
+    showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+    return;
+  }
   if (!currentProofQuest || !currentProofBase64 || isSubmittingProof) return;
 
   const noteInput = document.getElementById('input-quest-proof-note');
@@ -9122,6 +9207,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputProofFile = document.getElementById('input-quest-proof-file');
   if (btnTriggerCamera && inputProofFile) {
     btnTriggerCamera.addEventListener('click', () => {
+      if (!isMobilePhone()) {
+        showToast('Chỉ cho phép chụp ảnh trực tiếp bằng điện thoại (chống gian lận)!', 'warning');
+        return;
+      }
       sfx.playClick();
       inputProofFile.click();
     });
@@ -9129,6 +9218,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (inputProofFile) {
     inputProofFile.addEventListener('change', async (e) => {
+      if (!isMobilePhone()) {
+        e.target.value = '';
+        showToast('Không cho phép đính kèm ảnh từ máy tính! Vui lòng dùng điện thoại chụp ảnh.', 'error');
+        return;
+      }
       const file = e.target.files?.[0];
       if (!file) return;
       try {
@@ -9158,6 +9252,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRetakePhoto = document.getElementById('btn-retake-photo');
   if (btnRetakePhoto) {
     btnRetakePhoto.addEventListener('click', () => {
+      if (!isMobilePhone()) {
+        showToast('Chỉ hỗ trợ chụp ảnh trên điện thoại!', 'warning');
+        return;
+      }
       sfx.playClick();
       currentProofBase64 = null;
       if (inputProofFile) inputProofFile.value = '';
@@ -9176,6 +9274,30 @@ document.addEventListener('DOMContentLoaded', () => {
       submitQuestProofToAI();
     });
   }
+
+  // Handle live window resize / DevTools toggling while proof modal is open
+  window.addEventListener('resize', () => {
+    const modal = document.getElementById('modal-quest-proof');
+    if (modal && !modal.classList.contains('hidden') && currentProofQuest) {
+      const isMobile = isMobilePhone();
+      const captureZone = document.getElementById('proof-capture-zone');
+      const desktopNoticeZone = document.getElementById('proof-desktop-notice-zone');
+      const submitBtn = document.getElementById('btn-submit-proof');
+      const noteZone = document.getElementById('proof-note-zone');
+
+      if (isMobile) {
+        if (captureZone && !currentProofBase64) captureZone.classList.remove('hidden');
+        if (desktopNoticeZone) desktopNoticeZone.classList.add('hidden');
+        if (submitBtn) submitBtn.classList.remove('hidden');
+        if (noteZone) noteZone.classList.remove('hidden');
+      } else {
+        if (captureZone) captureZone.classList.add('hidden');
+        if (desktopNoticeZone) desktopNoticeZone.classList.remove('hidden');
+        if (submitBtn) submitBtn.classList.add('hidden');
+        if (noteZone) noteZone.classList.add('hidden');
+      }
+    }
+  });
 
   // Open Shop Reward Modal (Desktop, Mobile & Global)
   const openRewardHandler = () => {

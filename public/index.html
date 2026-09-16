@@ -2328,7 +2328,26 @@
         <!-- Hidden Camera Input (native capture="environment" for rear camera on mobile) -->
         <input type="file" id="input-quest-proof-file" accept="image/*" capture="environment" class="hidden">
 
-        <!-- Initial Photo Trigger Button / Dropzone -->
+        <!-- Desktop Anti-Cheat Notice Zone (shown when accessed from computer) -->
+        <div id="proof-desktop-notice-zone" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3">
+          <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl shadow-sm">
+            📱
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+              Yêu Cầu Chụp Ảnh Trên Điện Thoại
+            </div>
+            <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              Để đảm bảo tính trung thực (tránh gian lận), hệ thống <span class="font-bold text-rose-500 dark:text-rose-400">không cho phép đính kèm hình từ máy tính</span> mà chỉ chấp nhận ảnh chụp thực tế bằng camera điện thoại.
+            </p>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left flex items-start gap-2">
+            <span class="text-base shrink-0">💡</span>
+            <span>Vui lòng đăng nhập hoặc mở <strong>LevelUp</strong> trên trình duyệt điện thoại để mở máy ảnh và hoàn thành nhiệm vụ này nhé!</span>
+          </div>
+        </div>
+
+        <!-- Initial Photo Trigger Button / Dropzone (Mobile Only) -->
         <div id="proof-capture-zone">
           <button id="btn-trigger-camera" type="button" class="w-full py-6 px-4 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 transition-all flex flex-col items-center justify-center gap-2 group active:scale-[0.98]">
             <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
@@ -2353,7 +2372,7 @@
         </div>
 
         <!-- Optional User Note -->
-        <div>
+        <div id="proof-note-zone">
           <label for="input-quest-proof-note" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
             Ghi chú thêm cho AI <span class="text-[10px] font-normal text-slate-400">(Tùy chọn)</span>
           </label>

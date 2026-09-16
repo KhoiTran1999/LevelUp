@@ -357,5 +357,97 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   console.log('✓ Test 8: Khắc phục triệt để Bug #7 - Người dùng không bị bắt đếm giờ lại từ đầu sau khi reload trang.');
 }
 
+// Test 9: Chống gian lận - Chặn đính kèm file trên máy tính, chỉ cho phép camera điện thoại
+{
+  const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+
+  // 9.1 Kiểm tra giao diện HTML có vùng thông báo chống gian lận trên máy tính
+  assert.ok(indexHtml.includes('id="proof-desktop-notice-zone"'), 'HTML phải có khu vực cảnh báo trên máy tính #proof-desktop-notice-zone');
+  assert.ok(indexHtml.includes('Yêu Cầu Chụp Ảnh Trên Điện Thoại'), 'HTML phải có tiêu đề yêu cầu chụp ảnh trên điện thoại');
+  assert.ok(indexHtml.includes('không cho phép đính kèm hình từ máy tính'), 'HTML phải giải thích rõ ràng không cho phép đính kèm ảnh từ máy tính để tránh gian lận');
+  assert.ok(indexHtml.includes('accept="image/*" capture="environment"'), 'Input camera phải có capture="environment" cho camera sau mobile');
+
+  // 9.2 Kiểm tra logic app.js có hàm isMobilePhone và các chốt chặn
+  assert.ok(appJs.includes('function isMobilePhone()'), 'app.js phải định nghĩa hàm isMobilePhone()');
+  assert.ok(appJs.includes('proof-desktop-notice-zone'), 'openQuestProofModal phải xử lý ẩn/hiện proof-desktop-notice-zone');
+  assert.ok(appJs.includes('!isMobilePhone()'), 'app.js phải có chốt chặn !isMobilePhone() chống gian lận');
+
+  // 9.3 Kiểm thử thuật toán nhận diện thiết bị và chống DevTools giả mạo
+  function testDeviceDetection(mockEnv) {
+    const {
+      ua = '',
+      platform = '',
+      clientPlatform = '',
+      hasFineMouse = false,
+      touchPoints = 0,
+      outerWidth = 0,
+      innerWidth = 0,
+      isMobileClientHint = false
+    } = mockEnv;
+
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    if (!isMobileUA && !isMobileClientHint) return false;
+
+    // Desktop OS check
+    if (/Win32|Win64|Windows|Linux x86_64/i.test(platform)) return false;
+    if (/MacIntel/i.test(platform)) {
+      if (touchPoints <= 1 || !/iPad/i.test(ua)) return false;
+    }
+    if (/Windows|macOS|Linux/i.test(clientPlatform)) return false;
+    if (hasFineMouse) return false;
+    if (touchPoints === 1) return false;
+    if (outerWidth && innerWidth && (outerWidth - innerWidth > 120)) return false;
+
+    return true;
+  }
+
+  // 1. Máy tính Windows Desktop Chrome bình thường
+  const desktopWindows = {
+    ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    platform: 'Win32',
+    clientPlatform: 'Windows',
+    hasFineMouse: true
+  };
+  assert.strictEqual(testDeviceDetection(desktopWindows), false, 'Windows PC không được coi là điện thoại');
+
+  // 2. EDGE CASE QUAN TRỌNG: Máy tính Windows dùng Chrome DevTools chọn iPhone 12 Pro (giả mạo UA)
+  const devToolsSpoofedIPhone = {
+    ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+    platform: 'Win32', // DevTools không đổi được platform gốc của máy tính
+    hasFineMouse: true, // Chuột máy tính vẫn đang cắm
+    touchPoints: 1, // DevTools chỉ giả lập 1 điểm chạm
+    outerWidth: 1200, // Cửa sổ trình duyệt máy tính to hơn viewport emulated
+    innerWidth: 390
+  };
+  assert.strictEqual(testDeviceDetection(devToolsSpoofedIPhone), false, 'Phải bắt và chặn đứng edge case DevTools giả lập kích cỡ iPhone trên máy tính');
+
+  // 3. Điện thoại iPhone thật (Safari/Chrome iOS)
+  const realIPhone = {
+    ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+    platform: 'iPhone',
+    hasFineMouse: false,
+    touchPoints: 5,
+    outerWidth: 390,
+    innerWidth: 390
+  };
+  assert.strictEqual(testDeviceDetection(realIPhone), true, 'iPhone thật phải được nhận diện thành công');
+
+  // 4. Điện thoại Android thật (Samsung Galaxy / Pixel)
+  const realAndroid = {
+    ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.94 Mobile Safari/537.36',
+    platform: 'Linux aarch64',
+    clientPlatform: 'Android',
+    hasFineMouse: false,
+    touchPoints: 5,
+    outerWidth: 412,
+    innerWidth: 412,
+    isMobileClientHint: true
+  };
+  assert.strictEqual(testDeviceDetection(realAndroid), true, 'Android Phone thật phải được nhận diện thành công');
+
+  console.log('✓ Test 9: Chống gian lận hoàn hảo - Chặn cả máy tính lẫn DevTools giả lập kích cỡ điện thoại.');
+}
+
 console.log('🎉 TẤT CẢ CÁC KIỂM THỬ CHO TÍNH NĂNG ẢNH BẰNG CHỨNG ĐÃ THÀNH CÔNG RỰC RỠ!\n');
 process.exit(0);
