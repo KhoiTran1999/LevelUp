@@ -17,19 +17,58 @@ dotenv.config();
 
 const BASE_URL = (process.env.CUSTOM_AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
 const API_KEY = process.env.CUSTOM_AI_API_KEY || '';
-const MODEL = process.env.CUSTOM_AI_MODEL || process.env.MODEL_WORKER || 'gpt-4o-mini';
+export const MODEL_WORKER = process.env.MODEL_WORKER || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini';
+export const MODEL_BRAIN = process.env.MODEL_BRAIN || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini';
+export const MODEL = MODEL_WORKER; // ponytail: backward compatibility alias
+
+/**
+ * ponytail: Brain uses reasoning_effort 'low' for deep analysis; Worker uses 'none' for sub-second tool execution
+ */
+export function getModelAndReasoning(role = 'worker', thinkingOverride = null) {
+  const isBrain = thinkingOverride !== null ? Boolean(thinkingOverride) : (role === 'brain');
+  const model = isBrain ? MODEL_BRAIN : MODEL_WORKER;
+  const reasoning_effort = isBrain ? 'low' : 'none';
+  return { model, reasoning_effort, isBrain };
+}
 
 // Helper to call OpenAI-compatible completion with JSON output
 // ponytail: 25s timeout ceiling prevents hanging; triggers deterministic fallback
-async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 = null) {
+export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 = null, opts = {}) {
   if (!API_KEY) {
     throw new Error('CUSTOM_AI_API_KEY is not configured');
   }
 
-  const userContent = imageBase64 ? [
+  let temp = temperature;
+  let img = imageBase64;
+  let options = opts;
+  if (typeof temperature === 'object' && temperature !== null) {
+    options = temperature;
+    temp = options.temperature ?? 0.3;
+    img = options.imageBase64 ?? null;
+  }
+
+  const role = options.role || (options.thinking ? 'brain' : 'worker');
+  const thinking = options.thinking ?? null;
+  const { model, reasoning_effort } = getModelAndReasoning(role, thinking);
+
+  const userContent = img ? [
     { type: 'text', text: userPrompt },
-    { type: 'image_url', image_url: { url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }
+    { type: 'image_url', image_url: { url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}` } }
   ] : userPrompt;
+
+  const payload = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent }
+    ],
+    temperature: temp,
+    stream: false
+  };
+
+  if (reasoning_effort) {
+    payload.reasoning_effort = reasoning_effort;
+  }
 
   const response = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -38,15 +77,7 @@ async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageBase64 =
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${API_KEY}`
     },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent }
-      ],
-      temperature,
-      stream: false
-    })
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
@@ -147,17 +178,34 @@ export function normalizeDebateOptions(rawOptions, domain = 'quest') {
 // AI TOOL CALLING ENGINE & NEGOTIATION TOOLS
 // =============================================================================
 
-export async function callAIWithTools(messages, tools = [], temperature = 0.3) {
+export async function callAIWithTools(messages, tools = [], options = {}) {
   if (!API_KEY) {
     throw new Error('CUSTOM_AI_API_KEY is not configured');
   }
 
+  let temp = 0.3;
+  let role = 'worker';
+  let thinking = null;
+  if (typeof options === 'number') {
+    temp = options;
+  } else if (typeof options === 'object' && options !== null) {
+    temp = options.temperature ?? 0.3;
+    role = options.role || (options.thinking ? 'brain' : 'worker');
+    thinking = options.thinking ?? null;
+  }
+
+  const { model, reasoning_effort } = getModelAndReasoning(role, thinking);
+
   const payload = {
-    model: MODEL,
+    model,
     messages,
-    temperature,
+    temperature: temp,
     stream: false
   };
+
+  if (reasoning_effort) {
+    payload.reasoning_effort = reasoning_effort;
+  }
 
   if (Array.isArray(tools) && tools.length > 0) {
     payload.tools = tools;
@@ -959,8 +1007,8 @@ export async function runNegotiationAgent({
       ];
 
       for (let step = 0; step < 3; step++) {
-        notify(3, '🧠', 'AI đang suy nghĩ, phân tích lập luận & cân đối hệ thống...', 55);
-        const assistantMsg = await callAIWithTools(messages, tools, 0.35);
+        notify(3, '⚡', 'AI Worker đang xử lý công cụ & lập luận chốt thông số...', 55);
+        const assistantMsg = await callAIWithTools(messages, tools, { role: 'worker', thinking: false, temperature: 0.35 });
         messages.push(assistantMsg);
 
         const toolCalls = assistantMsg.tool_calls;
@@ -1129,7 +1177,7 @@ function resolveCategory(origTitle, title, origDesc, desc) {
 }
 
 // Programmatic Arbiter Sanitizer: Enforces chunking on overloaded tasks even if LLM has title inertia
-export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc = '') {
+export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc = '', userRequestedMinutes = 0) {
   if (!result || typeof result !== 'object') return result;
 
   const normOrig = (originalTitle || '').trim();
@@ -1210,6 +1258,24 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     rewardCoins = rewardCoins > 0 ? Math.min(25, Math.max(15, rewardCoins)) : 20;
   }
 
+  // Tôn trọng thời gian người dùng yêu cầu cụ thể nếu hợp lý (10 - 180 phút) và không phải việc vặt hiển nhiên hay nhồi nhét
+  const textMins = extractDurationFromText(`${normOrig} ${originalDesc}`);
+  const explicitReqMins = userRequestedMinutes > 0 ? userRequestedMinutes : textMins;
+  const hasValidUserDuration = explicitReqMins >= 10 && explicitReqMins <= 180 && !isTrivialTask && !isCrammedStudy;
+
+  if (hasValidUserDuration && !result.isNegotiated) {
+    targetMinutes = explicitReqMins;
+    type = 'focus';
+    // Tính toán mức Vàng theo thời gian hợp lý (~0.35 - 0.4 Vàng/phút)
+    const minCoinsByTime = Math.max(3, Math.round(targetMinutes * 0.28));
+    const maxCoinsByTime = Math.max(5, Math.round(targetMinutes * 0.45));
+    if (rewardCoins < minCoinsByTime) {
+      rewardCoins = Math.max(minCoinsByTime, Math.round(targetMinutes * 0.35));
+    } else if (rewardCoins > maxCoinsByTime) {
+      rewardCoins = maxCoinsByTime;
+    }
+  }
+
   // Double check isModified flag
   if (!isModified && title.toLowerCase() !== normOrig.toLowerCase()) {
     isModified = true;
@@ -1223,10 +1289,10 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
     targetMinutes = 0;
     rewardCoins = Math.min(rewardCoins, result.isNegotiated ? 25 : 10);
   } else {
-    targetMinutes = Math.max(result.isNegotiated ? 5 : 15, Math.min(180, targetMinutes));
+    targetMinutes = Math.max(result.isNegotiated ? 5 : 10, Math.min(180, targetMinutes));
     const maxCoinsByTime = result.isNegotiated
       ? (targetMinutes <= 25 ? 35 : (targetMinutes <= 50 ? 50 : 60))
-      : (targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : 40));
+      : (targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : Math.min(45, Math.round(targetMinutes * 0.45))));
     rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
   }
 
@@ -1507,7 +1573,7 @@ function resolveRewardCategory(origName, name, origDesc, desc) {
 }
 
 // Programmatic Arbiter Sanitizer for Rewards
-export function sanitizeEvaluatedReward(result, originalName = '', originalDesc = '') {
+export function sanitizeEvaluatedReward(result, originalName = '', originalDesc = '', userRequestedDuration = 0) {
   if (!result || typeof result !== 'object') return result;
 
   const normOrig = (originalName || '').trim();
@@ -1535,13 +1601,45 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     }
   }
 
-  // Only clamp to 35 for entertainment during initial appraisal, NOT during debate negotiation
-  if (isEntertainment && price < 35 && !isNegotiated) {
-    price = 35;
-    isModified = true;
-    verdict = 'Định giá 35 Vàng cho hoạt động giải trí để đảm bảo nỗ lực tương xứng.';
-    if (!modificationReason) {
-      modificationReason = 'AI đã nâng giá món quà giải trí lên mức 35 Vàng để tương xứng với công sức bạn bỏ ra.';
+  // Sanitize target enjoyment duration in minutes (0 means instant/no countdown, up to 360 mins)
+  const textDuration = extractDurationFromText(`${normOrig} ${name} ${originalDesc} ${description}`);
+  const explicitDuration = userRequestedDuration > 0 ? userRequestedDuration : textDuration;
+  let targetMinutes = parseInt(result.targetMinutes, 10);
+  if (isNaN(targetMinutes) || targetMinutes < 0) {
+    targetMinutes = 0;
+  }
+  // Tôn trọng thời gian người dùng yêu cầu cụ thể nếu hợp lý (10 - 360 phút)
+  if (explicitDuration >= 10 && explicitDuration <= 360 && !isNegotiated) {
+    targetMinutes = explicitDuration;
+  } else if (textDuration > 0 && (targetMinutes === 0 || !isNegotiated)) {
+    targetMinutes = textDuration;
+  } else if (targetMinutes === 0 && isEntertainment && !isNegotiated) {
+    targetMinutes = 30; // default for entertainment activity without explicit duration
+  }
+  targetMinutes = Math.max(0, Math.min(360, targetMinutes));
+
+  // Tỷ lệ công sức 3:1 hoặc 4:1 cho hoạt động giải trí theo thời gian
+  if (isEntertainment && !isNegotiated) {
+    let fairMinPrice = 30;
+    if (targetMinutes > 0 && targetMinutes <= 20) {
+      fairMinPrice = 20;
+    } else if (targetMinutes > 20 && targetMinutes <= 35) {
+      fairMinPrice = 30;
+    } else if (targetMinutes > 35 && targetMinutes <= 60) {
+      fairMinPrice = 50;
+    } else if (targetMinutes > 60 && targetMinutes <= 90) {
+      fairMinPrice = 70;
+    } else if (targetMinutes > 90) {
+      fairMinPrice = Math.min(300, Math.round(targetMinutes * 0.8));
+    }
+
+    if (price < fairMinPrice) {
+      price = fairMinPrice;
+      isModified = true;
+      verdict = `Định giá ${price} Vàng cho ${targetMinutes} phút giải trí để đảm bảo nỗ lực tương xứng.`;
+      if (!modificationReason) {
+        modificationReason = `AI đã điều chỉnh giá lên ${price} Vàng tương ứng với ${targetMinutes} phút giải trí.`;
+      }
     }
   }
 
@@ -1551,20 +1649,6 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
       modificationReason = 'AI đã tối ưu lại phần thưởng để lành mạnh và công bằng hơn.';
     }
   }
-
-  // Sanitize target enjoyment duration in minutes (0 means instant/no countdown, up to 360 mins)
-  const textDuration = extractDurationFromText(`${normOrig} ${name} ${originalDesc} ${description}`);
-  let targetMinutes = parseInt(result.targetMinutes, 10);
-  if (isNaN(targetMinutes) || targetMinutes < 0) {
-    targetMinutes = 0;
-  }
-  // If user mentioned duration in title/desc but AI returned 0 or didn't parse, prioritize text duration unless negotiated
-  if (textDuration > 0 && (targetMinutes === 0 || !isNegotiated)) {
-    targetMinutes = textDuration;
-  } else if (targetMinutes === 0 && isEntertainment && !isNegotiated) {
-    targetMinutes = 30; // default for entertainment activity without explicit duration
-  }
-  targetMinutes = Math.max(0, Math.min(360, targetMinutes));
 
   // Determine tier and enforce minimum price
   const validTiers = ['common', 'rare', 'epic', 'legendary'];
@@ -1581,6 +1665,8 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     } else {
       tier = 'legendary';
     }
+  } else if (isEntertainment && targetMinutes > 0 && targetMinutes <= 20 && tier !== 'legendary' && tier !== 'epic') {
+    tier = 'common';
   }
 
   const tierMin = { common: 15, rare: 30, epic: 70, legendary: 250 };
@@ -1652,6 +1738,7 @@ export default async function handler(req, res) {
         const title = clampStr(payload?.title, 150);
         const description = clampStr(payload?.description, 1000);
         const userEstimateCoins = parseInt(payload?.userEstimateCoins, 10) || 0;
+        const userEstimateDuration = parseInt(payload?.userEstimateDuration, 10) || 0;
         const currentRewards = Array.isArray(payload?.currentRewards) ? payload.currentRewards.slice(0, 5) : [];
         const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!title) {
@@ -1669,22 +1756,31 @@ QUY TẮC THẨM ĐỊNH & PHÂN LOẠI KỶ LUẬT:
 2. CHỐNG KHỐNG THỜI GIAN & VIỆC DỌN DẸP NHANH (ANTI-PADDING):
    - Việc nhà đơn giản (rửa bát/chén, quét nhà, đổ rác, lau bàn) chỉ mất 5-10 phút: BẮT BUỘC chọn type = 'bounty' (thưởng 3 - 5 Vàng, targetMinutes = 0). Giữ đúng tên việc nhà (tuyệt đối không biến thành việc học tập).
    - TUYỆT ĐỐI NGHIÊM CẤM duyệt 30-50 phút cho việc vặt dọn dẹp.
-3. TIÊU CHUẨN TẬP TRUNG SÂU (DEEP WORK) CHO HỌC TẬP & KỸ NĂNG:
-   - CHỈ các việc đòi hỏi tư duy trí óc cao độ (học tập, ôn thi, đọc sách chuyên ngành, lập trình, làm dự án) mới được cấp type = 'focus'.
-   - Khung chuẩn chống lạm phát:
-     * 25 phút Pomodoro = 8 - 10 Vàng.
-     * 50 phút Pomodoro = 18 - 20 Vàng.
-     * Tối đa 25 Vàng cho một phiên học tập chia nhỏ; tối đa 40 Vàng cho mục tiêu nghiên cứu lớn.
+3. TIÊU CHUẨN TẬP TRUNG SÂU (DEEP WORK) & TÔN TRỌNG THỜI GIAN YÊU CẦU:
+   - CHỈ các việc đòi hỏi tư duy trí óc hoặc rèn luyện (học tập, ôn thi, đọc sách, lập trình, làm dự án, thể thao) mới được cấp type = 'focus'.
+   - TÔN TRỌNG THỜI GIAN NGƯỜI DÙNG YÊU CẦU CỤ THỂ NẾU HỢP LÝ:
+     * Nếu người dùng có yêu cầu cụ thể về thời gian (qua ô nhập thời lượng hoặc nêu rõ trong tên/mô tả như "30 phút", "45 phút", "1 tiếng", "20p") và thời gian đó hợp lý (10 - 180 phút):
+       -> BẮT BUỘC BẠN PHẢI TÔN TRỌNG VÀ ĐẶT 'targetMinutes' đúng bằng số phút người dùng mong muốn. TUYỆT ĐỐI KHÔNG tự ý ép về 25 hoặc 50 phút mặc định!
+       -> TÍNH TOÁN MỨC VÀNG TƯƠNG XỨNG THEO THỜI GIAN: Tính công bằng theo tỷ lệ chuẩn ~0.35 - 0.40 Vàng/phút tập trung.
+          Ví dụ chuẩn:
+          + 15 phút: 5 - 7 Vàng
+          + 20 phút: 7 - 9 Vàng
+          + 30 phút: 10 - 12 Vàng
+          + 45 phút: 15 - 17 Vàng
+          + 60 phút (1 tiếng): 20 - 24 Vàng
+          + 90 phút (1.5 tiếng): 30 - 35 Vàng
+          + 120 phút (2 tiếng): 40 - 45 Vàng
+     * Nếu người dùng KHÔNG yêu cầu thời gian cụ thể: Áp dụng khung chuẩn Pomodoro 25 phút = 8 - 10 Vàng, 50 phút = 18 - 20 Vàng.
 4. QUY TẮC BẮT BUỘC CHIA NHỎ NHIỆM VỤ QUÁ TẢI (NGHIÊM CẤM BẢO USER TỰ CHIA):
    - Đánh giá khả thi trong 1 phiên: Một người chỉ có thể tập trung học sâu 1 đơn vị công việc vừa sức (ví dụ: Đọc kỹ & tóm tắt 1 chương sách, làm 3-5 bài tập toán, học 15-20 từ vựng).
    - NHỒI NHÉT / QUÁ TẢI: Nếu người dùng ghi đọc nhiều chương (như "10 chương", "5 chương", "toàn bộ cuốn sách"), học hàng trăm từ, làm toàn bộ đề cương ôn thi:
-     -> BẮT BUỘC BẠN PHẢI CHỦ ĐỘNG ĐỔI TÊN ('title') NGAY THÀNH PHIÊN CHƯƠNG 1 (ví dụ: "Đọc kỹ & tóm tắt Chương 1 môn Kinh tế Vĩ mô").
+     -> BẮT BUỘC BẠF PHẢI CHỦ ĐỘNG ĐỔI TÊN ('title') NGAY THÀNH PHIÊN CHƯƠNG 1 (ví dụ: "Đọc kỹ & tóm tắt Chương 1 môn Kinh tế Vĩ mô").
      -> TUYỆT ĐỐI NGHIÊM CẤM giữ nguyên "10 chương" hay "toàn bộ các chương"!
      -> TUYỆT ĐỐI NGHIÊM CẤM bảo người dùng "hãy tự chia nhỏ" hay "ta cho 90 phút rồi tự chia nhỏ"! Trách nhiệm của bạn là PHẢI chia nhỏ ngay trong 'title' và 'description'.
      -> BẮT BUỘC đặt thời gian 'targetMinutes' là 25 hoặc 50 phút. KHÔNG ĐƯỢC đặt 90 phút cho các việc nhồi nhét.
      -> BẮT BUỘC đặt 'isModified': true và 'isOverloaded': true.
      -> BẮT BUỘC nêu rõ 'modificationReason': Lý do ngắn gọn vì sao việc 10 chương là quá tải và phiên bản Chương 1 này giúp người dùng học tập hiệu quả bền bỉ hơn.
-   - CHỈ giữ nguyên tên ban đầu ("isModified": false) khi nhiệm vụ thực sự rõ ràng, vừa sức và khả thi trong 1 phiên duy nhất (25-50 phút).
+   - CHỈ giữ nguyên tên ban đầu ("isModified": false) khi nhiệm vụ thực sự rõ ràng, vừa sức và khả thi trong 1 phiên duy nhất.
 5. QUY TẮC BẮT BUỘC VỀ YÊU CẦU ẢNH BẰNG CHỨNG ('requiresProof'):
    - BẮT BUỘC ĐẶT "requiresProof": true CHO MỌI NHIỆM VỤ THƯỞNG TỪ 15 VÀNG TRỞ LÊN (Hạng B, A, S) HOẶC PHIÊN TẬP TRUNG TỪ 25-50 PHÚT TRỞ LÊN có sản phẩm hữu hình:
      * Việc học tập, đọc sách, làm bài tập, viết tóm tắt: BẮT BUỘC "requiresProof": true (người dùng chụp trang sách đang đọc, vở ghi bài, bản tóm tắt hoặc màn hình làm việc).
@@ -1708,7 +1804,7 @@ QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - DÙNG TỪ NGỮ ĐƠN GIẢN, DỄ HIỂU: Tuyệt đối không dùng các thuật ngữ kỹ thuật như "Pomodoro", "bounty", "focus", "lạm phát". Giải thích đơn giản, tự nhiên bằng tiếng Việt thông thường.
 - CHỈ GIỮ LẠI THÔNG TIN HỮU ÍCH:
   1. Phân loại công việc (Việc không cần bấm giờ / Việc hẹn giờ tập trung / Thói quen sinh hoạt cơ bản).
-  2. Cơ sở định giá mức thưởng Vàng hoặc thời gian (Ví dụ: "Định mức chuẩn 4 Vàng cho việc dọn dẹp hàng ngày." hoặc "Phiên tập trung 25 phút nhận 10 Vàng chuẩn.").
+  2. Cơ sở định giá mức thưởng Vàng hoặc thời gian (Ví dụ: "Định mức chuẩn 4 Vàng cho việc dọn dẹp hàng ngày." hoặc "Phiên tập trung 30 phút nhận 11 Vàng chuẩn.").
 - TUYỆT ĐỐI KHÔNG chào hỏi ("Chào bạn...", "Xin chào..."), không khen ngợi hoa mỹ, không văn mẫu lê thê, không lôi thôi kéo dài.
 
 Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' và 'isModified' TRƯỚC khi viết 'title'):
@@ -1737,13 +1833,20 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
           rewardContext = `\n- Các phần thưởng mục tiêu trong Cửa Hàng:\n${rewardList}\n- Số Vàng hiện có của người chơi: ${userCoins} Vàng`;
         }
 
+        const inferredDuration = extractDurationFromText(`${title} ${description}`);
+        const effectiveDuration = userEstimateDuration > 0 ? userEstimateDuration : inferredDuration;
+        const durationPromptInfo = effectiveDuration > 0
+          ? `${effectiveDuration} phút (người dùng yêu cầu cụ thể: hãy tôn trọng số phút này nếu hợp lý và tính Vàng tương xứng ~0.35-0.40 Vàng/phút)`
+          : 'Để AI tự đề xuất (25 hoặc 50 phút cho học tập/việc sâu, 0 cho việc vặt)';
+
         const userPrompt = `Nhiệm vụ người dùng đề xuất:
 - Tên công việc: "${title}"
 - Chi tiết: "${description}"
-- Mức thưởng mong muốn: ${userEstimateCoins ? userEstimateCoins + ' Vàng' : 'Để AI tính toán'}${rewardContext}`;
+- Mức thưởng mong muốn: ${userEstimateCoins ? userEstimateCoins + ' Vàng' : 'Để AI tính toán'}
+- Thời gian tập trung mong muốn: ${durationPromptInfo}${rewardContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt);
-        const result = sanitizeEvaluatedQuest(rawResult, title, description);
+        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
+        const result = sanitizeEvaluatedQuest(rawResult, title, description, effectiveDuration);
         result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof);
         return res.status(200).json(result);
       }
@@ -2045,17 +2148,24 @@ QUY TẮC ĐỊNH GIÁ & QUY ĐỔI CÔNG SỨC:
    - "item": Sách vở, dụng cụ học tập, thời trang, đồ dùng cá nhân.
    - "milestone": Du lịch, kỳ nghỉ, mục tiêu lớn dài hạn.
    - "harmful": Hành vi độc hại, chất kích thích, tổn hại sức khỏe (uống say xỉn, thuốc lá, cờ bạc, thâu đêm...). BẮT BUỘC AI đổi tên sang món quà lành mạnh tương đương!
-5. ĐỊNH LƯỢNG THỜI GIAN TẬN HƯỞNG ('targetMinutes'):
-   - BẮT BUỘC TRÍCH XUẤT THỜI GIAN NẾU CÓ TRONG TÊN HOẶC MÔ TẢ: Nếu tên hoặc mô tả có chứa số phút hoặc giờ (Ví dụ: "Xem Youtube 30 phút", "Chơi game 1 tiếng", "Nghỉ ngơi 45p"), bạn BẮT BUỘC đặt 'targetMinutes' đúng bằng số phút đó (Ví dụ: 30 phút = 30, 1 tiếng = 60). Kể cả khi người dùng không điền ô thời gian riêng!
+5. ĐỊNH LƯỢNG THỜI GIAN TẬN HƯỞNG & TÍNH VÀNG TƯƠNG XỨNG ('targetMinutes'):
+   - TÔN TRỌNG THỜI GIAN NGƯỜI DÙNG YÊU CẦU NẾU HỢP LÝ: Nếu người dùng có yêu cầu thời gian tận hưởng cụ thể (qua ô nhập thời lượng hoặc ghi trong tên/mô tả như "15 phút", "20p", "45 phút", "1 tiếng", "2 tiếng") và hợp lý (10 - 360 phút):
+     * BẮT BUỘC đặt 'targetMinutes' đúng bằng số phút người dùng mong muốn.
+     * TÍNH TOÁN GIÁ VÀNG TƯƠNG XỨNG VỚI THỜI GIAN ĐÓ:
+       + 15 - 20 phút giải trí: 20 - 25 Vàng (hạng common/rare)
+       + 30 phút giải trí: 30 - 35 Vàng (hạng rare)
+       + 45 phút giải trí: 40 - 50 Vàng (hạng rare)
+       + 60 phút (1 tiếng) giải trí: 55 - 65 Vàng (hạng rare)
+       + 90 phút giải trí: 75 - 85 Vàng (hạng epic)
+       + 120 phút (2 tiếng) giải trí: 95 - 110 Vàng (hạng epic)
    - ĐỐI VỚI HOẠT ĐỘNG GIẢI TRÍ (Xem video/Youtube, xem phim, chơi game, lướt TikTok/mạng xã hội): BẮT BUỘC PHẢI CÓ THỜI GIAN ĐẾM NGƯỢC (targetMinutes tối thiểu từ 15 - 30 phút trở lên), TUYỆT ĐỐI KHÔNG ĐỂ targetMinutes = 0 cho giải trí.
    - Chỉ đặt targetMinutes = 0 cho quà vật phẩm hoặc đồ ăn thức uống ăn nhanh không cần hẹn giờ (mua sách, uống ly trà sữa, ăn bánh).
-   - Tôn trọng thời gian người dùng đề xuất nếu hợp lý. Nếu người dùng đề xuất thời gian quá dài hoặc quá ngắn so với mức giá, hãy điều chỉnh tương xứng.
 
 QUY CHUẨN NHẬN XÉT TỪ TRỢ LÝ AI ('verdict'):
 - CỰC KỲ SÚC TÍCH, NGẮN GỌN: Đúng 1 đến 2 câu ngắn (dưới 30 từ).
 - DÙNG TỪ NGỮ ĐƠN GIẢN, DỄ HIỂU: Tuyệt đối không dùng các thuật ngữ như "dopamine", "tỷ lệ 3:1", "RPG", "tier", "Pomodoro". Giải thích đơn giản, dễ hiểu bằng tiếng Việt thông thường.
 - CHỈ GIỮ LẠI THÔNG TIN HỮU ÍCH:
-  1. Phân loại món quà và cơ sở định giá mức Vàng (Ví dụ: "Phần thưởng giải trí mức giá 35 Vàng phù hợp với công sức bỏ ra.").
+  1. Phân loại món quà và cơ sở định giá mức Vàng (Ví dụ: "Phần thưởng giải trí 20 phút mức giá 25 Vàng phù hợp với công sức bỏ ra.").
   2. Nếu điều chỉnh hành vi tiêu cực: nêu ngắn gọn lý do bảo vệ sức khỏe.
 - TUYỆT ĐỐI KHÔNG chào hỏi ("Chào bạn...", "Xin chào..."), không khen ngợi hoa mỹ, không văn mẫu lê thê.
 
@@ -2082,7 +2192,7 @@ Trả về ĐÚNG định dạng JSON:
         const inferredDuration = extractDurationFromText(`${name} ${description}`);
         const effectiveDuration = userEstimateDuration > 0 ? userEstimateDuration : inferredDuration;
         const durationPromptInfo = effectiveDuration > 0
-          ? `${effectiveDuration} phút (người dùng chỉ định hoặc trích xuất từ tên/mô tả)`
+          ? `${effectiveDuration} phút (người dùng yêu cầu cụ thể: hãy tôn trọng số phút này nếu hợp lý và tính giá Vàng tương xứng)`
           : 'Để AI đề xuất (BẮT BUỘC đặt 15 - 30 phút cho hoạt động giải trí/mạng xã hội, 0 cho ăn uống/vật phẩm)';
 
         const userPrompt = `Phần thưởng muốn thêm vào Cửa Hàng:
@@ -2091,8 +2201,8 @@ Trả về ĐÚNG định dạng JSON:
 - Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}
 - Thời gian tận hưởng dự kiến: ${durationPromptInfo}${questContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt);
-        const result = sanitizeEvaluatedReward(rawResult, name, description);
+        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
+        const result = sanitizeEvaluatedReward(rawResult, name, description, effectiveDuration);
         result.signature = signReward(result.name, result.price, result.tier, result.targetMinutes);
         return res.status(200).json(result);
       }
@@ -2351,7 +2461,7 @@ ${description ? `- Mô tả: "${description}"` : ''}
 ${userNote ? `- Lời giải trình/ghi chú của người làm: "${userNote}"` : ''}
 Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
 
-        const result = await callAI(systemPrompt, userPrompt, 0.2, imageBase64);
+        const result = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.2, imageBase64 });
         return res.status(200).json({
           approved: Boolean(result.approved),
           feedback: (result.feedback || (result.approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim()
@@ -2459,7 +2569,7 @@ ${shopSummary}
 ${requestedAmount > 0 ? `- Người chơi đang dự định vay: ${requestedAmount} Vàng.` : '- Người chơi chưa biết nên vay bao nhiêu.'}
 Hãy phân tích và đưa ra lời khuyên cho bạn ấy.`;
 
-            aiResult = await callAI(systemPrompt, userPrompt, 0.3);
+            aiResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
           } catch (_) {}
         }
 
@@ -2849,7 +2959,7 @@ QUY TẮC:
 - Trả về JSON: { "commentary": "..." }`;
 
             const userPrompt = `Vàng trong Quỹ: ${poolGold}, Đang cho vay: ${totalBorrowed}, Nợ cứu trợ Kho Bạc: ${bailoutDebt}, Tỷ lệ sử dụng quỹ: ${(utilization * 100).toFixed(1)}%, Lãi gửi: ${(rates.depositRate * 100).toFixed(1)}%/ngày, Lãi vay: ${(rates.borrowRate * 100).toFixed(1)}%/ngày.`;
-            const aiRes = await callAI(systemPrompt, userPrompt, 0.4);
+            const aiRes = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.4 });
             commentary = aiRes?.commentary || '';
           } catch (_) {}
         }

@@ -2946,6 +2946,11 @@ async function submitQuestToAI() {
   const title = document.getElementById('input-quest-title').value.trim();
   const desc = document.getElementById('input-quest-desc').value.trim();
   const estimate = parseInt(document.getElementById('input-quest-estimate').value, 10) || 0;
+  let duration = parseInt(document.getElementById('input-quest-duration')?.value, 10) || 0;
+  if (duration <= 0) {
+    const textDur = extractDurationFromText(`${title} ${desc}`);
+    if (textDur > 0) duration = textDur;
+  }
   const isRepeatable = document.querySelector('input[name="quest-repeat"]:checked')?.value === 'repeatable';
 
   if (!title) {
@@ -2972,6 +2977,7 @@ async function submitQuestToAI() {
           title,
           description: desc,
           userEstimateCoins: estimate,
+          userEstimateDuration: duration,
           currentRewards,
           userCoins: appState.profile?.coins || 0
         }
@@ -9839,6 +9845,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-quest-title').value = '';
     document.getElementById('input-quest-desc').value = '';
     document.getElementById('input-quest-estimate').value = '';
+    const questDurEl = document.getElementById('input-quest-duration');
+    if (questDurEl) questDurEl.value = '';
     const repeatOnceRadio = document.querySelector('input[name="quest-repeat"][value="once"]');
     if (repeatOnceRadio) repeatOnceRadio.checked = true;
     const modNotice = document.getElementById('verdict-modified-notice');

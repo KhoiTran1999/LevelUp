@@ -47,6 +47,8 @@ Deploy sẵn sàng trên **Vercel** chỉ với 1 click!
    CUSTOM_AI_BASE_URL=https://...
    CUSTOM_AI_API_KEY=your_key
    CUSTOM_AI_MODEL=gpt-4o-mini
+   MODEL_WORKER=gpt-4o-mini      # Worker: Tắt thinking để gọi tool siêu tốc (< 1s)
+   MODEL_BRAIN=gpt-4o-mini       # Brain: Bật thinking (low) để thẩm định sâu và chặt chẽ
    REDIS_URL=redis://...
    ```
 

@@ -39,6 +39,6 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n⚔️ LevelUp RPG Guild is running at http://localhost:${PORT}`);
-  console.log(`⚡ AI Arbiter Model: ${process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini'}`);
+  console.log(`⚡ AI Models: Brain=${process.env.MODEL_BRAIN || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini'} (thinking ON) | Worker=${process.env.MODEL_WORKER || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini'} (thinking OFF)`);
   console.log(`🛡️ Redis Cloud: ${process.env.REDIS_URL ? 'Connected' : 'Offline'}\n`);
 });
