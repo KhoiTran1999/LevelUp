@@ -6977,7 +6977,9 @@ async function handleGoogleCredentialResponse(response) {
           hasOnboarded: true
         }
       });
-      if (googleUser.picture && (!appState.profile.avatar || appState.profile.avatar === '⚔️')) {
+      const oldPic = state.profile?.googlePicture;
+      const curAvatar = appState.profile.avatar;
+      if (googleUser.picture && (!curAvatar || curAvatar === '⚔️' || curAvatar === oldPic || isAvatarUrl(curAvatar))) {
         appState.profile.avatar = googleUser.picture;
       }
     } else {
@@ -6991,7 +6993,8 @@ async function handleGoogleCredentialResponse(response) {
       if (!appState.profile.nickname) {
         appState.profile.nickname = googleUser.name || googleUser.email.split('@')[0];
       }
-      if (googleUser.picture && (!appState.profile.avatar || appState.profile.avatar === '⚔️')) {
+      const curAvatar = appState.profile.avatar;
+      if (googleUser.picture && (!curAvatar || curAvatar === '⚔️' || isAvatarUrl(curAvatar))) {
         appState.profile.avatar = googleUser.picture;
       }
     }

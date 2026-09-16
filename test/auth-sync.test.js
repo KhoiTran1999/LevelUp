@@ -92,6 +92,12 @@ async function runGoogleAuthTests() {
       name: 'Hiệp Sĩ A',
       picture: 'https://lh3.googleusercontent.com/avatar_a.jpg'
     },
+    'valid_google_token_user_a_new_avatar': {
+      sub: 'google_sub_user_a_1001',
+      email: 'hiepsi_a@gmail.com',
+      name: 'Hiệp Sĩ A',
+      picture: 'https://lh3.googleusercontent.com/avatar_a_v2_new.jpg'
+    },
     'valid_google_token_user_b': {
       sub: 'google_sub_user_b_2002',
       email: 'hiepsi_b@gmail.com',
@@ -159,6 +165,24 @@ async function runGoogleAuthTests() {
     assert.strictEqual(res.body.isNew, false, 'Đăng nhập lại phải báo isNew: false');
     assert.strictEqual(res.body.state.profile.nickname, 'Hiệp Sĩ A');
     console.log('✓ Test 3 Passed: Đăng nhập lại nhận diện đúng người chơi cũ và tải lại dữ liệu.');
+  }
+
+  // Test 3b: Đổi avatar Google và đăng nhập lại -> Tự động cập nhật avatar và googlePicture mới
+  {
+    const { req, res } = createMockReqRes(
+      'POST',
+      { idToken: 'valid_google_token_user_a_new_avatar' },
+      { action: 'google_auth' }
+    );
+    await handler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.state.profile.googlePicture, 'https://lh3.googleusercontent.com/avatar_a_v2_new.jpg');
+    assert.strictEqual(res.body.state.profile.avatar, 'https://lh3.googleusercontent.com/avatar_a_v2_new.jpg', 'Avatar của người chơi phải được cập nhật sang ảnh mới của Google');
+
+    const savedInRedis = JSON.parse(await mockRedis.get('levelup:user:google:google_sub_user_a_1001'));
+    assert.strictEqual(savedInRedis.profile.googlePicture, 'https://lh3.googleusercontent.com/avatar_a_v2_new.jpg');
+    assert.strictEqual(savedInRedis.profile.avatar, 'https://lh3.googleusercontent.com/avatar_a_v2_new.jpg');
+    console.log('✓ Test 3b Passed: Cập nhật avatar Google thành công khi đăng nhập lại.');
   }
 
   // Test 4: Chặn Google Token không hợp lệ hoặc hết hạn (401 Unauthorized)

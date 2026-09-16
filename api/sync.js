@@ -867,10 +867,16 @@ export default async function handler(req, res) {
         }
       } else {
         if (userState.profile) {
+          const oldGooglePic = userState.profile.googlePicture;
           userState.profile.googleId = sub;
           userState.profile.googleEmail = email;
-          if (picture && !userState.profile.googlePicture) {
+          if (picture) {
             userState.profile.googlePicture = picture;
+            // ponytail: Tự động đồng bộ avatar mới nếu người chơi đang dùng ảnh Google hoặc avatar mặc định
+            const curAvatar = userState.profile.avatar;
+            if (!curAvatar || curAvatar === '⚔️' || curAvatar === oldGooglePic || (typeof curAvatar === 'string' && (curAvatar.includes('googleusercontent.com') || /^https?:\/\//i.test(curAvatar)))) {
+              userState.profile.avatar = picture;
+            }
           }
           if (isAdmin) userState.profile.role = 'admin';
         }
@@ -1324,9 +1330,24 @@ export default async function handler(req, res) {
       }
 
       const data = JSON.parse(rawData);
+      let dataChanged = false;
+      if (caller?.picture && data.profile) {
+        const oldGooglePic = data.profile.googlePicture;
+        if (caller.picture !== oldGooglePic) {
+          data.profile.googlePicture = caller.picture;
+          dataChanged = true;
+          const curAvatar = data.profile.avatar;
+          if (!curAvatar || curAvatar === '⚔️' || curAvatar === oldGooglePic || (typeof curAvatar === 'string' && (curAvatar.includes('googleusercontent.com') || /^https?:\/\//i.test(curAvatar)))) {
+            data.profile.avatar = caller.picture;
+          }
+        }
+      }
       const isCallerAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
       if (isCallerAdmin && data.profile && data.profile.role !== 'admin') {
         data.profile.role = 'admin';
+        dataChanged = true;
+      }
+      if (dataChanged) {
         await redis.set(userKey, JSON.stringify(data), 'EX', 180 * 24 * 3600);
       }
       return res.status(200).json({
@@ -2268,6 +2289,14 @@ export default async function handler(req, res) {
           googleId: userSub,
           googleEmail: userEmail || state.profile?.googleEmail || '',
           googlePicture: userPicture || state.profile?.googlePicture || '',
+          avatar: (() => {
+            const clientAvatar = state.profile?.avatar;
+            const oldPic = existingState?.profile?.googlePicture || state.profile?.googlePicture;
+            if (userPicture && (!clientAvatar || clientAvatar === '⚔️' || clientAvatar === oldPic || (typeof clientAvatar === 'string' && (clientAvatar.includes('googleusercontent.com') || /^https?:\/\//i.test(clientAvatar))))) {
+              return userPicture;
+            }
+            return clientAvatar || userPicture || '⚔️';
+          })(),
           level: balanceCheck.level,
           coins: balanceCheck.coins,
           totalCoinsEarned: balanceCheck.totalCoinsEarned
