@@ -2106,9 +2106,12 @@ async function undoCompleteQuest(questId) {
   if (!quest.isRepeatable && quest.status !== 'completed') return;
   if (quest.isRepeatable && (!quest.completedCount || quest.completedCount <= 0)) return;
 
+  const isRepeat = Boolean(quest.isRepeatable);
   const ok = await confirmAction({
-    title: 'Hoàn Tác Nhiệm Vụ?',
-    message: `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
+    title: isRepeat ? 'Hoàn Tác Lần Nhận Thưởng?' : 'Hoàn Tác Nhiệm Vụ?',
+    message: isRepeat
+      ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
+      : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
     detail: `💰 Sẽ trừ lại: -${quest.rewardCoins} Vàng | ⚡ Sẽ trừ lại: -${quest.rewardCoins * 3} EXP`,
     confirmText: 'Hoàn Tác ↩️',
     cancelText: 'Giữ Nguyên',
@@ -2121,7 +2124,7 @@ async function undoCompleteQuest(questId) {
   delete quest.focusTimerCompleted;
   delete quest._proofVerified;
   if (quest.isRepeatable) {
-    if (!quest.completedCount) delete quest.lastCompletedAt;
+    delete quest.lastCompletedAt;
   } else {
     quest.status = 'active';
     delete quest.completedAt;
@@ -2137,7 +2140,9 @@ async function undoCompleteQuest(questId) {
     category: 'quest',
     amount: quest.rewardCoins,
     title: `Hoàn tác: ${quest.title}`,
-    description: `Hoàn tác hoàn thành: ${quest.title}`,
+    description: isRepeat
+      ? `Hoàn tác lần làm gần nhất (${quest.title})`
+      : `Hoàn tác hoàn thành: ${quest.title}`,
     timestamp: Date.now()
   });
 
@@ -2146,7 +2151,12 @@ async function undoCompleteQuest(questId) {
   renderHeader();
   renderQuests();
   renderLedger();
-  showToast(`Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`, 'info');
+  showToast(
+    isRepeat
+      ? `Đã hoàn tác lần làm gần nhất của nhiệm vụ "${quest.title}".`
+      : `Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`,
+    'info'
+  );
 }
 
 async function restartQuest(questId) {
@@ -2222,6 +2232,7 @@ async function deleteQuest(questId) {
 let currentProofQuest = null;
 let currentProofBase64 = null;
 let isSubmittingProof = false;
+let pendingApprovedQuest = null;
 
 // ponytail: Strict real-mobile detector. Blocks desktop browsers and DevTools mobile emulation (anti-cheat).
 function isMobilePhone() {
@@ -2460,21 +2471,23 @@ async function submitQuestProofToAI() {
     if (resultBox) {
       resultBox.classList.remove('hidden');
       if (data.approved) {
-        resultBox.className = 'p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200';
-        if (resultIcon) resultIcon.textContent = '✅';
-        if (resultTitle) resultTitle.textContent = 'AI ĐÃ DUYỆT THÀNH CÔNG!';
-        if (resultFeedback) resultFeedback.textContent = data.feedback || 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.';
+        pendingApprovedQuest = currentProofQuest;
+        pendingApprovedQuest._proofVerified = true;
+
+        closeModal('modal-quest-proof');
+
+        const titleEl = document.getElementById('proof-approved-quest-title');
+        const feedbackEl = document.getElementById('proof-approved-feedback');
+        const coinsEl = document.getElementById('proof-approved-coins');
+        const expEl = document.getElementById('proof-approved-exp');
+
+        if (titleEl) titleEl.textContent = pendingApprovedQuest.title || '';
+        if (feedbackEl) feedbackEl.textContent = data.feedback || 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.';
+        if (coinsEl) coinsEl.textContent = `+${pendingApprovedQuest.rewardCoins || 10} VÀNG`;
+        if (expEl) expEl.textContent = `+${(pendingApprovedQuest.rewardCoins || 10) * 3} EXP`;
 
         sfx.playFanfare();
-        showToast('🎉 AI đã duyệt bằng chứng! Đang trao thưởng...', 'gold');
-
-        const questToComplete = currentProofQuest;
-        questToComplete._proofVerified = true;
-
-        setTimeout(() => {
-          closeModal('modal-quest-proof');
-          completeQuest(questToComplete.id, true);
-        }, 1200);
+        openModal('modal-proof-approved');
       } else {
         resultBox.className = 'p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200';
         if (resultIcon) resultIcon.textContent = '⚠️';
@@ -5989,6 +6002,12 @@ function renderQuests() {
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 <span>Thương lượng AI</span>
               </button>
+              ${q.isRepeatable && q.completedCount > 0 ? `
+                <button type="button" class="btn-undo-repeat-quest quest-dropdown-item text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn tác lần làm gần nhất">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+                  <span>Hoàn tác lần vừa làm (-${q.rewardCoins} Vàng)</span>
+                </button>
+              ` : ''}
               <button type="button" class="btn-toggle-repeat quest-dropdown-item text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
@@ -6137,6 +6156,14 @@ function renderQuests() {
     const undoBtn = card.querySelector('.btn-undo-quest');
     if (undoBtn) {
       undoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        undoCompleteQuest(q.id);
+      });
+    }
+
+    const undoRepeatBtn = card.querySelector('.btn-undo-repeat-quest');
+    if (undoRepeatBtn) {
+      undoRepeatBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         undoCompleteQuest(q.id);
       });
@@ -9948,6 +9975,31 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSubmitProof.addEventListener('click', () => {
       sfx.playClick();
       submitQuestProofToAI();
+    });
+  }
+
+  // Claim reward button on AI Proof Approved celebration modal
+  const btnClaimProofReward = document.getElementById('btn-claim-proof-reward');
+  if (btnClaimProofReward) {
+    btnClaimProofReward.addEventListener('click', () => {
+      closeModal('modal-proof-approved');
+      if (pendingApprovedQuest) {
+        const questId = pendingApprovedQuest.id;
+        pendingApprovedQuest = null;
+        completeQuest(questId, true);
+      }
+    });
+  }
+
+  const btnCloseProofApproved = document.getElementById('btn-close-proof-approved');
+  if (btnCloseProofApproved) {
+    btnCloseProofApproved.addEventListener('click', () => {
+      closeModal('modal-proof-approved');
+      if (pendingApprovedQuest) {
+        const questId = pendingApprovedQuest.id;
+        pendingApprovedQuest = null;
+        completeQuest(questId, true);
+      }
     });
   }
 

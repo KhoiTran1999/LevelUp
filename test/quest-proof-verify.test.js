@@ -491,5 +491,23 @@ console.log('--- Bắt đầu kiểm thử: AI Quyết Định Ảnh Bằng Ch�
   console.log('✓ Test 9: Chống gian lận hoàn hảo - Chặn cả máy tính lẫn DevTools giả lập, đồng thời hỗ trợ điện thoại xoay ngang 100%.');
 }
 
+// Test 10: Modal thông báo AI duyệt kết quả & đợi người dùng nhấn nút nhận thưởng
+{
+  const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+
+  // 10.1 HTML có modal thông báo kết quả duyệt và nút nhận tiền
+  assert.ok(indexHtml.includes('id="modal-proof-approved"'), 'HTML phải có modal-proof-approved');
+  assert.ok(indexHtml.includes('id="proof-approved-feedback"'), 'HTML phải có phần tử hiển thị feedback AI nhận định');
+  assert.ok(indexHtml.includes('id="btn-claim-proof-reward"'), 'HTML phải có nút bấm nhận tiền thưởng');
+
+  // 10.2 app.js mở modal-proof-approved và đợi click nhận thưởng thay vì tự động cộng tiền ngay
+  assert.ok(appJs.includes("openModal('modal-proof-approved')"), 'app.js phải mở modal-proof-approved khi AI duyệt thành công');
+  assert.ok(appJs.includes("btn-claim-proof-reward"), 'app.js phải gắn sự kiện click cho btn-claim-proof-reward để người dùng bấm nhận tiền');
+  assert.ok(!appJs.includes("setTimeout(() => {\n          closeModal('modal-quest-proof');\n          completeQuest(questToComplete.id, true);\n        }, 1200);"), 'app.js không được tự động cộng tiền và tắt modal sau 1.2s');
+
+  console.log('✓ Test 10: Popup modal thông báo AI duyệt kết quả và chỉ kích hoạt tiền chảy về khi người dùng nhấn nhận thưởng.');
+}
+
 console.log('🎉 TẤT CẢ CÁC KIỂM THỬ CHO TÍNH NĂNG ẢNH BẰNG CHỨNG ĐÃ THÀNH CÔNG RỰC RỠ!\n');
 process.exit(0);

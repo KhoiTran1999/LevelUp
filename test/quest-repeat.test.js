@@ -28,7 +28,7 @@ function handleCompleteQuest(quest, profile, now = 1000) {
 function handleUndoCompleteQuest(quest, profile) {
   if (quest.isRepeatable) {
     quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
-    if (!quest.completedCount) delete quest.lastCompletedAt;
+    delete quest.lastCompletedAt;
   } else {
     quest.status = 'active';
     delete quest.completedAt;
@@ -93,14 +93,16 @@ console.log('--- Bắt đầu kiểm thử Logic Nhiệm Vụ Lặp Lại & Làm
 // Test 3: Undo for repeatable quest
 {
   const profile = { coins: 40, totalCoinsEarned: 40, exp: 90 };
-  const quest = { id: 'q2', title: 'Task lặp lại', rewardCoins: 15, isRepeatable: true, completedCount: 2, status: 'active' };
+  const quest = { id: 'q2', title: 'Task lặp lại', rewardCoins: 15, isRepeatable: true, completedCount: 2, lastCompletedAt: 1000 + 600000, status: 'active' };
 
   handleUndoCompleteQuest(quest, profile);
   assert.strictEqual(quest.completedCount, 1);
+  assert.strictEqual(quest.lastCompletedAt, undefined, 'Phải xóa lastCompletedAt để giải phóng cooldown bị bấm nhầm');
+  assert.strictEqual(getQuestRepeatCooldownRemaining(quest), 0, 'Cooldown phải về 0 sau khi hoàn tác');
   assert.strictEqual(profile.coins, 25);
   assert.strictEqual(profile.exp, 45);
   assert.strictEqual(quest.status, 'active');
-  console.log('✓ Test 3: Hoàn tác nhiệm vụ lặp lại trừ tiền và giảm completedCount an toàn.');
+  console.log('✓ Test 3: Hoàn tác nhiệm vụ lặp lại trừ tiền, giảm completedCount và xóa cooldown an toàn.');
 }
 
 // Test 4: Restart completed one-time quest
