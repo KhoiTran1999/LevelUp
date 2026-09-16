@@ -28,6 +28,21 @@ html.dark {
 html, body {
   max-width: 100%;
   overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and older Edge */
+}
+
+/* Hide scrollbars globally to prevent layout shift & viewport jumping between tabs */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 body {
@@ -48,92 +63,74 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-html.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 9999px;
-}
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #f59e0b;
-}
-html:not(.dark) ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: #d97706;
-}
-
-/* Glowing Rank Badges (High Contrast in both Light and Dark) */
+/* Glowing Rank Badges (Monochromatic Warm Amber/Gold Gradient) */
 .rank-badge-E {
-  background: rgba(100, 116, 139, 0.15);
-  color: #64748b;
-  border: 1px solid rgba(100, 116, 139, 0.4);
+  background: rgba(245, 158, 11, 0.06);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 html.dark .rank-badge-E {
-  color: #94a3b8;
-  border: 1px solid #475569;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .rank-badge-D {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 html.dark .rank-badge-D {
-  color: #4ade80;
-  border: 1px solid #22c55e;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde047;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .rank-badge-C {
-  background: rgba(6, 182, 212, 0.15);
-  color: #0369a1;
-  border: 1px solid rgba(6, 182, 212, 0.4);
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.38);
 }
 html.dark .rank-badge-C {
-  color: #38bdf8;
-  border: 1px solid #06b6d4;
+  background: rgba(245, 158, 11, 0.16);
+  color: #facc15;
+  border: 1px solid rgba(245, 158, 11, 0.45);
 }
 
 .rank-badge-B {
-  background: rgba(168, 85, 247, 0.15);
-  color: #7e22ce;
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  background: rgba(245, 158, 11, 0.18);
+  color: #854d0e;
+  border: 1px solid rgba(245, 158, 11, 0.45);
 }
 html.dark .rank-badge-B {
-  color: #c084fc;
-  border: 1px solid #a855f7;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
 }
 
 .rank-badge-A {
-  background: rgba(249, 115, 22, 0.15);
-  color: #c2410c;
-  border: 1px solid rgba(249, 115, 22, 0.4);
+  background: rgba(245, 158, 11, 0.24);
+  color: #78350f;
+  border: 1px solid #d97706;
 }
 html.dark .rank-badge-A {
-  color: #fb923c;
-  border: 1px solid #f97316;
-  box-shadow: 0 0 12px rgba(249, 115, 22, 0.3);
+  background: rgba(245, 158, 11, 0.26);
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
 }
 
 .rank-badge-S {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(239, 68, 68, 0.25));
-  color: #b45309;
-  border: 1px solid #d97706;
-  box-shadow: 0 0 14px rgba(217, 119, 6, 0.3);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.35));
+  color: #78350f;
+  border: 1px solid #b45309;
+  box-shadow: 0 0 14px rgba(217, 119, 6, 0.35);
 }
 html.dark .rank-badge-S {
-  color: #fde047;
-  border: 1px solid #eab308;
-  box-shadow: 0 0 16px rgba(234, 179, 8, 0.45);
+  color: #fef08a;
+  border: 1px solid #facc15;
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.5);
   animation: pulseGold 2s infinite ease-in-out;
 }
 
@@ -169,116 +166,245 @@ html.dark .rank-badge-S {
 }
 
 /* ==========================================================================
-   RPG Card Classification Tiers (Quests & Rewards)
-   High-contrast color tint, distinct top accent border & reactive hover glow
+   RPG Card Classification Tiers (Quests & Rewards - Distinct Dual Identities)
+   Monochromatic Warm Amber for Quests, Monochromatic Royal Purple for Rewards
    ========================================================================== */
 
-/* 1. Common / Rank E (Slate) */
-.quest-card-rank-E,
-.reward-card-tier-common {
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  border-top: 3px solid #94a3b8;
-  background: linear-gradient(180deg, rgba(226, 232, 240, 0.5) 0%, var(--panel-bg) 60%);
+/* --- A. QUEST CARDS (Guild Bounty Board - Monochromatic Warm Amber & Gold Gradient) --- */
+
+/* 1. Common / Rank E (Warm Amber Tint - Faint/Base) */
+.quest-card-rank-E {
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-top: 3px solid #fef3c7;
+  background: linear-gradient(180deg, rgba(254, 243, 199, 0.35) 0%, var(--panel-bg) 60%);
 }
-html.dark .quest-card-rank-E,
-html.dark .reward-card-tier-common {
-  border: 1px solid rgba(100, 116, 139, 0.35);
-  border-top: 3px solid #64748b;
-  background: linear-gradient(180deg, rgba(51, 65, 85, 0.35) 0%, var(--panel-bg) 60%);
+html.dark .quest-card-rank-E {
+  border: 1px solid rgba(245, 158, 11, 0.12);
+  border-top: 3px solid rgba(254, 243, 199, 0.4);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.03) 0%, var(--panel-bg) 60%);
 }
-.quest-card-rank-E:hover,
-.reward-card-tier-common:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 10px 25px -4px rgba(100, 116, 139, 0.2);
+.quest-card-rank-E:hover {
+  border-color: #fde68a;
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.12);
 }
 
-/* 2. Rank D (Emerald) */
+/* 2. Rank D (Soft Amber) */
 .quest-card-rank-D {
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  border-top: 3px solid #22c55e;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.08) 0%, var(--panel-bg) 60%);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-top: 3px solid #fde68a;
+  background: linear-gradient(180deg, rgba(253, 230, 138, 0.3) 0%, var(--panel-bg) 60%);
 }
 html.dark .quest-card-rank-D {
-  border: 1px solid rgba(34, 197, 94, 0.28);
-  border-top: 3px solid #22c55e;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.13) 0%, var(--panel-bg) 60%);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-top: 3px solid #fde68a;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, var(--panel-bg) 60%);
 }
 .quest-card-rank-D:hover {
-  border-color: #22c55e;
-  box-shadow: 0 10px 25px -4px rgba(34, 197, 94, 0.22);
+  border-color: #fde68a;
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.16);
 }
 
-/* 3. Rare / Rank C (Cyan) */
-.quest-card-rank-C,
-.reward-card-tier-rare {
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  border-top: 3px solid #06b6d4;
-  background: linear-gradient(180deg, rgba(6, 182, 212, 0.08) 0%, var(--panel-bg) 60%);
+/* 3. Rank C (Clear Amber) */
+.quest-card-rank-C {
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-top: 3px solid #fcd34d;
+  background: linear-gradient(180deg, rgba(252, 211, 77, 0.25) 0%, var(--panel-bg) 60%);
 }
-html.dark .quest-card-rank-C,
-html.dark .reward-card-tier-rare {
-  border: 1px solid rgba(6, 182, 212, 0.28);
-  border-top: 3px solid #06b6d4;
-  background: linear-gradient(180deg, rgba(6, 182, 212, 0.13) 0%, var(--panel-bg) 60%);
+html.dark .quest-card-rank-C {
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-top: 3px solid #fcd34d;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--panel-bg) 60%);
 }
-.quest-card-rank-C:hover,
-.reward-card-tier-rare:hover {
-  border-color: #06b6d4;
-  box-shadow: 0 10px 25px -4px rgba(6, 182, 212, 0.22);
+.quest-card-rank-C:hover {
+  border-color: #fcd34d;
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.20);
 }
 
-/* 4. Epic / Rank B (Purple) */
-.quest-card-rank-B,
-.reward-card-tier-epic {
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  border-top: 3px solid #a855f7;
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.09) 0%, var(--panel-bg) 60%);
+/* 4. Rank B (Warm Golden Amber) */
+.quest-card-rank-B {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-top: 3px solid #fbbf24;
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.25) 0%, var(--panel-bg) 60%);
 }
-html.dark .quest-card-rank-B,
-html.dark .reward-card-tier-epic {
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  border-top: 3px solid #a855f7;
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.14) 0%, var(--panel-bg) 60%);
+html.dark .quest-card-rank-B {
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-top: 3px solid #fbbf24;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.11) 0%, var(--panel-bg) 60%);
 }
-.quest-card-rank-B:hover,
-.reward-card-tier-epic:hover {
-  border-color: #a855f7;
-  box-shadow: 0 10px 25px -4px rgba(168, 85, 247, 0.25);
+.quest-card-rank-B:hover {
+  border-color: #fbbf24;
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.24);
 }
 
-/* 5. Rank A (Orange) */
+/* 5. Rank A (Imperial Gold Amber) */
 .quest-card-rank-A {
-  border: 1px solid rgba(249, 115, 22, 0.35);
-  border-top: 3px solid #f97316;
-  background: linear-gradient(180deg, rgba(249, 115, 22, 0.09) 0%, var(--panel-bg) 60%);
-}
-html.dark .quest-card-rank-A {
-  border: 1px solid rgba(249, 115, 22, 0.3);
-  border-top: 3px solid #f97316;
-  background: linear-gradient(180deg, rgba(249, 115, 22, 0.15) 0%, var(--panel-bg) 60%);
-}
-.quest-card-rank-A:hover {
-  border-color: #f97316;
-  box-shadow: 0 10px 25px -4px rgba(249, 115, 22, 0.25);
-}
-
-/* 6. Legendary / Rank S (Gold/Amber) */
-.quest-card-rank-S,
-.reward-card-tier-legendary {
   border: 1px solid rgba(245, 158, 11, 0.45);
   border-top: 3px solid #f59e0b;
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.03) 40%, var(--panel-bg) 75%);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.22) 0%, var(--panel-bg) 60%);
 }
-html.dark .quest-card-rank-S,
-html.dark .reward-card-tier-legendary {
+html.dark .quest-card-rank-A {
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-top: 3px solid #f59e0b;
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.16) 0%, rgba(239, 68, 68, 0.05) 40%, var(--panel-bg) 75%);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.14) 0%, var(--panel-bg) 60%);
 }
-.quest-card-rank-S:hover,
-.reward-card-tier-legendary:hover {
+.quest-card-rank-A:hover {
   border-color: #f59e0b;
-  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 10px 25px -4px rgba(245, 158, 11, 0.28);
+}
+
+/* 6. Rank S (Apex Sovereign Amber/Gold Radiant) */
+.quest-card-rank-S {
+  border: 1px solid rgba(217, 119, 6, 0.55);
+  border-top: 3px solid #d97706;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.28) 0%, rgba(217, 119, 6, 0.08) 40%, var(--panel-bg) 75%);
+}
+html.dark .quest-card-rank-S {
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-top: 3px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.20) 0%, rgba(217, 119, 6, 0.10) 40%, var(--panel-bg) 75%);
+}
+.quest-card-rank-S:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 10px 28px -4px rgba(245, 158, 11, 0.35), 0 0 15px rgba(245, 158, 11, 0.2);
+}
+
+/* --- B. REWARD CARDS (Merchant Bazaar & Treasure Vault - Monochromatic Royal Purple Gradient) --- */
+
+/* 1. Common / Phổ thông (Faint Mystic Lavender) */
+.reward-card-tier-common {
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-top: 3px solid #e9d5ff;
+  background: linear-gradient(180deg, rgba(233, 213, 255, 0.35) 0%, var(--panel-bg) 65%);
+}
+html.dark .reward-card-tier-common {
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-top: 3px solid rgba(233, 213, 255, 0.4);
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.04) 0%, var(--panel-bg) 65%);
+}
+.reward-card-tier-common:hover {
+  border-color: #d8b4fe;
+  box-shadow: 0 12px 28px -4px rgba(168, 85, 247, 0.15);
+}
+
+/* 2. Rare / Cao cấp (Clear Amethyst Purple) */
+.reward-card-tier-rare {
+  border: 1px solid rgba(168, 85, 247, 0.32);
+  border-top: 3px solid #c084fc;
+  background: linear-gradient(180deg, rgba(192, 132, 252, 0.2) 0%, var(--panel-bg) 70%);
+}
+html.dark .reward-card-tier-rare {
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-top: 3px solid #c084fc;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.09) 0%, var(--panel-bg) 70%);
+}
+.reward-card-tier-rare:hover {
+  border-color: #c084fc;
+  box-shadow: 0 12px 28px -4px rgba(168, 85, 247, 0.24);
+}
+
+/* 3. Epic / Quý giá (Royal Amethyst & Mystic Violet) */
+.reward-card-tier-epic {
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  border-top: 3px solid #9333ea;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.25) 0%, var(--panel-bg) 75%);
+}
+html.dark .reward-card-tier-epic {
+  border: 1px solid rgba(168, 85, 247, 0.38);
+  border-top: 3px solid #a855f7;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.14) 0%, var(--panel-bg) 75%);
+}
+.reward-card-tier-epic:hover {
+  border-color: #a855f7;
+  box-shadow: 0 14px 30px -4px rgba(168, 85, 247, 0.32);
+}
+
+/* 4. Legendary / Cực phẩm (Imperial Sovereign Purple & Jewel Radiance) */
+.reward-card-tier-legendary {
+  border: 1px solid rgba(147, 51, 234, 0.6);
+  border-top: 3px solid #7e22ce;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.32) 0%, rgba(126, 34, 206, 0.12) 45%, var(--panel-bg) 75%);
+}
+html.dark .reward-card-tier-legendary {
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  border-top: 3px solid #9333ea;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.22) 0%, rgba(126, 34, 206, 0.12) 45%, var(--panel-bg) 75%);
+}
+.reward-card-tier-legendary:hover {
+  border-color: #a855f7;
+  box-shadow: 0 14px 32px -4px rgba(168, 85, 247, 0.42), 0 0 15px 0 rgba(168, 85, 247, 0.25);
+}
+
+/* --- Card Action Dropdown & Inline Expand Controls --- */
+.quest-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 175px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 40;
+  transform-origin: top right;
+  animation: questDropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes questDropdownIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.quest-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  text-align: left;
+}
+
+/* Multi-line Description Clamping & Toggle */
+.quest-desc-text.line-clamp-2,
+.reward-desc-text.line-clamp-2 {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  overflow: hidden !important;
+}
+
+.quest-desc-text,
+.reward-desc-text {
+  display: block;
+  overflow: visible;
+  word-break: break-word;
+}
+
+.btn-toggle-desc {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 2px;
+  display: inline-block;
+  font-size: 11px;
+  line-height: inherit;
+  transition: opacity 0.15s ease;
+}
+.btn-toggle-desc:hover {
+  opacity: 0.8;
 }
 
 /* Sub-panel (Verdicts, quotes, advice) */
@@ -537,23 +663,94 @@ html.dark .tour-arrow-indicator {
   }
 }
 
-/* Smooth Tab Pane Scene Transition (Fluid, lightweight & non-distracting) */
-.tab-pane:not(.hidden),
-#subtab-pane-shop:not(.hidden),
+/* Smooth Tab Pane Scene Transition (Fluid, high-definition & refined depth) */
+.tab-pane:not(.hidden) {
+  animation: tabPaneFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: opacity, transform, filter;
+}
+
+#subtab-pane-shop:not(.hidden) {
+  animation: subtabSlideLeft 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: opacity, transform;
+}
+
 #subtab-pane-inventory:not(.hidden) {
-  animation: tabPaneFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: subtabSlideRight 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes tabPaneFadeIn {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(8px) scale(0.992);
+    filter: blur(1.5px);
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
+}
+
+@keyframes subtabSlideLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes subtabSlideRight {
+  0% {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Nav Tab Active Glow Accent */
+.nav-tab[data-tab="quests"].active,
+.mobile-nav-btn[data-tab="quests"].active {
+  box-shadow: 0 0 14px -2px rgba(245, 158, 11, 0.35);
+}
+
+.nav-tab[data-tab="shop"].active,
+.mobile-nav-btn[data-tab="shop"].active {
+  box-shadow: 0 0 14px -2px rgba(168, 85, 247, 0.35);
+}
+
+.nav-tab[data-tab="leaderboard"].active,
+.mobile-nav-btn[data-tab="leaderboard"].active,
+.nav-more-item[data-tab="leaderboard"].active,
+.mobile-more-item[data-tab="leaderboard"].active {
+  box-shadow: 0 0 14px -2px rgba(234, 179, 8, 0.35);
+}
+
+.nav-tab[data-tab="ledger"].active,
+.mobile-nav-btn[data-tab="ledger"].active,
+.nav-more-item[data-tab="ledger"].active,
+.mobile-more-item[data-tab="ledger"].active {
+  box-shadow: 0 0 14px -2px rgba(14, 165, 233, 0.35);
+}
+
+.nav-tab[data-tab="bank"].active,
+.mobile-nav-btn[data-tab="bank"].active,
+.nav-more-item[data-tab="bank"].active,
+.mobile-more-item[data-tab="bank"].active {
+  box-shadow: 0 0 14px -2px rgba(16, 185, 129, 0.35);
+}
+
+.nav-tab[data-tab="admin"].active,
+.mobile-nav-btn[data-tab="admin"].active,
+.nav-more-item[data-tab="admin"].active,
+.mobile-more-item[data-tab="admin"].active {
+  box-shadow: 0 0 14px -2px rgba(217, 70, 239, 0.35);
 }
 
 /* Accessibility: Respect Reduced Motion Preferences */

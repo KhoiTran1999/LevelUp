@@ -2587,6 +2587,7 @@ async function buyShopItem(itemId) {
     id: 'inv_' + Date.now(),
     shopItemId: item.id || item.shopItemId,
     name: item.name,
+    description: item.description || '',
     price: item.price,
     tier: item.tier,
     icon: item.icon,
@@ -4545,7 +4546,7 @@ function switchLeaderboardSubtab(subtab) {
 
   if (subtab === 'cheaters') {
     if (btnRanking) {
-      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-500/20 hover:text-amber-500 flex items-center gap-1.5';
+      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-yellow-500/20 hover:text-yellow-600 dark:hover:text-yellow-400 flex items-center gap-1.5';
     }
     if (btnCheaters) {
       btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-rose-500 text-white shadow-sm flex items-center gap-1.5';
@@ -4555,7 +4556,7 @@ function switchLeaderboardSubtab(subtab) {
     fetchCheaters();
   } else {
     if (btnRanking) {
-      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5';
+      btnRanking.className = 'px-3.5 py-1.5 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5';
     }
     if (btnCheaters) {
       btnCheaters.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-500/20 hover:text-rose-500 flex items-center gap-1.5';
@@ -5430,7 +5431,8 @@ function renderQuests() {
     return (b.rewardCoins || 0) - (a.rewardCoins || 0);
   });
 
-  const activeCount = appState.quests.filter(q => q.status === 'active').length;
+  const activeQuests = appState.quests.filter(q => q.status === 'active');
+  const activeCount = activeQuests.length;
   if (activeCountBadge) activeCountBadge.textContent = activeCount;
 
   if (filtered.length === 0) {
@@ -5464,39 +5466,64 @@ function renderQuests() {
 
     card.innerHTML = `
       <div>
-        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <!-- Zone 1: Header (Streamlined: Status & Value with Action Menu "⋮") -->
         <div class="flex items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-2">
-            <span class="rank-badge-${q.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg tracking-wider shadow-xs">HẠNG ${q.rank}</span>
-            ${q.requiresProof ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs'}" title="${q.focusTimerCompleted ? 'Đã hoàn thành đủ thời gian! Chờ chụp ảnh gửi AI thẩm định để nhận thưởng' : 'Cần chụp ảnh gửi AI thẩm định để nhận thưởng'}">
-                📸 ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
-              </span>
-            ` : ''}
+          <div class="flex items-center gap-1.5 sm:gap-2">
             ${isCurrentlyFocusing ? `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
-                ĐANG LÀM
+                ⏱️ ĐANG LÀM
               </span>
             ` : ''}
           </div>
-          <div class="flex items-center gap-1.5">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+          <div class="flex items-center gap-1.5 relative">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-xs" title="Phần thưởng Vàng khi hoàn thành">
               ${COIN_ICON_HTML} <span>+${q.rewardCoins}</span>
             </div>
-            <button class="btn-del-quest text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa nhiệm vụ" aria-label="Xóa nhiệm vụ">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            <button type="button" class="btn-quest-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
             </button>
+            <div class="quest-dropdown-menu hidden">
+              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
+                <span>Phân cấp:</span>
+                <span class="rank-badge-${q.rank} text-[10px] font-mono font-black px-2 py-0.5 rounded ml-auto tracking-wider shadow-xs">HẠNG ${q.rank}</span>
+              </div>
+              ${q.requiresProof ? `
+                <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
+                  <span>Bằng chứng:</span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ml-auto ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'}">
+                    📸 ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
+                  </span>
+                </div>
+              ` : ''}
+              <button type="button" class="btn-debate-quest quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Thương lượng lại nhiệm vụ với AI">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <span>Thương lượng AI</span>
+              </button>
+              <button type="button" class="btn-toggle-repeat quest-dropdown-item text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
+              </button>
+              <button type="button" class="btn-del-quest quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa nhiệm vụ">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span>Xóa nhiệm vụ</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Zone 2: Body (Title & Readable Context) -->
+        <!-- Zone 2: Body (Title & Standardized Clamped Context) -->
         <div class="flex items-start gap-3 my-2">
           <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0 ${isCompleted ? 'opacity-60 grayscale' : ''}">
             ${escapeHtml(getQuestIcon(q))}
           </div>
           <div class="flex-1 min-w-0">
             <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
-            ${q.description ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(q.description)}</p>` : ''}
+            ${q.description ? `
+              <div class="mt-1">
+                <p class="quest-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(q.description)}</p>
+                ${(q.description.length > 55 || q.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -5505,8 +5532,8 @@ function renderQuests() {
         <!-- Zone 3: Meta & Progress Strip (Operational Status) -->
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2 text-xs">
           <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-            ${q.type === 'focus' ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'} font-mono">
+            ${(q.type === 'focus' && q.targetMinutes > 0) ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'} font-mono">
                 ${q.focusTimerCompleted ? `
                   <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                   <span>Đã đủ ${q.targetMinutes}p</span>
@@ -5515,39 +5542,35 @@ function renderQuests() {
                   <span>${q.targetMinutes}p</span>
                 `}
               </span>
-              <span>${q.focusTimerCompleted ? 'Đã xong giờ' : 'Tập trung'}</span>
+            ` : ''}
+          </div>
+
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            ${q.isRepeatable ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold" title="Nhiệm vụ lặp lại hàng ngày">
+                <span>🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
+              </span>
             ` : `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                Không bấm giờ
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400" title="Nhiệm vụ làm 1 lần">
+                <span>1 lần</span>
               </span>
             `}
           </div>
-
-          <button class="btn-toggle-repeat text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${q.isRepeatable ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'}" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
-            ${q.isRepeatable ? `
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              <span>Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
-            ` : `
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
-              <span>1 lần</span>
-            `}
-          </button>
         </div>
 
         <!-- Zone 4: Footer (Action Command Zone) -->
         ${isCompleted ? `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-            <div class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            <div class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
               <span>Hoàn thành</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <button class="btn-restart-quest min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95" title="Làm lại nhiệm vụ này">
+              <button class="btn-restart-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Làm lại nhiệm vụ này">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 <span>Làm lại</span>
               </button>
-              <button class="btn-undo-quest min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95" title="Hoàn tác trạng thái hoàn thành">
+              <button class="btn-undo-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Hoàn tác trạng thái hoàn thành">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                 <span>Hoàn tác</span>
               </button>
@@ -5555,22 +5578,18 @@ function renderQuests() {
           </div>
         ` : `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
-            <button class="btn-debate-quest flex-1 min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95" title="Thương lượng lại nhiệm vụ với AI">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-              <span>Thương lượng</span>
-            </button>
             ${q.focusTimerCompleted && q.requiresProof ? `
-              <button class="btn-submit-quest-proof flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400/50" title="Đã đủ thời gian tập trung! Bấm để chụp ảnh gửi AI duyệt nhận Vàng">
+              <button class="btn-submit-quest-proof w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 bg-amber-600 hover:bg-amber-500 text-white cursor-pointer" title="Đã đủ thời gian tập trung! Bấm để chụp ảnh gửi AI duyệt nhận Vàng">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
                 <span>Chụp Ảnh Nhận Vàng 📸</span>
               </button>
             ` : (q.type === 'focus' ? `
-              <button class="btn-start-focus flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${isSessionOnOtherDevice ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20 ring-2 ring-cyan-400' : (isCurrentlyFocusing ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-400' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-cyan-600/20')}">
+              <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold')}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu')}</span>
+                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu ⏱️')}</span>
               </button>
             ` : `
-              <button class="btn-complete-bounty flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md ${cooldownRemainingMs > 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300/40 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/20 active:scale-95'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
+              <button class="btn-complete-bounty w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${cooldownRemainingMs > 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
               </button>
@@ -5579,6 +5598,38 @@ function renderQuests() {
         `}
       </div>
     `;
+
+    // Dropdown Action Menu Toggle
+    const menuBtn = card.querySelector('.btn-quest-menu');
+    const dropdown = card.querySelector('.quest-dropdown-menu');
+    if (menuBtn && dropdown) {
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
+          if (m !== dropdown) m.classList.add('hidden');
+        });
+        dropdown.classList.toggle('hidden');
+      });
+    }
+
+    // Toggle description expand / collapse
+    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
+    if (toggleDescBtn) {
+      toggleDescBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const descP = card.querySelector('.quest-desc-text');
+        if (descP) {
+          const isClamped = descP.classList.contains('line-clamp-2');
+          if (isClamped) {
+            descP.classList.remove('line-clamp-2');
+            toggleDescBtn.textContent = 'Thu gọn ▲';
+          } else {
+            descP.classList.add('line-clamp-2');
+            toggleDescBtn.textContent = '...xem thêm';
+          }
+        }
+      });
+    }
 
     const toggleRepeatBtn = card.querySelector('.btn-toggle-repeat');
     if (toggleRepeatBtn) {
@@ -5651,10 +5702,10 @@ function renderShop() {
   if (appState.shopItems.length === 0) {
     grid.innerHTML = `
       <div class="col-span-full text-center py-12 sm:py-16 px-4">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
-          🎁
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-3xl shadow-xs">
+          🏪
         </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Cửa hàng chưa có phần thưởng nào!</h3>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Cửa Hàng Chưa Bày Bán Phần Thưởng Nào!</h3>
         <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy tạo những phần thưởng bạn yêu thích (ly cà phê, xem phim, mua sách...) và để AI định giá Vàng hợp lý nhé.</p>
         <div class="flex justify-center">
           <button onclick="window.openRewardModal ? window.openRewardModal() : document.getElementById('btn-open-add-reward-nav')?.click()" class="btn-action-reward flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
@@ -5690,10 +5741,10 @@ function renderShop() {
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier}`;
 
     const tierColors = {
-      common: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
-      rare: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
-      epic: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
-      legendary: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+      common: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/20 shadow-xs',
+      rare: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 shadow-xs',
+      epic: 'bg-purple-500/25 text-purple-800 dark:text-purple-200 border-purple-500/40 shadow-xs font-bold',
+      legendary: 'bg-purple-600 text-white border-purple-400 shadow-md font-black'
     };
     const tierLabels = {
       common: 'PHỔ THÔNG',
@@ -5704,34 +5755,55 @@ function renderShop() {
 
     card.innerHTML = `
       <div>
-        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <!-- Zone 1: Header (Value/Price & Operations Menu) -->
         <div class="flex items-center justify-between gap-2 mb-3">
-          <span class="text-[10px] font-mono uppercase px-2.5 py-1 rounded-lg font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
-            ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
-          </span>
-          <div class="flex items-center gap-1.5">
+          <div>
             ${durationMins > 0 ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 font-mono text-[11px] font-bold border border-purple-500/20 shadow-xs">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 font-mono text-[11px] font-medium border border-purple-500/20 shadow-xs">
                 ⏱️ ${durationMins}p
               </span>
             ` : ''}
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+          </div>
+          <div class="flex items-center gap-1.5 relative">
+            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 text-purple-700 dark:text-purple-300 font-mono font-bold text-xs shadow-xs" title="Giá đổi phần thưởng">
+              <span class="text-[11px] font-bold text-purple-500">Giá:</span>
               ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
             </div>
-            <button class="btn-del-shop-item text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa phần thưởng khỏi Cửa Hàng" aria-label="Xóa phần thưởng khỏi Cửa Hàng">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            <button type="button" class="btn-shop-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
             </button>
+            <div class="shop-dropdown-menu quest-dropdown-menu hidden">
+              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
+                <span>Phân cấp:</span>
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
+                  ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
+                </span>
+              </div>
+              <button type="button" class="btn-debate-shop-item quest-dropdown-item text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer" title="Thương lượng lại phần thưởng với AI">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <span>Thương lượng AI</span>
+              </button>
+              <button type="button" class="btn-del-shop-item quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa phần thưởng khỏi Cửa Hàng">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span>Xóa phần thưởng</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Zone 2: Body (Title & Readable Context) -->
+        <!-- Zone 2: Body (Title & Standardized Clamped Context) -->
         <div class="flex items-start gap-3 my-2">
-          <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0">
+          <div class="w-11 h-11 rounded-xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 flex items-center justify-center text-2xl shadow-xs shrink-0">
             ${escapeHtml(item.icon || '🎁')}
           </div>
           <div class="flex-1 min-w-0">
             <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">${escapeHtml(item.name)}</h3>
-            ${item.description ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(item.description)}</p>` : ''}
+            ${item.description ? `
+              <div class="mt-1">
+                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(item.description)}</p>
+                ${(item.description.length > 55 || item.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -5739,30 +5811,58 @@ function renderShop() {
       <div>
         <!-- Zone 3: Meta & Progress Strip (Affordability) -->
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
-          <span class="text-[11px] font-medium ${canAfford ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'} inline-flex items-center gap-1">
+          <span class="text-[11px] font-medium ${canAfford ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 dark:text-rose-400'} inline-flex items-center gap-1">
             ${canAfford ? `
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>Đủ điều kiện đổi</span>
+              <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+              <span>Đủ Vàng đổi ngay</span>
             ` : `
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" stroke-width="2"/></svg>
+              <svg class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" stroke-width="2"/></svg>
               <span>Còn thiếu ${coinsNeeded} Vàng</span>
             `}
           </span>
         </div>
 
         <!-- Zone 4: Footer (Action Command Zone) -->
-        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
-          <button class="btn-debate-shop-item flex-1 min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95" title="Thương lượng lại phần thưởng với AI">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            <span>Thương lượng</span>
-          </button>
-          <button class="btn-buy-item flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${canAfford ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black shadow-md shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300/40 dark:border-slate-700/40'}" ${canAfford ? '' : 'disabled'}>
-            ${canAfford ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
-            <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p)` : 'Đổi Quà') : 'Chưa Đủ Vàng'}</span>
+        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
+          <button class="btn-buy-item w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200/60 dark:border-slate-700/60'}" ${canAfford ? '' : 'disabled'}>
+            ${canAfford ? '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
+            <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p)` : 'Đổi Quà Ngay') : 'Chưa Đủ Vàng'}</span>
           </button>
         </div>
       </div>
     `;
+
+    // Dropdown Action Menu Toggle
+    const menuBtn = card.querySelector('.btn-shop-menu');
+    const dropdown = card.querySelector('.shop-dropdown-menu');
+    if (menuBtn && dropdown) {
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
+          if (m !== dropdown) m.classList.add('hidden');
+        });
+        dropdown.classList.toggle('hidden');
+      });
+    }
+
+    // Toggle description expand / collapse
+    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
+    if (toggleDescBtn) {
+      toggleDescBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const descP = card.querySelector('.reward-desc-text');
+        if (descP) {
+          const isClamped = descP.classList.contains('line-clamp-2');
+          if (isClamped) {
+            descP.classList.remove('line-clamp-2');
+            toggleDescBtn.textContent = 'Thu gọn ▲';
+          } else {
+            descP.classList.add('line-clamp-2');
+            toggleDescBtn.textContent = '...xem thêm';
+          }
+        }
+      });
+    }
 
     card.querySelector('.btn-del-shop-item').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5839,30 +5939,54 @@ function renderInventory() {
 
     card.innerHTML = `
       <div>
-        <!-- Zone 1: Header (Classification & Value/Reward) -->
+        <!-- Zone 1: Header (Status & Operations Menu) -->
         <div class="flex items-center justify-between gap-2 mb-3">
           <div class="flex items-center gap-2">
             ${isThisActiveReward ? `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-purple-500 text-white shadow-xs animate-pulse">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-500 text-white shadow-xs animate-pulse">
                 ĐANG DÙNG
               </span>
             ` : item.isUsed ? `
-              <span class="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/40">
+              <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/40">
                 ĐÃ DÙNG
               </span>
             ` : `
-              <span class="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 tracking-wider">
+              <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 tracking-wider">
                 CHƯA DÙNG
               </span>
             `}
           </div>
-          <div class="flex items-center gap-1.5">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-black text-xs shadow-xs">
+          <div class="flex items-center gap-1.5 relative">
+            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 text-purple-700 dark:text-purple-300 font-mono font-bold text-xs shadow-xs" title="Giá trị phần thưởng">
+              <span class="text-[11px] font-bold text-purple-500">Trị giá:</span>
               ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
             </div>
-            <button class="btn-del-inv text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg p-1 transition-colors leading-none" title="Xóa khỏi Kho Quà" aria-label="Xóa khỏi Kho Quà">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            <button type="button" class="btn-inv-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
+              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
             </button>
+            <div class="inv-dropdown-menu quest-dropdown-menu hidden">
+              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
+                <span>Phân cấp:</span>
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
+                  ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
+                </span>
+              </div>
+              ${!item.isUsed ? `
+                <button type="button" class="btn-refund-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn trả và nhận lại Vàng">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+                  <span>Trả quà nhận lại Vàng</span>
+                </button>
+              ` : `
+                <button type="button" class="btn-undo-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Đánh dấu chưa sử dụng">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+                  <span>Hoàn tác (Đánh dấu chưa dùng)</span>
+                </button>
+              `}
+              <button type="button" class="btn-del-inv quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa khỏi Kho Quà">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span>Xóa khỏi kho</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -5873,6 +5997,12 @@ function renderInventory() {
           </div>
           <div class="flex-1 min-w-0">
             <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${item.isUsed && !isThisActiveReward ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
+            ${item.description ? `
+              <div class="mt-1">
+                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed break-words">${escapeHtml(item.description)}</p>
+                ${(item.description.length > 55 || item.description.includes('\n')) ? `<button type="button" class="btn-toggle-desc text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
+              </div>
+            ` : ''}
             <p class="mt-1 text-xs text-slate-400 dark:text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</p>
           </div>
         </div>
@@ -5892,28 +6022,24 @@ function renderInventory() {
         ${item.isUsed ? `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
             ${isThisActiveReward ? `
-              <button class="btn-scroll-timer flex-1 min-h-[38px] px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 active:scale-95" title="Xem bộ đếm thời gian">
+              <button class="btn-scroll-timer flex-1 py-2 px-3 rounded-lg bg-purple-600/15 border border-purple-500/30 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer" title="Xem bộ đếm thời gian">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
                 <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
               </button>
             ` : `
-              <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
+              <span class="text-xs font-medium text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
                 <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>Đã sử dụng</span>
               </span>
             `}
-            <button class="btn-undo-inv min-h-[38px] px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95" title="Đánh dấu chưa sử dụng">
+            <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
               <span>Hoàn tác</span>
             </button>
           </div>
         ` : `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
-            <button class="btn-refund-inv min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 active:scale-95" title="Hoàn trả và nhận lại Vàng">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-              <span>Trả quà</span>
-            </button>
-            <button class="btn-use-inv flex-1 min-h-[38px] px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-md shadow-purple-500/20 active:scale-95 flex items-center justify-center gap-1.5">
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
+            <button class="btn-use-inv w-full py-2 px-3 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>Dùng Quà (${durationMins}p)</span>
             </button>
@@ -5921,6 +6047,19 @@ function renderInventory() {
         `}
       </div>
     `;
+
+    // Dropdown Action Menu Toggle
+    const menuBtn = card.querySelector('.btn-inv-menu');
+    const dropdown = card.querySelector('.inv-dropdown-menu');
+    if (menuBtn && dropdown) {
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
+          if (m !== dropdown) m.classList.add('hidden');
+        });
+        dropdown.classList.toggle('hidden');
+      });
+    }
 
     const scrollTimerBtn = card.querySelector('.btn-scroll-timer');
     if (scrollTimerBtn) {
@@ -5946,17 +6085,35 @@ function renderInventory() {
       });
     }
 
-    const undoInvBtn = card.querySelector('.btn-undo-inv');
-    if (undoInvBtn) {
-      undoInvBtn.addEventListener('click', (e) => {
+    card.querySelectorAll('.btn-undo-inv').forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         undoUseInventoryItem(item.id);
       });
-    }
+    });
 
     const useBtn = card.querySelector('.btn-use-inv');
     if (useBtn) {
       useBtn.addEventListener('click', () => useInventoryItem(item.id));
+    }
+
+    // Toggle description expand / collapse
+    const toggleDescBtn = card.querySelector('.btn-toggle-desc');
+    if (toggleDescBtn) {
+      toggleDescBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const descP = card.querySelector('.reward-desc-text');
+        if (descP) {
+          const isClamped = descP.classList.contains('line-clamp-2');
+          if (isClamped) {
+            descP.classList.remove('line-clamp-2');
+            toggleDescBtn.textContent = 'Thu gọn ▲';
+          } else {
+            descP.classList.add('line-clamp-2');
+            toggleDescBtn.textContent = '...xem thêm';
+          }
+        }
+      });
     }
 
     fragment.appendChild(card);
@@ -5995,7 +6152,7 @@ function setLedgerFilter(filter) {
   Object.entries(filterBtns).forEach(([k, btn]) => {
     if (!btn) return;
     if (k === filter) {
-      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer';
+      btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-sky-500 text-white shadow-xs shadow-sky-500/20 cursor-pointer';
     } else {
       btn.className = 'ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer';
     }
@@ -6344,52 +6501,84 @@ function switchTab(tabId) {
   const isAdmin = isUserAdmin();
   const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin'].includes(tabId);
 
+  // Full Archetype RPG Color Matrix
+  const tabColorTheme = {
+    quests: {
+      desktop: 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs font-bold',
+      mobile: 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs'
+    },
+    shop: {
+      desktop: 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shadow-xs font-bold',
+      mobile: 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+    },
+    leaderboard: {
+      desktop: 'active bg-yellow-500/15 dark:bg-yellow-500/25 text-yellow-700 dark:text-yellow-300 border border-yellow-500/40 shadow-xs font-bold',
+      mobile: 'active bg-yellow-500/15 dark:bg-yellow-400/20 text-yellow-700 dark:text-yellow-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-yellow-500/15 dark:bg-yellow-500/25 text-yellow-700 dark:text-yellow-300 font-bold',
+      itemMobile: 'active bg-yellow-500/15 dark:bg-yellow-400/20 text-yellow-700 dark:text-yellow-300 font-bold'
+    },
+    ledger: {
+      desktop: 'active bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/40 shadow-xs font-bold',
+      mobile: 'active bg-sky-500/15 dark:bg-sky-400/20 text-sky-700 dark:text-sky-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 font-bold',
+      itemMobile: 'active bg-sky-500/15 dark:bg-sky-400/20 text-sky-700 dark:text-sky-300 font-bold'
+    },
+    bank: {
+      desktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs font-bold',
+      mobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-bold',
+      itemMobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold'
+    },
+    admin: {
+      desktop: 'active bg-fuchsia-500/15 dark:bg-fuchsia-500/25 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-500/40 shadow-xs font-bold',
+      mobile: 'active bg-fuchsia-500/15 dark:bg-fuchsia-400/20 text-fuchsia-700 dark:text-fuchsia-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300 font-bold',
+      itemMobile: 'active bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300 font-bold'
+    }
+  };
+
   // Close any open more menus
   document.getElementById('nav-more-menu')?.classList.add('hidden');
   document.getElementById('mobile-more-menu')?.classList.add('hidden');
 
-  // Sync desktop more toggle button
+  // Sync desktop more toggle button with current tab vibe
   const btnNavMore = document.getElementById('btn-nav-more');
   if (btnNavMore) {
+    const currentTheme = tabColorTheme[tabId] || tabColorTheme.leaderboard;
     btnNavMore.className = `nav-more-toggle flex items-center gap-1 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition border shrink-0 whitespace-nowrap cursor-pointer ${
       isMoreTab
-        ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border-amber-500/40 shadow-xs font-bold'
+        ? currentTheme.desktop
         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border-transparent'
     }`;
   }
 
-  // Sync mobile more toggle button
+  // Sync mobile more toggle button with current tab vibe
   const btnMobileMore = document.getElementById('btn-mobile-more');
   if (btnMobileMore) {
+    const currentTheme = tabColorTheme[tabId] || tabColorTheme.leaderboard;
     btnMobileMore.className = `mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition cursor-pointer ${
       isMoreTab
-        ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs'
+        ? currentTheme.mobile
         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
     }`;
   }
 
   // Sync desktop tabs
   document.querySelectorAll('.nav-tab').forEach(b => {
-    const isActive = b.dataset.tab === tabId;
-    const isAdminBtn = b.id === 'nav-tab-admin' || b.dataset.tab === 'admin';
+    const tabKey = b.dataset.tab;
+    const isActive = tabKey === tabId;
+    const isAdminBtn = b.id === 'nav-tab-admin' || tabKey === 'admin';
+    const theme = tabColorTheme[tabKey] || tabColorTheme.quests;
 
     if (b.classList.contains('nav-more-item')) {
       if (isAdminBtn && !isAdmin) {
         b.className = 'nav-tab nav-more-item hidden items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left';
         return;
       }
-      if (isAdminBtn) {
-        b.className = `nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
-          isActive
-            ? 'active bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold'
-            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
-        }`;
-        return;
-      }
       b.className = `nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
         isActive
-          ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 font-bold'
-          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          ? (theme.itemDesktop || theme.desktop)
+          : (isAdminBtn ? 'text-fuchsia-600 dark:text-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/40' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800')
       }`;
       return;
     }
@@ -6399,44 +6588,31 @@ function switchTab(tabId) {
       return;
     }
 
-    if (isAdminBtn) {
-      b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition text-purple-600 dark:text-purple-400 border shrink-0 whitespace-nowrap ${
-        isActive
-          ? 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border-purple-500/50 shadow-xs font-bold'
-          : 'hover:text-purple-900 dark:hover:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-500/20'
-      }`;
-      return;
-    }
-
     b.className = `nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap ${
       isActive
-        ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs font-bold'
-        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
+        ? theme.desktop
+        : (isAdminBtn
+            ? 'text-fuchsia-600 dark:text-fuchsia-400 hover:text-fuchsia-900 dark:hover:text-fuchsia-200 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/40 border border-fuchsia-500/20'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent')
     }`;
   });
 
   // Sync mobile bottom bar buttons
   document.querySelectorAll('.mobile-nav-btn').forEach(b => {
-    const isActive = b.dataset.tab === tabId;
-    const isAdminBtn = b.id === 'mobile-nav-admin' || b.dataset.tab === 'admin';
+    const tabKey = b.dataset.tab;
+    const isActive = tabKey === tabId;
+    const isAdminBtn = b.id === 'mobile-nav-admin' || tabKey === 'admin';
+    const theme = tabColorTheme[tabKey] || tabColorTheme.quests;
 
     if (b.classList.contains('mobile-more-item')) {
       if (isAdminBtn && !isAdmin) {
         b.className = 'mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left';
         return;
       }
-      if (isAdminBtn) {
-        b.className = `mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left ${
-          isActive
-            ? 'active bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold'
-            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
-        }`;
-        return;
-      }
       b.className = `mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left ${
         isActive
-          ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold'
-          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          ? (theme.itemMobile || theme.mobile)
+          : (isAdminBtn ? 'text-fuchsia-600 dark:text-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/40' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800')
       }`;
       return;
     }
@@ -6446,19 +6622,12 @@ function switchTab(tabId) {
       return;
     }
 
-    if (isAdminBtn) {
-      b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
-        isActive
-          ? 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
-          : 'text-purple-500/70 dark:text-purple-400/70 hover:bg-purple-500/5 font-medium'
-      }`;
-      return;
-    }
-
     b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
       isActive
-        ? 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs'
-        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+        ? theme.mobile
+        : (isAdminBtn
+            ? 'text-fuchsia-500/70 dark:text-fuchsia-400/70 hover:bg-fuchsia-500/5 font-medium'
+            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium')
     }`;
   });
 
@@ -8786,6 +8955,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!e.target.closest('#btn-mobile-more') && !e.target.closest('#mobile-more-menu')) {
       mobileMoreMenu?.classList.add('hidden');
+    }
+    if (!e.target.closest('.btn-quest-menu') && !e.target.closest('.btn-shop-menu') && !e.target.closest('.btn-inv-menu') && !e.target.closest('.quest-dropdown-menu')) {
+      document.querySelectorAll('.quest-dropdown-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
     }
   });
 

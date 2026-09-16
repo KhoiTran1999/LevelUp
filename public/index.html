@@ -135,9 +135,9 @@
   <!-- ======================================================================= -->
   <!-- DESKTOP / TABLET TOP NAVIGATION BAR (Hidden on Mobile)                  -->
   <!-- ======================================================================= -->
-  <nav class="hidden md:block max-w-6xl mx-auto px-3 sm:px-4 mt-4">
+  <nav class="hidden md:block relative z-30 max-w-6xl mx-auto px-3 sm:px-4 mt-4">
     <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-1.5 xl:gap-2">
-      <div class="flex items-center gap-1 sm:gap-1.5 xl:gap-2 min-w-0 overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1 sm:gap-1.5 xl:gap-2 min-w-0">
         <div class="hidden lg:flex items-center gap-2 mr-0.5 sm:mr-1 pr-1.5 sm:pr-2.5 border-r border-slate-200 dark:border-slate-800 shrink-0 select-none" title="LevelUp RPG">
           <img src="logo.svg" alt="LevelUp Logo" class="w-7 h-7 rounded-lg shadow-sm">
           <span class="font-rpg-title font-black text-sm tracking-wider bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent hidden xl:inline">LEVELUP</span>
@@ -417,11 +417,11 @@
 
       <!-- Empty State -->
       <div id="quests-empty" class="hidden text-center py-12 sm:py-16 px-4">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
-          📜
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-3xl shadow-xs">
+          ⚔️
         </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa có nhiệm vụ nào cần làm!</h3>
-        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Hãy thêm nhiệm vụ bạn cần hoàn thành hôm nay để nhận thưởng Vàng.</p>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Đấu Trường Đang Yên Ả!</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">Bạn đã hoàn thành sạch sẽ các nhiệm vụ hoặc chưa nhận hợp đồng nào. Hãy nhận nhiệm vụ mới để tôi luyện và tích lũy Vàng nhé.</p>
         <div class="flex justify-center">
           <button onclick="document.getElementById('btn-open-add-quest').click()" class="btn-action-quest flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
             <span class="text-sm">⚔️</span>
@@ -434,6 +434,7 @@
 
     <!-- ==================== TAB 2: UNIFIED REWARDS & INVENTORY ==================== -->
     <section id="tab-shop" class="tab-pane hidden">
+
       <!-- Subtabs and Action Ribbon -->
       <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
         <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
@@ -473,11 +474,11 @@
         </div>
 
         <div id="inventory-empty" class="hidden text-center py-12 sm:py-16 px-4">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-3xl text-slate-400 shadow-sm">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-3xl shadow-xs">
             🎒
           </div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Bạn chưa đổi phần thưởng nào!</h3>
-          <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Hãy hoàn thành các nhiệm vụ để kiếm Vàng, sau đó ghé Cửa Hàng để tự thưởng cho mình nhé.</p>
+          <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Túi Đồ Kho Báu Đang Trống!</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Bạn chưa có phần thưởng nào được giữ trong túi. Hãy hoàn thành nhiệm vụ cày Vàng và ghé Cửa Hàng để sắm quà tự thưởng nhé.</p>
           <button onclick="switchRewardSubtab('shop')" class="btn-action-reward inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md">
             <span>🏪</span>
             <span>Ghé Cửa Hàng Đổi Quà</span>
@@ -490,7 +491,7 @@
     <section id="tab-leaderboard" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
+          <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-yellow-600 dark:text-yellow-400">BẢNG XẾP HẠNG THÀNH VIÊN</h2>
           <p class="text-xs text-slate-500 dark:text-slate-400">Những thành viên chăm chỉ với số Vàng hiện có nhiều nhất (Đồng bộ trực tuyến).</p>
         </div>
         <div id="leaderboard-online-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -500,7 +501,7 @@
       </div>
 
       <div class="flex items-center gap-2 mb-4">
-        <button id="btn-subtab-ranking" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5">
+        <button id="btn-subtab-ranking" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5">
           <span>🏆</span>
           <span>Bảng Hiệp Sĩ</span>
         </button>
@@ -559,17 +560,17 @@
     <!-- ==================== TAB 5: LEDGER ==================== -->
     <section id="tab-ledger" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
-        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-amber-600 dark:text-amber-400">LỊCH SỬ THU CHI VÀNG</h2>
+        <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-sky-600 dark:text-sky-400">LỊCH SỬ THU CHI VÀNG</h2>
         <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng, đổi quà và giao dịch tiết kiệm / vay Ngân Hàng.</p>
       </div>
 
       <!-- Mini stats summary -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-amber-500/20 shadow-xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base shrink-0">📥</div>
+        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-sky-500/20 shadow-xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-base shrink-0">📥</div>
           <div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Thu hôm nay</div>
-            <div id="ledger-stat-earn" class="text-sm sm:text-base font-bold font-mono text-amber-600 dark:text-amber-400">+0 <span class="coin-icon"></span></div>
+            <div id="ledger-stat-earn" class="text-sm sm:text-base font-bold font-mono text-sky-600 dark:text-sky-400">+0 <span class="coin-icon"></span></div>
           </div>
         </div>
         <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-rose-500/20 shadow-xs flex items-center gap-3">
@@ -597,7 +598,7 @@
 
       <!-- Filter tabs -->
       <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer">Tất Cả</button>
+        <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-sky-500 text-white shadow-xs shadow-sky-500/20 cursor-pointer">Tất Cả</button>
         <button id="ledger-filter-earn" onclick="setLedgerFilter('earn')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Thu Nhập (+)</button>
         <button id="ledger-filter-spend" onclick="setLedgerFilter('spend')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Đổi Quà (-)</button>
         <button id="ledger-filter-bank" onclick="setLedgerFilter('bank')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">🏦 Tiết Kiệm & Vay</button>
@@ -629,15 +630,15 @@
       </div>
 
       <!-- 1. Header & Bản Tin AI Thống Đốc Ngân Hàng -->
-      <div class="rpg-panel rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 border border-amber-500/30">
+      <div class="rpg-panel rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 border border-emerald-500/30 bg-gradient-to-r from-emerald-500/5 via-transparent to-teal-500/5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-amber-500/20 dark:bg-amber-400/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 dark:bg-emerald-400/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0">
               🏦
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="font-rpg-title font-black text-base sm:text-lg text-amber-700 dark:text-amber-300">
+                <h2 class="font-rpg-title font-black text-base sm:text-lg text-emerald-700 dark:text-emerald-300">
                   NGÂN HÀNG VÀNG
                 </h2>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -649,7 +650,7 @@
               </p>
             </div>
           </div>
-          <button id="btn-refresh-bank" onclick="loadBankState(true)" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button id="btn-refresh-bank" onclick="loadBankState(true)" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
             <span id="btn-refresh-bank-icon" class="inline-block transition-transform">🔄</span> <span id="btn-refresh-bank-text">Cập Nhật</span>
           </button>
         </div>
