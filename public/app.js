@@ -6249,12 +6249,12 @@ function renderQuests() {
             <div class="quest-dropdown-menu hidden">
               <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
                 <span>Phân cấp:</span>
-                <span class="rank-badge-${q.rank} text-[10px] font-mono font-black px-2 py-0.5 rounded ml-auto tracking-wider shadow-xs">HẠNG ${q.rank}</span>
+                <span class="rank-badge-${q.rank} text-[10px] font-mono font-black px-2 py-0.5 rounded ml-auto tracking-wider shadow-xs whitespace-nowrap shrink-0">HẠNG ${q.rank}</span>
               </div>
               ${q.requiresProof ? `
                 <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
                   <span>Bằng chứng:</span>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ml-auto ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'}">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ml-auto whitespace-nowrap shrink-0 ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'}">
                     ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
                   </span>
                 </div>
@@ -6539,7 +6539,7 @@ function renderShop() {
             <div class="shop-dropdown-menu quest-dropdown-menu hidden">
               <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
                 <span>Phân cấp:</span>
-                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs whitespace-nowrap shrink-0 ${tierColors[rawTier] || tierColors.rare}">
                   ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
                 </span>
               </div>
@@ -6722,7 +6722,7 @@ function renderInventory() {
             <div class="inv-dropdown-menu quest-dropdown-menu hidden">
               <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
                 <span>Phân cấp:</span>
-                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${REWARD_TIER_COLORS[rawTier] || REWARD_TIER_COLORS.rare}">
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs whitespace-nowrap shrink-0 ${REWARD_TIER_COLORS[rawTier] || REWARD_TIER_COLORS.rare}">
                   ${REWARD_TIER_LABELS[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
                 </span>
               </div>
