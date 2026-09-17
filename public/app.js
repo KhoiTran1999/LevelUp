@@ -124,6 +124,8 @@ const DEFAULT_STATE = {
     exp: 0,
     coins: 20,
     totalCoinsEarned: 20,
+    totalCoinsSpent: 0,
+    totalFocusSessions: 0,
     title: 'Tân Binh Cấp 1',
     streak: 1,
     soundEnabled: true,
@@ -208,6 +210,7 @@ const DEFAULT_STATE = {
     }
   ],
   inventory: [],
+  completedQuestIds: [],
   ledger: [
     {
       id: 'led_1',
@@ -365,13 +368,21 @@ function deriveLegitimateBalance(state) {
   for (const item of inventory) {
     totalSpent += Math.max(0, parseInt(item.price, 10) || 0);
   }
+  const storedTotalSpent = Math.max(
+    parseInt(state?.profile?.totalCoinsSpent, 10) || 0,
+    totalSpent
+  );
+  const effectiveTotalSpent = storedTotalSpent;
 
   // ponytail: Khi Admin tinh chỉnh hoặc tài khoản có quyền Admin, cho phép số Vàng vượt trần nhiệm vụ thông thường
   const isAdminAdjusted = Boolean(state?.profile?.adminAdjusted || state?.profile?.role === 'admin');
-  const maxAllowedCeiling = isAdminAdjusted ? Math.max(rawTotal, maxEarned) : maxEarned + 500;
+  const storedEarned = parseInt(state?.profile?.totalCoinsEarned, 10) || 0;
+  const completedIdsCount = Array.isArray(state?.completedQuestIds) ? state.completedQuestIds.length : 0;
+  const maxSafeTracked = Math.max(maxEarned, questEarned + completedIdsCount * 40, storedEarned);
+  const maxAllowedCeiling = isAdminAdjusted ? Math.max(rawTotal, maxSafeTracked) : maxSafeTracked + 500;
 
   if (rawTotal > maxAllowedCeiling) {
-    rawTotal = maxEarned;
+    rawTotal = maxSafeTracked;
     tampered = true;
   }
   if (rawTotal < 0) {
@@ -380,14 +391,14 @@ function deriveLegitimateBalance(state) {
   }
 
   // ponytail: Bảo đảm tổng số Vàng kiếm được bao quát số dư hiện tại và chi tiêu khi được Admin cấp
-  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent) {
-    rawTotal = rawCoins + totalSpent;
+  if (isAdminAdjusted && rawCoins > rawTotal - effectiveTotalSpent) {
+    rawTotal = rawCoins + effectiveTotalSpent;
   }
 
   // Tương thích tài sản Ngân Hàng (Khoản vay & Tiền gửi) để không phạt nhầm số dư hợp lệ
   const activeLoanPrincipal = Math.max(0, parseInt(state?.profile?.bank?.loan?.principal, 10) || 0);
   const depositedCoins = Math.max(0, parseInt(state?.profile?.bank?.deposited, 10) || 0);
-  const maxCurrent = Math.max(0, rawTotal - totalSpent + activeLoanPrincipal - depositedCoins);
+  const maxCurrent = Math.max(0, rawTotal - effectiveTotalSpent + activeLoanPrincipal - depositedCoins);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
     tampered = true;
@@ -403,7 +414,7 @@ function deriveLegitimateBalance(state) {
     rawCoins = Math.max(0, rawCoins - fine);
   }
 
-  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered, fine };
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered, fine, totalCoinsSpent: effectiveTotalSpent };
 }
 
 const CURRENT_TAB_ID = 'tab_' + Math.random().toString(36).slice(2) + '_' + Date.now();
@@ -534,7 +545,40 @@ async function syncWithCloud(isManual = false, timerAction = null) {
   }
 }
 
+// ponytail: Tối ưu hóa dung lượng lưu trữ User State (Rolling Window an toàn)
+function pruneStateForStorage(state) {
+  if (!state || typeof state !== 'object') return state;
+
+  // 1. Quests: Giữ 100% active quests + tối đa 30 completed quests gần nhất
+  const quests = Array.isArray(state.quests) ? state.quests : [];
+  const activeQuests = quests.filter(q => q.status !== 'completed');
+  const completedQuests = quests.filter(q => q.status === 'completed');
+  completedQuests.sort((a, b) => (Number(b.completedAt || b.createdAt || 0)) - (Number(a.completedAt || a.createdAt || 0)));
+  state.quests = [...activeQuests, ...completedQuests.slice(0, 30)];
+
+  // 2. Inventory: Giữ 100% unused items + tối đa 20 used items gần nhất
+  const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const unusedItems = inventory.filter(i => !i.isUsed);
+  const usedItems = inventory.filter(i => i.isUsed);
+  usedItems.sort((a, b) => (Number(b.usedAt || b.purchasedAt || 0)) - (Number(a.usedAt || a.purchasedAt || 0)));
+  state.inventory = [...unusedItems, ...usedItems.slice(0, 20)];
+
+  // 3. Ledger: Giữ tối đa 100 giao dịch gần nhất
+  if (Array.isArray(state.ledger) && state.ledger.length > 100) {
+    state.ledger = state.ledger.slice(0, 100);
+  }
+
+  // 4. Completed Quest IDs (chống replay attack): Giữ tối đa 500 ID
+  if (Array.isArray(state.completedQuestIds) && state.completedQuestIds.length > 500) {
+    state.completedQuestIds = state.completedQuestIds.slice(0, 500);
+  }
+
+  return state;
+}
+
 function triggerSave(needsCloud = true, immediate = false, timerAction = null, skipFullRender = false) {
+  pruneStateForStorage(appState);
+
   // Self-heal corrupted bounty targetMinutes if 0 was coerced to 25
   for (const q of (appState.quests || [])) {
     if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
@@ -2216,6 +2260,18 @@ async function completeQuest(questId, skipConfirm = false) {
 
     appState.profile.coins += earnedCoins;
     appState.profile.totalCoinsEarned += quest.rewardCoins;
+    if (!Array.isArray(appState.completedQuestIds)) {
+      appState.completedQuestIds = [];
+    }
+    if (!quest.isRepeatable && !appState.completedQuestIds.includes(quest.id)) {
+      appState.completedQuestIds.unshift(quest.id);
+      if (appState.completedQuestIds.length > 500) {
+        appState.completedQuestIds.splice(500);
+      }
+    }
+    if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) >= 25) {
+      appState.profile.totalFocusSessions = (parseInt(appState.profile.totalFocusSessions, 10) || 0) + 1;
+    }
     addEXP(quest.rewardCoins * 3);
 
     addLedgerEntry({
@@ -2326,6 +2382,13 @@ async function undoCompleteQuest(questId) {
     } else {
       quest.status = 'active';
       delete quest.completedAt;
+      if (Array.isArray(appState.completedQuestIds)) {
+        appState.completedQuestIds = appState.completedQuestIds.filter(id => id !== quest.id);
+      }
+    }
+
+    if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) >= 25) {
+      appState.profile.totalFocusSessions = Math.max(0, (parseInt(appState.profile.totalFocusSessions, 10) || 0) - 1);
     }
 
     appState.profile.coins = Math.max(0, appState.profile.coins - earnedCoinsToRevert);
@@ -2844,6 +2907,7 @@ async function buyShopItem(itemId) {
   if (!ok) return;
 
   appState.profile.coins -= item.price;
+  appState.profile.totalCoinsSpent = (parseInt(appState.profile.totalCoinsSpent, 10) || 0) + item.price;
 
   const newInvItem = {
     id: 'inv_' + Date.now(),
@@ -2912,6 +2976,7 @@ async function refundInventoryItem(invId, skipConfirm = false) {
   }
 
   appState.profile.coins += item.price;
+  appState.profile.totalCoinsSpent = Math.max(0, (parseInt(appState.profile.totalCoinsSpent, 10) || 0) - item.price);
   appState.inventory = appState.inventory.filter(i => i.id !== invId);
 
   addLedgerEntry({

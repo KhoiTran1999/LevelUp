@@ -403,6 +403,15 @@ export function deriveLegitimateBalance(state, existingState = null) {
     totalSpent += price;
   }
 
+  // ponytail: Bảo toàn trần chi tiêu tích lũy (Cumulative Total Coins Spent)
+  // Khi các vật phẩm đã dùng bị cắt tỉa khỏi inventory để tối ưu bộ nhớ,
+  // profile.totalCoinsSpent đảm bảo kẻ gian không thể lợi dụng để hack hoàn tiền (Fake Refund Exploit).
+  const storedTotalSpent = Math.max(
+    parseInt(existingState?.profile?.totalCoinsSpent, 10) || 0,
+    parseInt(state?.profile?.totalCoinsSpent, 10) || 0
+  );
+  const effectiveTotalSpent = Math.max(totalSpent, storedTotalSpent);
+
   // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
   // Ngăn chặn hành vi vào DevTools gán 999,999 Vàng hoặc bơm hàng ngàn quest giả
   const existingTotal = parseInt(existingState?.profile?.totalCoinsEarned, 10) || 0;
@@ -412,12 +421,20 @@ export function deriveLegitimateBalance(state, existingState = null) {
     existingState?.profile?.role === 'admin' ||
     state?.profile?.role === 'admin'
   );
+
+  const completedIdsCount = Math.max(
+    Array.isArray(existingState?.completedQuestIds) ? existingState.completedQuestIds.length : 0,
+    Array.isArray(state?.completedQuestIds) ? state.completedQuestIds.length : 0
+  );
+  const maxHistoricalQuestEarned = questEarned + (completedIdsCount * 40);
+  const maxSafeTracked = Math.max(maxTrackedEarned, maxHistoricalQuestEarned + bankInterestWithdrawn);
+
   const maxAllowedCeiling = isAdminAdjusted
     ? Math.max(rawTotal, maxTrackedEarned)
-    : (existingTotal > 0 ? existingTotal + 500 : maxTrackedEarned);
+    : (existingTotal > 0 ? existingTotal + 500 : maxSafeTracked);
 
   if (rawTotal > maxAllowedCeiling) {
-    rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxTrackedEarned;
+    rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxSafeTracked;
     tampered = true;
   }
   if (rawTotal < 0) {
@@ -429,10 +446,10 @@ export function deriveLegitimateBalance(state, existingState = null) {
   const activeLoanPrincipal = Math.max(0, parseInt(state?.profile?.bank?.loan?.principal, 10) || 0);
   const depositedCoins = Math.max(0, parseInt(state?.profile?.bank?.deposited, 10) || 0);
 
-  if (isAdminAdjusted && rawCoins > rawTotal - totalSpent + activeLoanPrincipal - depositedCoins) {
-    rawTotal = Math.max(rawTotal, rawCoins + totalSpent + depositedCoins - activeLoanPrincipal);
+  if (isAdminAdjusted && rawCoins > rawTotal - effectiveTotalSpent + activeLoanPrincipal - depositedCoins) {
+    rawTotal = Math.max(rawTotal, rawCoins + effectiveTotalSpent + depositedCoins - activeLoanPrincipal);
   }
-  const maxCurrent = Math.max(0, rawTotal - totalSpent + activeLoanPrincipal - depositedCoins);
+  const maxCurrent = Math.max(0, rawTotal - effectiveTotalSpent + activeLoanPrincipal - depositedCoins);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
     tampered = true;
@@ -468,7 +485,7 @@ export function deriveLegitimateBalance(state, existingState = null) {
     title = 'Kẻ Gian Lận ⚠️';
   }
 
-  return { coins: rawCoins, totalCoinsEarned: rawTotal, level: rawLevel, tampered, fine, title };
+  return { coins: rawCoins, totalCoinsEarned: rawTotal, level: rawLevel, tampered, fine, title, totalCoinsSpent: effectiveTotalSpent };
 }
 
 export function getRedis() {
@@ -2231,6 +2248,11 @@ export default async function handler(req, res) {
           currentValidFocusSessions += count;
         }
       }
+      const storedFocusSessions = Math.max(
+        parseInt(existingState?.profile?.totalFocusSessions, 10) || 0,
+        parseInt(state?.profile?.totalFocusSessions, 10) || 0
+      );
+      currentValidFocusSessions = Math.max(currentValidFocusSessions, storedFocusSessions);
 
       // Ghi nhận án phạt vào Ledger nếu phát hiện gian lận
       let updatedLedger = Array.isArray(state.ledger) ? [...state.ledger] : [];
@@ -2359,8 +2381,44 @@ export default async function handler(req, res) {
         } catch (_) {}
       }
 
+      // ponytail: Tối ưu hóa lưu trữ User State (Rolling Window cho completed quests & used inventory)
+      const incomingQuests = Array.isArray(state.quests) ? state.quests : [];
+      const activeQuests = incomingQuests.filter(q => q.status !== 'completed');
+      const completedQuests = incomingQuests.filter(q => q.status === 'completed');
+      completedQuests.sort((a, b) => (Number(b.completedAt || b.createdAt || 0)) - (Number(a.completedAt || a.createdAt || 0)));
+      const prunedQuests = [...activeQuests, ...completedQuests.slice(0, 30)];
+
+      const incomingInventory = Array.isArray(state.inventory) ? state.inventory : [];
+      const unusedInventory = incomingInventory.filter(i => !i.isUsed);
+      const usedInventory = incomingInventory.filter(i => i.isUsed);
+      usedInventory.sort((a, b) => (Number(b.usedAt || b.purchasedAt || 0)) - (Number(a.usedAt || a.purchasedAt || 0)));
+      const prunedInventory = [...unusedInventory, ...usedInventory.slice(0, 20)];
+
+      // ponytail: Thu thập và bảo tồn danh sách ID nhiệm vụ 1 lần đã hoàn thành (chống Replay Attack)
+      const existingCompletedQuestIds = Array.isArray(existingState?.completedQuestIds) ? existingState.completedQuestIds : [];
+      const incomingCompletedQuestIds = Array.isArray(state?.completedQuestIds) ? state.completedQuestIds : [];
+      const completedSet = new Set([...existingCompletedQuestIds, ...incomingCompletedQuestIds]);
+
+      for (const q of incomingQuests) {
+        if (!q.isRepeatable && (q.status === 'completed' || q.completed === true || (parseInt(q.completedCount, 10) || 0) > 0)) {
+          const qId = q.id || q.questId;
+          if (qId) completedSet.add(qId);
+        }
+      }
+      const updatedCompletedQuestIds = Array.from(completedSet).slice(0, 500);
+
+      // Chống Replay Attack: Nhiệm vụ 1 lần đã có trong completedSet thì không thể ở trạng thái active
+      for (const q of prunedQuests) {
+        if (!q.isRepeatable && completedSet.has(q.id || q.questId)) {
+          q.status = 'completed';
+        }
+      }
+
       const payloadToSave = {
         ...state,
+        quests: prunedQuests,
+        inventory: prunedInventory,
+        completedQuestIds: updatedCompletedQuestIds,
         activeTimer: finalActiveTimer,
         shopItems: sanitizedShopItems,
         // ponytail: Giới hạn lưu trữ tối đa 100 giao dịch ledger gần nhất trên Cloud/Redis
@@ -2369,6 +2427,8 @@ export default async function handler(req, res) {
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),
+          totalCoinsSpent: balanceCheck.totalCoinsSpent,
+          totalFocusSessions: currentValidFocusSessions,
           bank: finalBankState || state.profile?.bank || existingState?.profile?.bank || null,
           nickname: state.profile?.nickname || rawNick || userName || nickname,
           role: userRole,
