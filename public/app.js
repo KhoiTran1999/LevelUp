@@ -8086,6 +8086,34 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
+function accrueLocalUserBank(bank, pool, now = Date.now()) {
+  if (!bank || typeof bank !== 'object') return bank;
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  if (deposited <= 0) return bank;
+
+  const lastDep = parseInt(bank.lastDepositAt, 10) || now;
+  const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
+  if (elapsedDays <= 0) return bank;
+
+  const rates = pool?.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  const depRate = Number(rates?.depositRate) || 0.02;
+  const standardEarned = Math.floor(deposited * depRate * elapsedDays);
+  // Floor rule: gửi >= 10 Vàng và qua >= 24h thì tối thiểu 1 Vàng/ngày
+  const minFloorEarned = (deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
+  const interestEarned = Math.max(standardEarned, minFloorEarned);
+
+  if (interestEarned > 0) {
+    bank.depositInterest = (parseInt(bank.depositInterest, 10) || 0) + interestEarned;
+    const effectiveDailyRate = Math.max(deposited * depRate, deposited >= 10 ? 1 : 0);
+    const daysConsumed = effectiveDailyRate > 0
+      ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
+      : Math.floor(elapsedDays);
+    const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
+    bank.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
+  }
+  return bank;
+}
+
 function ensureUserBankProfile() {
   if (!appState.profile) appState.profile = {};
   if (!appState.profile.bank) {
@@ -8097,6 +8125,7 @@ function ensureUserBankProfile() {
       isFrozen: false
     };
   }
+  accrueLocalUserBank(appState.profile.bank, currentBankPool);
   return appState.profile.bank;
 }
 
@@ -8131,9 +8160,12 @@ async function loadBankState() {
       if (data.creditLimit) {
         creditLimit = data.creditLimit;
       }
+    } else {
+      userBank = accrueLocalUserBank(appState.profile.bank, currentBankPool);
     }
   } catch (err) {
     console.warn('Không thể kết nối đến máy chủ Ngân Hàng, sử dụng dữ liệu cục bộ:', err);
+    userBank = accrueLocalUserBank(appState.profile.bank, currentBankPool);
   } finally {
     if (isManual && btnRefresh) {
       setTimeout(() => {
@@ -8144,6 +8176,7 @@ async function loadBankState() {
   }
 
   renderBankUI(poolData, userBank, creditLimit);
+  renderLedger();
   loadBankAiCommentary(poolData);
 
   if (isManual) {
@@ -8202,6 +8235,7 @@ function renderBankUI(pool, userBank, creditLimit) {
   }
 
   // 3. Sổ Tiết Kiệm (Depositor)
+  userBank = accrueLocalUserBank(userBank, rates);
   const elUserDep = document.getElementById('bank-user-deposited');
   if (elUserDep) elUserDep.textContent = (userBank?.deposited || 0).toLocaleString('vi-VN');
 
@@ -8522,9 +8556,18 @@ async function executeBankDeposit() {
 
   if (!serverSuccess) {
     ensureUserBankProfile();
+    const oldDep = Math.max(0, parseInt(appState.profile.bank.deposited, 10) || 0);
+    const oldLastDep = parseInt(appState.profile.bank.lastDepositAt, 10) || Date.now();
+    const newDep = oldDep + amount;
+    let newLastDep = Date.now();
+    if (oldDep > 0 && newDep > 0 && Date.now() > oldLastDep) {
+      const elapsedMs = Date.now() - oldLastDep;
+      const equivElapsedMs = Math.round(elapsedMs * (oldDep / newDep));
+      newLastDep = Date.now() - equivElapsedMs;
+    }
     appState.profile.coins -= amount;
-    appState.profile.bank.deposited = (appState.profile.bank.deposited || 0) + amount;
-    appState.profile.bank.lastDepositAt = Date.now();
+    appState.profile.bank.deposited = newDep;
+    appState.profile.bank.lastDepositAt = newLastDep;
     currentBankPool.poolGold = (currentBankPool.poolGold || 500) + amount;
     currentBankPool.totalDeposited = (currentBankPool.totalDeposited || 0) + amount;
 

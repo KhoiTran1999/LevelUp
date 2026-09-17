@@ -246,10 +246,19 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
     const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
     if (elapsedDays > 0) {
       const depRate = Number(rates?.depositRate) || 0.02;
-      const interestEarned = Math.floor(copy.deposited * depRate * elapsedDays);
+      const standardEarned = Math.floor(copy.deposited * depRate * elapsedDays);
+      // Floor rule: nếu gửi >= 10 Vàng và đã qua >= 24h thì tối thiểu 1 Vàng/ngày
+      const minFloorEarned = (copy.deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
+      const interestEarned = Math.max(standardEarned, minFloorEarned);
       if (interestEarned > 0) {
         copy.depositInterest += interestEarned;
-        copy.lastDepositAt = now;
+        // Bảo toàn thời gian lẻ: Chỉ tịnh tiến lastDepositAt bằng thời gian thực tế đã quy đổi thành lãi
+        const effectiveDailyRate = Math.max(copy.deposited * depRate, copy.deposited >= 10 ? 1 : 0);
+        const daysConsumed = effectiveDailyRate > 0
+          ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
+          : Math.floor(elapsedDays);
+        const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
+        copy.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
       }
     }
   } else {
@@ -363,8 +372,17 @@ export function deriveLegitimateBalance(state, existingState = null) {
     questEarned += reward * count;
   }
 
-  // 2. Nguồn thu nhập hợp lệ duy nhất là từ nhiệm vụ đã kiểm định (chống giả mạo ledger)
-  const maxTrackedEarned = Math.max(20, questEarned);
+  // 2. Nguồn thu nhập hợp lệ bao gồm nhiệm vụ đã kiểm định & lãi tiết kiệm ngân hàng đã rút
+  let bankInterestWithdrawn = 0;
+  for (const item of (Array.isArray(state?.ledger) ? state.ledger : [])) {
+    if (item.category === 'bank_withdraw' && item.type === 'earn') {
+      const match = (item.description || '').match(/(\d+)\s*lãi/i);
+      if (match) {
+        bankInterestWithdrawn += parseInt(match[1], 10) || 0;
+      }
+    }
+  }
+  const maxTrackedEarned = Math.max(20, questEarned + bankInterestWithdrawn);
 
   // 3. Tổng chi tiêu cho vật phẩm kho đồ (bảo vệ giá phần thưởng chuẩn)
   const shopItems = Array.isArray(state?.shopItems) ? state.shopItems : [];
@@ -946,6 +964,13 @@ export default async function handler(req, res) {
                 const currentBank = uState?.profile?.bank || { deposited: 0, depositInterest: 0, loan: null, isFrozen: false };
                 userBank = accrueUserBank(currentBank, rates);
                 creditLimit = calculateCreditLimit(uState?.profile || {}, userBank?.loan?.autoDeductPercent || 0.5);
+
+                // Lưu bền vững vào Redis nếu trạng thái ngân hàng có cập nhật lãi hoặc nợ
+                if (JSON.stringify(currentBank) !== JSON.stringify(userBank)) {
+                  if (!uState.profile) uState.profile = {};
+                  uState.profile.bank = userBank;
+                  await redis.set(`levelup:user:google:${caller.sub}`, JSON.stringify(uState), 'EX', 180 * 24 * 3600);
+                }
               }
             }
           } catch (_) {}
@@ -1372,6 +1397,20 @@ export default async function handler(req, res) {
         data.profile.role = 'admin';
         dataChanged = true;
       }
+
+      // Tự động tích lũy lãi ngân hàng khi tải dữ liệu người dùng
+      if (data.profile?.bank && (data.profile.bank.deposited > 0 || (data.profile.bank.loan && data.profile.bank.loan.debt > 0))) {
+        try {
+          const poolState = await getGlobalBankState(redis);
+          const rates = calculateBankRates(poolState);
+          const accruedBank = accrueUserBank(data.profile.bank, rates);
+          if (JSON.stringify(data.profile.bank) !== JSON.stringify(accruedBank)) {
+            data.profile.bank = accruedBank;
+            dataChanged = true;
+          }
+        } catch (_) {}
+      }
+
       if (dataChanged) {
         await redis.set(userKey, JSON.stringify(data), 'EX', 180 * 24 * 3600);
       }
@@ -1761,9 +1800,21 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: `Số dư Vàng không đủ (hiện có: ${userCoins} Vàng).` });
           }
 
+          const oldDeposited = Math.max(0, parseInt(uState.profile.bank.deposited, 10) || 0);
+          const oldLastDep = parseInt(uState.profile.bank.lastDepositAt, 10) || serverTimestamp;
+          const newDeposited = oldDeposited + depositAmt;
+
+          // Bảo toàn thời gian tích lũy dở dang theo trọng số vốn cũ:
+          let newLastDep = serverTimestamp;
+          if (oldDeposited > 0 && newDeposited > 0 && serverTimestamp > oldLastDep) {
+            const elapsedMs = serverTimestamp - oldLastDep;
+            const equivElapsedMs = Math.round(elapsedMs * (oldDeposited / newDeposited));
+            newLastDep = serverTimestamp - equivElapsedMs;
+          }
+
           uState.profile.coins = userCoins - depositAmt;
-          uState.profile.bank.deposited = (parseInt(uState.profile.bank.deposited, 10) || 0) + depositAmt;
-          uState.profile.bank.lastDepositAt = serverTimestamp;
+          uState.profile.bank.deposited = newDeposited;
+          uState.profile.bank.lastDepositAt = newLastDep;
 
           poolState.poolGold += depositAmt;
           poolState.totalDeposited = (poolState.totalDeposited || 0) + depositAmt;
@@ -2294,6 +2345,20 @@ export default async function handler(req, res) {
         ? null
         : (state.activeTimer || null);
 
+      // Tự động tích lũy và bảo toàn lãi suất ngân hàng trước khi lưu đám mây
+      let finalBankState = state.profile?.bank || existingState?.profile?.bank || null;
+      if (finalBankState && (finalBankState.deposited > 0 || (finalBankState.loan && finalBankState.loan.debt > 0))) {
+        try {
+          const poolState = await getGlobalBankState(redis);
+          const rates = calculateBankRates(poolState);
+          // Nếu client bị trễ và gửi lãi thấp hơn mức đã có trên server, giữ mức cao hơn
+          if (existingState?.profile?.bank?.depositInterest > (finalBankState.depositInterest || 0)) {
+            finalBankState.depositInterest = existingState.profile.bank.depositInterest;
+          }
+          finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp);
+        } catch (_) {}
+      }
+
       const payloadToSave = {
         ...state,
         activeTimer: finalActiveTimer,
@@ -2304,6 +2369,7 @@ export default async function handler(req, res) {
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),
+          bank: finalBankState || state.profile?.bank || existingState?.profile?.bank || null,
           nickname: state.profile?.nickname || rawNick || userName || nickname,
           role: userRole,
           title,

@@ -100,7 +100,29 @@ function testAccrueBankInterest() {
   assert.strictEqual(accruedLoan.loan.isOverdue, false, 'Chưa quá 7 ngày nên chưa bị đánh dấu quá hạn');
   assert.strictEqual(accruedLoan.isFrozen, false, 'Chưa bị đóng băng');
 
-  console.log('✓ Test 3: Cơ chế sinh lãi tiền gửi và tính lãi nợ vay theo chu kỳ 24h hoạt động chuẩn xác.');
+  // 3. Tích lũy lãi cho khoản gửi nhỏ (10 Vàng) qua 2 ngày: Bảo hiểm lãi sàn tối thiểu 1 Vàng/ngày
+  const smallDepositBank = {
+    deposited: 10,
+    depositInterest: 0,
+    lastDepositAt: now - (2 * oneDay),
+    loan: null,
+    isFrozen: false
+  };
+  const accruedSmall = accrueUserBank(smallDepositBank, { depositRate: 0.02 }, now);
+  assert.strictEqual(accruedSmall.depositInterest, 2, 'Khoản gửi 10 Vàng sau 2 ngày phải nhận tối thiểu 2 Vàng lãi');
+
+  // 4. Bảo toàn thời gian tích lũy lẻ khi tính lãi
+  const fractionalBank = {
+    deposited: 100,
+    depositInterest: 0,
+    lastDepositAt: now - Math.round(1.5 * oneDay),
+    loan: null,
+    isFrozen: false
+  };
+  const accruedFrac = accrueUserBank(fractionalBank, { depositRate: 0.02 }, now);
+  assert.strictEqual(accruedFrac.depositInterest, 3, '100 Vàng gửi 1.5 ngày với lãi 2%/ngày phải nhận 3 Vàng lãi');
+
+  console.log('✓ Test 3: Cơ chế sinh lãi tiền gửi (kèm bảo hiểm sàn cho khoản gửi nhỏ & bảo lưu thời gian lẻ) và tính lãi nợ vay hoạt động chuẩn xác.');
 }
 
 // 4. Kiểm thử Cơ chế Đóng Băng & Thu Hồi Nợ Quá Hạn 7 Ngày (Overdue Freeze)
