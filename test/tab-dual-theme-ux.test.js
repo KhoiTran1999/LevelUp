@@ -118,7 +118,7 @@ assert.ok(!appJs.includes('<span class="text-[11px] font-bold text-amber-600 dar
 assert.ok(!appJs.includes('🏷️ Giá:'), 'Đã bỏ icon 🏷️ trước Giá trên thẻ cửa hàng');
 assert.ok(!appJs.includes('🏷️ Trị giá:'), 'Đã bỏ icon 🏷️ trước Trị giá trên thẻ kho quà');
 assert.ok(!appJs.includes('🏷️ Phân cấp:'), 'Đã bỏ icon 🏷️ ở mục Phân cấp trong dropdown');
-assert.ok(appJs.includes('📸 ${q.focusTimerCompleted ? \'CHỜ NỘP ẢNH\' : \'CẦN ẢNH\'}') && appJs.includes('Bằng chứng:'), '📸 CẦN ẢNH đã được chuyển vào trong menu dropdown');
+assert.ok(appJs.includes('${q.focusTimerCompleted ? \'CHỜ NỘP ẢNH\' : \'CẦN ẢNH\'}') && appJs.includes('Bằng chứng:'), 'CẦN ẢNH đã được chuyển vào trong menu dropdown');
 console.log('✓ Test 12: Đã loại bỏ icon ⚔️ và 🏷️, chuyển CẦN ẢNH vào menu, bỏ chữ Tập trung / Không bấm giờ.');
 
 console.log('\n=== TẤT CẢ 12/12 KIỂM THỬ NÂNG CẤP ĐÃ VƯỢT QUA XUẤT SẮC! ===');
