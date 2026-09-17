@@ -390,14 +390,14 @@ function deriveLegitimateBalance(state) {
     tampered = true;
   }
 
-  // ponytail: Bảo đảm tổng số Vàng kiếm được bao quát số dư hiện tại và chi tiêu khi được Admin cấp
-  if (isAdminAdjusted && rawCoins > rawTotal - effectiveTotalSpent) {
-    rawTotal = rawCoins + effectiveTotalSpent;
-  }
-
   // Tương thích tài sản Ngân Hàng (Khoản vay & Tiền gửi) để không phạt nhầm số dư hợp lệ
   const activeLoanPrincipal = Math.max(0, parseInt(state?.profile?.bank?.loan?.principal, 10) || 0);
   const depositedCoins = Math.max(0, parseInt(state?.profile?.bank?.deposited, 10) || 0);
+
+  // ponytail: Bảo đảm tổng số Vàng kiếm được bao quát số dư hiện tại và chi tiêu khi được Admin cấp
+  if (isAdminAdjusted && rawCoins > rawTotal - effectiveTotalSpent + activeLoanPrincipal - depositedCoins) {
+    rawTotal = Math.max(rawTotal, rawCoins + effectiveTotalSpent + depositedCoins - activeLoanPrincipal);
+  }
   const maxCurrent = Math.max(0, rawTotal - effectiveTotalSpent + activeLoanPrincipal - depositedCoins);
   if (rawCoins > maxCurrent) {
     rawCoins = maxCurrent;
@@ -2248,6 +2248,9 @@ async function completeQuest(questId, skipConfirm = false) {
           appState.profile.bank.loan = null;
           appState.profile.bank.isFrozen = false;
           updateTitleByLevel();
+          if (typeof currentBankPool === 'object' && currentBankPool) {
+            currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - (principalBefore - principalDeducted));
+          }
         }
       }
     }

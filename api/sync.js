@@ -305,21 +305,24 @@ export async function reconcileGlobalBankPool(redis, poolState) {
     let totalRealBorrowed = 0;
     let totalRealDeposited = 0;
 
-    let userKeys = [];
+    const keySet = new Set();
     if (typeof redis.smembers === 'function') {
       try {
         const members = await redis.smembers('levelup:all_users');
-        if (Array.isArray(members) && members.length > 0) {
-          userKeys = members.map(m => `levelup:user:google:${m}`);
+        if (Array.isArray(members)) {
+          members.forEach(m => m && keySet.add(`levelup:user:google:${m}`));
         }
       } catch (_) {}
     }
-    if (userKeys.length === 0 && typeof redis.keys === 'function') {
+    if (typeof redis.keys === 'function') {
       try {
         const kList = await redis.keys('levelup:user:*');
-        if (Array.isArray(kList)) userKeys = kList;
+        if (Array.isArray(kList)) {
+          kList.forEach(k => k && keySet.add(k));
+        }
       } catch (_) {}
     }
+    const userKeys = Array.from(keySet);
 
     if (userKeys.length > 0) {
       for (const k of userKeys) {
@@ -1391,6 +1394,7 @@ export default async function handler(req, res) {
               isCheater: Boolean(prof.isCheater),
               cheatStrikes: prof.cheatStrikes || 0,
               adminAdjusted: Boolean(prof.adminAdjusted),
+              bank: prof.bank || null,
               ledgerCount: Array.isArray(uData.ledger) ? uData.ledger.length : 0,
               questsCount: Array.isArray(uData.quests) ? uData.quests.length : 0,
               lastSyncedAt: uData.lastSyncedAt || uData.lastModified || Date.now()
@@ -2449,23 +2453,51 @@ export default async function handler(req, res) {
         } catch (_) {}
       }
 
-      // ponytail: Đồng bộ biến động khoản vay từ trích nợ nhiệm vụ vào Bể thanh khoản Ngân hàng (AMM Pool)
+      // ponytail: Đồng bộ biến động khoản vay từ trích nợ nhiệm vụ & tiền gửi tiết kiệm vào Bể thanh khoản Ngân hàng (AMM Pool)
       try {
         const prevLoanDebt = Math.max(0, parseInt(existingState?.profile?.bank?.loan?.debt || existingState?.profile?.bank?.loan?.principal, 10) || 0);
         const currLoanDebt = Math.max(0, parseInt(finalBankState?.loan?.debt || finalBankState?.loan?.principal, 10) || 0);
-        if (prevLoanDebt !== currLoanDebt) {
-          const debtDiff = prevLoanDebt - currLoanDebt;
+        const prevDeposited = Math.max(0, parseInt(existingState?.profile?.bank?.deposited, 10) || 0);
+        const currDeposited = Math.max(0, parseInt(finalBankState?.deposited, 10) || 0);
+
+        if (prevLoanDebt !== currLoanDebt || prevDeposited !== currDeposited) {
           const poolState = await getGlobalBankState(redis, false);
-          if (debtDiff > 0) {
-            // Nợ được trả (qua trích nợ nhiệm vụ): hoàn vốn vào kho và giảm nợ hệ thống
-            poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - debtDiff);
-            poolState.poolGold = (poolState.poolGold || 0) + debtDiff;
-          } else {
-            // Nợ được hoàn tác (undo quest): khôi phục nợ hệ thống
-            const restoredDebt = currLoanDebt - prevLoanDebt;
-            poolState.totalBorrowed = (poolState.totalBorrowed || 0) + restoredDebt;
-            poolState.poolGold = Math.max(0, (poolState.poolGold || 0) - restoredDebt);
+
+          if (prevLoanDebt !== currLoanDebt) {
+            const debtDiff = prevLoanDebt - currLoanDebt;
+            if (debtDiff > 0) {
+              // Nợ được trả (qua trích nợ nhiệm vụ): hoàn vốn vào kho và giảm nợ hệ thống
+              poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - debtDiff);
+              poolState.poolGold = (poolState.poolGold || 0) + debtDiff;
+              // Nếu Kho Bạc từng bảo trợ nợ cứu trợ (bailoutDebt > 0) và Bể phục hồi thặng dư (> 500), hoàn bớt nợ cho Kho Bạc
+              if (poolState.bailoutDebt > 0 && poolState.poolGold > 500) {
+                const surplus = poolState.poolGold - 500;
+                const repaidBailout = Math.min(poolState.bailoutDebt, Math.min(surplus, debtDiff));
+                if (repaidBailout > 0) {
+                  poolState.bailoutDebt -= repaidBailout;
+                  poolState.poolGold -= repaidBailout;
+                }
+              }
+            } else {
+              // Nợ được hoàn tác (undo quest): khôi phục nợ hệ thống
+              const restoredDebt = currLoanDebt - prevLoanDebt;
+              poolState.totalBorrowed = (poolState.totalBorrowed || 0) + restoredDebt;
+              poolState.poolGold = Math.max(0, (poolState.poolGold || 0) - restoredDebt);
+            }
           }
+
+          if (prevDeposited !== currDeposited) {
+            const depDiff = currDeposited - prevDeposited;
+            if (depDiff > 0) {
+              poolState.totalDeposited = (poolState.totalDeposited || 0) + depDiff;
+              poolState.poolGold = (poolState.poolGold || 0) + depDiff;
+            } else {
+              const withdrawDiff = Math.abs(depDiff);
+              poolState.totalDeposited = Math.max(0, (poolState.totalDeposited || 0) - withdrawDiff);
+              poolState.poolGold = Math.max(0, (poolState.poolGold || 0) - withdrawDiff);
+            }
+          }
+
           await saveGlobalBankState(redis, poolState);
         }
       } catch (_) {}
@@ -2488,10 +2520,17 @@ export default async function handler(req, res) {
       const incomingCompletedQuestIds = Array.isArray(state?.completedQuestIds) ? state.completedQuestIds : [];
       const completedSet = new Set([...existingCompletedQuestIds, ...incomingCompletedQuestIds]);
 
+      const existingQuests = Array.isArray(existingState?.quests) ? existingState.quests : [];
+      const wasCurrentlyCompleted = (id) => existingQuests.some(eq => (eq.id === id || eq.questId === id) && (eq.status === 'completed' || eq.completed === true));
+
+      // Hỗ trợ Hoàn tác (Undo) nhiệm vụ 1 lần vừa hoàn thành, đồng thời chặn đứng Replay Attack với nhiệm vụ đã hoàn thành trong lịch sử
       for (const q of incomingQuests) {
-        if (!q.isRepeatable && (q.status === 'completed' || q.completed === true || (parseInt(q.completedCount, 10) || 0) > 0)) {
-          const qId = q.id || q.questId;
-          if (qId) completedSet.add(qId);
+        const qId = q.id || q.questId;
+        if (!qId) continue;
+        if (!q.isRepeatable && q.status === 'active' && wasCurrentlyCompleted(qId)) {
+          completedSet.delete(qId);
+        } else if (!q.isRepeatable && (q.status === 'completed' || q.completed === true || (parseInt(q.completedCount, 10) || 0) > 0)) {
+          completedSet.add(qId);
         }
       }
       const updatedCompletedQuestIds = Array.from(completedSet).slice(0, 500);
