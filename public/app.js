@@ -1208,6 +1208,10 @@ async function pullLatestTimerFromCloud() {
             actualFocusedSeconds = remoteTimer.actualFocusedSeconds || 0;
           }
           focusTotalSeconds = remoteTimer.totalSeconds || focusTotalSeconds;
+          if (focusRemainingSeconds <= 0) {
+            focusRemainingSeconds = 0;
+            actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+          }
           appState.activeTimer = {
             ...remoteTimer,
             remainingSeconds: focusRemainingSeconds,
@@ -1389,9 +1393,27 @@ function restoreFocusTimer() {
         // Đồng bộ thời gian hiển thị tĩnh từ thiết bị đang chạy
         const refTime = state.lastTickTime || state.updatedAt || Date.now();
         const elapsed = Math.max(0, (Date.now() - refTime) / 1000);
+        if (!isBreakMode) {
+          actualFocusedSeconds += elapsed;
+        }
         focusRemainingSeconds = Math.max(0, (state.remainingSeconds || 0) - elapsed);
       } else {
         focusRemainingSeconds = Math.max(0, state.remainingSeconds || 0);
+      }
+
+      // Cross-device auto-finish: Timer đã hết trên wall-clock nhưng chưa ai kết thúc
+      if (focusRemainingSeconds <= 0 && state.isRunning) {
+        focusRemainingSeconds = 0;
+        actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+        updateTimerDisplay();
+        if (isBreakMode) {
+          breakTimerFinished();
+        } else if (activeRewardItem) {
+          rewardTimerFinished();
+        } else {
+          focusTimerFinished();
+        }
+        return;
       }
     }
 
@@ -1438,18 +1460,21 @@ function tickFocusTimer() {
     } else {
       saveFocusTimerState(false);
     }
+  }
 
-    if (focusRemainingSeconds <= 0) {
-      clearInterval(focusTimerInterval);
-      focusTimerInterval = null;
-      releaseWakeLock();
-      if (isBreakMode) {
-        breakTimerFinished();
-      } else if (activeRewardItem) {
-        rewardTimerFinished();
-      } else {
-        focusTimerFinished();
-      }
+  // Completion check NGOÀI block if > 0 để xử lý cả trường hợp remaining đã là 0 khi tick bắt đầu
+  if (focusRemainingSeconds <= 0) {
+    focusRemainingSeconds = 0;
+    actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+    clearInterval(focusTimerInterval);
+    focusTimerInterval = null;
+    releaseWakeLock();
+    if (isBreakMode) {
+      breakTimerFinished();
+    } else if (activeRewardItem) {
+      rewardTimerFinished();
+    } else {
+      focusTimerFinished();
     }
   }
 }
@@ -1562,7 +1587,19 @@ function renderFocusStationUI() {
     appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
   );
 
-  if (isRunningElsewhere) {
+  // Ưu tiên cao nhất: Timer đã hết thời gian -> Hiển thị nút hoàn thành
+  const isTimeUp = focusRemainingSeconds <= 0 && Boolean(activeFocusQuest || activeRewardItem || isBreakMode);
+
+  if (isTimeUp) {
+    const isProofRequired = activeFocusQuest?.requiresProof && !activeFocusQuest?._proofVerified;
+    if (modeLabel) modeLabel.textContent = '🎉 ĐÃ HOÀN THÀNH THỜI GIAN!';
+    const toggleText = isBreakMode ? 'Kết Thúc Giờ Nghỉ ☕' : (activeRewardItem ? 'Kết Thúc Hưởng Thụ 🎮' : (isProofRequired ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎁'));
+    if (toggleBtn) {
+      toggleBtn.textContent = toggleText;
+      toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-sm active:scale-95 animate-pulse';
+    }
+    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+  } else if (isRunningElsewhere) {
     if (modeLabel) modeLabel.textContent = 'ĐANG CHẠY TRÊN THIẾT BỊ KHÁC 📱';
     const toggleText = 'Tiếp Tục Ở Thiết Bị Này ⏱️';
     if (toggleBtn) {
@@ -1660,6 +1697,13 @@ async function startFocusTimer(quest) {
 
   // Edge case 2: Nhấn "Bắt đầu" vào chính nhiệm vụ đang được bấm giờ
   if (activeFocusQuest && activeFocusQuest.id === quest.id) {
+    // Timer đã hết -> Hoàn thành ngay lập tức
+    if (focusRemainingSeconds <= 0) {
+      actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+      focusRemainingSeconds = 0;
+      focusTimerFinished();
+      return;
+    }
     if (isFocusRunning) {
       showToast(`Nhiệm vụ "${quest.title}" đang được bấm giờ (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại)!`, 'info');
       document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1783,6 +1827,21 @@ async function toggleFocusTimer() {
     // Nếu phiên thuộc thiết bị khác, cần đồng bộ thời gian mới nhất từ Cloud trước khi chạy
     if (!isMyRunner) {
       await pullLatestTimerFromCloud();
+    }
+
+    // Timer đã hết thời gian -> Hoàn thành ngay lập tức thay vì chạy interval chết
+    if (focusRemainingSeconds <= 0 && (activeFocusQuest || activeRewardItem || isBreakMode)) {
+      focusRemainingSeconds = 0;
+      actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+      updateTimerDisplay();
+      if (isBreakMode) {
+        breakTimerFinished();
+      } else if (activeRewardItem) {
+        rewardTimerFinished();
+      } else {
+        focusTimerFinished();
+      }
+      return;
     }
 
     lastLocalTimerActionTime = Date.now();
@@ -6289,8 +6348,10 @@ function renderQuests() {
   filtered.forEach(q => {
     const isCompleted = q.status === 'completed';
     const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
+    const isTimerDone = isCurrentlyFocusing && focusRemainingSeconds <= 0;
     const isSessionOnOtherDevice = Boolean(
       isCurrentlyFocusing &&
+      !isTimerDone &&
       appState.activeTimer?.runnerId &&
       appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
     );
@@ -6311,11 +6372,15 @@ function renderQuests() {
         <!-- Zone 1: Header (Streamlined: Status & Value with Action Menu "⋮") -->
         <div class="flex items-center justify-between gap-2 mb-3">
           <div class="flex items-center gap-1.5 sm:gap-2">
-            ${isCurrentlyFocusing ? `
+            ${isCurrentlyFocusing ? (isTimerDone ? `
+              <span class="badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500 text-slate-950 shadow-xs animate-pulse">
+                🎉 ĐÃ XONG
+              </span>
+            ` : `
               <span class="badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
                 ⏱️ ĐANG LÀM
               </span>
-            ` : ''}
+            `) : ''}
           </div>
           <div class="flex items-center gap-1.5 relative">
             <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-xs" title="Phần thưởng Vàng khi hoàn thành">
@@ -6431,12 +6496,17 @@ function renderQuests() {
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
                 <span>Chụp Ảnh Nhận Vàng 📸</span>
               </button>
-            ` : (q.type === 'focus' ? `
+            ` : (q.type === 'focus' ? (isTimerDone ? `
+              <button class="btn-complete-focus-done w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold animate-pulse">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+              </button>
+            ` : `
               <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold')}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
                 <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu ⏱️')}</span>
               </button>
-            ` : `
+            `) : `
               <button class="btn-complete-bounty w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${cooldownRemainingMs > 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
@@ -6528,6 +6598,21 @@ function renderQuests() {
     const startBtn = card.querySelector('.btn-start-focus');
     if (startBtn) {
       startBtn.addEventListener('click', () => startFocusTimer(q));
+    }
+
+    const completeFocusDoneBtn = card.querySelector('.btn-complete-focus-done');
+    if (completeFocusDoneBtn) {
+      completeFocusDoneBtn.addEventListener('click', () => {
+        actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+        focusRemainingSeconds = 0;
+        if (isBreakMode) {
+          breakTimerFinished();
+        } else if (activeRewardItem) {
+          rewardTimerFinished();
+        } else {
+          focusTimerFinished();
+        }
+      });
     }
 
     const completeBtn = card.querySelector('.btn-complete-bounty');
