@@ -2237,6 +2237,12 @@ async function completeQuest(questId, skipConfirm = false) {
         loan.principal = Math.max(0, principalBefore - principalDeducted);
         earnedCoins -= deductedForLoan;
 
+        // Cập nhật bể thanh khoản ngân hàng hiển thị tức thì
+        if (typeof currentBankPool === 'object' && currentBankPool) {
+          currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - principalDeducted);
+          currentBankPool.poolGold = (currentBankPool.poolGold || 0) + deductedForLoan;
+        }
+
         if (loan.debt <= 0) {
           loanCleared = true;
           appState.profile.bank.loan = null;
@@ -2396,6 +2402,10 @@ async function undoCompleteQuest(questId) {
     deductEXP(originalReward * 3);
 
     if (deductedAmount > 0) {
+      if (typeof currentBankPool === 'object' && currentBankPool) {
+        currentBankPool.totalBorrowed = (currentBankPool.totalBorrowed || 0) + principalDeducted;
+        currentBankPool.poolGold = Math.max(0, (currentBankPool.poolGold || 0) - deductedAmount);
+      }
       if (appState.profile.bank.loan) {
         const loan = appState.profile.bank.loan;
         loan.debt = (loan.debt || 0) + deductedAmount;

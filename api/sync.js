@@ -299,7 +299,71 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
   return copy;
 }
 
-export async function getGlobalBankState(redis) {
+export async function reconcileGlobalBankPool(redis, poolState) {
+  if (!redis || !poolState) return poolState;
+  try {
+    let totalRealBorrowed = 0;
+    let totalRealDeposited = 0;
+
+    let userKeys = [];
+    if (typeof redis.smembers === 'function') {
+      try {
+        const members = await redis.smembers('levelup:all_users');
+        if (Array.isArray(members) && members.length > 0) {
+          userKeys = members.map(m => `levelup:user:google:${m}`);
+        }
+      } catch (_) {}
+    }
+    if (userKeys.length === 0 && typeof redis.keys === 'function') {
+      try {
+        const kList = await redis.keys('levelup:user:*');
+        if (Array.isArray(kList)) userKeys = kList;
+      } catch (_) {}
+    }
+
+    if (userKeys.length > 0) {
+      for (const k of userKeys) {
+        let raw = await redis.get(k);
+        if (!raw && k.startsWith('levelup:user:google:')) {
+          raw = await redis.get(k.replace(':google:', ':'));
+        }
+        if (!raw) continue;
+        try {
+          const u = JSON.parse(raw);
+          const b = u?.profile?.bank;
+          if (b) {
+            if (b.loan && ((parseInt(b.loan.principal, 10) || 0) > 0 || (parseInt(b.loan.debt, 10) || 0) > 0)) {
+              totalRealBorrowed += Math.max(0, parseInt(b.loan.principal || b.loan.debt, 10) || 0);
+            }
+            if ((parseInt(b.deposited, 10) || 0) > 0) {
+              totalRealDeposited += Math.max(0, parseInt(b.deposited, 10) || 0);
+            }
+          }
+        } catch (_) {}
+      }
+
+      let changed = false;
+      if (poolState.totalBorrowed !== totalRealBorrowed) {
+        const diff = poolState.totalBorrowed - totalRealBorrowed;
+        poolState.totalBorrowed = totalRealBorrowed;
+        if (diff > 0) {
+          poolState.poolGold = (poolState.poolGold || 0) + diff;
+        }
+        changed = true;
+      }
+      if (poolState.totalDeposited !== totalRealDeposited) {
+        poolState.totalDeposited = totalRealDeposited;
+        changed = true;
+      }
+      if (changed) {
+        await saveGlobalBankState(redis, poolState);
+      }
+    }
+  } catch (_) {}
+  return poolState;
+}
+
+export async function getGlobalBankState(redis, autoReconcile = true) {
   const defaultBank = {
     poolGold: 500, // Kho bạc bảo chứng ban đầu
     totalBorrowed: 0,
@@ -314,7 +378,7 @@ export async function getGlobalBankState(redis) {
     const raw = await redis.get('levelup:bank:pool');
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
+      const state = {
         poolGold: Math.max(0, parseInt(parsed.poolGold, 10) || 0),
         totalBorrowed: Math.max(0, parseInt(parsed.totalBorrowed, 10) || 0),
         reserveFund: Math.max(0, parseInt(parsed.reserveFund, 10) || 0),
@@ -322,6 +386,10 @@ export async function getGlobalBankState(redis) {
         bailoutDebt: Math.max(0, parseInt(parsed.bailoutDebt, 10) || 0),
         lastAccruedAt: parseInt(parsed.lastAccruedAt, 10) || Date.now()
       };
+      if (autoReconcile) {
+        return await reconcileGlobalBankPool(redis, state);
+      }
+      return state;
     }
     await redis.set('levelup:bank:pool', JSON.stringify(defaultBank));
   } catch (_) {}
@@ -2380,6 +2448,27 @@ export default async function handler(req, res) {
           finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp);
         } catch (_) {}
       }
+
+      // ponytail: Đồng bộ biến động khoản vay từ trích nợ nhiệm vụ vào Bể thanh khoản Ngân hàng (AMM Pool)
+      try {
+        const prevLoanDebt = Math.max(0, parseInt(existingState?.profile?.bank?.loan?.debt || existingState?.profile?.bank?.loan?.principal, 10) || 0);
+        const currLoanDebt = Math.max(0, parseInt(finalBankState?.loan?.debt || finalBankState?.loan?.principal, 10) || 0);
+        if (prevLoanDebt !== currLoanDebt) {
+          const debtDiff = prevLoanDebt - currLoanDebt;
+          const poolState = await getGlobalBankState(redis, false);
+          if (debtDiff > 0) {
+            // Nợ được trả (qua trích nợ nhiệm vụ): hoàn vốn vào kho và giảm nợ hệ thống
+            poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - debtDiff);
+            poolState.poolGold = (poolState.poolGold || 0) + debtDiff;
+          } else {
+            // Nợ được hoàn tác (undo quest): khôi phục nợ hệ thống
+            const restoredDebt = currLoanDebt - prevLoanDebt;
+            poolState.totalBorrowed = (poolState.totalBorrowed || 0) + restoredDebt;
+            poolState.poolGold = Math.max(0, (poolState.poolGold || 0) - restoredDebt);
+          }
+          await saveGlobalBankState(redis, poolState);
+        }
+      } catch (_) {}
 
       // ponytail: Tối ưu hóa lưu trữ User State (Rolling Window cho completed quests & used inventory)
       const incomingQuests = Array.isArray(state.quests) ? state.quests : [];
