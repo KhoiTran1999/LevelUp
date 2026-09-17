@@ -973,10 +973,20 @@ function closeConfirmDialog(result = false) {
   }
 }
 
+let lastToastMessage = '';
+let lastToastTime = 0;
+
 // ponytail: single action button per toast; upgrade to list if multiple concurrent actions needed
 function showToast(message, type = 'info', action = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
+
+  const now = Date.now();
+  if (message === lastToastMessage && (now - lastToastTime < 3000)) {
+    return; // Bỏ qua thông báo trùng lặp trong 3 giây
+  }
+  lastToastMessage = message;
+  lastToastTime = now;
 
   const toast = document.createElement('div');
   const colors = {
@@ -1159,9 +1169,19 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+let lastNotificationBody = '';
+let lastNotificationTime = 0;
+
 // Web Notifications API
 function sendFocusNotification(title, body) {
   if (!('Notification' in window)) return;
+  const now = Date.now();
+  if (body === lastNotificationBody && (now - lastNotificationTime < 5000)) {
+    return; // Bỏ qua push notification trùng lặp trong 5 giây
+  }
+  lastNotificationBody = body;
+  lastNotificationTime = now;
+
   if (Notification.permission === 'granted') {
     try {
       new Notification(title, {
@@ -2143,7 +2163,6 @@ function focusTimerFinished() {
         '⏳ HẾT GIỜ TẬP TRUNG!',
         `Bạn đã hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}". Hãy chụp ảnh bằng chứng để nhận Vàng nhé!`
       );
-      showToast('Đã hết giờ tập trung! Vui lòng nộp ảnh bằng chứng để AI duyệt và nhận Vàng.', 'info');
       openQuestProofModal(quest);
       return;
     }
@@ -8282,7 +8301,11 @@ async function initStartupFlow() {
         restoreFocusTimer();
         const pendingProofQuest = (appState.quests || []).find(q => q.focusTimerCompleted && q.requiresProof && !q._proofVerified && q.status !== 'completed');
         if (pendingProofQuest) {
-          showToast(`📸 Nhiệm vụ "${pendingProofQuest.title}" đã hoàn thành thời gian! Hãy bấm "Chụp Ảnh Nhận Vàng" để AI duyệt thưởng.`, 'info');
+          const proofModal = document.getElementById('modal-quest-proof');
+          const isModalOpen = proofModal && !proofModal.classList.contains('hidden');
+          if (!isModalOpen) {
+            showToast(`📸 Nhiệm vụ "${pendingProofQuest.title}" đã hoàn thành thời gian! Hãy bấm "Chụp Ảnh Nhận Vàng" để AI duyệt thưởng.`, 'info');
+          }
         }
         return;
       }

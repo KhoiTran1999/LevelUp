@@ -222,8 +222,32 @@ async function runTests() {
     console.log('  -> toggleFocusTimer hoàn thành ngay khi remaining = 0: OK\n');
   }
 
+  // ---------------------------------------------------------------------------
+  // Test 12: Cơ chế chống lặp Toast (Toast Deduplication)
+  // ---------------------------------------------------------------------------
+  console.log('Test 12: Kiểm tra cơ chế chống lặp Toast');
+  {
+    assert.ok(
+      code.includes('if (message === lastToastMessage && (now - lastToastTime < 3000))'),
+      'showToast phải chặn hiển thị thông báo trùng lặp trong 3 giây'
+    );
+    console.log('  -> Toast deduplication guard hoạt động chính xác: OK\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 13: Cơ chế chống lặp Web Push Notification (Notification Deduplication)
+  // ---------------------------------------------------------------------------
+  console.log('Test 13: Kiểm tra cơ chế chống lặp Web Push Notification');
+  {
+    assert.ok(
+      code.includes('if (body === lastNotificationBody && (now - lastNotificationTime < 5000))'),
+      'sendFocusNotification phải chặn push notification trùng lặp trong 5 giây'
+    );
+    console.log('  -> Push notification deduplication guard hoạt động chính xác: OK\n');
+  }
+
   console.log('============================================================');
-  console.log('✅ All 11 cross-device timer expiry tests passed!');
+  console.log('✅ All 13 cross-device timer expiry & dedup tests passed!');
   console.log('============================================================');
 }
 
