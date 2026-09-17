@@ -6059,6 +6059,17 @@ function refreshAllCardDescToggles() {
 }
 window.refreshAllCardDescToggles = refreshAllCardDescToggles;
 
+/**
+ * Đóng toàn bộ các menu dropdown thao tác của các thẻ và hạ tầng z-index
+ */
+function closeAllCardDropdowns() {
+  document.querySelectorAll('.quest-dropdown-menu:not(.hidden)').forEach(m => {
+    m.classList.add('hidden');
+    m.closest('.rpg-card')?.classList.remove('card-menu-open');
+  });
+}
+window.closeAllCardDropdowns = closeAllCardDropdowns;
+
 function renderQuests() {
   const grid = document.getElementById('quests-grid');
   const empty = document.getElementById('quests-empty');
@@ -6268,10 +6279,12 @@ function renderQuests() {
     if (menuBtn && dropdown) {
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
-          if (m !== dropdown) m.classList.add('hidden');
-        });
-        dropdown.classList.toggle('hidden');
+        const willOpen = dropdown.classList.contains('hidden');
+        closeAllCardDropdowns();
+        if (willOpen) {
+          dropdown.classList.remove('hidden');
+          card.classList.add('card-menu-open');
+        }
       });
     }
 
@@ -6282,12 +6295,14 @@ function renderQuests() {
     if (toggleRepeatBtn) {
       toggleRepeatBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         toggleQuestRepeatable(q.id);
       });
     }
 
     card.querySelector('.btn-del-quest').addEventListener('click', (e) => {
       e.stopPropagation();
+      closeAllCardDropdowns();
       deleteQuest(q.id);
     });
 
@@ -6295,6 +6310,7 @@ function renderQuests() {
     if (debateQuestBtn) {
       debateQuestBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         openQuestRenegotiateModal(q.id);
       });
     }
@@ -6303,6 +6319,7 @@ function renderQuests() {
     if (restartBtn) {
       restartBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         restartQuest(q.id);
       });
     }
@@ -6311,6 +6328,7 @@ function renderQuests() {
     if (undoBtn) {
       undoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         undoCompleteQuest(q.id);
       });
     }
@@ -6319,6 +6337,7 @@ function renderQuests() {
     if (undoRepeatBtn) {
       undoRepeatBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         undoCompleteQuest(q.id);
       });
     }
@@ -6327,6 +6346,7 @@ function renderQuests() {
     if (submitProofBtn) {
       submitProofBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         openQuestProofModal(q);
       });
     }
@@ -6486,10 +6506,12 @@ function renderShop() {
     if (menuBtn && dropdown) {
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
-          if (m !== dropdown) m.classList.add('hidden');
-        });
-        dropdown.classList.toggle('hidden');
+        const willOpen = dropdown.classList.contains('hidden');
+        closeAllCardDropdowns();
+        if (willOpen) {
+          dropdown.classList.remove('hidden');
+          card.classList.add('card-menu-open');
+        }
       });
     }
 
@@ -6498,6 +6520,7 @@ function renderShop() {
 
     card.querySelector('.btn-del-shop-item').addEventListener('click', (e) => {
       e.stopPropagation();
+      closeAllCardDropdowns();
       deleteShopItem(item.id);
     });
 
@@ -6505,6 +6528,7 @@ function renderShop() {
     if (debateShopBtn) {
       debateShopBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         openRewardRenegotiateModal(item.id);
       });
     }
@@ -6689,10 +6713,12 @@ function renderInventory() {
     if (menuBtn && dropdown) {
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.querySelectorAll('.quest-dropdown-menu').forEach(m => {
-          if (m !== dropdown) m.classList.add('hidden');
-        });
-        dropdown.classList.toggle('hidden');
+        const willOpen = dropdown.classList.contains('hidden');
+        closeAllCardDropdowns();
+        if (willOpen) {
+          dropdown.classList.remove('hidden');
+          card.classList.add('card-menu-open');
+        }
       });
     }
 
@@ -6700,6 +6726,7 @@ function renderInventory() {
     if (scrollTimerBtn) {
       scrollTimerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
@@ -6708,6 +6735,7 @@ function renderInventory() {
     if (delInvBtn) {
       delInvBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         deleteInventoryItem(item.id);
       });
     }
@@ -6716,6 +6744,7 @@ function renderInventory() {
     if (refundBtn) {
       refundBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllCardDropdowns();
         refundInventoryItem(item.id);
       });
     }
@@ -9612,7 +9641,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mobileMoreMenu?.classList.add('hidden');
     }
     if (!e.target.closest('.btn-quest-menu') && !e.target.closest('.btn-shop-menu') && !e.target.closest('.btn-inv-menu') && !e.target.closest('.quest-dropdown-menu')) {
-      document.querySelectorAll('.quest-dropdown-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+      closeAllCardDropdowns();
     }
   });
 
