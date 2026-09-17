@@ -134,7 +134,7 @@ console.log('✓ Test 10: Khi đổi quà (buyShopItem), hệ thống tự độ
   assert.strictEqual(negotiatedGame.targetMinutes, 15, 'Thời gian đàm phán 15 phút phải được giữ nguyên');
   assert.strictEqual(negotiatedGame.tier, 'common', 'Hạng quà phải tự động hạ xuống common khi giá giảm < 30 Vàng');
 
-  // Trường hợp thẩm định ban đầu chưa thương lượng (!isNegotiated), sàn 35 Vàng vẫn bảo vệ chống lạm phát
+  // Trường hợp thẩm định ban đầu chưa thương lượng (!isNegotiated), sàn 30 Vàng (tương ứng 30 phút) vẫn bảo vệ chống lạm phát
   const initialGame = sanitizeEvaluatedReward({
     name: '30 Phút Chơi Game',
     price: 20,
@@ -143,7 +143,7 @@ console.log('✓ Test 10: Khi đổi quà (buyShopItem), hệ thống tự độ
     category: 'entertainment',
     isNegotiated: false
   }, '30 Phút Chơi Game', '');
-  assert.strictEqual(initialGame.price, 35, 'Thẩm định ban đầu giải trí < 35 Vàng phải được nâng lên 35 Vàng');
+  assert.strictEqual(initialGame.price, 30, 'Thẩm định ban đầu giải trí < 30 Vàng phải được nâng lên 30 Vàng');
 
   // Thương lượng bỏ hẹn giờ (targetMinutes = 0)
   const zeroTimed = sanitizeEvaluatedReward({

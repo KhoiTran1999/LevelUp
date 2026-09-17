@@ -100,6 +100,18 @@ class SoundFX {
 
 const sfx = new SoundFX();
 const COIN_ICON_HTML = '<span class="coin-icon"></span>';
+const REWARD_TIER_COLORS = {
+  common: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/20 shadow-xs',
+  rare: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 shadow-xs',
+  epic: 'bg-purple-500/25 text-purple-800 dark:text-purple-200 border-purple-500/40 shadow-xs font-bold',
+  legendary: 'bg-purple-600 text-white border-purple-400 shadow-md font-black'
+};
+const REWARD_TIER_LABELS = {
+  common: 'PHỔ THÔNG',
+  rare: 'CAO CẤP',
+  epic: 'QUÝ GIÁ',
+  legendary: 'CỰC PHẨM'
+};
 
 // =============================================================================
 // 2. DEFAULT STATE & SEED DATA
@@ -530,7 +542,11 @@ function triggerSave(needsCloud = true, immediate = false, timerAction = null) {
   }
   appState.lastModified = Math.max(Date.now(), (Number(appState.lastSyncedAt) || 0) + 1);
   saveLocalCache();
-  renderAll();
+  try {
+    renderAll();
+  } catch (renderErr) {
+    console.error('Lỗi giao diện khi renderAll trong triggerSave:', renderErr);
+  }
 
   if (needsCloud) {
     clearTimeout(syncTimeout);
@@ -944,7 +960,33 @@ function addEXP(amount) {
   }
 }
 
+// ponytail: Thu hồi EXP đa tầng, nếu EXP về âm thì hạ cấp độ tương ứng xuống và đổi phần dư
+function deductEXP(amount) {
+  let expToDeduct = Math.max(0, parseInt(amount, 10) || 0);
+  while (expToDeduct > 0) {
+    if (appState.profile.exp >= expToDeduct) {
+      appState.profile.exp -= expToDeduct;
+      expToDeduct = 0;
+    } else {
+      expToDeduct -= appState.profile.exp;
+      if (appState.profile.level > 1) {
+        appState.profile.level -= 1;
+        appState.profile.exp = appState.profile.level * 100;
+      } else {
+        appState.profile.exp = 0;
+        expToDeduct = 0;
+      }
+    }
+  }
+  updateTitleByLevel();
+}
+
 function updateTitleByLevel() {
+  const isOverdue = Boolean(appState.profile?.bank?.loan?.isOverdue);
+  if (isOverdue) {
+    appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+    return;
+  }
   const lvl = appState.profile.level;
   if (lvl >= 20) appState.profile.title = 'Huyền Thoại Kỷ Luật';
   else if (lvl >= 15) appState.profile.title = 'Bậc Thầy Năng Suất';
@@ -1864,9 +1906,8 @@ function toggleZenMode(show) {
     } else if (activeRewardItem) {
       if (zenTitle) zenTitle.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
       if (zenRank) {
-        const tierLabels = { common: 'PHỔ THÔNG', rare: 'CAO CẤP', epic: 'QUÝ GIÁ', legendary: 'CỰC PHẨM' };
         const rawTier = (activeRewardItem.tier || 'rare').toLowerCase();
-        zenRank.textContent = tierLabels[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
+        zenRank.textContent = REWARD_TIER_LABELS[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30';
       }
       if (zenProtocol) zenProtocol.textContent = 'TẬN HƯỞNG PHẦN THƯỞNG';
@@ -2027,7 +2068,9 @@ async function completeQuest(questId, skipConfirm = false) {
 
     let earnedCoins = quest.rewardCoins;
     let deductedForLoan = 0;
+    let principalDeducted = 0;
     let loanCleared = false;
+    let loanBeforeDeduct = null;
 
     // Tự động trích nợ Ngân Hàng nếu người chơi có khoản vay đang hoạt động
     if (appState.profile?.bank?.loan && (parseInt(appState.profile.bank.loan.debt, 10) || 0) > 0) {
@@ -2041,20 +2084,40 @@ async function completeQuest(questId, skipConfirm = false) {
       const deductRate = isOverdue ? 1.0 : Math.min(0.80, Math.max(0.30, Number(loan.autoDeductPercent) || 0.50));
       deductedForLoan = Math.min(loan.debt, Math.floor(earnedCoins * deductRate));
       if (deductedForLoan > 0) {
+        loanBeforeDeduct = {
+          principal: loan.principal || 0,
+          debt: loan.debt,
+          interestRate: loan.interestRate || 0.05,
+          borrowedAt: loan.borrowedAt || Date.now(),
+          autoDeductPercent: loan.autoDeductPercent || 0.50,
+          isOverdue: Boolean(loan.isOverdue)
+        };
+        const principalBefore = loan.principal || 0;
+        principalDeducted = Math.min(principalBefore, deductedForLoan);
         loan.debt -= deductedForLoan;
-        loan.principal = Math.max(0, (loan.principal || 0) - Math.min(loan.principal || 0, deductedForLoan));
+        loan.principal = Math.max(0, principalBefore - principalDeducted);
         earnedCoins -= deductedForLoan;
 
         if (loan.debt <= 0) {
           loanCleared = true;
           appState.profile.bank.loan = null;
           appState.profile.bank.isFrozen = false;
-          if (appState.profile.title === 'Con Nợ Quá Hạn ⚠️') {
-            updateTitleByLevel();
-          }
+          updateTitleByLevel();
         }
       }
     }
+
+    // Lưu snapshot trích nợ để có thể hoàn tác chính xác (hỗ trợ cả quest lặp lại theo cơ chế stack LIFO)
+    if (!Array.isArray(quest.loanDeductions)) {
+      quest.loanDeductions = [];
+    }
+    quest.loanDeductions.push({
+      rewardCoins: quest.rewardCoins,
+      deducted: deductedForLoan,
+      principalDeducted,
+      loanSnapshot: loanBeforeDeduct,
+      timestamp: Date.now()
+    });
 
     appState.profile.coins += earnedCoins;
     appState.profile.totalCoinsEarned += quest.rewardCoins;
@@ -2083,14 +2146,16 @@ async function completeQuest(questId, skipConfirm = false) {
     }
 
     sfx.playCoin();
-    if (deductedForLoan > 0) {
-      showToast(`+${earnedCoins} VÀNG (Đã trích ${deductedForLoan} Vàng trả nợ)! Hoàn thành: "${quest.title}"`, 'gold');
-    } else {
-      showToast(`+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`, 'gold', {
+    showToast(
+      deductedForLoan > 0
+        ? `+${earnedCoins} VÀNG (Đã trích ${deductedForLoan} Vàng trả nợ)! Hoàn thành: "${quest.title}"`
+        : `+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`,
+      'gold',
+      {
         label: 'Hoàn tác',
         onClick: () => undoCompleteQuest(quest.id)
-      });
-    }
+      }
+    );
     triggerSave(true);
     renderHeader();
     renderQuests();
@@ -2100,63 +2165,146 @@ async function completeQuest(questId, skipConfirm = false) {
   }
 }
 
+const undoingQuestIds = new Set();
+
 async function undoCompleteQuest(questId) {
+  if (undoingQuestIds.has(questId)) return;
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest) return;
   if (!quest.isRepeatable && quest.status !== 'completed') return;
   if (quest.isRepeatable && (!quest.completedCount || quest.completedCount <= 0)) return;
 
-  const isRepeat = Boolean(quest.isRepeatable);
-  const ok = await confirmAction({
-    title: isRepeat ? 'Hoàn Tác Lần Nhận Thưởng?' : 'Hoàn Tác Nhiệm Vụ?',
-    message: isRepeat
-      ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
-      : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
-    detail: `💰 Sẽ trừ lại: -${quest.rewardCoins} Vàng | ⚡ Sẽ trừ lại: -${quest.rewardCoins * 3} EXP`,
-    confirmText: 'Hoàn Tác ↩️',
-    cancelText: 'Giữ Nguyên',
-    icon: '↩️',
-    btnColor: 'amber'
-  });
-  if (!ok) return;
+  undoingQuestIds.add(questId);
+  try {
+    const isRepeat = Boolean(quest.isRepeatable);
 
-  quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
-  delete quest.focusTimerCompleted;
-  delete quest._proofVerified;
-  if (quest.isRepeatable) {
-    delete quest.lastCompletedAt;
-  } else {
-    quest.status = 'active';
-    delete quest.completedAt;
+    // Lấy thông tin trích nợ của lần hoàn thành này (LIFO stack)
+    let deductionInfo = null;
+    if (Array.isArray(quest.loanDeductions) && quest.loanDeductions.length > 0) {
+      deductionInfo = quest.loanDeductions[quest.loanDeductions.length - 1];
+    } else {
+      const lastBankDeduct = (appState.ledger || []).slice().reverse().find(entry =>
+        entry.category === 'bank_deduct' && entry.description && entry.description.includes(quest.title)
+      );
+      if (lastBankDeduct && lastBankDeduct.amount > 0) {
+        deductionInfo = {
+          rewardCoins: quest.rewardCoins,
+          deducted: lastBankDeduct.amount,
+          principalDeducted: lastBankDeduct.amount,
+          loanSnapshot: null
+        };
+      }
+    }
+
+    const deductedAmount = deductionInfo ? (Number(deductionInfo.deducted) || 0) : 0;
+    const principalDeducted = deductionInfo ? (Number(deductionInfo.principalDeducted) || 0) : 0;
+    const originalReward = Number(quest.rewardCoins) || 0;
+    const earnedCoinsToRevert = Math.max(0, originalReward - deductedAmount);
+
+    if (appState.profile.coins < earnedCoinsToRevert) {
+      showToast(`Không thể hoàn tác: Số dư Vàng hiện tại (${appState.profile.coins}) không đủ để thu hồi ${earnedCoinsToRevert} Vàng!`, 'warning');
+      return;
+    }
+
+    const ok = await confirmAction({
+      title: isRepeat ? 'Hoàn Tác Lần Nhận Thưởng?' : 'Hoàn Tác Nhiệm Vụ?',
+      message: isRepeat
+        ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
+        : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
+      detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''} | ⚡ Sẽ thu hồi: -${originalReward * 3} EXP`,
+      confirmText: 'Hoàn Tác ↩️',
+      cancelText: 'Giữ Nguyên',
+      icon: '↩️',
+      btnColor: 'amber'
+    });
+    if (!ok) return;
+
+    if (Array.isArray(quest.loanDeductions) && quest.loanDeductions.length > 0) {
+      quest.loanDeductions.pop();
+    }
+
+    quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
+    delete quest.focusTimerCompleted;
+    delete quest._proofVerified;
+    if (quest.isRepeatable) {
+      delete quest.lastCompletedAt;
+    } else {
+      quest.status = 'active';
+      delete quest.completedAt;
+    }
+
+    appState.profile.coins = Math.max(0, appState.profile.coins - earnedCoinsToRevert);
+    appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - originalReward);
+    deductEXP(originalReward * 3);
+
+    if (deductedAmount > 0) {
+      if (appState.profile.bank.loan) {
+        const loan = appState.profile.bank.loan;
+        loan.debt = (loan.debt || 0) + deductedAmount;
+        loan.principal = (loan.principal || 0) + principalDeducted;
+        if (deductionInfo?.loanSnapshot?.isOverdue) {
+          loan.isOverdue = true;
+          appState.profile.bank.isFrozen = true;
+          appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+        }
+      } else if (deductionInfo?.loanSnapshot) {
+        appState.profile.bank.loan = {
+          ...deductionInfo.loanSnapshot,
+          debt: deductedAmount,
+          principal: principalDeducted
+        };
+        if (deductionInfo.loanSnapshot.isOverdue) {
+          appState.profile.bank.isFrozen = true;
+          appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+        }
+      } else {
+        appState.profile.bank.loan = {
+          principal: principalDeducted,
+          debt: deductedAmount,
+          interestRate: 0.05,
+          borrowedAt: Date.now(),
+          autoDeductPercent: 0.50,
+          isOverdue: false
+        };
+      }
+
+      addLedgerEntry({
+        id: 'bank_rev_' + Date.now(),
+        type: 'spend',
+        category: 'bank_revert',
+        amount: deductedAmount,
+        title: 'Hoàn tác trích nợ Ngân Hàng',
+        description: `↩️ Đã khôi phục ${deductedAmount} Vàng vào dư nợ khoản vay do hoàn tác nhiệm vụ "${quest.title}".`,
+        timestamp: Date.now()
+      });
+    }
+
+    addLedgerEntry({
+      id: 'led_' + Date.now(),
+      type: 'spend',
+      category: 'quest',
+      amount: earnedCoinsToRevert,
+      title: `Hoàn tác: ${quest.title}`,
+      description: isRepeat
+        ? `Hoàn tác lần làm gần nhất (${quest.title})`
+        : `Hoàn tác hoàn thành: ${quest.title}`,
+      timestamp: Date.now()
+    });
+
+    sfx.playClick();
+    triggerSave(true);
+    renderHeader();
+    renderQuests();
+    renderLedger();
+    showToast(
+      isRepeat
+        ? `Đã hoàn tác lần làm gần nhất của nhiệm vụ "${quest.title}".`
+        : `Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`,
+      'info'
+    );
+  } finally {
+    undoingQuestIds.delete(questId);
   }
-
-  appState.profile.coins = Math.max(0, appState.profile.coins - quest.rewardCoins);
-  appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - quest.rewardCoins);
-  appState.profile.exp = Math.max(0, appState.profile.exp - quest.rewardCoins * 3);
-
-  addLedgerEntry({
-    id: 'led_' + Date.now(),
-    type: 'spend',
-    category: 'quest',
-    amount: quest.rewardCoins,
-    title: `Hoàn tác: ${quest.title}`,
-    description: isRepeat
-      ? `Hoàn tác lần làm gần nhất (${quest.title})`
-      : `Hoàn tác hoàn thành: ${quest.title}`,
-    timestamp: Date.now()
-  });
-
-  sfx.playClick();
-  triggerSave(true);
-  renderHeader();
-  renderQuests();
-  renderLedger();
-  showToast(
-    isRepeat
-      ? `Đã hoàn tác lần làm gần nhất của nhiệm vụ "${quest.title}".`
-      : `Đã đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong.`,
-    'info'
-  );
 }
 
 async function restartQuest(questId) {
@@ -6250,18 +6398,8 @@ function renderShop() {
     const card = document.createElement('div');
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier}`;
 
-    const tierColors = {
-      common: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/20 shadow-xs',
-      rare: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 shadow-xs',
-      epic: 'bg-purple-500/25 text-purple-800 dark:text-purple-200 border-purple-500/40 shadow-xs font-bold',
-      legendary: 'bg-purple-600 text-white border-purple-400 shadow-md font-black'
-    };
-    const tierLabels = {
-      common: 'PHỔ THÔNG',
-      rare: 'CAO CẤP',
-      epic: 'QUÝ GIÁ',
-      legendary: 'CỰC PHẨM'
-    };
+    const tierColors = REWARD_TIER_COLORS;
+    const tierLabels = REWARD_TIER_LABELS;
 
     card.innerHTML = `
       <div>
@@ -6464,8 +6602,8 @@ function renderInventory() {
             <div class="inv-dropdown-menu quest-dropdown-menu hidden">
               <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
                 <span>Phân cấp:</span>
-                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${tierColors[rawTier] || tierColors.rare}">
-                  ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs ${REWARD_TIER_COLORS[rawTier] || REWARD_TIER_COLORS.rare}">
+                  ${REWARD_TIER_LABELS[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
                 </span>
               </div>
               ${!item.isUsed ? `
