@@ -8873,11 +8873,170 @@ async function executeBankDeposit() {
   loadBankState();
 }
 
-async function executeBankWithdraw() {
+function openBankWithdrawModal() {
   ensureUserBankProfile();
-  const bank = appState.profile.bank;
-  const deposited = bank.deposited || 0;
-  const interest = bank.depositInterest || 0;
+  const bank = appState.profile.bank || {};
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+  const totalAvailable = deposited + interest;
+
+  if (totalAvailable <= 0) {
+    showToast('Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi để rút!', 'info');
+    return;
+  }
+
+  const elDeposited = document.getElementById('withdraw-modal-deposited');
+  const elInterest = document.getElementById('withdraw-modal-interest');
+  const elTotal = document.getElementById('withdraw-modal-total');
+  const inputAmt = document.getElementById('input-withdraw-amount');
+  const btnInterestPreset = document.getElementById('btn-withdraw-preset-interest');
+
+  if (elDeposited) elDeposited.textContent = deposited.toLocaleString('vi-VN');
+  if (elInterest) elInterest.textContent = interest.toLocaleString('vi-VN');
+  if (elTotal) elTotal.textContent = totalAvailable.toLocaleString('vi-VN');
+
+  if (btnInterestPreset) {
+    if (interest > 0) {
+      btnInterestPreset.classList.remove('opacity-40', 'cursor-not-allowed');
+      btnInterestPreset.removeAttribute('disabled');
+      btnInterestPreset.textContent = `Chỉ lãi (+${interest})`;
+    } else {
+      btnInterestPreset.classList.add('opacity-40', 'cursor-not-allowed');
+      btnInterestPreset.setAttribute('disabled', 'true');
+      btnInterestPreset.textContent = 'Chỉ rút Lãi';
+    }
+  }
+
+  // Mặc định chọn toàn bộ hoặc lãi nếu có
+  const defaultAmount = totalAvailable;
+  if (inputAmt) {
+    inputAmt.max = totalAvailable;
+    inputAmt.value = defaultAmount;
+  }
+
+  onWithdrawAmountInput(defaultAmount);
+
+  if (typeof sfx !== 'undefined' && sfx.playClick) {
+    sfx.playClick();
+  }
+
+  const modal = document.getElementById('modal-bank-withdraw');
+  if (modal) modal.classList.remove('hidden');
+}
+window.openBankWithdrawModal = openBankWithdrawModal;
+
+function onWithdrawAmountInput(val) {
+  ensureUserBankProfile();
+  const bank = appState.profile.bank || {};
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+  const totalAvailable = deposited + interest;
+
+  let amount = parseInt(val, 10);
+  if (isNaN(amount) || amount < 0) amount = 0;
+
+  const withdrawAmt = Math.min(totalAvailable, amount);
+
+  // Phân tách thông minh: Ưu tiên rút hết lãi trước, vượt quá mới trừ vào gốc
+  let interestWithdrawn = 0;
+  let principalWithdrawn = 0;
+  if (withdrawAmt >= totalAvailable) {
+    interestWithdrawn = interest;
+    principalWithdrawn = deposited;
+  } else if (withdrawAmt <= interest) {
+    interestWithdrawn = withdrawAmt;
+    principalWithdrawn = 0;
+  } else {
+    interestWithdrawn = interest;
+    principalWithdrawn = withdrawAmt - interest;
+  }
+
+  const remainingPrincipal = Math.max(0, deposited - principalWithdrawn);
+
+  const elAllocInterest = document.getElementById('withdraw-alloc-interest');
+  const elAllocPrincipal = document.getElementById('withdraw-alloc-principal');
+  const elAllocTotal = document.getElementById('withdraw-alloc-total');
+  const elRemaining = document.getElementById('withdraw-remaining-principal');
+  const elNote = document.getElementById('withdraw-explanation-note');
+
+  if (elAllocInterest) elAllocInterest.textContent = `+${interestWithdrawn.toLocaleString('vi-VN')} Vàng`;
+  if (elAllocPrincipal) elAllocPrincipal.textContent = `${principalWithdrawn.toLocaleString('vi-VN')} Vàng`;
+  if (elAllocTotal) elAllocTotal.textContent = `${withdrawAmt.toLocaleString('vi-VN')} Vàng`;
+  if (elRemaining) elRemaining.textContent = remainingPrincipal.toLocaleString('vi-VN');
+
+  if (elNote) {
+    if (amount <= 0) {
+      elNote.innerHTML = '💡 <strong>Hướng dẫn:</strong> Nhập số Vàng bạn muốn rút hoặc nhấn các nút chọn nhanh bên trên để xem bảng phân bổ chi tiết.';
+    } else if (amount > totalAvailable) {
+      elNote.innerHTML = `<span class="text-rose-500 font-bold">⚠️ Chú ý:</span> Số Vàng bạn nhập (${amount}) vượt quá tổng số dư khả dụng (${totalAvailable} Vàng)! Tối đa có thể rút là ${totalAvailable} Vàng.`;
+    } else if (principalWithdrawn === 0) {
+      elNote.innerHTML = `💡 <strong>Ưu đãi bảo toàn vốn:</strong> Bạn đang rút <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> từ Tiền Lãi tích lũy. Toàn bộ <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> Vốn Gốc được bảo toàn 100% để tiếp tục sinh lời mỗi ngày!`;
+    } else {
+      elNote.innerHTML = `💡 <strong>Phân bổ thông minh:</strong> Hệ thống rút hết <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> tiền lãi và trích thêm <strong class="text-slate-200 font-bold">${principalWithdrawn} Vàng</strong> từ vốn gốc. ${remainingPrincipal > 0 ? `Phần gốc còn lại <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> vẫn tiếp tục sinh lãi!` : 'Bạn đã chọn tất toán toàn bộ gốc và lãi.'}`;
+    }
+  }
+}
+window.onWithdrawAmountInput = onWithdrawAmountInput;
+
+function setWithdrawAmountPreset(preset) {
+  ensureUserBankProfile();
+  const bank = appState.profile.bank || {};
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+  const totalAvailable = deposited + interest;
+
+  if (totalAvailable <= 0) return;
+
+  let targetAmt = 0;
+  if (preset === 'interest') {
+    if (interest <= 0) {
+      showToast('Hiện tại bạn chưa có tiền lãi tích lũy để rút!', 'info');
+      return;
+    }
+    targetAmt = interest;
+  } else if (preset === 'all') {
+    targetAmt = totalAvailable;
+  } else if (typeof preset === 'number') {
+    targetAmt = Math.max(1, Math.round(totalAvailable * preset));
+  }
+
+  const input = document.getElementById('input-withdraw-amount');
+  if (input) {
+    input.value = targetAmt;
+    onWithdrawAmountInput(targetAmt);
+  }
+}
+window.setWithdrawAmountPreset = setWithdrawAmountPreset;
+
+function confirmAndExecuteWithdraw() {
+  const input = document.getElementById('input-withdraw-amount');
+  const amount = parseInt(input?.value, 10);
+  ensureUserBankProfile();
+  const bank = appState.profile.bank || {};
+  const totalAvailable = (bank.deposited || 0) + (bank.depositInterest || 0);
+
+  if (!amount || amount <= 0) {
+    showToast('Vui lòng nhập số Vàng muốn rút hợp lệ (> 0)!', 'error');
+    return;
+  }
+  if (amount > totalAvailable) {
+    showToast(`Số Vàng muốn rút (${amount}) vượt quá số dư khả dụng (${totalAvailable} Vàng)!`, 'error');
+    return;
+  }
+
+  const modal = document.getElementById('modal-bank-withdraw');
+  if (modal) modal.classList.add('hidden');
+
+  executeBankWithdraw(amount);
+}
+window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw;
+
+async function executeBankWithdraw() {
+  const reqAmt = arguments[0] !== undefined ? arguments[0] : 'all';
+  ensureUserBankProfile();
+  const bank = appState.profile.bank || {};
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
   const totalAvailable = deposited + interest;
 
   if (totalAvailable <= 0) {
@@ -8885,11 +9044,33 @@ async function executeBankWithdraw() {
     return;
   }
 
+  const withdrawAmt = (reqAmt === 'all' || !reqAmt)
+    ? totalAvailable
+    : Math.min(totalAvailable, Math.max(1, parseInt(reqAmt, 10) || totalAvailable));
+
+  let interestWithdrawn = 0;
+  let principalWithdrawn = 0;
+  if (withdrawAmt >= totalAvailable) {
+    interestWithdrawn = interest;
+    principalWithdrawn = deposited;
+  } else if (withdrawAmt <= interest) {
+    interestWithdrawn = withdrawAmt;
+    principalWithdrawn = 0;
+  } else {
+    interestWithdrawn = interest;
+    principalWithdrawn = withdrawAmt - interest;
+  }
+
+  const isFull = withdrawAmt >= totalAvailable;
+  const remainingPrincipal = Math.max(0, deposited - principalWithdrawn);
+
   const ok = await confirmAction({
-    title: 'Rút Tiết Kiệm Về Ví?',
-    message: `Rút toàn bộ ${totalAvailable} Vàng (${deposited} Vàng gốc + ${interest} Vàng lãi) về ví?`,
-    detail: `💰 Số dư ví sẽ tăng từ ${appState.profile.coins} ➔ ${appState.profile.coins + totalAvailable} Vàng.`,
-    confirmText: 'Rút Toàn Bộ 📤',
+    title: isFull ? 'Rút Toàn Bộ Tiết Kiệm?' : 'Rút Một Phần Tiết Kiệm?',
+    message: isFull
+      ? `Rút toàn bộ ${totalAvailable} Vàng (${deposited} Vàng gốc + ${interest} Vàng lãi) về ví?`
+      : `Rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) về ví?`,
+    detail: `💰 Số dư ví: ${appState.profile.coins} ➔ ${appState.profile.coins + withdrawAmt} Vàng.\n${remainingPrincipal > 0 ? `🌱 Vốn gốc còn lại: ${remainingPrincipal} Vàng vẫn tiếp tục sinh lãi thụ động!` : 'Đã tất toán toàn bộ sổ tiết kiệm.'}`,
+    confirmText: isFull ? 'Rút Toàn Bộ 📤' : 'Rút Về Ví 📤',
     cancelText: 'Giữ Lại Sinh Lời',
     icon: '📤',
     btnColor: 'emerald'
@@ -8907,7 +9088,7 @@ async function executeBankWithdraw() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ amount: 'all' })
+        body: JSON.stringify({ amount: withdrawAmt })
       });
       if (res.ok) {
         const data = await res.json();
@@ -8918,7 +9099,7 @@ async function executeBankWithdraw() {
           appState.ledger = data.ledger;
         }
         serverSuccess = true;
-        showToast(data.message || `Đã rút thành công ${totalAvailable} Vàng!`, 'gold');
+        showToast(data.message || `Đã rút thành công ${withdrawAmt} Vàng!`, 'gold');
       } else {
         const errData = await res.json().catch(() => ({}));
         showToast(errData.error || 'Rút tiền thất bại trên máy chủ!', 'error');
@@ -8931,18 +9112,18 @@ async function executeBankWithdraw() {
 
   if (!serverSuccess) {
     let bailoutInjected = 0;
-    if (currentBankPool.poolGold < totalAvailable) {
-      bailoutInjected = totalAvailable - currentBankPool.poolGold;
+    if (currentBankPool.poolGold < withdrawAmt) {
+      bailoutInjected = withdrawAmt - currentBankPool.poolGold;
       currentBankPool.bailoutDebt = (currentBankPool.bailoutDebt || 0) + bailoutInjected;
       currentBankPool.poolGold += bailoutInjected;
     }
-    currentBankPool.poolGold = Math.max(0, currentBankPool.poolGold - totalAvailable);
-    currentBankPool.totalDeposited = Math.max(0, (currentBankPool.totalDeposited || 0) - deposited);
+    currentBankPool.poolGold = Math.max(0, currentBankPool.poolGold - withdrawAmt);
+    currentBankPool.totalDeposited = Math.max(0, (currentBankPool.totalDeposited || 0) - principalWithdrawn);
 
-    appState.profile.coins += totalAvailable;
-    appState.profile.totalCoinsEarned += interest;
-    bank.deposited = 0;
-    bank.depositInterest = 0;
+    appState.profile.coins += withdrawAmt;
+    appState.profile.totalCoinsEarned += interestWithdrawn;
+    bank.deposited = Math.max(0, deposited - principalWithdrawn);
+    bank.depositInterest = Math.max(0, interest - interestWithdrawn);
     bank.lastDepositAt = Date.now();
 
     const bailoutNotice = bailoutInjected > 0 ? ` (Bảo lãnh 100% từ Kho Bạc Hệ Thống: Cứu trợ ${bailoutInjected} Vàng)` : '';
@@ -8950,12 +9131,12 @@ async function executeBankWithdraw() {
       id: 'bank_wit_' + Date.now(),
       type: 'earn',
       category: 'bank_withdraw',
-      amount: totalAvailable,
+      amount: withdrawAmt,
       title: 'Rút tiền gửi Ngân Hàng',
-      description: `🏦 Đã rút ${totalAvailable} Vàng (${deposited} gốc + ${interest} lãi) từ Ngân Hàng.${bailoutNotice}`,
+      description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${bailoutNotice}`,
       timestamp: Date.now()
     });
-    showToast(`Đã rút thành công ${totalAvailable} Vàng!${bailoutInjected > 0 ? ' Kho Bạc đã bảo lãnh 100% thanh khoản!' : ''}`, 'gold');
+    showToast(`Đã rút thành công ${withdrawAmt} Vàng!${bailoutInjected > 0 ? ' Kho Bạc đã bảo lãnh 100% thanh khoản!' : ''}`, 'gold');
   }
 
   sfx.playCoin();
@@ -9850,6 +10031,10 @@ window.setDepositAmount = setDepositAmount;
 window.setDepositMax = setDepositMax;
 window.executeBankDeposit = executeBankDeposit;
 window.executeBankWithdraw = executeBankWithdraw;
+window.openBankWithdrawModal = openBankWithdrawModal;
+window.setWithdrawAmountPreset = setWithdrawAmountPreset;
+window.onWithdrawAmountInput = onWithdrawAmountInput;
+window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw;
 window.onDeductPercentChange = onDeductPercentChange;
 window.executeBankBorrow = executeBankBorrow;
 window.executeBankRepay = executeBankRepay;

@@ -845,8 +845,8 @@
             <button id="btn-bank-deposit" onclick="executeBankDeposit()" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs cursor-pointer flex items-center justify-center gap-1.5">
               <span>📥</span> <span>Gửi Tiết Kiệm</span>
             </button>
-            <button id="btn-bank-withdraw" onclick="executeBankWithdraw()" class="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-emerald-500/40 hover:bg-emerald-500/15 active:scale-95 text-emerald-700 dark:text-emerald-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
-              <span>📤</span> <span>Rút Toàn Bộ</span>
+            <button id="btn-bank-withdraw" onclick="openBankWithdrawModal()" class="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-emerald-500/40 hover:bg-emerald-500/15 active:scale-95 text-emerald-700 dark:text-emerald-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
+              <span>📤</span> <span>Rút Tiền</span>
             </button>
           </div>
         </div>
@@ -2072,6 +2072,117 @@
         <div class="pt-2 flex justify-end">
           <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer">
             Đã Hiểu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RÚT TIỀN TIẾT KIỆM (RÚT MỘT PHẦN HOẶC TOÀN BỘ) -->
+  <div id="modal-bank-withdraw" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-bank-withdraw-title">
+    <div class="rpg-panel rounded-2xl w-full sm:max-w-md border border-emerald-500/40 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📤</span>
+          <h3 id="modal-bank-withdraw-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">RÚT TIỀN TIẾT KIỆM</h3>
+        </div>
+        <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
+        <!-- Thẻ thống kê số dư hiện có -->
+        <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-500 dark:text-slate-400">🏦 Vốn gốc đã gửi:</span>
+            <span class="font-mono font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1">
+              <span id="withdraw-modal-deposited">0</span> <span class="coin-icon"></span>
+            </span>
+          </div>
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-500 dark:text-slate-400">🌱 Tiền lãi tích lũy:</span>
+            <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+              +<span id="withdraw-modal-interest">0</span> <span class="coin-icon"></span>
+            </span>
+          </div>
+          <div class="flex justify-between items-center pt-2 border-t border-emerald-500/20 text-xs">
+            <span class="font-bold text-slate-700 dark:text-slate-300">💰 Tổng khả dụng rút:</span>
+            <span class="font-mono font-extrabold text-amber-500 dark:text-amber-400 text-sm inline-flex items-center gap-1">
+              <span id="withdraw-modal-total">0</span> <span class="coin-icon"></span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Ô nhập số Vàng muốn rút -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <label for="input-withdraw-amount" class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              Nhập số Vàng muốn rút:
+            </label>
+            <span class="text-[10px] text-slate-400">Tối thiểu: 1 Vàng</span>
+          </div>
+          <div class="relative flex items-center">
+            <input type="number" id="input-withdraw-amount" min="1" placeholder="Nhập số Vàng..." oninput="onWithdrawAmountInput(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono font-bold pr-8 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <span class="absolute right-2.5 pointer-events-none flex items-center scale-90"><span class="coin-icon"></span></span>
+          </div>
+        </div>
+
+        <!-- Các nút chọn nhanh -->
+        <div class="space-y-1">
+          <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Chọn nhanh số tiền rút:</span>
+          <div class="grid grid-cols-5 gap-1.5">
+            <button type="button" id="btn-withdraw-preset-interest" onclick="setWithdrawAmountPreset('interest')" class="px-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition text-center truncate cursor-pointer" title="Chỉ rút tiền lãi đã sinh">
+              Chỉ rút Lãi
+            </button>
+            <button type="button" onclick="setWithdrawAmountPreset(0.25)" class="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer">
+              25%
+            </button>
+            <button type="button" onclick="setWithdrawAmountPreset(0.50)" class="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer">
+              50%
+            </button>
+            <button type="button" onclick="setWithdrawAmountPreset(0.75)" class="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer">
+              75%
+            </button>
+            <button type="button" onclick="setWithdrawAmountPreset('all')" class="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition text-center cursor-pointer">
+              Tất cả
+            </button>
+          </div>
+        </div>
+
+        <!-- Bảng phân bổ trực quan & Giải thích cho người dùng hiểu theo thời gian thực -->
+        <div id="withdraw-allocation-box" class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2">
+          <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+            <span>📊</span> <span>Phân bổ số tiền rút:</span>
+          </div>
+          <div class="space-y-1 text-[11px]">
+            <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+              <span>🌱 Trích từ Tiền Lãi:</span>
+              <span class="font-mono font-semibold text-emerald-600 dark:text-emerald-400" id="withdraw-alloc-interest">0 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+              <span>🏦 Trích từ Vốn Gốc:</span>
+              <span class="font-mono font-semibold text-slate-700 dark:text-slate-300" id="withdraw-alloc-principal">0 Vàng</span>
+            </div>
+            <div class="flex justify-between items-center pt-1.5 border-t border-slate-200 dark:border-slate-800">
+              <span class="font-bold text-emerald-700 dark:text-emerald-400">💰 Thực nhận về ví:</span>
+              <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs" id="withdraw-alloc-total">0 Vàng</span>
+            </div>
+          </div>
+
+          <!-- Lời giải thích quy tắc vàng cho user -->
+          <div class="pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
+            <p id="withdraw-explanation-note" class="leading-relaxed">
+              💡 <strong>Cơ chế bảo vệ vốn:</strong> Hệ thống luôn ưu tiên rút hết Tiền Lãi trước. Phần Vốn Gốc còn lại (<strong id="withdraw-remaining-principal" class="font-mono text-slate-700 dark:text-slate-300">0</strong> Vàng) sẽ tiếp tục ở lại ngân hàng và sinh lời mỗi ngày!
+            </p>
+          </div>
+        </div>
+
+        <!-- Nút hành động trong modal -->
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" class="modal-close px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer">
+            Hủy
+          </button>
+          <button type="button" id="btn-confirm-withdraw-action" onclick="confirmAndExecuteWithdraw()" class="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white transition shadow-sm cursor-pointer flex items-center gap-1.5">
+            <span>Rút Về Ví</span> <span>📤</span>
           </button>
         </div>
       </div>

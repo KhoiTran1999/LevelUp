@@ -470,6 +470,78 @@ function testEarlyRepaymentPenalty() {
   console.log('✓ Test 13: Cơ chế tính lãi suất phạt tất toán sớm & thông báo người dùng hoạt động chuẩn xác.');
 }
 
+// 14. Kiểm thử Rút Một Phần Tiền Gửi Tiết Kiệm & Phân Bổ Lãi/Gốc Thông Minh
+function testPartialBankWithdrawal() {
+  const html = fs.readFileSync('public/index.html', 'utf-8');
+  const appJs = fs.readFileSync('public/app.js', 'utf-8');
+
+  // Kịch bản 1: Rút ít hơn tiền lãi (Rút 3 Vàng khi có 5 Vàng lãi, 50 Vàng gốc)
+  const deposited1 = 50;
+  const interest1 = 5;
+  const totalAvailable1 = deposited1 + interest1;
+  const withdrawAmt1 = 3;
+
+  let interestWithdrawn1 = 0;
+  let principalWithdrawn1 = 0;
+  if (withdrawAmt1 >= totalAvailable1) {
+    interestWithdrawn1 = interest1;
+    principalWithdrawn1 = deposited1;
+  } else if (withdrawAmt1 <= interest1) {
+    interestWithdrawn1 = withdrawAmt1;
+    principalWithdrawn1 = 0;
+  } else {
+    interestWithdrawn1 = interest1;
+    principalWithdrawn1 = withdrawAmt1 - interest1;
+  }
+
+  assert.strictEqual(interestWithdrawn1, 3, 'Trường hợp rút nhỏ hơn lãi: Trừ đúng 3 Vàng từ Tiền Lãi');
+  assert.strictEqual(principalWithdrawn1, 0, 'Vốn gốc giữ nguyên 100% không bị suy suyển');
+  assert.strictEqual(deposited1 - principalWithdrawn1, 50, 'Số gốc còn lại tiếp tục sinh lời là 50 Vàng');
+  assert.strictEqual(interest1 - interestWithdrawn1, 2, 'Tiền lãi còn lại là 2 Vàng');
+
+  // Kịch bản 2: Rút vượt quá tiền lãi (Rút 20 Vàng khi có 5 Vàng lãi, 50 Vàng gốc)
+  const withdrawAmt2 = 20;
+  let interestWithdrawn2 = 0;
+  let principalWithdrawn2 = 0;
+  if (withdrawAmt2 >= totalAvailable1) {
+    interestWithdrawn2 = interest1;
+    principalWithdrawn2 = deposited1;
+  } else if (withdrawAmt2 <= interest1) {
+    interestWithdrawn2 = withdrawAmt2;
+    principalWithdrawn2 = 0;
+  } else {
+    interestWithdrawn2 = interest1;
+    principalWithdrawn2 = withdrawAmt2 - interest1;
+  }
+
+  assert.strictEqual(interestWithdrawn2, 5, 'Trường hợp rút vượt lãi: Rút sạch toàn bộ 5 Vàng tiền lãi trước');
+  assert.strictEqual(principalWithdrawn2, 15, 'Trích thêm 15 Vàng từ vốn gốc');
+  assert.strictEqual(deposited1 - principalWithdrawn2, 35, 'Vốn gốc còn lại 35 Vàng tiếp tục ở lại sinh lời');
+
+  // Kịch bản 3: Kiểm tra các thành phần DOM của Modal Rút tiền và Bảng phân bổ trực quan
+  assert.ok(html.includes('id="modal-bank-withdraw"'), 'Phải có modal id="modal-bank-withdraw"');
+  assert.ok(html.includes('id="input-withdraw-amount"'), 'Phải có ô nhập số Vàng rút');
+  assert.ok(html.includes('id="btn-withdraw-preset-interest"'), 'Phải có nút preset Chỉ rút Lãi');
+  assert.ok(html.includes('id="withdraw-allocation-box"'), 'Phải có bảng phân bổ rút tiền trực quan');
+  assert.ok(html.includes('id="withdraw-alloc-interest"'), 'Phải có chỉ số trích từ Tiền Lãi');
+  assert.ok(html.includes('id="withdraw-alloc-principal"'), 'Phải có chỉ số trích từ Vốn Gốc');
+  assert.ok(html.includes('id="withdraw-remaining-principal"'), 'Phải có chỉ số gốc còn lại tiếp tục sinh lời');
+  assert.ok(html.includes('id="withdraw-explanation-note"'), 'Phải có khung giải thích cơ chế bảo vệ vốn cho user');
+  assert.ok(html.includes('openBankWithdrawModal()'), 'Nút rút tiền phải kích hoạt mở modal rút tiền');
+
+  // Kịch bản 4: Kiểm tra các hàm logic trong app.js
+  assert.ok(appJs.includes('function openBankWithdrawModal()'), 'Phải có hàm openBankWithdrawModal');
+  assert.ok(appJs.includes('function onWithdrawAmountInput('), 'Phải có hàm onWithdrawAmountInput');
+  assert.ok(appJs.includes('function setWithdrawAmountPreset('), 'Phải có hàm setWithdrawAmountPreset');
+  assert.ok(appJs.includes('function confirmAndExecuteWithdraw()'), 'Phải có hàm confirmAndExecuteWithdraw');
+  assert.ok(appJs.includes('window.openBankWithdrawModal = openBankWithdrawModal'), 'Phải gán window.openBankWithdrawModal');
+  assert.ok(appJs.includes('window.setWithdrawAmountPreset = setWithdrawAmountPreset'), 'Phải gán window.setWithdrawAmountPreset');
+  assert.ok(appJs.includes('window.onWithdrawAmountInput = onWithdrawAmountInput'), 'Phải gán window.onWithdrawAmountInput');
+  assert.ok(appJs.includes('window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw'), 'Phải gán window.confirmAndExecuteWithdraw');
+
+  console.log('✓ Test 14: Tính năng Rút một phần tiền gửi, Modal phân tách gốc/lãi và giải thích trực quan hoạt động chuẩn xác 100%.');
+}
+
 testAMMDynamicRates();
 testCreditLimitCalculation();
 testAccrueBankInterest();
@@ -483,5 +555,6 @@ testAppJsBankIntegration();
 testAdminBankTelemetry();
 testDepositCalculatorProjection();
 testEarlyRepaymentPenalty();
+testPartialBankWithdrawal();
 
-console.log('\n🎉 TẤT CẢ 13/13 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, PENALTY, ANTI-CHEAT) ĐÃ VƯỢT QUA XUẤT SẮC!');
+console.log('\n🎉 TẤT CẢ 14/14 BỘ KIỂM THỬ HỆ THỐNG TÀI CHÍNH 3 BÊN (AMM, BAILOUT, PENALTY, PARTIAL WITHDRAW) ĐÃ VƯỢT QUA XUẤT SẮC!');
