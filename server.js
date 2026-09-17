@@ -37,6 +37,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+process.on('uncaughtException', (err) => {
+  console.error('Server Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Server Unhandled Rejection:', reason);
+});
+
 app.listen(PORT, () => {
   console.log(`\n⚔️ LevelUp RPG Guild is running at http://localhost:${PORT}`);
   console.log(`⚡ AI Models: Brain=${process.env.MODEL_BRAIN || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini'} (thinking ON) | Worker=${process.env.MODEL_WORKER || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini'} (thinking OFF)`);

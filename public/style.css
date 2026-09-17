@@ -907,6 +907,241 @@ html.dark .podium-rank-3 {
   50% { transform: translateY(-3px) rotate(2deg); }
 }
 
+/* =============================================================================
+   AI ASSISTANT / GUILD COMPANION STYLES (BRAIN & WORKER)
+   ============================================================================= */
+
+#btn-floating-assistant {
+  width: 3.25rem;
+  height: 3.25rem;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  background: radial-gradient(circle at 35% 30%, rgba(167, 139, 250, 0.25) 0%, rgba(124, 58, 237, 0.2) 60%, rgba(76, 29, 149, 0.25) 100%);
+  border: 1.5px solid rgba(192, 132, 252, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 0 12px rgba(167, 139, 250, 0.35), inset 0 0 8px rgba(192, 132, 252, 0.25);
+  animation: fabEtherealGlow 3.5s infinite ease-in-out alternate;
+}
+@media (min-width: 768px) {
+  #btn-floating-assistant {
+    width: auto;
+    height: auto;
+    aspect-ratio: auto;
+    padding: 0.625rem 1rem;
+    gap: 0.5rem;
+  }
+}
+html.dark #btn-floating-assistant {
+  background: radial-gradient(circle at 35% 30%, rgba(192, 132, 252, 0.3) 0%, rgba(139, 92, 246, 0.22) 60%, rgba(91, 33, 182, 0.3) 100%);
+  border: 1.5px solid rgba(192, 132, 252, 0.6);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 14px rgba(167, 139, 250, 0.4), inset 0 0 10px rgba(192, 132, 252, 0.3);
+}
+
+#btn-floating-assistant:hover {
+  background: radial-gradient(circle at 35% 30%, rgba(192, 132, 252, 0.4) 0%, rgba(139, 92, 246, 0.3) 60%, rgba(91, 33, 182, 0.4) 100%);
+  border-color: rgba(216, 180, 254, 0.85);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 20px rgba(192, 132, 252, 0.65), inset 0 0 12px rgba(216, 180, 254, 0.4);
+  transform: scale(1.06);
+}
+
+@keyframes fabEtherealGlow {
+  0% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(167, 139, 250, 0.3), inset 0 0 6px rgba(192, 132, 252, 0.2);
+    border-color: rgba(192, 132, 252, 0.4);
+  }
+  100% {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 16px rgba(192, 132, 252, 0.55), inset 0 0 10px rgba(216, 180, 254, 0.35);
+    border-color: rgba(216, 180, 254, 0.7);
+  }
+}
+
+.assistant-fab-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.85));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+@media (min-width: 640px) {
+  .assistant-fab-icon {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+}
+
+/* Assistant Chat Bubble: User */
+.assistant-bubble-user {
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: #ffffff;
+  border-radius: 1.25rem;
+  border-top-right-radius: 0.25rem;
+  box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.25);
+}
+
+/* Assistant Chat Bubble: AI */
+.assistant-bubble-ai {
+  background: var(--panel-bg);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 1.25rem;
+  border-top-left-radius: 0.25rem;
+  box-shadow: 0 4px 14px -3px rgba(0, 0, 0, 0.08);
+}
+html.dark .assistant-bubble-ai {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 16px -3px rgba(0, 0, 0, 0.35);
+}
+
+/* Collapsible Details: Brain Thinking & Worker Actions */
+.assistant-collapsible-details {
+  transition: all 0.2s ease-in-out;
+}
+.assistant-collapsible-details summary::-webkit-details-marker {
+  display: none;
+}
+.assistant-collapsible-details[open] summary svg {
+  transform: rotate(180deg);
+}
+
+/* Action Card: Quest Created */
+.assistant-action-card {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%);
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+.assistant-action-card:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 6px 20px -4px rgba(245, 158, 11, 0.2);
+}
+
+/* Assistant Speaking Soft Glow Aura */
+.assistant-bubble-speaking {
+  box-shadow: 0 4px 20px -2px rgba(139, 92, 246, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.35);
+  transition: box-shadow 0.3s ease;
+}
+html.dark .assistant-bubble-speaking {
+  box-shadow: 0 4px 24px -2px rgba(139, 92, 246, 0.35), 0 0 0 1px rgba(167, 139, 250, 0.35);
+}
+
+/* Assistant Avatar Speaking Pulse (pure ambient light, no geometric scaling) */
+.assistant-avatar-speaking {
+  animation: avatarSoftPulse 2s ease-in-out infinite alternate;
+}
+@keyframes avatarSoftPulse {
+  0% { box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2), 0 0 6px rgba(139, 92, 246, 0.3); }
+  100% { box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4), 0 0 14px rgba(139, 92, 246, 0.6); }
+}
+
+/* Assistant Thinking 3-Dot Wave Indicator (Standard, elegant, no weird spinning icons) */
+.assistant-thinking-indicator {
+  user-select: none;
+}
+.assistant-thinking-indicator .typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #8b5cf6;
+  display: inline-block;
+  animation: typingDotWave 1.3s infinite ease-in-out both;
+}
+html.dark .assistant-thinking-indicator .typing-dot {
+  background-color: #a78bfa;
+}
+.assistant-thinking-indicator .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.assistant-thinking-indicator .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.assistant-thinking-indicator .typing-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes typingDotWave {
+  0%, 80%, 100% {
+    transform: scale(0.65);
+    opacity: 0.35;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* Assistant Streaming Typing Cursor (Clean blinking line, inline with text) */
+.assistant-typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  background-color: #8b5cf6;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 1px;
+  animation: cursorSoftBlink 0.85s infinite ease-in-out;
+}
+html.dark .assistant-typing-cursor {
+  background-color: #c084fc;
+  box-shadow: 0 0 8px rgba(192, 132, 252, 0.8);
+}
+@keyframes cursorSoftBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+/* Stable Stream Body (Rock-solid text rendering without child element reflow flicker) */
+.assistant-stream-body {
+  display: inline;
+  word-break: break-word;
+}
+
+/* Fullscreen Assistant Modal on Mobile (Prevent background leak & card squishing) */
+@media (max-width: 639px) {
+  #modal-ai-assistant {
+    padding: 0 !important;
+  }
+  #modal-ai-assistant > .rpg-panel {
+    border-radius: 0 !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+  }
+  #modal-ai-assistant .assistant-input-area {
+    padding-bottom: max(1.75rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+    padding-top: 0.75rem !important;
+  }
+}
+
+/* Mystical Wizard Ambient Watermark Background (Static, serene glow without distracting animation) */
+.assistant-watermark-bg {
+  background: radial-gradient(circle at center, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.02) 50%, transparent 75%);
+}
+.assistant-watermark-wizard {
+  width: clamp(8rem, 28vw, 15rem);
+  height: clamp(8rem, 28vw, 15rem);
+  object-fit: contain;
+  opacity: 0.08;
+  filter: drop-shadow(0 0 35px rgba(139, 92, 246, 0.5));
+  animation: none;
+  transform-origin: center center;
+  pointer-events: none;
+  user-select: none;
+}
+html.dark .assistant-watermark-wizard {
+  opacity: 0.12;
+  filter: drop-shadow(0 0 45px rgba(167, 139, 250, 0.65));
+}
+
+
+
+
 
 
 

@@ -917,11 +917,17 @@ export function createSSEStream(res) {
     send(event, data) {
       if (typeof res?.write === 'function') {
         res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        if (typeof res?.flush === 'function') {
+          res.flush();
+        }
       }
     },
     end(event, data) {
       if (event && data && typeof res?.write === 'function') {
         res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        if (typeof res?.flush === 'function') {
+          res.flush();
+        }
       }
       if (typeof res?.end === 'function') {
         res.end();
@@ -1687,6 +1693,686 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
     isModified,
     modificationReason
   };
+}
+
+// =============================================================================
+// GUILD COMPANION / AI ASSISTANT: MODEL BRAIN & MODEL WORKER ENGINE
+// =============================================================================
+
+export const PROJECT_KNOWLEDGE_BASE = {
+  name: 'LevelUp - Gamified Productivity & Habit RPG',
+  philosophy: 'Biến công việc và thói quen hàng ngày thành chuyến phiêu lưu RPG. Giữ vững tính kỷ luật, công bằng, chống dopamine rẻ tiền và bảo vệ giá trị nỗ lực thực chất.',
+  sections: {
+    quests: {
+      title: 'Hệ Thống Nhiệm Vụ (Quests)',
+      content: `1. Nhiệm vụ Tập trung (type: 'focus'):
+- Dành cho việc học tập, làm việc sâu, đọc sách, nghiên cứu, viết code, rèn luyện thể lực.
+- Có đồng hồ đếm ngược (thường là 15, 20, 25, 45, 50, 60 phút).
+- Tỷ lệ thưởng chuẩn: ~0.35 - 0.40 Vàng/phút tập trung (25p ~ 8-10 Vàng, 50p ~ 18-20 Vàng).
+- Nhiệm vụ từ 15 Vàng trở lên hoặc phiên tập trung dài bắt buộc phải chụp ảnh bằng chứng hoàn thành (requiresProof: true).
+
+2. Nhiệm vụ Nhanh / Việc nhà (type: 'bounty'):
+- Dành cho việc sinh hoạt thường nhật, việc nhà (rửa chén, quét nhà, đổ rác, lau dọn), việc vặt 5-15 phút.
+- KHÔNG HẸN GIỜ (targetMinutes = 0). Người dùng làm xong thì bấm nút "Hoàn thành" nhận ngay.
+- Thưởng chuẩn: 3 - 5 Vàng. Tối đa cho việc nhà là 5 Vàng.
+
+3. Xếp hạng nhiệm vụ (Ranks):
+- E: 1 - 5 Vàng (việc vặt, việc nhà, sinh hoạt)
+- D: 6 - 11 Vàng (học tập/tập trung ngắn 15-20p)
+- C: 12 - 17 Vàng (phiên tập trung tiêu chuẩn 25-40p)
+- B: 18 - 24 Vàng (phiên làm việc sâu 50-60p)
+- A: 25 - 39 Vàng (nhiệm vụ thử thách 60-90p)
+- S: 40+ Vàng (mục tiêu lớn hoặc cột mốc quan trọng)`
+    },
+    rewards: {
+      title: 'Hệ Thống Cửa Hàng & Phần Thưởng (Shop & Rewards)',
+      content: `1. Nguyên tắc Kinh tế RPG 3:1 hoặc 4:1 (Bảo vệ giá trị thực):
+- Để tận hưởng 1 giờ giải trí xứng đáng và tự hào, người chơi cần tích lũy 3 - 4 giờ làm việc nghiêm túc.
+- Ngăn chặn triệt để "dopamine giá rẻ": Không cho phép đặt giá quá thấp cho các hành vi giải trí dễ gây nghiện.
+- Bảng quy đổi chuẩn:
+  * Lướt mạng xã hội/TikTok/Facebook/Shorts 30 phút: 25 - 35 Vàng.
+  * Chơi game / Xem phim 1 - 2 tiếng: 60 - 90 Vàng (tối thiểu 35 Vàng).
+  * Cốc cà phê / Trà sữa: 40 - 55 Vàng.
+  * Phần thưởng lớn (Mua sắm, liên hoan, du lịch): 300 - 1000+ Vàng.
+2. Phân loại quà (Tiers):
+  * common: 15 - 25 Vàng (quà nhỏ trong ngày)
+  * rare: 30 - 60 Vàng (thư giãn cuối tuần, ăn uống vừa phải)
+  * epic: 70 - 250 Vàng (mục tiêu lớn theo tuần/tháng)
+  * legendary: 300+ Vàng (phần thưởng mơ ước)`
+    },
+    levels_and_exp: {
+      title: 'Hệ Thống Cấp Độ & Danh Hiệu (Levels & EXP)',
+      content: `1. Cơ chế tính EXP:
+- 1 Vàng kiếm được từ nhiệm vụ hợp lệ = 1 điểm EXP.
+- Tiêu Vàng mua quà KHÔNG làm mất EXP (Level dựa trên tổng EXP trọn đời).
+2. Công thức lên cấp:
+- Cần Level * 100 EXP để thăng cấp tiếp theo.
+3. Bảng Danh Hiệu:
+- Cấp 1 - 2: Tân Binh Cấp 1 / Tân Binh
+- Cấp 3 - 5: Học Viên Chăm Chỉ
+- Cấp 6 - 9: Chiến Binh Kiên Trì
+- Cấp 10 - 14: Chuyên Gia Tập Trung
+- Cấp 15 - 19: Bậc Thầy Năng Suất
+- Cấp 20+: Huyền Thoại Kỷ Luật`
+    },
+    bank_and_finance: {
+      title: 'Hệ Thống Ngân Hàng & Kho Bạc (Bank & Finance)',
+      content: `1. Gửi Tiết Kiệm (Savings):
+- Sinh lời mỗi ngày dựa trên lãi suất tiền gửi của Quỹ.
+- An toàn tuyệt đối 100%: Quỹ luôn được bảo trợ bởi Kho Bạc Hệ Thống.
+2. Vay Vốn Ngân Hàng (Loan):
+- Hỗ trợ khi người chơi thiếu Vàng đổi quà khẩn cấp để nạp năng lượng.
+- Cơ chế trả nợ êm ái: Tự động trích phần trăm (thường 20% - 50%) từ phần thưởng của mỗi nhiệm vụ hoàn thành cho đến khi hết nợ.
+- Không áp lực thời gian, không phạt nặng nếu tiếp tục chăm chỉ làm nhiệm vụ.
+3. Hạn mức tín dụng:
+- Tự động nâng cao khi người chơi đạt Cấp cao hơn, duy trì chuỗi Streak dài và có lịch sử trả nợ uy tín.`
+    },
+    productivity_tips: {
+      title: 'Mẹo Tăng Năng Suất & Chống Trì Hoãn (Productivity Tips)',
+      content: `1. Phương pháp Pomodoro: Làm 25 phút, nghỉ 5 phút. Sau 4 chu kỳ thì nghỉ dài 15-20 phút.
+2. Chia nhỏ mục tiêu (Chunking): Đừng bao giờ tạo việc "Học 10 chương sách". Hãy chia thành "Đọc kỹ & tóm tắt Chương 1" (25 phút).
+3. Quy tắc 2 phút: Nếu một việc vặt mất dưới 2 phút (dọn bàn, uống nước, cất tài liệu), hãy hoàn thành ngay lập tức.
+4. Tránh Dopamine vay mượn: Luôn làm xong việc rồi mới tự thưởng, niềm vui sẽ trọn vẹn và không mang lại cảm giác tội lỗi.`
+    }
+  }
+};
+
+export const ASSISTANT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_user_profile',
+      description: 'Lấy thông tin hồ sơ của người chơi: Cấp độ (level), Kinh nghiệm (exp), Vàng hiện có (coins), chuỗi ngày liên tiếp (streak), danh hiệu (title).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_user_quests',
+      description: 'Lấy danh sách các nhiệm vụ đang mở (activeQuests) và tổng số nhiệm vụ của người chơi.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_user_shop',
+      description: 'Lấy danh sách các món phần thưởng trong Cửa Hàng cá nhân của người chơi.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_bank_account',
+      description: 'Lấy thông tin tài khoản ngân hàng: tiền gửi tiết kiệm, số nợ hiện tại, lãi suất và hạn mức tín dụng.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_user_ledger',
+      description: 'Lấy lịch sử giao dịch sao kê ví Vàng gần đây của người chơi (thu, chi, trả nợ).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_project_knowledge',
+      description: 'Tra cứu cẩm nang tri thức và luật chơi của LevelUp RPG theo chủ đề.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topic: {
+            type: 'string',
+            enum: ['all', 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips'],
+            description: 'Chủ đề cẩm nang cần tra cứu'
+          }
+        },
+        required: ['topic']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_quest',
+      description: 'Tạo một nhiệm vụ mới hợp lệ, chuẩn hóa thông số và ký chữ ký số HMAC SHA-256 an toàn.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Tên nhiệm vụ ngắn gọn, rõ ràng' },
+          targetMinutes: { type: 'number', description: 'Thời gian tập trung hẹn giờ (0 cho việc nhà/việc vặt, 15-120 cho tập trung sâu)' },
+          rewardCoins: { type: 'number', description: 'Mức Vàng thưởng hợp lệ' },
+          type: { type: 'string', enum: ['focus', 'bounty'], description: 'Loại nhiệm vụ (focus: hẹn giờ, bounty: việc nhanh không hẹn giờ)' },
+          requiresProof: { type: 'boolean', description: 'Có yêu cầu chụp ảnh bằng chứng hoàn thành không' },
+          description: { type: 'string', description: 'Mô tả chi tiết nhiệm vụ' }
+        },
+        required: ['title']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_reward',
+      description: 'Tạo một phần thưởng mới hợp lệ vào Cửa Hàng, định giá Vàng theo nguyên tắc 3:1 và ký chữ ký số HMAC.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Tên phần thưởng lành mạnh' },
+          price: { type: 'number', description: 'Giá Vàng hợp lý' },
+          tier: { type: 'string', enum: ['common', 'rare', 'epic', 'legendary'], description: 'Phân hạng phần thưởng' },
+          targetMinutes: { type: 'number', description: 'Thời lượng tận hưởng phần thưởng (phút)' },
+          description: { type: 'string', description: 'Mô tả phần thưởng' }
+        },
+        required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'suggest_action_plan',
+      description: 'Đề xuất kế hoạch hành động 3 bước trong ngày dựa trên dữ liệu nhiệm vụ hiện tại.',
+      parameters: { type: 'object', properties: {} }
+    }
+  }
+];
+
+export async function executeWorkerTool(toolName, args = {}, context = {}) {
+  const { callerSub, redis, draftContext = {} } = context;
+  const startTime = Date.now();
+
+  switch (toolName) {
+    case 'get_user_profile': {
+      const data = await handleGetMyUserData('profile', callerSub, redis, draftContext);
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data,
+        summary: `Hồ sơ: Level ${data.level || 1} (${data.title || 'Tân Binh'}), Vàng: ${data.coins || 0}, Streak: ${data.streak || 0} ngày.`
+      };
+    }
+    case 'get_user_quests': {
+      const data = await handleGetMyUserData('quests', callerSub, redis, draftContext);
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data,
+        summary: `Có ${data.activeQuests?.length || 0} nhiệm vụ đang mở trên tổng số ${data.totalQuests || 0} nhiệm vụ.`
+      };
+    }
+    case 'get_user_shop': {
+      const data = await handleGetMyUserData('shop_items', callerSub, redis, draftContext);
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data,
+        summary: `Cửa hàng có ${data.shopItems?.length || 0} món phần thưởng khả dụng.`
+      };
+    }
+    case 'get_bank_account': {
+      const data = await handleGetMyUserData('bank_and_debt', callerSub, redis, draftContext);
+      const market = await handleGetBankMarketStatus(redis, callerSub, draftContext.profile);
+      const combined = { ...data, market };
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: combined,
+        summary: `Tiết kiệm: ${combined.deposited || 0} Vàng, Nợ: ${combined.loan?.amount || 0} Vàng, Lãi vay thị trường: ${((market.standardBorrowRate || 0.05) * 100).toFixed(1)}%/ngày.`
+      };
+    }
+    case 'get_user_ledger': {
+      const data = await handleGetMyUserData('ledger', callerSub, redis, draftContext);
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data,
+        summary: `Đã tra cứu ${data.recentTransactions?.length || 0} giao dịch gần nhất trong sổ cái ví.`
+      };
+    }
+    case 'get_project_knowledge': {
+      const topic = args.topic || 'all';
+      const section = PROJECT_KNOWLEDGE_BASE.sections[topic];
+      const data = section ? { topic, title: section.title, content: section.content } : PROJECT_KNOWLEDGE_BASE;
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data,
+        summary: `Đã tra cứu cẩm nang hệ thống LevelUp (chủ đề: ${topic}).`
+      };
+    }
+    case 'create_quest': {
+      const rawTitle = args.title || 'Nhiệm vụ mới';
+      const rawMinutes = parseInt(args.targetMinutes, 10) || (args.type === 'bounty' ? 0 : 25);
+      const rawType = (rawMinutes > 0) ? 'focus' : (args.type || 'bounty');
+      const rawCoins = parseInt(args.rewardCoins, 10) || (rawType === 'focus' ? Math.max(8, Math.round(rawMinutes * 0.38)) : 4);
+      const rawRequiresProof = args.requiresProof !== undefined ? Boolean(args.requiresProof) : (rawCoins >= 15 || rawMinutes >= 45);
+
+      const rawQuest = {
+        title: rawTitle,
+        description: args.description || '',
+        type: rawType,
+        targetMinutes: rawMinutes,
+        rewardCoins: rawCoins,
+        requiresProof: rawRequiresProof,
+        proofGuidance: args.proofGuidance || (rawRequiresProof ? 'Chụp ảnh kết quả hoặc góc làm việc để hoàn thành.' : ''),
+        icon: args.icon || (rawType === 'focus' ? '🎯' : '🧹')
+      };
+
+      const clean = sanitizeEvaluatedQuest(rawQuest, rawTitle, args.description || '', rawMinutes);
+      const signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
+      const questResult = {
+        ...clean,
+        signature,
+        id: `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        status: 'active',
+        createdAt: Date.now()
+      };
+
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: questResult,
+        summary: `Đã tạo & ký số HMAC cho nhiệm vụ [Hạng ${questResult.rank}]: "${questResult.title}" (${questResult.targetMinutes}p • ${questResult.rewardCoins} Vàng).`
+      };
+    }
+    case 'create_reward': {
+      const rawName = args.name || 'Phần thưởng mới';
+      const rawPrice = parseInt(args.price, 10) || 30;
+      const rawMinutes = parseInt(args.targetMinutes, 10) || 0;
+      const rawTier = args.tier || (rawPrice < 30 ? 'common' : (rawPrice < 70 ? 'rare' : 'epic'));
+
+      const rawReward = {
+        name: rawName,
+        description: args.description || '',
+        price: rawPrice,
+        tier: rawTier,
+        targetMinutes: rawMinutes,
+        icon: args.icon || '🎁'
+      };
+
+      const clean = sanitizeEvaluatedReward(rawReward, rawName, args.description || '', rawMinutes);
+      const signature = signReward(clean.name, clean.price, clean.tier, clean.targetMinutes);
+      const rewardResult = {
+        ...clean,
+        signature,
+        id: `reward_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        createdAt: Date.now()
+      };
+
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: rewardResult,
+        summary: `Đã tạo & ký số HMAC cho phần thưởng: "${rewardResult.name}" (${rewardResult.price} Vàng • Hạng ${rewardResult.tier}).`
+      };
+    }
+    case 'suggest_action_plan': {
+      const questsData = await handleGetMyUserData('quests', callerSub, redis, draftContext);
+      const activeQuests = questsData.activeQuests || [];
+      const plan = [
+        {
+          step: 1,
+          timeOfDay: 'Buổi sáng / Bắt đầu',
+          action: activeQuests[0] ? `Khởi động với "${activeQuests[0].title}" (${activeQuests[0].targetMinutes || 15}p)` : 'Khởi động với 1 phiên tập trung sâu 25 phút để kích hoạt năng lượng',
+          targetCoins: activeQuests[0]?.rewardCoins || 9
+        },
+        {
+          step: 2,
+          timeOfDay: 'Giữa ngày / Trọng tâm',
+          action: activeQuests[1] ? `Tiếp tục xử lý "${activeQuests[1].title}"` : 'Giải quyết việc vặt không cần bấm giờ (bounty) để giữ nhịp độ',
+          targetCoins: activeQuests[1]?.rewardCoins || 5
+        },
+        {
+          step: 3,
+          timeOfDay: 'Cuối ngày / Thư giãn',
+          action: 'Dùng Vàng đã tích lũy đổi 1 phần thưởng trong Cửa Hàng để tự hào nạp lại năng lượng',
+          targetCoins: 0
+        }
+      ];
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: plan,
+        summary: 'Đã xây dựng kế hoạch 3 bước hành động trong ngày.'
+      };
+    }
+    default:
+      return {
+        tool: toolName,
+        status: 'error',
+        executionMs: Date.now() - startTime,
+        error: `Không hỗ trợ công cụ: ${toolName}`
+      };
+  }
+}
+
+export function runDeterministicAssistant(message, userProfile = {}, callerSub = 'guest', redis = null, draftContext = {}) {
+  const norm = (message || '').toLowerCase();
+  const workerResults = [];
+  const suggestedActions = [];
+
+  // Check 1: User wants to create/suggest a quest
+  if (/(?:tạo|thêm|gợi ý|làm|nhờ|giúp).*(?:nhiệm vụ|việc|task|học|code|đọc)/i.test(norm) || /\d+\s*phút/i.test(norm)) {
+    const minsMatch = norm.match(/(\d+)\s*(?:phút|min|p\b)/i);
+    const mins = minsMatch ? parseInt(minsMatch[1], 10) : 25;
+    const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau)/i.test(norm);
+    const finalMins = isChore ? 0 : Math.min(120, Math.max(15, mins));
+    const title = isChore ? 'Dọn dẹp & sắp xếp không gian gọn gàng' : `Tập trung hoàn thành phiên làm việc ${finalMins} phút`;
+    const coins = finalMins === 0 ? 4 : Math.max(8, Math.round(finalMins * 0.38));
+    const type = finalMins > 0 ? 'focus' : 'bounty';
+    const requiresProof = coins >= 15 || finalMins >= 45;
+
+    const questData = {
+      title,
+      description: 'Phiên nhiệm vụ được thiết kế cân bằng bởi Cố Vấn Guild để bạn khởi động ngày mới tràn đầy năng lượng.',
+      type,
+      targetMinutes: finalMins,
+      rewardCoins: coins,
+      requiresProof,
+      proofGuidance: requiresProof ? 'Chụp ảnh kết quả hoặc góc làm việc để xác nhận.' : '',
+      icon: type === 'focus' ? '🎯' : '🧹'
+    };
+    const clean = sanitizeEvaluatedQuest(questData, title, questData.description, finalMins);
+    const sig = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
+    const newQuest = {
+      ...clean,
+      signature: sig,
+      id: `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      status: 'active',
+      createdAt: Date.now()
+    };
+
+    workerResults.push({
+      tool: 'create_quest',
+      status: 'success',
+      data: newQuest,
+      summary: `Đã tạo & ký số HMAC cho nhiệm vụ [Hạng ${newQuest.rank}]: "${newQuest.title}" (${newQuest.targetMinutes}p • ${newQuest.rewardCoins} Vàng).`
+    });
+    suggestedActions.push({ type: 'quest_created', quest: newQuest });
+
+    return {
+      reply: `Chào hiệp sĩ **${userProfile.nickname || 'bạn'}**! ✨\n\nModel Brain đã lên kế hoạch và giao cho Model Worker tạo ngay cho bạn một nhiệm vụ chuẩn chỉ:\n\n- **Tên:** ${newQuest.title}\n- **Thời gian:** ${newQuest.targetMinutes > 0 ? `${newQuest.targetMinutes} phút tập trung sâu` : 'Không bấm giờ (việc nhanh)'}\n- **Mức thưởng:** **+${newQuest.rewardCoins} Vàng** & **+${newQuest.rewardCoins} EXP**\n- **Hạng:** ${newQuest.rank}\n\nBạn có thể bấm nút **"Nhận nhiệm vụ này"** ngay bên dưới để thêm vào danh sách và bắt đầu chinh phục nhé! 🚀`,
+      thought: `Người dùng yêu cầu tạo/gợi ý nhiệm vụ. Model Brain xác định thời lượng ${finalMins} phút và mức thưởng ${coins} Vàng, sai Worker tạo nhiệm vụ có chữ ký số HMAC an toàn.`,
+      workerResults,
+      suggestedActions,
+      options: [
+        { id: 1, label: '💡 Cho tôi xin thêm mẹo tập trung', argument: 'Cho tôi xin mẹo để tập trung 25 phút không bị xao nhãng' },
+        { id: 2, label: '🪙 Làm sao để tối ưu Vàng?', argument: 'Làm sao để tối ưu số Vàng kiếm được mỗi ngày?' }
+      ]
+    };
+  }
+
+  // Check 2: Bank & Finance query
+  if (/(?:ngân hàng|vay|tiết kiệm|lãi suất|kho bạc|hạn mức|nợ)/i.test(norm)) {
+    const knowledge = PROJECT_KNOWLEDGE_BASE.sections.bank_and_finance;
+    workerResults.push({
+      tool: 'get_project_knowledge',
+      status: 'success',
+      data: knowledge,
+      summary: 'Đã tra cứu cơ chế hoạt động của Ngân Hàng & Quỹ Kho Bạc LevelUp.'
+    });
+
+    return {
+      reply: `Chào bạn! Về cơ chế **Ngân Hàng & Kho Bạc LevelUp**, mình chia sẻ 2 tính năng chính nè:\n\n1. **🌱 Gửi Tiết Kiệm:**\n   - Nếu có Vàng dư dả chưa dùng mua quà, hãy gửi vào Ngân Hàng để nhận lãi sinh lời mỗi ngày.\n   - Tiền gửi an toàn tuyệt đối 100% vì được bảo trợ bởi Kho Bạc Hệ Thống.\n\n2. **🏦 Vay Vốn Nhẹ Nhàng:**\n   - Khi bạn cần Vàng đổi phần thưởng để giải trí hay nạp năng lượng ngay, bạn có thể vay trong hạn mức tín dụng.\n   - **Trả nợ êm ái:** Hệ thống sẽ tự động trích một phần nhỏ (20% - 50%) từ phần thưởng của mỗi nhiệm vụ bạn làm xong để trả nợ dần. Bạn không phải chịu áp lực đáo hạn!\n\n3. **⭐ Nâng hạn mức tín dụng:**\n   - Hãy nâng cấp Level, giữ chuỗi Streak chăm chỉ và trả nợ đúng hạn để được cấp hạn mức cao hơn nhé!`,
+      thought: 'Người dùng hỏi về hệ thống ngân hàng, tiết kiệm và vay vốn. Model Brain phân tích cẩm nang tài chính và giải thích cơ chế trả nợ tự động êm ái.',
+      workerResults,
+      suggestedActions,
+      options: [
+        { id: 1, label: '⚡ Tạo việc cày Vàng trả nợ', argument: 'Tạo giúp tôi 1 nhiệm vụ 25 phút để cày Vàng' },
+        { id: 2, label: '📖 Cách thăng cấp Level nhanh', argument: 'Làm sao để lên cấp nhanh nhất?' }
+      ]
+    };
+  }
+
+  // Check 3: Levels & EXP
+  if (/(?:cấp|level|exp|kinh nghiệm|danh hiệu|thăng cấp)/i.test(norm)) {
+    const knowledge = PROJECT_KNOWLEDGE_BASE.sections.levels_and_exp;
+    workerResults.push({
+      tool: 'get_project_knowledge',
+      status: 'success',
+      data: knowledge,
+      summary: 'Đã tra cứu cơ chế Cấp độ, Kinh nghiệm (EXP) và Danh hiệu hiệp sĩ.'
+    });
+
+    return {
+      reply: `Chào hiệp sĩ! Đây là bí quyết **Thăng Cấp & Kinh Nghiệm (EXP)** trong LevelUp:\n\n- **Quy tắc vàng:** **1 Vàng kiếm được từ nhiệm vụ = 1 điểm EXP**.\n- Bạn tiêu Vàng mua quà trong Cửa Hàng **KHÔNG BỊ MẤT EXP**, nên cứ tự tin tự thưởng cho bản thân nhé!\n- **Bậc danh hiệu:**\n  * **Cấp 1 - 2:** Tân Binh\n  * **Cấp 3 - 5:** Học Viên Chăm Chỉ\n  * **Cấp 6 - 9:** Chiến Binh Kiên Trì\n  * **Cấp 10 - 14:** Chuyên Gia Tập Trung\n  * **Cấp 15 - 19:** Bậc Thầy Năng Suất\n  * **Cấp 20+:** Huyền Thoại Kỷ Luật ✨\n\nBạn hiện đang ở **Level ${userProfile.level || 1}** (${userProfile.title || 'Tân Binh'}). Hãy tiếp tục hoàn thành các nhiệm vụ tập trung sâu để gom thêm EXP nhé!`,
+      thought: 'Người dùng hỏi về EXP, cấp độ và danh hiệu. Model Brain tra cứu cẩm nang và tổng hợp lộ trình phát triển bản thân.',
+      workerResults,
+      suggestedActions,
+      options: [
+        { id: 1, label: '⚡ Tạo việc 25p để gom EXP', argument: 'Tạo giúp tôi 1 nhiệm vụ học tập 25 phút' },
+        { id: 2, label: '🎁 Gợi ý quà tự thưởng', argument: 'Gợi ý cho tôi phần thưởng lành mạnh trong cửa hàng' }
+      ]
+    };
+  }
+
+  // Check 4: General Tips & Welcome
+  const knowledge = PROJECT_KNOWLEDGE_BASE.sections.productivity_tips;
+  workerResults.push({
+    tool: 'get_project_knowledge',
+    status: 'success',
+    data: knowledge,
+    summary: 'Đã tra cứu cẩm nang năng suất & chống trì hoãn Pomodoro.'
+  });
+
+  return {
+    reply: `Chào hiệp sĩ **${userProfile.nickname || 'bạn'}**! Mình là **Cố Vấn Guild AI** của LevelUp RPG. 🧙‍♂️✨\n\nMình hoạt động với kiến trúc 2 tầng:\n- **Model Brain** tư duy sâu sắc, lắng nghe thắc mắc, phân tích và chia sẻ mẹo làm việc, chống trì hoãn.\n- **Model Worker** sẵn sàng thực thi công cụ siêu tốc để tra cứu thông số hoặc tạo nhiệm vụ/phần thưởng mới cho bạn bất cứ lúc nào!\n\n💡 **Mẹo hôm nay:** Hãy bắt đầu với 1 phiên Pomodoro 25 phút tập trung cao độ. Sau khi chuông reo, bạn sẽ vừa nhận được Vàng, vừa được cộng EXP để tiến gần hơn đến mốc thăng cấp tiếp theo! Bạn muốn mình hỗ trợ điều gì hôm nay nè?`,
+    thought: 'Phản hồi mặc định từ Model Brain, giới thiệu vai trò Cố Vấn Guild, nêu rõ cơ chế Model Brain & Model Worker và gợi ý mẹo Pomodoro.',
+    workerResults,
+    suggestedActions,
+    options: [
+      { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
+      { id: 2, label: '⚡ Tạo 1 việc học 25 phút', argument: 'Tạo giúp tôi 1 nhiệm vụ học tập 25 phút' },
+      { id: 3, label: '🏦 Giải thích Ngân Hàng & Khoản vay', argument: 'Giải thích cách hoạt động của ngân hàng và khoản vay' }
+    ]
+  };
+}
+
+export async function runAssistantAgent({
+  message,
+  history = [],
+  caller = {},
+  redis = null,
+  draftContext = {},
+  onEvent = null
+}) {
+  const notify = (step, icon, text, pct) => {
+    if (typeof onEvent === 'function') {
+      try { onEvent('step', { step, totalSteps: 4, icon, text, pct }); } catch (_) {}
+    }
+  };
+
+  const callerSub = caller?.sub || 'guest';
+  const toolsExecuted = [];
+
+  // Lấy dữ liệu cơ bản để chuẩn bị context cho Brain
+  const userProfile = await handleGetMyUserData('profile', callerSub, redis, draftContext);
+  const contextSummary = `Người chơi: ${userProfile.nickname || 'Hiệp Sĩ'} (Level ${userProfile.level || 1}, Danh hiệu "${userProfile.title || 'Tân Binh'}", Vàng: ${userProfile.coins || 0}, Chuỗi Streak: ${userProfile.streak || 0} ngày).`;
+
+  // Deterministic Fallback nếu không có API KEY
+  if (!API_KEY) {
+    notify(1, '⚙️', 'Model Brain kích hoạt cẩm nang nội bộ...', 30);
+    return runDeterministicAssistant(message, userProfile, callerSub, redis, draftContext);
+  }
+
+  // =========================================================================
+  // PHASE 1: MODEL BRAIN DELIBERATION (Thinking ON, reasoning_effort: 'low')
+  // =========================================================================
+  notify(1, '🧠', 'Model Brain đang suy nghĩ & phân tích yêu cầu của bạn...', 25);
+
+  const brainSystemPrompt = `Bạn là CỐ VẤN GUILD (Guild Companion & Personal Productivity Advisor) - Model Brain (Tư duy sâu) của dự án LevelUp RPG.
+Vương quốc LevelUp là hệ thống gamify năng suất và quản lý thói quen cá nhân.
+Thông tin hiệp sĩ đang trò chuyện: ${contextSummary}
+
+BẠN CÓ MỘT TRỢ THỦ ĐẮC LỰC: MODEL WORKER.
+Worker chuyên chạy các công cụ (tools) với tốc độ siêu nhanh (< 1s), không suy nghĩ lan man, chỉ thực thi lệnh.
+Danh mục công cụ mà Worker có thể làm:
+- get_user_profile: Xem hồ sơ chi tiết (level, exp, vàng, streak).
+- get_user_quests: Xem các nhiệm vụ đang làm và đã hoàn thành.
+- get_user_shop: Xem danh sách quà trong shop và kho đồ.
+- get_bank_account: Xem tiền gửi tiết kiệm, số nợ hiện tại, lãi suất quỹ, hạn mức vay.
+- get_user_ledger: Xem lịch sử thu/chi Vàng gần đây.
+- get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips').
+- create_quest: Tạo nhiệm vụ mới (params: title, targetMinutes, rewardCoins, type, requiresProof, description).
+- create_reward: Tạo phần thưởng mới (params: name, price, tier, targetMinutes, description).
+- suggest_action_plan: Đề xuất kế hoạch hành động 3 bước trong ngày.
+
+NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
+1. Phân tích câu hỏi của người dùng và lịch sử đối thoại.
+2. Quyết định:
+   - Nếu câu hỏi chỉ là chào hỏi, tư vấn tâm lý, mẹo làm việc, động viên, hoặc câu hỏi lý thuyết có thể trả lời ngay:
+     -> Đặt "needWorker": false và trả lời trực tiếp trong "directReply".
+   - Nếu câu hỏi cần thông tin chi tiết người chơi (nhiệm vụ, ngân hàng, sổ cái) HOẶC người dùng yêu cầu hành động (tạo nhiệm vụ, thêm quà, tạo kế hoạch):
+     -> Đặt "needWorker": true và liệt kê danh sách lệnh cho Worker trong "workerTasks".
+3. TRẢ VỀ JSON:
+{
+  "thought": "Phân tích suy nghĩ nội bộ của Brain...",
+  "needWorker": boolean,
+  "workerTasks": [
+    { "tool": "get_user_quests", "params": {} },
+    { "tool": "create_quest", "params": { "title": "...", "targetMinutes": 25, "rewardCoins": 9 } }
+  ],
+  "directReply": "..."
+}`;
+
+  let brainAnalysis = null;
+  try {
+    const brainRes = await callAI(
+      brainSystemPrompt,
+      `Tin nhắn của người dùng: "${message}"\nLịch sử trò chuyện: ${JSON.stringify(history.slice(-4))}`,
+      { role: 'brain', thinking: true, temperature: 0.3 }
+    );
+    brainAnalysis = brainRes;
+  } catch (err) {
+    console.warn('Phase 1 Brain call failed, falling back to deterministic assistant:', err.message);
+    return runDeterministicAssistant(message, userProfile, callerSub, redis, draftContext);
+  }
+
+  // Nếu Brain quyết định không cần Worker
+  if (!brainAnalysis?.needWorker || !Array.isArray(brainAnalysis.workerTasks) || brainAnalysis.workerTasks.length === 0) {
+    notify(4, '✨', 'Model Brain hoàn tất câu trả lời...', 100);
+    return {
+      reply: brainAnalysis?.directReply || brainAnalysis?.reply || 'Mình luôn sẵn sàng đồng hành và hỗ trợ bạn trong mọi nhiệm vụ của LevelUp! ✨',
+      thought: brainAnalysis?.thought || 'Phân tích trực tiếp từ Model Brain.',
+      workerResults: [],
+      suggestedActions: [],
+      options: [
+        { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
+        { id: 2, label: '🪙 Cách kiếm Vàng nhanh', argument: 'Làm sao để kiếm nhiều Vàng và lên cấp?' },
+        { id: 3, label: '⚡ Tạo 1 việc tập trung 25p', argument: 'Tạo giúp tôi 1 nhiệm vụ học tập 25 phút' }
+      ]
+    };
+  }
+
+  // =========================================================================
+  // PHASE 2: MODEL WORKER EXECUTION (Thinking OFF, reasoning_effort: 'none')
+  // =========================================================================
+  notify(2, '⚡', 'Model Brain phân công Model Worker thực thi công cụ siêu tốc...', 50);
+
+  const workerResults = [];
+  const actionCards = [];
+
+  for (const task of brainAnalysis.workerTasks.slice(0, 4)) {
+    const toolName = task.tool || task.action;
+    const toolArgs = task.params || task.args || {};
+    toolsExecuted.push(toolName);
+
+    try {
+      const res = await executeWorkerTool(toolName, toolArgs, { callerSub, redis, draftContext });
+      workerResults.push(res);
+
+      if (toolName === 'create_quest' && res.status === 'success') {
+        actionCards.push({ type: 'quest_created', quest: res.data });
+      } else if (toolName === 'create_reward' && res.status === 'success') {
+        actionCards.push({ type: 'reward_created', reward: res.data });
+      }
+    } catch (toolErr) {
+      workerResults.push({
+        tool: toolName,
+        status: 'error',
+        error: toolErr.message
+      });
+    }
+  }
+
+  notify(3, '📊', 'Model Worker đã hoàn thành và gửi dữ liệu về cho Brain...', 75);
+
+  // =========================================================================
+  // PHASE 3: MODEL BRAIN SYNTHESIS (Thinking ON, reasoning_effort: 'low')
+  // =========================================================================
+  notify(4, '✨', 'Model Brain đang tổng hợp dữ liệu & biên soạn câu trả lời hoàn chỉnh...', 95);
+
+  const synthesisSystemPrompt = `Bạn là CỐ VẤN GUILD (Guild Companion) - Model Brain của LevelUp RPG.
+Bạn vừa nhận được kết quả thực thi công cụ từ MODEL WORKER.
+Nhiệm vụ của bạn:
+1. Đọc kết quả từ Worker, tổng hợp lại một cách tự nhiên, ấm áp, sâu sắc và truyền cảm hứng.
+2. Trả lời trọn vẹn câu hỏi của người dùng:
+   - Dùng đại từ thân thiện: "mình" - "bạn".
+   - Nếu Worker đã tạo nhiệm vụ hoặc phần thưởng: Khích lệ người dùng bấm nút nhận nhiệm vụ và bắt đầu ngay!
+   - Nếu Worker tra cứu dữ liệu (nhiệm vụ, tài khoản ngân hàng): Tóm lược số liệu rõ ràng, đưa ra nhận xét tinh tế và mẹo hữu ích.
+   - Tránh mọi thuật ngữ kỹ thuật khó hiểu (không nói "database", "redis", "JSON", "HMAC", "API").
+3. TRẢ VỀ JSON:
+{
+  "thought": "Đánh giá tổng hợp của Brain sau khi có dữ liệu từ Worker...",
+  "reply": "Nội dung phản hồi hoàn chỉnh cho người dùng (có hỗ trợ định dạng markdown đẹp mắt, gạch đầu dòng, icon vui tươi)...",
+  "options": [
+    { "id": 1, "label": "Gợi ý tương tác tiếp theo", "argument": "Câu hỏi tiếp theo..." }
+  ]
+}`;
+
+  const synthesisUserPrompt = `Yêu cầu ban đầu của người dùng: "${message}"
+Phân tích ban đầu của Brain: "${brainAnalysis.thought || ''}"
+Kết quả Model Worker đã thực hiện:
+${JSON.stringify(workerResults, null, 2)}`;
+
+  try {
+    const synthesisRes = await callAI(
+      synthesisSystemPrompt,
+      synthesisUserPrompt,
+      { role: 'brain', thinking: true, temperature: 0.35 }
+    );
+
+    return {
+      reply: synthesisRes?.reply || 'Mình đã tổng hợp xong dữ liệu cho bạn!',
+      thought: synthesisRes?.thought || brainAnalysis.thought || 'Model Brain đã hoàn tất phân tích và tổng hợp.',
+      workerResults,
+      suggestedActions: actionCards,
+      options: Array.isArray(synthesisRes?.options) && synthesisRes.options.length > 0
+        ? synthesisRes.options
+        : [
+            { id: 1, label: '💡 Có mẹo nào khác không?', argument: 'Có mẹo nào giúp tôi tập trung tốt hơn không?' },
+            { id: 2, label: '🏦 Kiểm tra quỹ ngân hàng', argument: 'Tình hình quỹ ngân hàng và lãi suất thế nào?' }
+          ]
+    };
+  } catch (err) {
+    console.warn('Phase 3 Brain synthesis failed, using fallback summary:', err.message);
+    const workerSummaries = workerResults.map(r => r.summary || r.tool).join('\n- ');
+    return {
+      reply: `Chào bạn! Mình đã điều phối Model Worker xử lý yêu cầu của bạn thành công:\n\n- ${workerSummaries}\n\nChúc bạn có một ngày làm việc và rèn luyện thật hiệu quả nhé! ✨`,
+      thought: brainAnalysis.thought || 'Worker đã thực thi thành công các công cụ được giao.',
+      workerResults,
+      suggestedActions: actionCards,
+      options: [
+        { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
+        { id: 2, label: '⚡ Tạo thêm nhiệm vụ', argument: 'Tạo giúp tôi 1 nhiệm vụ 25 phút' }
+      ]
+    };
+  }
 }
 
 export default async function handler(req, res) {
@@ -2983,6 +3669,70 @@ QUY TẮC:
           totalBorrowed,
           bailoutDebt
         });
+      }
+
+      // ==========================================
+      // 8. GUILD COMPANION / AI ASSISTANT (Brain - Worker)
+      // ==========================================
+      case 'ask_assistant':
+      case 'chat_assistant': {
+        const message = clampStr(payload?.message || payload?.query || payload?.prompt, 1000);
+        const history = Array.isArray(payload?.history) ? payload.history.slice(-10) : [];
+        const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
+
+        if (!message) {
+          return res.status(400).json({ error: 'Nội dung câu hỏi không được để trống.' });
+        }
+
+        const sse = isStream ? createSSEStream(res) : null;
+        const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
+
+        try {
+          const result = await runAssistantAgent({
+            message,
+            history,
+            caller,
+            redis,
+            draftContext: payload?.draftContext || {},
+            onEvent
+          });
+
+          if (sse) {
+            // 1. Gửi sự kiện mở đầu phản hồi (kèm suy nghĩ Brain, hành động Worker, thẻ hành động)
+            sse.send('reply_start', {
+              thought: result.thought || '',
+              workerResults: result.workerResults || [],
+              suggestedActions: result.suggestedActions || []
+            });
+
+            // 2. Stream từng token/từ của câu trả lời về cho client theo thời gian thực
+            const fullReply = result.reply || '';
+            const isTestEnv = process.env.NODE_ENV === 'test';
+            const streamChunks = fullReply.match(/\S+\s*|\s+/g) || [fullReply];
+            const delayMs = isTestEnv ? 0 : 16;
+
+            for (const chunk of streamChunks) {
+              sse.send('chunk', { delta: chunk });
+              if (delayMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+              }
+            }
+
+            // 3. Hoàn tất toàn bộ tiến trình
+            sse.send('step', { step: 4, totalSteps: 4, icon: '✨', text: 'Model Brain hoàn tất câu trả lời tối ưu!', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+
+          return res.status(200).json(result);
+        } catch (error) {
+          console.error('runAssistantAgent error:', error);
+          if (sse) {
+            sse.end('error', { error: error.message || 'Lỗi xử lý trợ lý AI' });
+            return;
+          }
+          throw error;
+        }
       }
 
       default:

@@ -368,14 +368,115 @@ function escapeHtml(text) {
 
 function renderMarkdown(text) {
   if (!text) return '';
+
+  // 1. First escape raw HTML to prevent XSS attacks
   let safe = escapeHtml(text);
-  safe = safe.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono">$1</code>');
-  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
-  safe = safe.replace(/__([^_]+)__/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
-  safe = safe.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
-  safe = safe.replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1<em>$2</em>');
-  safe = safe.replace(/\r\n|\n/g, '<br>');
-  return safe;
+
+  // 2. Fenced code blocks ```code```
+  safe = safe.replace(/```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_match, code) => {
+    return `<pre class="my-2 p-2.5 bg-slate-900 text-slate-100 rounded-xl text-[11px] font-mono overflow-x-auto border border-slate-700/50"><code>${code.trim()}</code></pre>`;
+  });
+
+  // 3. Inline code `code`
+  safe = safe.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-violet-700 dark:text-violet-300 rounded text-[11px] font-mono">$1</code>');
+
+  // 4. Split into lines to process block-level Markdown cleanly
+  const lines = safe.split(/\r?\n/);
+  const processed = [];
+  let inUl = false;
+  let inOl = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Check for Headings: #, ##, ###, ####
+    const h4Match = trimmed.match(/^####\s+(.*)$/);
+    const h3Match = trimmed.match(/^###\s+(.*)$/);
+    const h2Match = trimmed.match(/^##\s+(.*)$/);
+    const h1Match = trimmed.match(/^#\s+(.*)$/);
+
+    // Check for Horizontal Rule
+    const hrMatch = trimmed.match(/^(\*{3,}|-{3,}|_{3,})$/);
+
+    // Check for Blockquote
+    const quoteMatch = trimmed.match(/^>\s+(.*)$/);
+
+    // Check for Unordered List Item: * item, - item, + item
+    const ulMatch = trimmed.match(/^[-*+]\s+(.*)$/);
+
+    // Check for Ordered List Item: 1. item, 2. item
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+
+    if (ulMatch) {
+      if (inOl) { processed.push('</ol>'); inOl = false; }
+      if (!inUl) { processed.push('<ul class="my-1.5 space-y-1">'); inUl = true; }
+      processed.push(`<li class="flex items-start gap-2 ml-1"><span class="text-amber-500 font-bold shrink-0 select-none">•</span><span>${ulMatch[1]}</span></li>`);
+      continue;
+    } else if (inUl) {
+      processed.push('</ul>');
+      inUl = false;
+    }
+
+    if (olMatch) {
+      if (inUl) { processed.push('</ul>'); inUl = false; }
+      if (!inOl) { processed.push('<ol class="my-1.5 space-y-1">'); inOl = true; }
+      processed.push(`<li class="flex items-start gap-1.5 ml-1"><span class="text-indigo-500 dark:text-indigo-400 font-bold shrink-0 text-xs select-none">${olMatch[1]}.</span><span>${olMatch[2]}</span></li>`);
+      continue;
+    } else if (inOl) {
+      processed.push('</ol>');
+      inOl = false;
+    }
+
+    if (h1Match) {
+      processed.push(`<h1 class="text-base sm:text-lg font-extrabold text-violet-800 dark:text-violet-200 mt-3 mb-1.5">${h1Match[1]}</h1>`);
+    } else if (h2Match) {
+      processed.push(`<h2 class="text-sm sm:text-base font-bold text-violet-700 dark:text-violet-300 mt-2.5 mb-1">${h2Match[1]}</h2>`);
+    } else if (h3Match) {
+      processed.push(`<h3 class="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300 mt-2 mb-1">${h3Match[1]}</h3>`);
+    } else if (h4Match) {
+      processed.push(`<h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1.5 mb-0.5">${h4Match[1]}</h4>`);
+    } else if (hrMatch) {
+      processed.push('<hr class="my-2 border-slate-200 dark:border-slate-700">');
+    } else if (quoteMatch) {
+      processed.push(`<blockquote class="border-l-2 border-violet-500 pl-2.5 py-0.5 my-1 text-slate-600 dark:text-slate-400 italic">${quoteMatch[1]}</blockquote>`);
+    } else {
+      processed.push(line);
+    }
+  }
+
+  if (inUl) processed.push('</ul>');
+  if (inOl) processed.push('</ol>');
+
+  // Join back with line breaks
+  let result = processed.join('\n');
+
+  // Inline formatting: Bold (**text** or __text__)
+  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+  result = result.replace(/__([^_]+)__/g, '<strong class="font-bold text-amber-700 dark:text-amber-400">$1</strong>');
+
+  // Inline formatting: Italics (*text* or _text_)
+  result = result.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+  result = result.replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1<em>$2</em>');
+
+  // Inline formatting: Strikethrough (~~text~~)
+  result = result.replace(/~~([^~]+)~~/g, '<del class="line-through opacity-75">$1</del>');
+
+  // Convert remaining line breaks to <br>
+  result = result.replace(/\r\n|\n/g, '<br>');
+
+  // Clean up excessive <br> tags adjacent to block-level elements
+  result = result
+    .replace(/(?:<br>\s*)*(<(?:h[1-6]|ul|ol|pre|blockquote|hr))/gi, '$1')
+    .replace(/(<\/(?:h[1-6]|ul|ol|pre|blockquote)>|<hr[^>]*>)(?:\s*<br>)*/gi, '$1')
+    .replace(/<ul([^>]*)><br>/gi, '<ul$1>')
+    .replace(/<ol([^>]*)><br>/gi, '<ol$1>')
+    .replace(/<br><\/ul>/gi, '</ul>')
+    .replace(/<br><\/ol>/gi, '</ol>')
+    .replace(/<\/li><br><li/gi, '</li><li')
+    .replace(/(?:<br>\s*){3,}/gi, '<br><br>');
+
+  return result;
 }
 
 const userReportedAiReply = `Cảm ơn bạn rất nhiều!
@@ -388,7 +489,27 @@ assert.ok(!renderedHtml.includes('**20 phút**'), 'Markdown bold syntax must be 
 assert.ok(renderedHtml.includes('<strong class="font-bold text-amber-700 dark:text-amber-400">20 phút</strong>'), 'Bold tag for 20 phút must exist');
 assert.ok(renderedHtml.includes('<strong class="font-bold text-amber-700 dark:text-amber-400">8 Vàng</strong>'), 'Bold tag for 8 Vàng must exist');
 assert.ok(renderedHtml.includes('<em>Cố lên nhé!</em>'), 'Italics tag must exist');
-assert.ok(renderedHtml.includes('<br>'), 'Line breaks must be converted to <br>');
+assert.ok(renderedHtml.includes('<ol'), 'Numbered list must be rendered');
+
+// Test Headings & List bullets (User reported case)
+const userReportedAssistantMsg = `Chào bạn! Hôm nay trong Bảng Nhiệm Vụ của bạn đang có 6 nhiệm vụ tuyệt vời:
+
+### 🌅 1. Khởi động ngày mới (Nạp năng lượng & Thức tỉnh giác quan)
+Phơi nắng (20 phút) (+10 Vàng) kết hợp hít thở không khí trong lành.
+
+### ⚡ 2. Trọng tâm công việc (Bứt phá năng suất)
+Bật chế độ Tập trung 1 tiếng (+24 Vàng).
+
+### 🌙 3. Phục hồi & Tận hưởng (Thư giãn cuối ngày)
+Dành 15 phút Thiền định thư giãn (+6 Vàng).
+* Đừng quên ghé Cửa Hàng Guild đổi quà!`;
+
+const renderedAssistantHtml = renderMarkdown(userReportedAssistantMsg);
+assert.ok(!renderedAssistantHtml.includes('### 🌅'), 'Raw ### heading must be parsed into <h3>');
+assert.ok(renderedAssistantHtml.includes('<h3 class="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300'), 'Heading 3 must have proper styling classes');
+assert.ok(!renderedAssistantHtml.includes('* Đừng quên'), 'Raw asterisk list bullet must be parsed into <ul><li>');
+assert.ok(renderedAssistantHtml.includes('<ul class="my-1.5 space-y-1">'), 'List container must exist');
+assert.ok(renderedAssistantHtml.includes('Đừng quên ghé Cửa Hàng Guild đổi quà!'), 'List item text must be intact');
 
 // XSS check
 const xssPayload = '<script>alert("xss")</script> **an toàn**';
