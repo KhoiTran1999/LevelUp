@@ -1756,25 +1756,37 @@ function renderFocusStationUI() {
     const toggleText = isBreakMode ? 'Kết Thúc Giờ Nghỉ ☕' : (activeRewardItem ? 'Kết Thúc Hưởng Thụ 🎮' : (isProofRequired ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎁'));
     if (toggleBtn) {
       toggleBtn.textContent = toggleText;
+      toggleBtn.title = toggleText;
       toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-sm active:scale-95 animate-pulse';
     }
-    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+    if (zenToggleBtn) {
+      zenToggleBtn.textContent = toggleText;
+      zenToggleBtn.title = toggleText;
+    }
   } else if (isRunningElsewhere) {
     if (modeLabel) modeLabel.textContent = 'ĐANG CHẠY TRÊN THIẾT BỊ KHÁC 📱';
     const toggleText = 'Tiếp Tục Ở Thiết Bị Này ⏱️';
     if (toggleBtn) {
       toggleBtn.textContent = toggleText;
+      toggleBtn.title = 'Tiếp tục ở thiết bị này (Phím tắt: Space)';
       toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition shadow-sm active:scale-95';
     }
-    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+    if (zenToggleBtn) {
+      zenToggleBtn.textContent = toggleText;
+      zenToggleBtn.title = 'Tiếp tục ở thiết bị này (Phím tắt: Space)';
+    }
   } else if (isPausedElsewhere) {
     if (modeLabel) modeLabel.textContent = 'ĐANG TẠM DỪNG (MÁY KHÁC) ⏸️';
     const toggleText = 'Tiếp Tục Ở Thiết Bị Này ⏱️';
     if (toggleBtn) {
       toggleBtn.textContent = toggleText;
+      toggleBtn.title = 'Tiếp tục ở thiết bị này (Phím tắt: Space)';
       toggleBtn.className = 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition shadow-sm active:scale-95';
     }
-    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+    if (zenToggleBtn) {
+      zenToggleBtn.textContent = toggleText;
+      zenToggleBtn.title = 'Tiếp tục ở thiết bị này (Phím tắt: Space)';
+    }
   } else {
     if (modeLabel && !isBreakMode && !activeRewardItem) {
       modeLabel.textContent = isFocusRunning ? 'ĐANG BẤM GIỜ TẬP TRUNG' : 'ĐANG TẠM DỪNG ⏸️';
@@ -1782,11 +1794,15 @@ function renderFocusStationUI() {
     const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
     if (toggleBtn) {
       toggleBtn.textContent = toggleText;
+      toggleBtn.title = isFocusRunning ? 'Tạm dừng đếm giờ (Phím tắt: Space)' : 'Tiếp tục đếm giờ (Phím tắt: Space)';
       toggleBtn.className = isFocusRunning
         ? 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95'
         : 'px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-sm active:scale-95';
     }
-    if (zenToggleBtn) zenToggleBtn.textContent = toggleText;
+    if (zenToggleBtn) {
+      zenToggleBtn.textContent = toggleText;
+      zenToggleBtn.title = isFocusRunning ? 'Tạm dừng đếm giờ (Phím tắt: Space)' : 'Tiếp tục đếm giờ (Phím tắt: Space)';
+    }
   }
 
   const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
@@ -8334,7 +8350,7 @@ const TOUR_STEPS = [
       if (questList && questList.offsetParent !== null) return questList;
       return document.getElementById('tab-quests');
     },
-    desc: 'Bấm "Bắt Đầu" trên nhiệm vụ bất kỳ để chạy đếm giờ tập trung. Kích hoạt Chế độ Toàn màn hình giúp tập trung tối đa và loại bỏ xao nhãng.'
+    desc: 'Bấm "Bắt Đầu" trên nhiệm vụ bất kỳ để chạy đếm giờ tập trung (phím tắt Space để tạm dừng/tiếp tục). Kích hoạt Chế độ Toàn màn hình giúp tập trung tối đa và loại bỏ xao nhãng.'
   },
   {
     id: 'shop',
@@ -11197,12 +11213,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileAddRewardBtn = document.getElementById('btn-open-add-reward-mobile');
   if (mobileAddRewardBtn) mobileAddRewardBtn.addEventListener('click', openRewardHandler);
 
-  // Power User Keyboard Shortcuts: [Q] to Add Quest, [R] to Add Reward
+  // Power User Keyboard Shortcuts: [Q] to Add Quest, [R] to Add Reward, [Space] to Pause/Resume Focus Timer
   document.addEventListener('keydown', (e) => {
-    const activeTag = document.activeElement?.tagName;
-    const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || document.activeElement?.isContentEditable;
+    const activeEl = document.activeElement;
+    const activeTag = activeEl?.tagName;
+    const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || activeEl?.isContentEditable;
+    if (isEditing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // Phím Space: Dừng / Tiếp tục đếm ngược thời gian (hoạt động trên cả màn hình chính và Chế độ Toàn màn hình Zen)
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+      if (e.repeat) return;
+      const hasActiveTimer = Boolean(activeFocusQuest || isBreakMode || activeRewardItem || appState?.activeTimer);
+      const isOtherModalOpen = Boolean(document.querySelector('.fixed.inset-0:not(.hidden):not(#focus-zen-overlay)'));
+      if (hasActiveTimer && !isOtherModalOpen) {
+        e.preventDefault();
+        if (activeEl && typeof activeEl.blur === 'function') {
+          activeEl.blur();
+        }
+        toggleFocusTimer();
+        return;
+      }
+    }
+
     const isModalOpen = Boolean(document.querySelector('.fixed.inset-0:not(.hidden)'));
-    if (isEditing || isModalOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isModalOpen) return;
 
     if (e.key === 'q' || e.key === 'Q') {
       e.preventDefault();
