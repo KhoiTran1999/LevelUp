@@ -497,8 +497,21 @@ export function deriveLegitimateBalance(state, existingState = null) {
     Array.isArray(existingState?.completedQuestIds) ? existingState.completedQuestIds.length : 0,
     Array.isArray(state?.completedQuestIds) ? state.completedQuestIds.length : 0
   );
+  const userStreak = Math.max(0, parseInt(state?.profile?.streak, 10) || 0);
+  const streakBonusRate = userStreak >= 30 ? 0.20 : (userStreak >= 14 ? 0.15 : (userStreak >= 7 ? 0.10 : (userStreak >= 3 ? 0.05 : 0)));
+  let recordedStreakBonus = 0;
+  for (const entry of (Array.isArray(state?.ledger) ? state.ledger : [])) {
+    if (entry && entry.type === 'earn' && typeof entry.description === 'string') {
+      const match = entry.description.match(/\+(\d+)\s*Vàng\s*thưởng\s*Streak/i);
+      if (match) {
+        recordedStreakBonus += parseInt(match[1], 10) || 0;
+      }
+    }
+  }
   const maxHistoricalQuestEarned = questEarned + (completedIdsCount * 40);
-  const maxSafeTracked = Math.max(maxTrackedEarned, maxHistoricalQuestEarned + bankInterestWithdrawn);
+  const actualQuestsHistorical = Math.max(0, questEarned - 20) + (completedIdsCount * 40);
+  const maxStreakBonus = Math.max(recordedStreakBonus, Math.floor(actualQuestsHistorical * streakBonusRate));
+  const maxSafeTracked = Math.max(maxTrackedEarned, maxHistoricalQuestEarned + bankInterestWithdrawn + maxStreakBonus);
 
   const maxAllowedCeiling = isAdminAdjusted
     ? Math.max(rawTotal, maxTrackedEarned)
@@ -956,6 +969,8 @@ export default async function handler(req, res) {
             totalCoinsEarned: 20,
             title: 'Tân Binh Cấp 1',
             streak: 1,
+            lastStreakDate: '',
+            streakHistory: [],
             soundEnabled: true,
             theme: 'dark',
             role: isAdmin ? 'admin' : 'adventurer',

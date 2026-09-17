@@ -128,6 +128,8 @@ const DEFAULT_STATE = {
     totalFocusSessions: 0,
     title: 'Tân Binh Cấp 1',
     streak: 1,
+    lastStreakDate: '',
+    streakHistory: [],
     soundEnabled: true,
     theme: 'dark',
     role: 'adventurer',
@@ -378,7 +380,20 @@ function deriveLegitimateBalance(state) {
   const isAdminAdjusted = Boolean(state?.profile?.adminAdjusted || state?.profile?.role === 'admin');
   const storedEarned = parseInt(state?.profile?.totalCoinsEarned, 10) || 0;
   const completedIdsCount = Array.isArray(state?.completedQuestIds) ? state.completedQuestIds.length : 0;
-  const maxSafeTracked = Math.max(maxEarned, questEarned + completedIdsCount * 40, storedEarned);
+  const userStreak = Math.max(0, parseInt(state?.profile?.streak, 10) || 0);
+  const streakBonusRate = userStreak >= 30 ? 0.20 : (userStreak >= 14 ? 0.15 : (userStreak >= 7 ? 0.10 : (userStreak >= 3 ? 0.05 : 0)));
+  let recordedStreakBonus = 0;
+  for (const entry of ledger) {
+    if (entry && entry.type === 'earn' && typeof entry.description === 'string') {
+      const match = entry.description.match(/\+(\d+)\s*Vàng\s*thưởng\s*Streak/i);
+      if (match) {
+        recordedStreakBonus += parseInt(match[1], 10) || 0;
+      }
+    }
+  }
+  const actualQuestsHistorical = Math.max(0, questEarned - 20) + (completedIdsCount * 40);
+  const maxStreakBonus = Math.max(recordedStreakBonus, Math.floor(actualQuestsHistorical * streakBonusRate));
+  const maxSafeTracked = Math.max(maxEarned, questEarned + completedIdsCount * 40 + maxStreakBonus, storedEarned);
   const maxAllowedCeiling = isAdminAdjusted ? Math.max(rawTotal, maxSafeTracked) : maxSafeTracked + 500;
 
   if (rawTotal > maxAllowedCeiling) {
@@ -1096,6 +1111,131 @@ function updateTitleByLevel() {
   else if (lvl >= 3) appState.profile.title = 'Học Viên Chăm Chỉ';
   else appState.profile.title = 'Tân Binh Cấp 1';
 }
+
+// =============================================================================
+// STREAK ENGINE (Daily Consecutive Tracking, Multipliers & Weekly History)
+// =============================================================================
+
+function getLocalDayString(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+window.getLocalDayString = getLocalDayString;
+
+function getDaysDifference(dayStrA, dayStrB) {
+  if (!dayStrA || !dayStrB) return 999;
+  const [yA, mA, dA] = dayStrA.split('-').map(Number);
+  const [yB, mB, dB] = dayStrB.split('-').map(Number);
+  const dateA = new Date(yA, mA - 1, dA);
+  const dateB = new Date(yB, mB - 1, dB);
+  const diffTime = dateB.getTime() - dateA.getTime();
+  return Math.round(diffTime / (24 * 60 * 60 * 1000));
+}
+window.getDaysDifference = getDaysDifference;
+
+function getStreakBonusPercent(streak) {
+  const s = Math.max(0, parseInt(streak, 10) || 0);
+  if (s >= 30) return 20; // 30+ ngày: +20% (Bất Bại)
+  if (s >= 14) return 15; // 14-29 ngày: +15% (Chuyên Cần)
+  if (s >= 7) return 10;  // 7-13 ngày: +10% (Bền Bỉ)
+  if (s >= 3) return 5;   // 3-6 ngày: +5% (Cần Mẫn)
+  return 0;               // 0-2 ngày: +0% (Khởi Đầu)
+}
+window.getStreakBonusPercent = getStreakBonusPercent;
+
+function getStreakTitle(streak) {
+  const s = Math.max(0, parseInt(streak, 10) || 0);
+  if (s >= 30) return 'Bất Bại 👑';
+  if (s >= 14) return 'Chuyên Cần';
+  if (s >= 7) return 'Bền Bỉ';
+  if (s >= 3) return 'Cần Mẫn';
+  return 'Khởi Đầu';
+}
+window.getStreakTitle = getStreakTitle;
+
+function getNextStreakMilestone(streak) {
+  const s = Math.max(0, parseInt(streak, 10) || 0);
+  if (s < 3) return { days: 3, bonus: 5, label: 'Chuỗi 3 ngày: +5%' };
+  if (s < 7) return { days: 7, bonus: 10, label: 'Chuỗi 7 ngày: +10%' };
+  if (s < 14) return { days: 14, bonus: 15, label: 'Chuỗi 14 ngày: +15%' };
+  if (s < 30) return { days: 30, bonus: 20, label: 'Chuỗi 30 ngày: +20% (Max)' };
+  return { days: 30, bonus: 20, label: 'Đạt cấp tối đa (+20%)' };
+}
+window.getNextStreakMilestone = getNextStreakMilestone;
+
+function getDailyStreakStatus(profile = appState.profile, now = new Date()) {
+  if (!profile) return { status: 'new', streak: 0, daysDiff: 999 };
+  const todayStr = getLocalDayString(now);
+  const lastDate = profile.lastStreakDate || '';
+  const currentStreak = Math.max(0, parseInt(profile.streak, 10) || 0);
+
+  if (!lastDate) {
+    return { status: currentStreak > 0 ? 'waiting_today' : 'new', streak: currentStreak, daysDiff: 1 };
+  }
+
+  const daysDiff = getDaysDifference(lastDate, todayStr);
+  if (daysDiff === 0) {
+    return { status: 'active_today', streak: currentStreak, daysDiff: 0 };
+  } else if (daysDiff === 1) {
+    return { status: 'waiting_today', streak: currentStreak, daysDiff: 1 };
+  } else {
+    return { status: 'broken', streak: currentStreak, daysDiff };
+  }
+}
+window.getDailyStreakStatus = getDailyStreakStatus;
+
+function updateStreakOnQuestComplete(profile = appState.profile, now = new Date()) {
+  if (!profile) return { streak: 1, bonusPercent: 0, snapshot: null };
+
+  const todayStr = getLocalDayString(now);
+  const lastDate = profile.lastStreakDate || '';
+  const initialStreak = Math.max(0, parseInt(profile.streak, 10) || 0);
+
+  const snapshot = {
+    streak: initialStreak,
+    lastStreakDate: lastDate,
+    streakHistory: Array.isArray(profile.streakHistory) ? [...profile.streakHistory] : []
+  };
+
+  let newStreak = initialStreak;
+  const daysDiff = lastDate ? getDaysDifference(lastDate, todayStr) : 999;
+
+  if (daysDiff === 0) {
+    // Đã hoàn thành ít nhất 1 nhiệm vụ trong ngày hôm nay -> giữ nguyên chuỗi
+    newStreak = Math.max(1, initialStreak);
+  } else if (daysDiff === 1) {
+    // Hoàn thành liên tiếp so với ngày hôm qua -> Tăng chuỗi +1
+    newStreak = initialStreak + 1;
+  } else {
+    // Bỏ lỡ > 1 ngày hoặc mới bắt đầu -> Bắt đầu chuỗi mới từ 1
+    newStreak = 1;
+  }
+
+  profile.streak = newStreak;
+  profile.lastStreakDate = todayStr;
+
+  if (!Array.isArray(profile.streakHistory)) {
+    profile.streakHistory = [];
+  }
+  if (!profile.streakHistory.includes(todayStr)) {
+    profile.streakHistory.push(todayStr);
+    if (profile.streakHistory.length > 30) {
+      profile.streakHistory = profile.streakHistory.slice(-30);
+    }
+  }
+
+  const bonusPercent = getStreakBonusPercent(newStreak);
+  return {
+    streak: newStreak,
+    isNewDay: daysDiff !== 0,
+    bonusPercent,
+    snapshot
+  };
+}
+window.updateStreakOnQuestComplete = updateStreakOnQuestComplete;
 
 // =============================================================================
 // 5. FOCUS POMODORO COUNTDOWN TIMER (Delta-Time Engine, Wake Lock, Persistence)
@@ -2254,10 +2394,14 @@ async function completeQuest(questId, skipConfirm = false) {
   }
 
   if (!skipConfirm) {
+    const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
+    const streakBonusPct = getStreakBonusPercent(curStreak);
+    const streakBonusCoins = Math.floor(quest.rewardCoins * (streakBonusPct / 100));
+    const totalAwarded = quest.rewardCoins + streakBonusCoins;
     const ok = await confirmAction({
       title: 'Xác Nhận Hoàn Thành?',
       message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-      detail: `💰 Phần thưởng: +${quest.rewardCoins} Vàng | ⚡ Kinh nghiệm: +${quest.rewardCoins * 3} EXP`,
+      detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''} | ⚡ Kinh nghiệm: +${totalAwarded * 3} EXP`,
       confirmText: 'Hoàn Thành ✓',
       cancelText: 'Chưa Xong',
       icon: '🎉',
@@ -2283,7 +2427,13 @@ async function completeQuest(questId, skipConfirm = false) {
       quest.completedAt = Date.now();
     }
 
-    let earnedCoins = quest.rewardCoins;
+    // Cập nhật chuỗi Streak ngày liên tiếp & tính thưởng Streak
+    const streakResult = updateStreakOnQuestComplete(appState.profile);
+    const bonusPct = streakResult.bonusPercent;
+    const streakBonusCoins = Math.floor(quest.rewardCoins * (bonusPct / 100));
+    const totalAwardedCoins = quest.rewardCoins + streakBonusCoins;
+
+    let earnedCoins = totalAwardedCoins;
     let deductedForLoan = 0;
     let principalDeducted = 0;
     let loanCleared = false;
@@ -2333,12 +2483,15 @@ async function completeQuest(questId, skipConfirm = false) {
       }
     }
 
-    // Lưu snapshot trích nợ để có thể hoàn tác chính xác (hỗ trợ cả quest lặp lại theo cơ chế stack LIFO)
+    // Lưu snapshot trích nợ & chuỗi streak để có thể hoàn tác chính xác
     if (!Array.isArray(quest.loanDeductions)) {
       quest.loanDeductions = [];
     }
     quest.loanDeductions.push({
       rewardCoins: quest.rewardCoins,
+      streakBonusCoins,
+      totalAwardedCoins,
+      streakSnapshot: streakResult.snapshot,
       deducted: deductedForLoan,
       principalDeducted,
       loanSnapshot: loanBeforeDeduct,
@@ -2346,7 +2499,7 @@ async function completeQuest(questId, skipConfirm = false) {
     });
 
     appState.profile.coins += earnedCoins;
-    appState.profile.totalCoinsEarned += quest.rewardCoins;
+    appState.profile.totalCoinsEarned += totalAwardedCoins;
     if (!Array.isArray(appState.completedQuestIds)) {
       appState.completedQuestIds = [];
     }
@@ -2359,15 +2512,15 @@ async function completeQuest(questId, skipConfirm = false) {
     if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) >= 25) {
       appState.profile.totalFocusSessions = (parseInt(appState.profile.totalFocusSessions, 10) || 0) + 1;
     }
-    addEXP(quest.rewardCoins * 3);
+    addEXP(totalAwardedCoins * 3);
 
     addLedgerEntry({
       id: 'led_' + Date.now(),
       type: 'earn',
       category: 'quest',
-      amount: quest.rewardCoins,
+      amount: totalAwardedCoins,
       title: quest.title,
-      description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}${quest.isRepeatable ? ` (Lần ${quest.completedCount})` : ''}`,
+      description: `Hoàn thành [Hạng ${quest.rank}] ${quest.title}${quest.isRepeatable ? ` (Lần ${quest.completedCount})` : ''}${streakBonusCoins > 0 ? ` (+${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''}`,
       timestamp: Date.now()
     });
 
@@ -2384,10 +2537,11 @@ async function completeQuest(questId, skipConfirm = false) {
     }
 
     sfx.playCoin();
+    const streakToastExtra = streakBonusCoins > 0 ? ` (Đã gồm +${streakBonusCoins} Vàng Streak 🔥 ${appState.profile.streak} ngày)` : '';
     showToast(
       deductedForLoan > 0
-        ? `+${earnedCoins} VÀNG (Đã trích ${deductedForLoan} Vàng trả nợ)! Hoàn thành: "${quest.title}"`
-        : `+${quest.rewardCoins} VÀNG! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`,
+        ? `+${earnedCoins} VÀNG${streakToastExtra} (Đã trích ${deductedForLoan} Vàng trả nợ)! Hoàn thành: "${quest.title}"`
+        : `+${totalAwardedCoins} VÀNG${streakToastExtra}! Hoàn thành${quest.isRepeatable ? ` lần ${quest.completedCount}` : ''}: "${quest.title}"`,
       'gold',
       {
         label: 'Hoàn tác',
@@ -2437,7 +2591,9 @@ async function undoCompleteQuest(questId) {
     const deductedAmount = deductionInfo ? (Number(deductionInfo.deducted) || 0) : 0;
     const principalDeducted = deductionInfo ? (Number(deductionInfo.principalDeducted) || 0) : 0;
     const originalReward = Number(quest.rewardCoins) || 0;
-    const earnedCoinsToRevert = Math.max(0, originalReward - deductedAmount);
+    const streakBonus = Number(deductionInfo?.streakBonusCoins) || 0;
+    const totalAwarded = deductionInfo?.totalAwardedCoins !== undefined ? Number(deductionInfo.totalAwardedCoins) : (originalReward + streakBonus);
+    const earnedCoinsToRevert = Math.max(0, totalAwarded - deductedAmount);
 
     if (appState.profile.coins < earnedCoinsToRevert) {
       showToast(`Không thể hoàn tác: Số dư Vàng hiện tại (${appState.profile.coins}) không đủ để thu hồi ${earnedCoinsToRevert} Vàng!`, 'warning');
@@ -2449,7 +2605,7 @@ async function undoCompleteQuest(questId) {
       message: isRepeat
         ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
         : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
-      detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''} | ⚡ Sẽ thu hồi: -${originalReward * 3} EXP`,
+      detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''} | ⚡ Sẽ thu hồi: -${totalAwarded * 3} EXP`,
       confirmText: 'Hoàn Tác ↩️',
       cancelText: 'Giữ Nguyên',
       icon: '↩️',
@@ -2459,6 +2615,13 @@ async function undoCompleteQuest(questId) {
 
     if (Array.isArray(quest.loanDeductions) && quest.loanDeductions.length > 0) {
       quest.loanDeductions.pop();
+    }
+
+    // Hoàn nguyên trạng thái Streak từ snapshot
+    if (deductionInfo?.streakSnapshot) {
+      appState.profile.streak = deductionInfo.streakSnapshot.streak;
+      appState.profile.lastStreakDate = deductionInfo.streakSnapshot.lastStreakDate;
+      appState.profile.streakHistory = deductionInfo.streakSnapshot.streakHistory;
     }
 
     quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
@@ -2479,8 +2642,8 @@ async function undoCompleteQuest(questId) {
     }
 
     appState.profile.coins = Math.max(0, appState.profile.coins - earnedCoinsToRevert);
-    appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - originalReward);
-    deductEXP(originalReward * 3);
+    appState.profile.totalCoinsEarned = Math.max(0, appState.profile.totalCoinsEarned - totalAwarded);
+    deductEXP(totalAwarded * 3);
 
     if (deductedAmount > 0) {
       if (typeof currentBankPool === 'object' && currentBankPool) {
@@ -6238,6 +6401,38 @@ function renderHeader() {
   if (profLevelTitle) profLevelTitle.textContent = `LV. ${p.level} • ${p.title || 'Tân Binh Cấp 1'}`;
   const profExpText = document.getElementById('profile-modal-exp-text');
   if (profExpText) profExpText.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
+
+  if (!p.lastStreakDate && (parseInt(p.streak, 10) || 0) > 0) {
+    p.lastStreakDate = getLocalDayString(new Date(Date.now() - 86400000));
+  }
+  const statusInfo = getDailyStreakStatus(p);
+  if (statusInfo.status === 'broken' && p.streak > 0) {
+    p.streak = 0;
+  }
+
+  const streak = Math.max(0, parseInt(p.streak, 10) || 0);
+  const heroStreakCount = document.getElementById('hero-streak-count');
+  if (heroStreakCount) {
+    heroStreakCount.innerHTML = `${streak}<span class="hidden sm:inline text-[10px] font-medium ml-0.5">ngày</span>`;
+  }
+  const heroStreakFlame = document.getElementById('hero-streak-flame');
+  if (heroStreakFlame) {
+    if (streak >= 30) {
+      heroStreakFlame.className = 'text-sm sm:text-base streak-flame streak-flame-legendary transition-transform group-hover:scale-110';
+      heroStreakFlame.textContent = '👑';
+    } else if (streak >= 7) {
+      heroStreakFlame.className = 'text-sm sm:text-base streak-flame streak-flame-high transition-transform group-hover:scale-110';
+      heroStreakFlame.textContent = '🔥';
+    } else {
+      heroStreakFlame.className = 'text-sm sm:text-base streak-flame transition-transform group-hover:scale-110';
+      heroStreakFlame.textContent = '🔥';
+    }
+  }
+
+  const profStreakTitle = document.getElementById('profile-modal-streak-title');
+  if (profStreakTitle) profStreakTitle.textContent = `Chuỗi Chăm Chỉ: ${streak} ngày (${getStreakTitle(streak)})`;
+  const profStreakPerk = document.getElementById('profile-modal-streak-perk');
+  if (profStreakPerk) profStreakPerk.textContent = `Thưởng nhiệm vụ: +${getStreakBonusPercent(streak)}% Vàng & EXP`;
 }
 
 /**
@@ -7423,6 +7618,108 @@ function openLevelInfoModal() {
   if (modal) modal.classList.remove('hidden');
 }
 window.openLevelInfoModal = openLevelInfoModal;
+
+function openStreakInfoModal() {
+  const p = appState.profile;
+  if (!p) return;
+
+  const streak = Math.max(0, parseInt(p.streak, 10) || 0);
+  const streakStatusInfo = getDailyStreakStatus(p);
+  const bonusPct = getStreakBonusPercent(streak);
+  const streakTitle = getStreakTitle(streak);
+  const nextMilestone = getNextStreakMilestone(streak);
+
+  const daysCountEl = document.getElementById('modal-streak-days-count');
+  if (daysCountEl) daysCountEl.textContent = streak;
+
+  const titleEl = document.getElementById('modal-streak-tier-title');
+  if (titleEl) titleEl.textContent = streakTitle;
+
+  const statusEl = document.getElementById('modal-streak-today-status');
+  if (statusEl) {
+    if (streakStatusInfo.status === 'active_today') {
+      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
+      statusEl.innerHTML = `
+        <span class="text-base shrink-0">✅</span>
+        <div class="min-w-0">
+          <div class="font-bold">Chuỗi hôm nay đã được bảo vệ an toàn!</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã hoàn thành nhiệm vụ hôm nay. Hãy quay lại vào ngày mai để tiếp tục nâng chuỗi nhé!</div>
+        </div>
+      `;
+    } else if (streakStatusInfo.status === 'waiting_today') {
+      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
+      statusEl.innerHTML = `
+        <span class="text-base shrink-0">⏳</span>
+        <div class="min-w-0">
+          <div class="font-bold">Chưa hoàn thành nhiệm vụ hôm nay!</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">Hãy hoàn thành ít nhất 1 nhiệm vụ trước 23:59 để tăng chuỗi lên ${streak + 1} ngày và nhận thưởng.</div>
+        </div>
+      `;
+    } else {
+      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300';
+      statusEl.innerHTML = `
+        <span class="text-base shrink-0">⚠️</span>
+        <div class="min-w-0">
+          <div class="font-bold">Chuỗi đã bị gián đoạn!</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã bỏ lỡ ngày hôm qua. Hoàn thành 1 nhiệm vụ hôm nay để thắp lại ngọn lửa chuỗi mới!</div>
+        </div>
+      `;
+    }
+  }
+
+  const perkQuestEl = document.getElementById('modal-streak-perk-quest');
+  if (perkQuestEl) perkQuestEl.textContent = `+${bonusPct}% Vàng & EXP`;
+
+  const perkQuestNextEl = document.getElementById('modal-streak-perk-quest-next');
+  if (perkQuestNextEl) perkQuestNextEl.textContent = nextMilestone.label;
+
+  const perkCreditEl = document.getElementById('modal-streak-perk-credit');
+  if (perkCreditEl) perkCreditEl.textContent = `+${streak * 5} Vàng`;
+
+  // Render weekly 7-day dots tracker
+  const trackerEl = document.getElementById('modal-streak-week-tracker');
+  if (trackerEl) {
+    const today = new Date();
+    const history = Array.isArray(p.streakHistory) ? p.streakHistory : [];
+    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    let html = '';
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStr = getLocalDayString(d);
+      const dayOfWeek = dayNames[d.getDay()];
+      const isToday = i === 0;
+      const isCompleted = history.includes(dayStr);
+
+      html += `
+        <div class="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-xl border transition-all ${
+          isToday
+            ? 'streak-day-card today bg-orange-500/15 border-orange-500/50'
+            : isCompleted
+              ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              : 'bg-slate-100/60 dark:bg-slate-950/60 border-slate-200/50 dark:border-slate-800/50 opacity-60'
+        }">
+          <span class="text-[9px] font-bold ${isToday ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${dayOfWeek}</span>
+          <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs ${
+            isCompleted
+              ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm'
+              : isToday
+                ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-dashed border-orange-500/50 animate-pulse'
+                : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-400'
+          }">
+            ${isCompleted ? '🔥' : isToday ? '⏳' : '·'}
+          </div>
+          <span class="text-[8px] font-mono text-slate-400">${d.getDate()}/${d.getMonth() + 1}</span>
+        </div>
+      `;
+    }
+    trackerEl.innerHTML = html;
+  }
+
+  const modal = document.getElementById('modal-streak-info');
+  if (modal) modal.classList.remove('hidden');
+}
+window.openStreakInfoModal = openStreakInfoModal;
 
 function switchTab(tabId) {
   // Graceful fallback / redirect for legacy 'inventory' tab links
@@ -10499,6 +10796,23 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLevelFromProfile.addEventListener('click', () => {
       sfx.playClick();
       openLevelInfoModal();
+    });
+  }
+
+  // Streak Info Modal Triggers
+  const btnStreakInfo = document.getElementById('btn-streak-info');
+  if (btnStreakInfo) {
+    btnStreakInfo.addEventListener('click', () => {
+      sfx.playClick();
+      openStreakInfoModal();
+    });
+  }
+
+  const btnStreakFromProfile = document.getElementById('btn-open-streak-info-from-profile');
+  if (btnStreakFromProfile) {
+    btnStreakFromProfile.addEventListener('click', () => {
+      sfx.playClick();
+      openStreakInfoModal();
     });
   }
 
