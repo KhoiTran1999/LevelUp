@@ -18,7 +18,8 @@ const actionableModals = [
   'modal-level-info',
   'modal-edit-focus-timer',
   'modal-focus-complete',
-  'modal-confirm'
+  'modal-confirm',
+  'modal-ai-assistant'
 ];
 
 actionableModals.forEach(modalId => {

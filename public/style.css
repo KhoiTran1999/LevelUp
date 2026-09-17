@@ -1140,6 +1140,128 @@ html.dark .assistant-watermark-wizard {
 }
 
 /* =============================================================================
+   ASSISTANT MODAL BURST ANIMATIONS (Bung lên từ Phù Thủy & Thu nhỏ khi tắt)
+   ============================================================================= */
+
+/* Backdrop overlay animations */
+#modal-ai-assistant.assistant-modal-opening {
+  animation: assistantBackdropIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#modal-ai-assistant.assistant-modal-closing {
+  animation: assistantBackdropOut 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes assistantBackdropIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes assistantBackdropOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+/* Panel burst animation - Defaults origin to bottom right (Wizard FAB) */
+#modal-ai-assistant > .rpg-panel,
+#assistant-panel {
+  transform-origin: calc(100% - 2rem) calc(100% - 2rem);
+  will-change: transform, opacity, filter;
+}
+
+/* Bung lên từ Phù Thủy */
+#modal-ai-assistant.assistant-modal-opening > .rpg-panel,
+#modal-ai-assistant > .rpg-panel.assistant-panel-opening,
+#assistant-panel.assistant-panel-opening {
+  animation: assistantBurstIn 0.35s cubic-bezier(0.18, 1, 0.25, 1) forwards;
+}
+
+/* Thu nhỏ biến mất vào lại Phù Thủy */
+#modal-ai-assistant.assistant-modal-closing > .rpg-panel,
+#modal-ai-assistant > .rpg-panel.assistant-panel-closing,
+#assistant-panel.assistant-panel-closing {
+  animation: assistantBurstOut 0.26s cubic-bezier(0.35, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes assistantBurstIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.08) translate3d(0, 0, 0);
+    filter: blur(8px) brightness(1.25);
+  }
+  50% {
+    opacity: 0.95;
+    filter: blur(1.5px) brightness(1.08);
+  }
+  82% {
+    transform: scale(1.018) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px) brightness(1);
+  }
+}
+
+@keyframes assistantBurstOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px) brightness(1);
+  }
+  30% {
+    opacity: 0.9;
+    transform: scale(0.92) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.08) translate3d(0, 0, 0);
+    filter: blur(6px) brightness(1.2);
+  }
+}
+
+/* FAB burst impulse */
+.assistant-fab-burst {
+  animation: assistantFabPulse 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes assistantFabPulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.85));
+  }
+  40% {
+    transform: scale(1.28) rotate(-8deg);
+    filter: drop-shadow(0 0 16px rgba(167, 139, 250, 1)) brightness(1.2);
+  }
+  75% {
+    transform: scale(0.95) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.85));
+  }
+}
+
+/* =============================================================================
    STREAK TRACKER & FLAME EFFECTS
    ============================================================================= */
 @keyframes flamePulse {

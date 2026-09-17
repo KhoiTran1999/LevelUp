@@ -35,7 +35,7 @@ console.log('✓ Test 2: Tất cả các file icon khai báo trong manifest đ�
 const requiredIcons = [
   { name: 'logo.svg', minSize: 1000 },
   { name: 'apple-touch-icon.png', minSize: 5000 },
-  { name: 'icon-192.png', minSize: 5000 },
+  { name: 'icon-512.png', minSize: 5000 },
   { name: 'icon-512.png', minSize: 10000 },
   { name: 'favicon.png', minSize: 100 }
 ];

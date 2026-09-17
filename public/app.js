@@ -11315,12 +11315,16 @@ document.addEventListener('DOMContentLoaded', () => {
           closeConfirmDialog(false);
           return;
         }
+        if (modal.id === 'modal-ai-assistant') {
+          closeAssistantModal();
+          return;
+        }
         modal.classList.add('hidden');
       }
     });
   });
 
-  // Chặn đóng modal khi click ra ngoài backdrop; rung nhẹ viền panel báo hiệu chỉ tắt khi nhấn dấu x
+  // Chặn đóng modal khi click ra ngoài backdrop (kể cả Phù Thủy); chỉ cho phép thoát khi nhấn dấu x
   document.querySelectorAll('.fixed').forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
@@ -11328,7 +11332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modal.id === 'modal-welcome') {
           showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
         }
-        const panel = modal.querySelector('.rpg-panel');
+        const panel = modal.querySelector('.rpg-panel') || modal.querySelector('#assistant-panel');
         if (panel) {
           panel.classList.add('ring-4', 'ring-amber-500/60');
           setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
@@ -11337,7 +11341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Chặn phím Escape đóng các modal - chỉ khi nhấn dấu x mới cho tắt
+  // Phím Escape: chặn đóng tất cả modal (kể cả Phù Thủy); chỉ cho phép thoát khi nhấn dấu x
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isTourActive) {
@@ -11348,7 +11352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const openModal = document.querySelector('.fixed[id^="modal-"]:not(.hidden)');
       if (openModal) {
         e.preventDefault();
-        const panel = openModal.querySelector('.rpg-panel');
+        const panel = openModal.querySelector('.rpg-panel') || openModal.querySelector('#assistant-panel');
         if (panel) {
           panel.classList.add('ring-4', 'ring-amber-500/60');
           setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
@@ -11378,25 +11382,115 @@ document.addEventListener('DOMContentLoaded', () => {
 let assistantChatHistory = [];
 let isAssistantBusy = false;
 let currentAssistantAbortCtrl = null;
+let assistantAnimTimer = null;
 
-function openAssistantModal() {
-  openModal('modal-ai-assistant');
+function updateAssistantTransformOrigin(sourceEl = null) {
+  const modal = document.getElementById('modal-ai-assistant');
+  const panel = modal ? (modal.querySelector('#assistant-panel') || modal.querySelector('.rpg-panel')) : null;
+  const fab = document.getElementById('btn-floating-assistant');
+  const triggerEl = (sourceEl instanceof HTMLElement) ? sourceEl : fab;
+  if (!modal || !panel) return;
+
+  if (triggerEl) {
+    const triggerRect = triggerEl.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    // Tọa độ tâm icon phù thủy tương đối so với panel
+    const originX = triggerRect.left + triggerRect.width / 2 - panelRect.left;
+    const originY = triggerRect.top + triggerRect.height / 2 - panelRect.top;
+    panel.style.transformOrigin = `${originX}px ${originY}px`;
+  } else {
+    panel.style.transformOrigin = 'calc(100% - 2rem) calc(100% - 2rem)';
+  }
+}
+
+function openAssistantModal(sourceEl = null) {
+  const modal = document.getElementById('modal-ai-assistant');
+  if (!modal) return;
+  const panel = modal.querySelector('#assistant-panel') || modal.querySelector('.rpg-panel');
+
+  if (assistantAnimTimer) {
+    clearTimeout(assistantAnimTimer);
+    assistantAnimTimer = null;
+  }
+
+  // Gỡ bỏ trạng thái đóng nếu trước đó đang đóng dở
+  modal.classList.remove('assistant-modal-closing');
+  if (panel) panel.classList.remove('assistant-panel-closing');
+
+  // Mở modal và gắn class animation bung lên từ Phù Thủy
+  modal.classList.remove('hidden');
+  modal.classList.add('assistant-modal-opening');
+  if (panel) panel.classList.add('assistant-panel-opening');
+
+  // Tính tọa độ icon phù thủy để bung nở chính xác từ vị trí icon
+  updateAssistantTransformOrigin(sourceEl);
+
+  // Hiệu ứng nảy ma thuật trên icon phù thủy nổi
+  const fabIcon = document.querySelector('#btn-floating-assistant img');
+  if (fabIcon) {
+    fabIcon.classList.remove('assistant-fab-burst');
+    void fabIcon.offsetWidth;
+    fabIcon.classList.add('assistant-fab-burst');
+    setTimeout(() => fabIcon.classList.remove('assistant-fab-burst'), 500);
+  }
+
   const chatLogs = document.getElementById('assistant-chat-logs');
   if (chatLogs && assistantChatHistory.length === 0) {
     initAssistantWelcomeMessage();
   }
-  setTimeout(() => {
+
+  assistantAnimTimer = setTimeout(() => {
+    modal.classList.remove('assistant-modal-opening');
+    if (panel) panel.classList.remove('assistant-panel-opening');
+    assistantAnimTimer = null;
     const input = document.getElementById('input-assistant-query');
-    if (input) input.focus();
+    if (input) input.focus({ preventScroll: true });
     scrollAssistantToBottom(true);
-  }, 100);
+  }, 350);
 }
 
 function closeAssistantModal() {
+  const modal = document.getElementById('modal-ai-assistant');
+  if (!modal || modal.classList.contains('hidden')) return;
+
   if (isAssistantBusy && currentAssistantAbortCtrl) {
     try { currentAssistantAbortCtrl.abort(); } catch (_) {}
   }
-  closeModal('modal-ai-assistant');
+
+  const panel = modal.querySelector('#assistant-panel') || modal.querySelector('.rpg-panel');
+
+  if (assistantAnimTimer) {
+    clearTimeout(assistantAnimTimer);
+    assistantAnimTimer = null;
+  }
+
+  // Cập nhật transform-origin chuẩn xác trước khi thu nhỏ về phù thủy
+  updateAssistantTransformOrigin();
+
+  modal.classList.remove('assistant-modal-opening');
+  modal.classList.add('assistant-modal-closing');
+  if (panel) {
+    panel.classList.remove('assistant-panel-opening');
+    panel.classList.add('assistant-panel-closing');
+  }
+
+  // Hiệu ứng hấp thụ ma thuật vào lại icon phù thủy
+  const fabIcon = document.querySelector('#btn-floating-assistant img');
+  if (fabIcon) {
+    setTimeout(() => {
+      fabIcon.classList.remove('assistant-fab-burst');
+      void fabIcon.offsetWidth;
+      fabIcon.classList.add('assistant-fab-burst');
+      setTimeout(() => fabIcon.classList.remove('assistant-fab-burst'), 450);
+    }, 100);
+  }
+
+  assistantAnimTimer = setTimeout(() => {
+    modal.classList.add('hidden');
+    modal.classList.remove('assistant-modal-closing');
+    if (panel) panel.classList.remove('assistant-panel-closing');
+    assistantAnimTimer = null;
+  }, 260);
 }
 
 function initAssistantWelcomeMessage() {
