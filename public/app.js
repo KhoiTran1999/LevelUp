@@ -11388,7 +11388,7 @@ function openAssistantModal() {
   setTimeout(() => {
     const input = document.getElementById('input-assistant-query');
     if (input) input.focus();
-    scrollAssistantToBottom();
+    scrollAssistantToBottom(true);
   }, 100);
 }
 
@@ -11433,11 +11433,34 @@ function initAssistantWelcomeMessage() {
 
 function scrollAssistantToBottom(force = false) {
   const chatLogs = document.getElementById('assistant-chat-logs');
-  if (chatLogs) {
-    const isNearBottom = chatLogs.scrollHeight - chatLogs.scrollTop - chatLogs.clientHeight < 120;
-    if (force || isNearBottom) {
-      chatLogs.scrollTop = chatLogs.scrollHeight;
-    }
+  if (!chatLogs) return;
+  if (force) {
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+    return;
+  }
+  const isNearBottom = chatLogs.scrollHeight - chatLogs.scrollTop - chatLogs.clientHeight < 140;
+  if (isNearBottom) {
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+  }
+}
+
+function scrollAssistantToMessage(messageEl, smooth = true) {
+  const chatLogs = document.getElementById('assistant-chat-logs');
+  if (!chatLogs || !messageEl) return;
+
+  const containerRect = chatLogs.getBoundingClientRect();
+  const targetRect = messageEl.getBoundingClientRect();
+  // Tính vị trí tương đối của phần đầu tin nhắn trong khung cuộn
+  const relativeTop = targetRect.top - containerRect.top + chatLogs.scrollTop;
+  const targetScrollTop = Math.max(0, relativeTop - 12);
+
+  if (smooth && typeof chatLogs.scrollTo === 'function') {
+    chatLogs.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth'
+    });
+  } else {
+    chatLogs.scrollTop = targetScrollTop;
   }
 }
 
@@ -11487,7 +11510,7 @@ async function sendAssistantMessage(userQuery) {
 
   isAssistantBusy = true;
   if (sendBtn) sendBtn.disabled = true;
-  if (input) input.disabled = true;
+  if (input) input.readOnly = true;
 
   // Append user bubble
   if (chatLogs) {
@@ -11531,7 +11554,14 @@ async function sendAssistantMessage(userQuery) {
       </div>
     `;
     chatLogs.insertAdjacentHTML('beforeend', streamBubbleHtml);
-    scrollAssistantToBottom();
+    // Cưỡng chế cuộn ngay xuống đáy khi vừa gửi tin để không bị kẹt ở trên
+    scrollAssistantToBottom(true);
+    requestAnimationFrame(() => {
+      scrollAssistantToBottom(true);
+    });
+    setTimeout(() => {
+      scrollAssistantToBottom(true);
+    }, 60);
   }
 
   // Show Step Progress
@@ -11540,6 +11570,9 @@ async function sendAssistantMessage(userQuery) {
     if (stepMsg) stepMsg.textContent = 'Phù Thủy đang suy nghĩ & phân tích...';
     if (stepPct) stepPct.textContent = '25%';
     if (stepBar) stepBar.style.width = '25%';
+    requestAnimationFrame(() => {
+      scrollAssistantToBottom(true);
+    });
   }
 
   currentAssistantAbortCtrl = new AbortController();
@@ -11550,6 +11583,19 @@ async function sendAssistantMessage(userQuery) {
     shopItems: (appState.shopItems || []).slice(0, 10),
     bank: appState.profile?.bank || { deposited: 0, depositInterest: 0, loan: null }
   };
+
+  // Quản lý cuộn thông minh trong lúc streaming
+  let userScrolledUp = false;
+  const handleUserScroll = () => {
+    if (!chatLogs) return;
+    const distFromBottom = chatLogs.scrollHeight - chatLogs.scrollTop - chatLogs.clientHeight;
+    if (distFromBottom > 160) {
+      userScrolledUp = true;
+    } else if (distFromBottom < 50) {
+      userScrolledUp = false;
+    }
+  };
+  chatLogs?.addEventListener('scroll', handleUserScroll, { passive: true });
 
   // Bộ điều khiển hiệu ứng dòng chảy chữ (fluid stream) mượt mà, liên tục
   let targetReplyText = '';
@@ -11617,7 +11663,10 @@ async function sendAssistantMessage(userQuery) {
           streamBody.innerHTML = renderStreamingMarkdown(currentSlice);
         }
 
-        scrollAssistantToBottom();
+        // Tự động bám sát đáy khi đang sinh chữ trừ khi người dùng chủ động kéo lên đọc
+        if (!userScrolledUp && chatLogs) {
+          chatLogs.scrollTop = chatLogs.scrollHeight;
+        }
         streamTimer = setTimeout(tickStream, 16);
       } else {
         streamTimer = null;
@@ -11645,6 +11694,9 @@ async function sendAssistantMessage(userQuery) {
         renderedChars = targetReplyText.length;
         if (streamBody) {
           streamBody.innerHTML = renderStreamingMarkdown(targetReplyText);
+        }
+        if (!userScrolledUp && chatLogs) {
+          chatLogs.scrollTop = chatLogs.scrollHeight;
         }
         if (isServerDone && notifyDoneResolve) {
           notifyDoneResolve();
@@ -11695,7 +11747,9 @@ async function sendAssistantMessage(userQuery) {
                 if (streamBody && !renderedChars) {
                   streamBody.innerHTML = '<span class="assistant-typing-cursor"></span>';
                 }
-                scrollAssistantToBottom(true);
+                if (!userScrolledUp) {
+                  scrollAssistantToBottom(true);
+                }
               } else if (currentEvent === 'chunk') {
                 if (activeStatus) activeStatus.classList.add('hidden');
                 if (activeText) activeText.classList.remove('hidden');
@@ -11778,6 +11832,11 @@ async function sendAssistantMessage(userQuery) {
         optionsEl.innerHTML = renderAssistantOptionChips(finalResult.options);
       }
 
+      // Ẩn thanh tiến trình ngay trước khi cuộn để kích thước chatLogs chuẩn xác
+      if (stepContainer) stepContainer.classList.add('hidden');
+
+      const finishedMsgEl = activeMsg;
+
       // Đổi ID để không bị xung đột với các tin nhắn tiếp theo
       activeMsg.removeAttribute('id');
       if (activeStatus) activeStatus.removeAttribute('id');
@@ -11788,7 +11847,10 @@ async function sendAssistantMessage(userQuery) {
       if (actionsEl) actionsEl.removeAttribute('id');
       if (optionsEl) optionsEl.removeAttribute('id');
 
-      scrollAssistantToBottom();
+      // Tự động cuộn mượt lên dòng đầu tin nhắn Phù Thủy vừa gửi để user có thể đọc lại từ đầu tin
+      requestAnimationFrame(() => {
+        scrollAssistantToMessage(finishedMsgEl, true);
+      });
     } else {
       // Fallback nếu DOM activeMsg không tìm thấy
       renderAssistantResponse(finalResult);
@@ -11811,7 +11873,7 @@ async function sendAssistantMessage(userQuery) {
         </div>
       `;
       activeMsg.removeAttribute('id');
-      scrollAssistantToBottom();
+      scrollAssistantToBottom(true);
     } else if (chatLogs) {
       const errMsgHtml = `
         <div class="assistant-msg-ai flex gap-3 items-start animate-fade-in">
@@ -11822,17 +11884,28 @@ async function sendAssistantMessage(userQuery) {
         </div>
       `;
       chatLogs.insertAdjacentHTML('beforeend', errMsgHtml);
-      scrollAssistantToBottom();
+      scrollAssistantToBottom(true);
     }
     showToast(err.message || 'Lỗi kết nối Phù Thủy', 'error');
   } finally {
+    if (chatLogs) {
+      chatLogs.removeEventListener('scroll', handleUserScroll);
+    }
     isAssistantBusy = false;
     currentAssistantAbortCtrl = null;
     if (stepContainer) stepContainer.classList.add('hidden');
     if (sendBtn) sendBtn.disabled = false;
     if (input) {
+      input.readOnly = false;
       input.disabled = false;
-      input.focus();
+      const isMobileDevice = window.innerWidth < 640 || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+      if (!isMobileDevice) {
+        try {
+          input.focus({ preventScroll: true });
+        } catch (_) {
+          input.focus();
+        }
+      }
     }
   }
 }
@@ -11994,7 +12067,10 @@ function renderAssistantResponse(result) {
   `;
 
   chatLogs.insertAdjacentHTML('beforeend', aiMsgHtml);
-  scrollAssistantToBottom();
+  const newMsg = chatLogs.lastElementChild;
+  requestAnimationFrame(() => {
+    scrollAssistantToMessage(newMsg, true);
+  });
 }
 
 
