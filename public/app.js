@@ -1893,15 +1893,24 @@ async function startFocusTimer(quest) {
 
   // Edge case 2b: Đang trong phiên tận hưởng phần thưởng
   if (activeRewardItem) {
+    const prevItem = activeRewardItem;
+    const prevMins = Math.ceil(focusRemainingSeconds / 60);
     const ok = await confirmAction({
-      title: 'Đang Dùng Phần Thưởng',
-      message: `Bạn đang tận hưởng phần thưởng "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng để bắt đầu nhiệm vụ "${quest.title}" ngay?`,
-      confirmText: 'Bắt Đầu Nhiệm Vụ ⚔️',
+      title: 'Bảo Lưu Quà & Bắt Đầu Nhiệm Vụ?',
+      message: `Bạn đang tận hưởng phần thưởng "${prevItem.name}" (${prevMins} phút còn lại). Bạn có muốn bảo lưu quà để bắt đầu nhiệm vụ "${quest.title}" ngay?`,
+      detail: `✅ Thời gian còn lại của phần thưởng sẽ được BẢO LƯU trong Kho Quà để bạn dùng tiếp sau!`,
+      confirmText: 'Bảo Lưu & Bắt Đầu ⚔️',
       cancelText: 'Tiếp Tục Dùng Quà 🎁',
-      icon: '⚔️',
+      icon: '🎁',
       btnColor: 'cyan'
     });
     if (!ok) return;
+    prevItem.savedTimer = {
+      remainingSeconds: Math.max(0, focusRemainingSeconds),
+      totalSeconds: focusTotalSeconds || (extractRewardDuration(prevItem) * 60),
+      savedAt: Date.now()
+    };
+    renderInventory();
   }
 
   // Edge case 3: Đang trong phiên nghỉ giải lao
@@ -1917,16 +1926,25 @@ async function startFocusTimer(quest) {
     if (!ok) return;
   } else if (activeFocusQuest && activeFocusQuest.id !== quest.id) {
     // Edge case 4: Đang có một nhiệm vụ khác đang chạy
+    const prevQuest = activeFocusQuest;
+    const prevMins = Math.ceil(focusRemainingSeconds / 60);
     const ok = await confirmAction({
-      title: 'Đổi Nhiệm Vụ Tập Trung?',
-      message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có chắc muốn dừng để chuyển sang "${quest.title}"?`,
-      detail: '⚠️ Thời gian tập trung của nhiệm vụ cũ sẽ không được tính.',
-      confirmText: 'Đổi Nhiệm Vụ ⏱️',
+      title: 'Đổi Nhiệm Vụ & Bảo Lưu?',
+      message: `Nhiệm vụ "${prevQuest.title}" đang chạy (${prevMins} phút còn lại). Bạn có muốn chuyển sang "${quest.title}"?`,
+      detail: `✅ Thời gian của "${prevQuest.title}" sẽ được BẢO LƯU tự động. Bạn có thể quay lại làm tiếp bất cứ lúc nào!`,
+      confirmText: 'Bảo Lưu & Đổi ⏱️',
       cancelText: 'Giữ Nhiệm Vụ Cũ',
-      icon: '⏱️',
-      btnColor: 'amber'
+      icon: '⏸️',
+      btnColor: 'cyan'
     });
     if (!ok) return;
+    prevQuest.savedTimer = {
+      remainingSeconds: Math.max(0, focusRemainingSeconds),
+      actualFocusedSeconds: actualFocusedSeconds,
+      totalSeconds: focusTotalSeconds || ((prevQuest.targetMinutes || 25) * 60),
+      savedAt: Date.now()
+    };
+    renderQuests();
   }
 
   if ('Notification' in window && Notification.permission === 'default') {
@@ -1934,12 +1952,24 @@ async function startFocusTimer(quest) {
   }
 
   lastLocalTimerActionTime = Date.now();
+  const isResumingSaved = Boolean(quest.savedTimer && quest.savedTimer.remainingSeconds > 0);
+  let initialRemainingSec = Math.max(1, (quest.targetMinutes || 25)) * 60;
+  let initialTotalSec = initialRemainingSec;
+  let initialActualFocusedSec = 0;
+
+  if (isResumingSaved) {
+    initialTotalSec = quest.savedTimer.totalSeconds || initialRemainingSec;
+    initialRemainingSec = Math.max(1, quest.savedTimer.remainingSeconds);
+    initialActualFocusedSec = quest.savedTimer.actualFocusedSeconds || 0;
+    delete quest.savedTimer;
+  }
+
   activeFocusQuest = quest;
   activeRewardItem = null;
   isBreakMode = false;
-  focusTotalSeconds = Math.max(1, (quest.targetMinutes || 25)) * 60;
-  focusRemainingSeconds = focusTotalSeconds;
-  actualFocusedSeconds = 0;
+  focusTotalSeconds = initialTotalSec;
+  focusRemainingSeconds = initialRemainingSec;
+  actualFocusedSeconds = initialActualFocusedSec;
   isFocusRunning = true;
   lastTickTime = Date.now();
 
@@ -1957,7 +1987,11 @@ async function startFocusTimer(quest) {
   focusTimerInterval = setInterval(tickFocusTimer, 500);
 
   sfx.playGong();
-  showToast(`Bắt đầu đồng hồ tập trung: ${quest.targetMinutes || 25} phút! Chúc bạn tập trung cao độ.`, 'info');
+  if (isResumingSaved) {
+    showToast(`Tiếp tục nhiệm vụ "${quest.title}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại)! Chúc bạn tập trung cao độ.`, 'info');
+  } else {
+    showToast(`Bắt đầu đồng hồ tập trung: ${quest.targetMinutes || 25} phút! Chúc bạn tập trung cao độ.`, 'info');
+  }
 }
 
 function startBreakTimer(breakMinutes = 5) {
@@ -2063,6 +2097,143 @@ async function toggleFocusTimer() {
   saveFocusTimerState(true, true, 'pause');
 }
 
+async function holdFocusTimer() {
+  if (isTimerActionPending) return;
+  isTimerActionPending = true;
+  setTimeout(() => { isTimerActionPending = false; }, 300);
+
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem && !appState.activeTimer) {
+    showToast('Chưa có phiên nào đang chạy để bảo lưu!', 'info');
+    return;
+  }
+
+  // 1. Giờ nghỉ giải lao
+  if (isBreakMode) {
+    clearFocusTimerSession(true);
+    showToast('Đã dừng giờ nghỉ giải lao.', 'info');
+    return;
+  }
+
+  // 2. Phần thưởng
+  if (activeRewardItem) {
+    const item = activeRewardItem;
+    const remaining = Math.max(0, focusRemainingSeconds);
+    const total = focusTotalSeconds || (extractRewardDuration(item) * 60);
+    const minsLeft = Math.ceil(remaining / 60);
+
+    item.savedTimer = {
+      remainingSeconds: remaining,
+      totalSeconds: total,
+      savedAt: Date.now()
+    };
+
+    clearFocusTimerSession(true);
+    sfx.playClick();
+    showToast(`Đã bảo lưu phần thưởng "${item.name}" (còn ${minsLeft} phút). Bạn có thể quay lại dùng tiếp bất cứ lúc nào!`, 'purple');
+    renderInventory();
+    renderFocusStationUI();
+    triggerSave(true);
+    return;
+  }
+
+  // 3. Nhiệm vụ tập trung
+  if (activeFocusQuest) {
+    const quest = activeFocusQuest;
+    const remaining = Math.max(0, focusRemainingSeconds);
+    const actual = actualFocusedSeconds;
+    const total = focusTotalSeconds || ((quest.targetMinutes || 25) * 60);
+    const minsLeft = Math.ceil(remaining / 60);
+
+    quest.savedTimer = {
+      remainingSeconds: remaining,
+      actualFocusedSeconds: actual,
+      totalSeconds: total,
+      savedAt: Date.now()
+    };
+
+    clearFocusTimerSession(true);
+    sfx.playClick();
+    showToast(`Đã bảo lưu nhiệm vụ "${quest.title}" (còn ${minsLeft} phút). Bạn có thể làm việc khác và tiếp tục bất cứ lúc nào!`, 'info');
+    renderQuests();
+    renderFocusStationUI();
+    triggerSave(true);
+    return;
+  }
+
+  // Fallback từ appState.activeTimer
+  if (appState.activeTimer?.questId) {
+    const q = appState.quests?.find(x => x.id === appState.activeTimer.questId);
+    if (q) {
+      q.savedTimer = {
+        remainingSeconds: Math.max(0, appState.activeTimer.remainingSeconds || 0),
+        actualFocusedSeconds: appState.activeTimer.actualFocusedSeconds || 0,
+        totalSeconds: appState.activeTimer.totalSeconds || 1500,
+        savedAt: Date.now()
+      };
+      clearFocusTimerSession(true);
+      showToast(`Đã bảo lưu nhiệm vụ "${q.title}".`, 'info');
+      renderQuests();
+      triggerSave(true);
+      return;
+    }
+  } else if (appState.activeTimer?.rewardItemId) {
+    const it = appState.inventory?.find(x => x.id === appState.activeTimer.rewardItemId);
+    if (it) {
+      it.savedTimer = {
+        remainingSeconds: Math.max(0, appState.activeTimer.remainingSeconds || 0),
+        totalSeconds: appState.activeTimer.totalSeconds || 1800,
+        savedAt: Date.now()
+      };
+      clearFocusTimerSession(true);
+      showToast(`Đã bảo lưu phần thưởng "${it.name}".`, 'purple');
+      renderInventory();
+      triggerSave(true);
+      return;
+    }
+  }
+
+  clearFocusTimerSession(true);
+}
+
+async function clearSavedQuestTimer(questId) {
+  const quest = appState.quests?.find(q => q.id === questId);
+  if (!quest || !quest.savedTimer) return;
+  const ok = await confirmAction({
+    title: 'Hủy Bảo Lưu Nhiệm Vụ?',
+    message: `Bạn có chắc muốn hủy thời gian đã bảo lưu của "${quest.title}" để làm lại từ đầu?`,
+    detail: '⚠️ Tiến độ tập trung đã tích lũy trước đó sẽ bị xóa bỏ.',
+    confirmText: 'Hủy Bảo Lưu ⏹️',
+    cancelText: 'Giữ Lại',
+    icon: '⏹️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+  delete quest.savedTimer;
+  triggerSave(true);
+  renderQuests();
+  showToast(`Đã hủy bảo lưu "${quest.title}".`, 'info');
+}
+
+async function clearSavedRewardTimer(invId) {
+  const item = appState.inventory?.find(i => i.id === invId);
+  if (!item || !item.savedTimer) return;
+  const ok = await confirmAction({
+    title: 'Kết Thúc Phần Thưởng?',
+    message: `Bạn có chắc muốn kết thúc sớm phần thưởng "${item.name}"?`,
+    detail: '⚠️ Thời gian còn lại sẽ không thể sử dụng tiếp.',
+    confirmText: 'Kết Thúc Quà ⏹️',
+    cancelText: 'Giữ Lại',
+    icon: '🎁',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+  delete item.savedTimer;
+  item.isUsed = true;
+  triggerSave(true);
+  renderInventory();
+  showToast(`Đã kết thúc phần thưởng "${item.name}".`, 'info');
+}
+
 async function resetFocusTimer() {
   if (isTimerActionPending) return;
   isTimerActionPending = true;
@@ -2087,10 +2258,10 @@ async function resetFocusTimer() {
     : `Bạn có chắc muốn dừng phiên tập trung cho "${questTitle}"? Thời gian đã đếm sẽ không được tính.`;
 
   const detail = isReward
-    ? 'Phần thưởng đã dùng vẫn được ghi nhận trong kho quà.'
+    ? '💡 Mẹo: Bạn có thể nhấn nút "Bảo Lưu ⏸️" trên thanh đếm giờ để giữ lại số phút còn lại và dùng tiếp sau!'
     : wasBreak
     ? ''
-    : '⚠️ Phiên tập trung sẽ bị hủy và bạn sẽ không nhận được Vàng.';
+    : '💡 Mẹo: Bạn có thể nhấn nút "Bảo Lưu ⏸️" trên thanh đếm giờ để giữ lại tiến độ và tiếp tục sau!\n⚠️ Nếu dừng hẳn, phiên tập trung sẽ bị hủy và thời gian đã đếm sẽ không được tính.';
 
   const ok = await confirmAction({
     title,
@@ -2348,6 +2519,7 @@ function breakTimerFinished() {
 
 function rewardTimerFinished() {
   const item = activeRewardItem;
+  if (item) delete item.savedTimer;
   clearFocusTimerSession();
   sfx.playFanfare();
   sfx.playGong();
@@ -2408,6 +2580,7 @@ async function completeQuest(questId, skipConfirm = false) {
   if (quest.focusTimerCompleted) {
     delete quest.focusTimerCompleted;
   }
+  delete quest.savedTimer;
 
   if (!skipConfirm) {
     const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
@@ -2743,6 +2916,7 @@ async function restartQuest(questId) {
   delete quest.completedAt;
   delete quest.focusTimerCompleted;
   delete quest._proofVerified;
+  delete quest.savedTimer;
 
   sfx.playClick();
   triggerSave(true);
@@ -3299,27 +3473,38 @@ async function useInventoryItem(invId, skipConfirm = false) {
     }
   }
 
-  // Case 2: Đã sử dụng và không chạy timer
-  if (item.isUsed) {
+  const hasSavedTimer = Boolean(item.savedTimer && item.savedTimer.remainingSeconds > 0);
+
+  // Case 2: Đã sử dụng và không chạy timer cũng như không có bảo lưu
+  if (item.isUsed && !hasSavedTimer) {
     showToast('Phần thưởng này đã được sử dụng!', 'info');
     return;
   }
 
-  const durationMinutes = extractRewardDuration(item);
+  const durationMinutes = hasSavedTimer
+    ? Math.ceil(item.savedTimer.remainingSeconds / 60)
+    : extractRewardDuration(item);
 
   if (!skipConfirm) {
     // Case 3: Xung đột với phiên tập trung nhiệm vụ
     if (activeFocusQuest) {
       const ok = await confirmAction({
-        title: 'Đang Trong Nhiệm Vụ Tập Trung',
-        message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn dừng nhiệm vụ để dùng phần thưởng "${item.name}"?`,
-        detail: '⚠️ Thời gian tập trung của nhiệm vụ sẽ không được tính.',
-        confirmText: 'Dừng & Dùng Quà 🎁',
+        title: 'Bảo Lưu Nhiệm Vụ & Dùng Quà?',
+        message: `Nhiệm vụ "${activeFocusQuest.title}" đang chạy (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng phần thưởng "${item.name}"?`,
+        detail: `✅ Thời gian của "${activeFocusQuest.title}" sẽ được BẢO LƯU tự động. Bạn có thể quay lại làm tiếp bất cứ lúc nào!`,
+        confirmText: 'Bảo Lưu & Dùng Quà 🎁',
         cancelText: 'Tiếp Tục Nhiệm Vụ ⚔️',
         icon: '🎁',
         btnColor: 'purple'
       });
       if (!ok) return;
+      activeFocusQuest.savedTimer = {
+        remainingSeconds: Math.max(0, focusRemainingSeconds),
+        actualFocusedSeconds: actualFocusedSeconds,
+        totalSeconds: focusTotalSeconds || ((activeFocusQuest.targetMinutes || 25) * 60),
+        savedAt: Date.now()
+      };
+      renderQuests();
     } else if (isBreakMode) {
       // Case 4: Xung đột với giờ nghỉ giải lao
       const ok = await confirmAction({
@@ -3333,17 +3518,37 @@ async function useInventoryItem(invId, skipConfirm = false) {
       if (!ok) return;
     } else if (activeRewardItem && activeRewardItem.id !== invId) {
       // Case 5: Đang có một phần thưởng khác đang đếm giờ
+      const prevReward = activeRewardItem;
       const ok = await confirmAction({
-        title: 'Đổi Phần Thưởng Đang Dùng?',
-        message: `Bạn đang trong phiên dùng quà "${activeRewardItem.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
-        confirmText: 'Đổi Quà 🎁',
+        title: 'Đổi Phần Thưởng & Bảo Lưu?',
+        message: `Bạn đang trong phiên dùng quà "${prevReward.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
+        detail: `✅ Phần thưởng hiện tại sẽ được BẢO LƯU thời gian trong Kho Quà!`,
+        confirmText: 'Bảo Lưu & Đổi Quà 🎁',
         cancelText: 'Giữ Quà Hiện Tại',
         icon: '🎁',
         btnColor: 'purple'
       });
       if (!ok) return;
+      prevReward.savedTimer = {
+        remainingSeconds: Math.max(0, focusRemainingSeconds),
+        totalSeconds: focusTotalSeconds || (extractRewardDuration(prevReward) * 60),
+        savedAt: Date.now()
+      };
+      renderInventory();
+    } else if (hasSavedTimer) {
+      // Case 6a: Xác nhận tiếp tục dùng quà đã bảo lưu
+      const ok = await confirmAction({
+        title: 'Tiếp Tục Dùng Quà Đã Bảo Lưu?',
+        message: `Tiếp tục sử dụng "${item.name}" với ${durationMinutes} phút còn lại?`,
+        detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
+        confirmText: `Tiếp Tục Dùng (${durationMinutes}p) ⏱️`,
+        cancelText: 'Để Sau',
+        icon: item.icon || '🎁',
+        btnColor: 'purple'
+      });
+      if (!ok) return;
     } else if (durationMinutes > 0) {
-      // Case 6: Xác nhận sử dụng quà kèm thời lượng đếm ngược
+      // Case 6b: Xác nhận sử dụng quà kèm thời lượng đếm ngược
       const ok = await confirmAction({
         title: 'Sử Dụng Phần Thưởng & Bắt Đầu Đếm Giờ?',
         message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
@@ -3367,12 +3572,31 @@ async function useInventoryItem(invId, skipConfirm = false) {
       });
       if (!ok) return;
     }
+  } else {
+    // Khi skipConfirm = true (ví dụ khi mua quà từ Cửa Hàng có timer): Tự động bảo lưu phiên cũ
+    if (activeFocusQuest) {
+      activeFocusQuest.savedTimer = {
+        remainingSeconds: Math.max(0, focusRemainingSeconds),
+        actualFocusedSeconds: actualFocusedSeconds,
+        totalSeconds: focusTotalSeconds || ((activeFocusQuest.targetMinutes || 25) * 60),
+        savedAt: Date.now()
+      };
+      renderQuests();
+    } else if (activeRewardItem && activeRewardItem.id !== invId) {
+      activeRewardItem.savedTimer = {
+        remainingSeconds: Math.max(0, focusRemainingSeconds),
+        totalSeconds: focusTotalSeconds || (extractRewardDuration(activeRewardItem) * 60),
+        savedAt: Date.now()
+      };
+      renderInventory();
+    }
   }
 
   // Nếu quà không cần bấm giờ
-  if (durationMinutes === 0) {
+  if (durationMinutes === 0 && !hasSavedTimer) {
     item.isUsed = true;
     item.usedAt = Date.now();
+    delete item.savedTimer;
     sfx.playFanfare();
     showToast(`🎉 Đã sử dụng phần thưởng "${item.name}"! Chúc mừng bạn!`, 'success');
     renderInventory();
@@ -3385,13 +3609,22 @@ async function useInventoryItem(invId, skipConfirm = false) {
   }
 
   item.isUsed = true;
-  item.usedAt = Date.now();
+  item.usedAt = item.usedAt || Date.now();
+
+  let initialRemainingSec = Math.max(1, durationMinutes) * 60;
+  let initialTotalSec = initialRemainingSec;
+
+  if (hasSavedTimer) {
+    initialRemainingSec = Math.max(1, item.savedTimer.remainingSeconds);
+    initialTotalSec = item.savedTimer.totalSeconds || initialRemainingSec;
+    delete item.savedTimer;
+  }
 
   activeRewardItem = item;
   activeFocusQuest = null;
   isBreakMode = false;
-  focusTotalSeconds = Math.max(1, durationMinutes) * 60;
-  focusRemainingSeconds = focusTotalSeconds;
+  focusTotalSeconds = initialTotalSec;
+  focusRemainingSeconds = initialRemainingSec;
   actualFocusedSeconds = 0;
   isFocusRunning = true;
   lastTickTime = Date.now();
@@ -3407,10 +3640,14 @@ async function useInventoryItem(invId, skipConfirm = false) {
   focusTimerInterval = setInterval(tickFocusTimer, 500);
 
   sfx.playFanfare();
-  showToast(`Bắt đầu tận hưởng: "${item.name}" (${durationMinutes} phút)! Chúc bạn thư giãn tuyệt vời.`, 'purple', {
-    label: 'Hoàn tác',
-    onClick: () => undoUseInventoryItem(invId, true)
-  });
+  if (hasSavedTimer) {
+    showToast(`Tiếp tục tận hưởng: "${item.name}" (${Math.ceil(initialRemainingSec / 60)} phút còn lại)! Chúc bạn thư giãn tuyệt vời.`, 'purple');
+  } else {
+    showToast(`Bắt đầu tận hưởng: "${item.name}" (${durationMinutes} phút)! Chúc bạn thư giãn tuyệt vời.`, 'purple', {
+      label: 'Hoàn tác',
+      onClick: () => undoUseInventoryItem(invId, true)
+    });
+  }
   triggerSave(true);
 }
 
@@ -3437,6 +3674,7 @@ async function undoUseInventoryItem(invId, skipConfirm = false) {
 
   item.isUsed = false;
   delete item.usedAt;
+  delete item.savedTimer;
   sfx.playClick();
   triggerSave(true);
   renderInventory();
@@ -7188,6 +7426,7 @@ function renderQuests() {
       appState.activeTimer?.runnerId &&
       appState.activeTimer.runnerId !== CURRENT_RUNNER_ID
     );
+    const hasSavedTimer = Boolean(q.savedTimer && q.savedTimer.remainingSeconds > 0);
     const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
     const rank = (q.rank || 'E').toUpperCase();
     const card = document.createElement('div');
@@ -7197,7 +7436,7 @@ function renderQuests() {
         ? 'ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 bg-amber-500/5 border-amber-500/50'
         : isCompleted
           ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30'
-          : ''
+          : (hasSavedTimer ? 'ring-1 ring-sky-500/50 shadow-md shadow-sky-500/10' : '')
     }`;
 
     card.innerHTML = `
@@ -7213,7 +7452,11 @@ function renderQuests() {
               <span class="badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
                 ⏱️ ĐANG LÀM
               </span>
-            `) : ''}
+            `) : (hasSavedTimer ? `
+              <span class="badge-quest-saved inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500 text-slate-950 shadow-xs" title="Thời gian đang được bảo lưu">
+                ⏸️ BẢO LƯU (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p)
+              </span>
+            ` : '')}
           </div>
           <div class="flex items-center gap-1.5 relative">
             <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-xs" title="Phần thưởng Vàng khi hoàn thành">
@@ -7234,6 +7477,12 @@ function renderQuests() {
                     ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
                   </span>
                 </div>
+              ` : ''}
+              ${hasSavedTimer ? `
+                <button type="button" class="btn-clear-saved-timer quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy thời gian bảo lưu để làm lại từ đầu">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  <span>Hủy bảo lưu (Bắt đầu lại)</span>
+                </button>
               ` : ''}
               <button type="button" class="btn-debate-quest quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Thương lượng lại nhiệm vụ với AI">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
@@ -7279,13 +7528,13 @@ function renderQuests() {
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2 text-xs">
           <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
             ${(q.type === 'focus' && q.targetMinutes > 0) ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'} font-mono">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : (hasSavedTimer ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 font-bold' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300')} font-mono">
                 ${q.focusTimerCompleted ? `
                   <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                   <span>Đã đủ ${q.targetMinutes}p</span>
                 ` : `
                   <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                  <span>${q.targetMinutes}p</span>
+                  <span>${q.targetMinutes}p${hasSavedTimer ? ` (còn ${Math.ceil(q.savedTimer.remainingSeconds / 60)}p)` : ''}</span>
                 `}
               </span>
             ` : ''}
@@ -7335,9 +7584,9 @@ function renderQuests() {
                 <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
               </button>
             ` : `
-              <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold')}">
+              <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : (hasSavedTimer ? 'bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'))}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : 'Bắt Đầu ⏱️')}</span>
+                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : (hasSavedTimer ? `Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️` : 'Bắt Đầu ⏱️'))}</span>
               </button>
             `) : `
               <button class="btn-complete-bounty w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${cooldownRemainingMs > 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
@@ -7389,6 +7638,15 @@ function renderQuests() {
         e.stopPropagation();
         closeAllCardDropdowns();
         openQuestRenegotiateModal(q.id);
+      });
+    }
+
+    const clearSavedBtn = card.querySelector('.btn-clear-saved-timer');
+    if (clearSavedBtn) {
+      clearSavedBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        clearSavedQuestTimer(q.id);
       });
     }
 
@@ -7679,13 +7937,16 @@ function renderInventory() {
   const fragment = document.createDocumentFragment();
   invItems.forEach(item => {
     const isThisActiveReward = Boolean(activeRewardItem && activeRewardItem.id === item.id);
+    const hasSavedTimer = Boolean(item.savedTimer && item.savedTimer.remainingSeconds > 0);
     const durationMins = extractRewardDuration(item);
     const rawTier = (item.tier || 'rare').toLowerCase();
     const card = document.createElement('div');
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier} ${
       isThisActiveReward
         ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20 bg-purple-500/5 border-purple-500/50'
-        : (item.isUsed ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : '')
+        : (hasSavedTimer
+          ? 'ring-1 ring-sky-500/50 shadow-md shadow-sky-500/10'
+          : (item.isUsed ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : ''))
     }`;
 
     card.innerHTML = `
@@ -7696,6 +7957,10 @@ function renderInventory() {
             ${isThisActiveReward ? `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-500 text-white shadow-xs animate-pulse">
                 ĐANG DÙNG
+              </span>
+            ` : hasSavedTimer ? `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-500 text-slate-950 shadow-xs" title="Thời gian đang được bảo lưu">
+                ⏸️ BẢO LƯU (${Math.ceil(item.savedTimer.remainingSeconds / 60)}P)
               </span>
             ` : item.isUsed ? `
               <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/40">
@@ -7722,7 +7987,12 @@ function renderInventory() {
                   ${REWARD_TIER_LABELS[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
                 </span>
               </div>
-              ${!item.isUsed ? `
+              ${hasSavedTimer ? `
+                <button type="button" class="btn-clear-saved-reward quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy bảo lưu (Kết thúc quà)">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+                  <span>Kết thúc quà (Hủy bảo lưu)</span>
+                </button>
+              ` : (!item.isUsed ? `
                 <button type="button" class="btn-refund-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn trả và nhận lại Vàng">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                   <span>Trả quà nhận lại Vàng</span>
@@ -7732,7 +8002,7 @@ function renderInventory() {
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                   <span>Hoàn tác (Đánh dấu chưa dùng)</span>
                 </button>
-              `}
+              `)}
               <button type="button" class="btn-del-inv quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa khỏi Kho Quà">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 <span>Xóa khỏi kho</span>
@@ -7747,7 +8017,7 @@ function renderInventory() {
             ${escapeHtml(item.icon || '🎁')}
           </div>
           <div class="flex-1 min-w-0">
-            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${item.isUsed && !isThisActiveReward ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
+            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${(item.isUsed && !isThisActiveReward && !hasSavedTimer) ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
             ${item.description ? `
               <div class="mt-1">
                 <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description)}</p>
@@ -7764,27 +8034,41 @@ function renderInventory() {
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
           <span class="text-[11px] font-medium text-purple-700 dark:text-purple-300 font-mono inline-flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-            <span>Hiệu lực: <strong class="font-bold">${durationMins} phút</strong></span>
+            <span>Hiệu lực: <strong class="font-bold">${durationMins} phút</strong>${hasSavedTimer ? ` <span class="text-sky-600 dark:text-sky-400 font-bold">(còn ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>` : ''}</span>
           </span>
-          ${item.isUsed && !isThisActiveReward ? '<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Đã kết thúc</span>' : ''}
+          ${item.isUsed && !isThisActiveReward && !hasSavedTimer ? '<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Đã kết thúc</span>' : ''}
         </div>
 
         <!-- Zone 4: Footer (Action Command Zone) -->
-        ${item.isUsed ? `
+        ${isThisActiveReward ? `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
-            ${isThisActiveReward ? `
-              <button class="btn-scroll-timer flex-1 py-2 px-3 rounded-lg bg-purple-600/15 border border-purple-500/30 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer" title="Xem bộ đếm thời gian">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
-              </button>
-            ` : `
-              <span class="text-xs font-medium text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
-                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                <span>Đã sử dụng</span>
-              </span>
-            `}
+            <button class="btn-scroll-timer flex-1 py-2 px-3 rounded-lg bg-purple-600/15 border border-purple-500/30 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer" title="Xem bộ đếm thời gian">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+              <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
+            </button>
             <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+              <svg class="w-3.5 h-3.5 fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+              <span>Hoàn tác</span>
+            </button>
+          </div>
+        ` : hasSavedTimer ? `
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
+            <button class="btn-use-inv flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer" title="Tiếp tục sử dụng phần thưởng đã bảo lưu">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Tiếp Tục Dùng (${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>
+            </button>
+            <button class="btn-clear-saved-reward px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Kết thúc quà (hủy thời gian bảo lưu)">
+              <span>Kết thúc</span>
+            </button>
+          </div>
+        ` : item.isUsed ? `
+          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+              <span>Đã sử dụng</span>
+            </span>
+            <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
+              <svg class="w-3.5 h-3.5 fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
               <span>Hoàn tác</span>
             </button>
           </div>
@@ -7852,6 +8136,14 @@ function renderInventory() {
     if (useBtn) {
       useBtn.addEventListener('click', () => useInventoryItem(item.id));
     }
+
+    card.querySelectorAll('.btn-clear-saved-reward').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        clearSavedRewardTimer(item.id);
+      });
+    });
 
     // Toggle description expand / collapse
     setupCardDescToggle(card, '.reward-desc-text');
@@ -11270,6 +11562,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnTimerReset = document.getElementById('btn-timer-reset');
   if (btnTimerReset) btnTimerReset.addEventListener('click', resetFocusTimer);
 
+  const btnTimerHold = document.getElementById('btn-timer-hold');
+  if (btnTimerHold) btnTimerHold.addEventListener('click', holdFocusTimer);
+
   // Quick adjust buttons (-5m, +1m, +5m)
   document.querySelectorAll('.btn-timer-adjust').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -11328,6 +11623,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnZenToggle = document.getElementById('btn-zen-toggle');
   if (btnZenToggle) btnZenToggle.addEventListener('click', toggleFocusTimer);
+
+  const btnZenHold = document.getElementById('btn-zen-hold');
+  if (btnZenHold) {
+    btnZenHold.addEventListener('click', () => {
+      toggleZenMode(false);
+      holdFocusTimer();
+    });
+  }
 
   // Focus Complete celebration modal actions
   const btnCompleteClaim = document.getElementById('btn-focus-complete-claim');
@@ -12894,3 +13197,7 @@ function acceptAssistantReward(encodedJson, btnEl) {
     showToast('Không thể thêm phần thưởng', 'error');
   }
 }
+
+window.holdFocusTimer = holdFocusTimer;
+window.clearSavedQuestTimer = clearSavedQuestTimer;
+window.clearSavedRewardTimer = clearSavedRewardTimer;

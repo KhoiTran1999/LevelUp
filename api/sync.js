@@ -2525,8 +2525,8 @@ export default async function handler(req, res) {
       const prunedQuests = [...activeQuests, ...completedQuests.slice(0, 30)];
 
       const incomingInventory = Array.isArray(state.inventory) ? state.inventory : [];
-      const unusedInventory = incomingInventory.filter(i => !i.isUsed);
-      const usedInventory = incomingInventory.filter(i => i.isUsed);
+      const unusedInventory = incomingInventory.filter(i => !i.isUsed || (i.savedTimer && Number(i.savedTimer.remainingSeconds) > 0));
+      const usedInventory = incomingInventory.filter(i => i.isUsed && (!i.savedTimer || Number(i.savedTimer.remainingSeconds) <= 0));
       usedInventory.sort((a, b) => (Number(b.usedAt || b.purchasedAt || 0)) - (Number(a.usedAt || a.purchasedAt || 0)));
       const prunedInventory = [...unusedInventory, ...usedInventory.slice(0, 20)];
 
