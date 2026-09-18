@@ -1906,47 +1906,6 @@ export const ASSISTANT_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'update_quest',
-      description: 'Cập nhật hoặc thương lượng lại thông số nhiệm vụ (tăng thêm Vàng thưởng, giảm thời gian phút, miễn/đổi yêu cầu chụp ảnh) và ký lại chữ ký số HMAC bảo mật.',
-      parameters: {
-        type: 'object',
-        properties: {
-          questId: { type: 'string', description: 'ID của nhiệm vụ (nếu có)' },
-          title: { type: 'string', description: 'Tên nhiệm vụ' },
-          targetMinutes: { type: 'number', description: 'Thời gian sau thương lượng (phút)' },
-          rewardCoins: { type: 'number', description: 'Mức Vàng sau thương lượng' },
-          type: { type: 'string', enum: ['focus', 'bounty'], description: 'Loại nhiệm vụ (focus hoặc bounty)' },
-          requiresProof: { type: 'boolean', description: 'Có yêu cầu chụp ảnh hay không' },
-          reason: { type: 'string', description: 'Lý do nhượng bộ / thương lượng' },
-          description: { type: 'string', description: 'Mô tả nhiệm vụ' }
-        },
-        required: ['title']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'update_reward',
-      description: 'Cập nhật hoặc hạ giá Vàng phần thưởng Cửa Hàng sau khi thương lượng với người dùng và ký lại chữ ký số HMAC bảo mật.',
-      parameters: {
-        type: 'object',
-        properties: {
-          rewardId: { type: 'string', description: 'ID phần thưởng (nếu có)' },
-          name: { type: 'string', description: 'Tên phần thưởng' },
-          price: { type: 'number', description: 'Giá Vàng mới sau thương lượng' },
-          tier: { type: 'string', enum: ['common', 'rare', 'epic', 'legendary'], description: 'Phân hạng phần thưởng' },
-          targetMinutes: { type: 'number', description: 'Thời lượng tận hưởng mới' },
-          reason: { type: 'string', description: 'Lý do giảm giá / ưu đãi' },
-          description: { type: 'string', description: 'Mô tả phần thưởng' }
-        },
-        required: ['name', 'price']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
       name: 'suggest_action_plan',
       description: 'Đề xuất kế hoạch hành động 3 bước trong ngày dựa trên dữ liệu nhiệm vụ hiện tại.',
       parameters: { type: 'object', properties: {} }
@@ -2089,94 +2048,6 @@ export async function executeWorkerTool(toolName, args = {}, context = {}) {
         executionMs: Date.now() - startTime,
         data: rewardResult,
         summary: `Đã tạo & ký số HMAC cho phần thưởng: "${rewardResult.name}" (${rewardResult.price} Vàng • Hạng ${rewardResult.tier}).`
-      };
-    }
-    case 'update_quest': {
-      const rawTitle = args.title || 'Nhiệm vụ cập nhật';
-      const existingQuestsData = await handleGetMyUserData('quests', callerSub, redis, draftContext);
-      const existing = (existingQuestsData.activeQuests || []).find(q => q.id === args.questId || q.title === rawTitle) || {};
-
-      const rawMinutes = args.targetMinutes !== undefined
-        ? Math.max(0, parseInt(args.targetMinutes, 10))
-        : (existing.targetMinutes !== undefined ? existing.targetMinutes : (args.type === 'bounty' ? 0 : 25));
-      const rawType = (rawMinutes > 0) ? 'focus' : (args.type || existing.type || 'bounty');
-      const rawCoins = args.rewardCoins !== undefined
-        ? Math.max(1, parseInt(args.rewardCoins, 10))
-        : (existing.rewardCoins || (rawType === 'focus' ? Math.max(8, Math.round(rawMinutes * 0.38)) : 4));
-      const rawRequiresProof = args.requiresProof !== undefined
-        ? Boolean(args.requiresProof)
-        : (existing.requiresProof !== undefined ? existing.requiresProof : (rawCoins >= 15 || rawMinutes >= 45));
-
-      const rawQuest = {
-        title: rawTitle,
-        description: args.description || existing.description || 'Nhiệm vụ đã được Phù Thủy chuẩn y thỏa thuận mới.',
-        type: rawType,
-        targetMinutes: rawMinutes,
-        rewardCoins: rawCoins,
-        requiresProof: rawRequiresProof,
-        proofGuidance: args.proofGuidance || existing.proofGuidance || (rawRequiresProof ? 'Chụp ảnh kết quả hoặc góc làm việc để hoàn thành.' : ''),
-        icon: args.icon || existing.icon || (rawType === 'focus' ? '🎯' : '🧹'),
-        isNegotiated: true
-      };
-
-      const clean = sanitizeEvaluatedQuest(rawQuest, rawTitle, rawQuest.description, rawMinutes);
-      const signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
-      const questResult = {
-        ...clean,
-        id: args.questId || existing.id || `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        signature,
-        isNegotiated: true,
-        negotiationNote: args.reason || 'Đã thương lượng thành công cùng Phù Thủy AI',
-        status: existing.status || 'active',
-        createdAt: existing.createdAt || Date.now(),
-        updatedAt: Date.now()
-      };
-
-      return {
-        tool: toolName,
-        status: 'success',
-        executionMs: Date.now() - startTime,
-        data: questResult,
-        summary: `Đã cập nhật thỏa thuận & ký số HMAC cho nhiệm vụ [Hạng ${questResult.rank}]: "${questResult.title}" (${questResult.targetMinutes}p • ${questResult.rewardCoins} Vàng).`
-      };
-    }
-    case 'update_reward': {
-      const rawName = args.name || 'Phần thưởng cập nhật';
-      const existingShopData = await handleGetMyUserData('shop_items', callerSub, redis, draftContext);
-      const existing = (existingShopData.shopItems || []).find(r => r.id === args.rewardId || r.name === rawName) || {};
-
-      const rawPrice = args.price !== undefined ? Math.max(1, parseInt(args.price, 10)) : (existing.price || 30);
-      const rawMinutes = args.targetMinutes !== undefined ? parseInt(args.targetMinutes, 10) : (existing.targetMinutes || 0);
-      const rawTier = args.tier || existing.tier || (rawPrice < 30 ? 'common' : (rawPrice < 70 ? 'rare' : 'epic'));
-
-      const rawReward = {
-        name: rawName,
-        description: args.description || existing.description || 'Phần thưởng đã được Phù Thủy ưu đãi giảm giá.',
-        price: rawPrice,
-        tier: rawTier,
-        targetMinutes: rawMinutes,
-        icon: args.icon || existing.icon || '🎁',
-        isNegotiated: true
-      };
-
-      const clean = sanitizeEvaluatedReward(rawReward, rawName, rawReward.description, rawMinutes);
-      const signature = signReward(clean.name, clean.price, clean.tier, clean.targetMinutes);
-      const rewardResult = {
-        ...clean,
-        id: args.rewardId || existing.id || `reward_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        signature,
-        isNegotiated: true,
-        discountReason: args.reason || 'Ưu đãi đặc biệt từ Phù Thủy AI',
-        createdAt: existing.createdAt || Date.now(),
-        updatedAt: Date.now()
-      };
-
-      return {
-        tool: toolName,
-        status: 'success',
-        executionMs: Date.now() - startTime,
-        data: rewardResult,
-        summary: `Đã cập nhật & ký số HMAC ưu đãi phần thưởng: "${rewardResult.name}" (${rewardResult.price} Vàng • Hạng ${rewardResult.tier}).`
       };
     }
     case 'suggest_action_plan': {
@@ -2412,8 +2283,6 @@ Danh mục công cụ mà Worker có thể làm:
 - get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips', 'negotiation').
 - create_quest: Tạo nhiệm vụ mới (params: title, targetMinutes, rewardCoins, type, requiresProof, description).
 - create_reward: Tạo phần thưởng mới (params: name, price, tier, targetMinutes, description).
-- update_quest: Cập nhật hoặc điều chỉnh nhiệm vụ sau thương lượng (params: title, targetMinutes, rewardCoins, type, requiresProof, reason).
-- update_reward: Cập nhật hoặc giảm giá phần thưởng sau thương lượng (params: name, price, tier, targetMinutes, reason).
 - suggest_action_plan: Đề xuất kế hoạch hành động 3 bước trong ngày.
 
 CẨM NANG THƯƠNG LƯỢNG & XIN XỎ (NEGOTIATION):
