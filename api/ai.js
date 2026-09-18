@@ -49,7 +49,7 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
 
   const role = options.role || (options.thinking ? 'brain' : 'worker');
   const thinking = options.thinking ?? null;
-  const { model, reasoning_effort } = getModelAndReasoning(role, thinking);
+  const { model, reasoning_effort, isBrain } = getModelAndReasoning(role, thinking);
 
   const userContent = img ? [
     { type: 'text', text: userPrompt },
@@ -68,6 +68,9 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
 
   if (reasoning_effort) {
     payload.reasoning_effort = reasoning_effort;
+  }
+  if (!isBrain) {
+    payload.thinking = { type: 'disabled' };
   }
 
   const response = await fetch(`${BASE_URL}/chat/completions`, {
@@ -194,7 +197,7 @@ export async function callAIWithTools(messages, tools = [], options = {}) {
     thinking = options.thinking ?? null;
   }
 
-  const { model, reasoning_effort } = getModelAndReasoning(role, thinking);
+  const { model, reasoning_effort, isBrain } = getModelAndReasoning(role, thinking);
 
   const payload = {
     model,
@@ -205,6 +208,9 @@ export async function callAIWithTools(messages, tools = [], options = {}) {
 
   if (reasoning_effort) {
     payload.reasoning_effort = reasoning_effort;
+  }
+  if (!isBrain) {
+    payload.thinking = { type: 'disabled' };
   }
 
   if (Array.isArray(tools) && tools.length > 0) {
@@ -2531,7 +2537,7 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 - Mức thưởng mong muốn: ${userEstimateCoins ? userEstimateCoins + ' Vàng' : 'Để AI tính toán'}
 - Thời gian tập trung mong muốn: ${durationPromptInfo}${rewardContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
+        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
         const result = sanitizeEvaluatedQuest(rawResult, title, description, effectiveDuration);
         result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof);
         return res.status(200).json(result);
@@ -2887,7 +2893,7 @@ Trả về ĐÚNG định dạng JSON:
 - Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}
 - Thời gian tận hưởng dự kiến: ${durationPromptInfo}${questContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
+        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
         const result = sanitizeEvaluatedReward(rawResult, name, description, effectiveDuration);
         result.signature = signReward(result.name, result.price, result.tier, result.targetMinutes);
         return res.status(200).json(result);
@@ -3147,7 +3153,7 @@ ${description ? `- Mô tả: "${description}"` : ''}
 ${userNote ? `- Lời giải trình/ghi chú của người làm: "${userNote}"` : ''}
 Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
 
-        const result = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.2, imageBase64 });
+        const result = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.2, imageBase64 });
         return res.status(200).json({
           approved: Boolean(result.approved),
           feedback: (result.feedback || (result.approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim()
@@ -3255,7 +3261,7 @@ ${shopSummary}
 ${requestedAmount > 0 ? `- Người chơi đang dự định vay: ${requestedAmount} Vàng.` : '- Người chơi chưa biết nên vay bao nhiêu.'}
 Hãy phân tích và đưa ra lời khuyên cho bạn ấy.`;
 
-            aiResult = await callAI(systemPrompt, userPrompt, { role: 'brain', thinking: true, temperature: 0.3 });
+            aiResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
           } catch (_) {}
         }
 

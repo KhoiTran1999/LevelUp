@@ -1,10 +1,11 @@
 import assert from 'node:assert';
-import {
+import aiHandler, {
   MODEL_WORKER,
   MODEL_BRAIN,
   getModelAndReasoning,
   callAIWithTools,
   callAI,
+  runAssistantAgent,
   runNegotiationAgent,
   TOOL_GET_MY_USER_DATA,
   TOOL_UPDATE_QUEST_PARAMETERS,
@@ -19,7 +20,8 @@ import {
   verifyLoanSignature,
   signQuest,
   signReward,
-  signLoanOffer
+  signLoanOffer,
+  setGoogleTokenVerifierForTesting
 } from '../api/sync.js';
 
 console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINKING OFF) ===\n');
@@ -84,6 +86,8 @@ console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINK
     assert.strictEqual(lastBrainCall.model, MODEL_BRAIN);
     assert.strictEqual(lastBrainCall.reasoning_effort, 'low', 'Brain call phải có reasoning_effort: low');
 
+    assert.strictEqual(lastBrainCall.thinking, undefined, 'Brain call không tắt thinking');
+
     // 2b. Gọi callAIWithTools với role: 'worker' (Tool calling thông thường)
     await callAIWithTools(
       [{ role: 'user', content: 'Cập nhật nhiệm vụ' }],
@@ -93,6 +97,7 @@ console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINK
     const lastToolCall = capturedBodies[capturedBodies.length - 1];
     assert.strictEqual(lastToolCall.model, MODEL_WORKER);
     assert.strictEqual(lastToolCall.reasoning_effort, 'none', 'Tool call thông thường của Worker phải có reasoning_effort: none');
+    assert.deepStrictEqual(lastToolCall.thinking, { type: 'disabled' }, 'Worker tool call phải tắt thinking để tối ưu tốc độ');
     assert.ok(Array.isArray(lastToolCall.tools), 'Phải có tools đính kèm');
 
     // 2c. Backward compatibility: gọi callAI kiểu cũ (temperature = 0.3) mặc định là worker
@@ -100,8 +105,9 @@ console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINK
     const legacyCall = capturedBodies[capturedBodies.length - 1];
     assert.strictEqual(legacyCall.temperature, 0.4);
     assert.strictEqual(legacyCall.reasoning_effort, 'none');
+    assert.deepStrictEqual(legacyCall.thinking, { type: 'disabled' }, 'Worker callAI phải tắt thinking để tối ưu tốc độ');
 
-    console.log('✓ Test 2: Payload HTTP gửi lên AI Gateway chứa đúng reasoning_effort: low cho Brain và none cho Worker.');
+    console.log('✓ Test 2: Payload HTTP gửi lên AI Gateway chứa đúng reasoning_effort: low cho Brain và none + thinking disabled cho Worker.');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -265,4 +271,150 @@ console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINK
   console.log('✓ Test 6: Hệ thống tôn trọng thời gian người dùng yêu cầu & tự động cân đối mức Vàng công bằng, chuẩn xác.');
 }
 
+// -----------------------------------------------------------------------------
+// 7. Kiểm tra Tắt Thinking Cho Toàn Bộ Thương Lượng & Thẩm Định (Chỉ Phù Thủy Giữ Thinking)
+// -----------------------------------------------------------------------------
+{
+  setGoogleTokenVerifierForTesting(async () => ({ sub: 'test_player', email: 'test@example.com' }));
+  const originalFetch = globalThis.fetch;
+  const capturedBodies = [];
+
+  globalThis.fetch = async (url, opts) => {
+    if (String(url).includes('oauth2') || String(url).includes('tokeninfo')) {
+      return {
+        ok: true,
+        json: async () => ({ sub: 'test_player', email: 'test@example.com' })
+      };
+    }
+    if (opts && opts.body) {
+      try { capturedBodies.push(JSON.parse(opts.body)); } catch (_) {}
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                title: 'Nhiệm vụ kiểm thử',
+                name: 'Quà kiểm thử',
+                price: 15,
+                rewardCoins: 5,
+                targetMinutes: 0,
+                type: 'bounty',
+                requiresProof: false,
+                rank: 'E',
+                approved: true,
+                feedback: 'Hợp lệ',
+                advice: 'Tư vấn',
+                reply: 'Đồng ý',
+                accepted: true,
+                thought: 'Brain phân tích chiến thuật cày cấp...',
+                directReply: 'Chào hiệp sĩ! Mình là Phù Thủy đồng hành cùng bạn.',
+                needWorker: false,
+                options: []
+              }),
+              tool_calls: []
+            }
+          }
+        ]
+      })
+    };
+  };
+
+  const createMockRes = () => {
+    const res = {
+      statusCode: 200,
+      headers: {},
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      setHeader(k, v) { this.headers[k] = v; return this; },
+      json(data) { this.body = data; return this; },
+      end() { return this; }
+    };
+    return res;
+  };
+
+  try {
+    // 7a. evaluate_quest (Tạo/định giá nhiệm vụ): Worker, thinking disabled
+    capturedBodies.length = 0;
+    await aiHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: { action: 'evaluate_quest', payload: { title: 'Rửa chén sạch' } }
+    }, createMockRes());
+    assert.strictEqual(capturedBodies[0].model, MODEL_WORKER);
+    assert.strictEqual(capturedBodies[0].reasoning_effort, 'none');
+    assert.deepStrictEqual(capturedBodies[0].thinking, { type: 'disabled' });
+
+    // 7b. evaluate_reward (Tạo/định giá phần thưởng): Worker, thinking disabled
+    capturedBodies.length = 0;
+    await aiHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: { action: 'evaluate_reward', payload: { name: 'Xem phim 25 phút' } }
+    }, createMockRes());
+    assert.strictEqual(capturedBodies[0].model, MODEL_WORKER);
+    assert.strictEqual(capturedBodies[0].reasoning_effort, 'none');
+    assert.deepStrictEqual(capturedBodies[0].thinking, { type: 'disabled' });
+
+    // 7c. verify_proof (Thẩm định bằng chứng ảnh): Worker, thinking disabled
+    capturedBodies.length = 0;
+    await aiHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: { action: 'verify_proof', payload: { title: 'Chạy bộ 30p', imageBase64: 'base64test' } }
+    }, createMockRes());
+    assert.strictEqual(capturedBodies[0].model, MODEL_WORKER);
+    assert.strictEqual(capturedBodies[0].reasoning_effort, 'none');
+    assert.deepStrictEqual(capturedBodies[0].thinking, { type: 'disabled' });
+
+    // 7d. bank_consult_loan (Tư vấn vay ngân hàng): Worker, thinking disabled
+    capturedBodies.length = 0;
+    await aiHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: { action: 'bank_consult_loan', payload: { requestedAmount: 30 } }
+    }, createMockRes());
+    assert.strictEqual(capturedBodies[0].model, MODEL_WORKER);
+    assert.strictEqual(capturedBodies[0].reasoning_effort, 'none');
+    assert.deepStrictEqual(capturedBodies[0].thinking, { type: 'disabled' });
+
+    // 7e. debate_quest (Thương lượng nhiệm vụ qua runNegotiationAgent): Worker, thinking disabled
+    capturedBodies.length = 0;
+    await aiHandler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        action: 'debate_quest',
+        payload: {
+          quest: { title: 'Lập trình frontend', rewardCoins: 8, targetMinutes: 25, type: 'focus' },
+          argument: 'Tăng lên 10 vàng nhé'
+        }
+      }
+    }, createMockRes());
+    assert.strictEqual(capturedBodies[0].model, MODEL_WORKER);
+    assert.strictEqual(capturedBodies[0].reasoning_effort, 'none');
+    assert.deepStrictEqual(capturedBodies[0].thinking, { type: 'disabled' });
+
+    // 7f. runAssistantAgent (Chat với Phù Thủy): Giữ nguyên MODEL_BRAIN và Thinking ON (low)!
+    capturedBodies.length = 0;
+    await runAssistantAgent({
+      message: 'Hôm nay mình nên tập trung việc gì?',
+      caller: { sub: 'hero_001' },
+      draftContext: { profile: { nickname: 'Hero' } }
+    });
+    assert.ok(capturedBodies.length > 0, 'Phải có lượt gọi Brain cho Phù Thủy');
+    const phuThuyBrainCall = capturedBodies[0];
+    assert.strictEqual(phuThuyBrainCall.model, MODEL_BRAIN, 'Phù Thủy phải dùng MODEL_BRAIN');
+    assert.strictEqual(phuThuyBrainCall.reasoning_effort, 'low', 'Phù Thủy phải bật thinking mức low');
+    assert.strictEqual(phuThuyBrainCall.thinking, undefined, 'Phù Thủy KHÔNG được tắt thinking');
+
+    console.log('✓ Test 7: Toàn bộ AI thương lượng & thẩm định đều tắt thinking 100%, duy nhất chat với Phù Thủy giữ lại Thinking.');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 console.log('\n=== TẤT CẢ CÁC BÀI KIỂM THỬ PHÂN TÁCH BRAIN & WORKER ĐÃ ĐẠT 100% ===');
+

@@ -284,8 +284,8 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
   const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 
-  // 7a. Kiểm tra HTML: FAB, Nút Nav và Modal Trợ Lý AI
-  assert.ok(html.includes('id="btn-open-assistant-nav"'), 'Desktop Navbar phải có nút Trợ Lý AI');
+  // 7a. Kiểm tra HTML: Không có nút Nav thừa thãi, có FAB và Modal Phù Thủy AI
+  assert.ok(!html.includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
   assert.ok(html.includes('id="btn-floating-assistant"'), 'Phải có Floating Action Button (FAB) Trợ Lý AI');
   assert.ok(html.includes('id="modal-ai-assistant"'), 'Phải có modal #modal-ai-assistant');
   assert.ok(html.includes('id="assistant-chat-logs"'), 'Modal phải có khung log chat #assistant-chat-logs');
