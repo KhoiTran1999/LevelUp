@@ -127,4 +127,20 @@ console.log('✓ Test 11: Backend api/sync.js bảo toàn các item trong kho c�
   console.log('✓ Test 12: Mô phỏng chu trình Bảo Lưu -> Làm việc khác -> Tiếp tục -> Xác thực Anti-cheat hoàn toàn hợp lệ.');
 }
 
-console.log('\n🎉 TẤT CẢ 12/12 KIỂM THỬ TÍNH NĂNG BẢO LƯU ĐÃ ĐẠT CHUẨN THÀNH CÔNG!');
+// 13. Kiểm tra Revival Guard trong syncWithCloud và hydrateFromCloud
+assert.ok(appJs.includes('isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem'), 'Revival Guard phải ngăn server snapshot cũ hồi sinh timer');
+console.log('✓ Test 13: Cơ chế Revival Guard chặn đứng việc Cloud echo hay snapshot cũ bật lại đồng hồ đã bảo lưu.');
+
+// 14. Kiểm tra bảo tồn savedTimer khi xảy ra conflict resolution
+assert.ok(appJs.includes('localSavedQuests.has(q.id)'), 'syncWithCloud và hydrateFromCloud phải khôi phục local savedTimer khi sync conflict');
+console.log('✓ Test 14: Conflict resolution trên Cloud bảo toàn trọn vẹn savedTimer của cả Quests và Inventory.');
+
+// 15. Kiểm tra dọn dẹp phiên đang chạy khi chuyển sang quà tức thì (durationMinutes === 0)
+assert.ok(appJs.includes('if (isFocusRunning || focusTimerInterval || activeFocusQuest || activeRewardItem)'), 'useInventoryItem phải dọn dẹp timer khi dùng quà tức thì');
+console.log('✓ Test 15: Khi dùng quà tức thì không cần timer, hệ thống dọn dẹp sạch sẽ phiên cũ, tránh chạy ngầm.');
+
+// 16. Kiểm tra updateQuestCardTimerState bảo vệ nút Tiếp Tục (Xp) của các thẻ đang bảo lưu
+assert.ok(appJs.includes('card.classList.add(\'ring-1\', \'ring-sky-500/50\', \'shadow-md\', \'shadow-sky-500/10\');'), 'updateQuestCardTimerState phải giữ styling cho thẻ có savedTimer');
+console.log('✓ Test 16: updateQuestCardTimerState bảo vệ phong cách nút Tiếp Tục (Xp) của các thẻ đang bảo lưu khi chuyển đổi.');
+
+console.log('\n🎉 TẤT CẢ 16/16 KIỂM THỬ TÍNH NĂNG BẢO LƯU ĐÃ ĐẠT CHUẨN THÀNH CÔNG!');

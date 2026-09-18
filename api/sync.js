@@ -2450,7 +2450,7 @@ export default async function handler(req, res) {
         }
       }
 
-      const finalActiveTimer = (timerAction === 'cancel' || req.body?.timerAction === 'cancel')
+      const finalActiveTimer = (timerAction === 'cancel' || req.body?.timerAction === 'cancel' || timerAction === 'hold' || req.body?.timerAction === 'hold')
         ? null
         : (state.activeTimer || null);
 

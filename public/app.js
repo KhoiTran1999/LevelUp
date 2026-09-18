@@ -488,11 +488,16 @@ async function syncWithCloud(isManual = false, timerAction = null) {
             clearFocusTimerSession(false);
           }
         } else if (data.activeTimer) {
-          appState.activeTimer = data.activeTimer;
-          // Nếu tab này đang là runner đang chạy thì không gọi restoreFocusTimer làm reset interval
-          const isMyRunnerRunning = isFocusRunning && (!data.activeTimer.runnerId || data.activeTimer.runnerId === CURRENT_RUNNER_ID);
-          if (!isMyRunnerRunning) {
-            restoreFocusTimer();
+          // Revival Guard: Nếu thiết bị này vừa bấm Dừng / Hủy / Bảo lưu gần đây (trong grace period 3.5s) và local hiện không chạy timer,
+          // TUYỆT ĐỐI KHÔNG nhận activeTimer cũ từ server để tránh bị bật lại đồng hồ!
+          if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+            // Giữ nguyên trạng thái đã bảo lưu/dừng tại local
+          } else {
+            appState.activeTimer = data.activeTimer;
+            const isMyRunnerRunning = isFocusRunning && (!data.activeTimer.runnerId || data.activeTimer.runnerId === CURRENT_RUNNER_ID);
+            if (!isMyRunnerRunning) {
+              restoreFocusTimer();
+            }
           }
         }
       }
@@ -500,6 +505,12 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       // Xử lý xung đột đồng bộ đa thiết bị (Last-Write-Wins):
       // Nếu Cloud chứa dữ liệu mới hơn (do thiết bị khác vừa làm nhiệm vụ), cập nhật ngay
       if (data.conflict && data.state) {
+        const isRecentLocalAction = (Date.now() - lastLocalTimerActionTime < TIMER_MUTATION_GRACE_MS);
+
+        // Bảo tồn các savedTimer cục bộ không bị đè bởi snapshot cũ từ Cloud
+        const localSavedQuests = new Map((appState.quests || []).filter(q => q.savedTimer).map(q => [q.id, q.savedTimer]));
+        const localSavedItems = new Map((appState.inventory || []).filter(i => i.savedTimer).map(i => [i.id, i.savedTimer]));
+
         appState = normalizeObjectNFC({
           ...DEFAULT_STATE,
           ...data.state,
@@ -510,12 +521,31 @@ async function syncWithCloud(isManual = false, timerAction = null) {
             googleToken: appState.profile.googleToken || data.state.profile?.googleToken
           }
         });
+
+        // Khôi phục lại savedTimer nếu cloud state chưa kịp lưu
+        for (const q of (appState.quests || [])) {
+          if (!q.savedTimer && localSavedQuests.has(q.id)) {
+            q.savedTimer = localSavedQuests.get(q.id);
+          }
+        }
+        for (const it of (appState.inventory || [])) {
+          if (!it.savedTimer && localSavedItems.has(it.id)) {
+            it.savedTimer = localSavedItems.get(it.id);
+          }
+        }
+
+        if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+          appState.activeTimer = null;
+        }
+
         const checked = deriveLegitimateBalance(appState);
         appState.profile.coins = checked.coins;
         appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
         saveLocalCache();
         renderAll();
-        restoreFocusTimer();
+        if (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem) {
+          restoreFocusTimer();
+        }
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
@@ -573,8 +603,8 @@ function pruneStateForStorage(state) {
 
   // 2. Inventory: Giữ 100% unused items + tối đa 20 used items gần nhất
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
-  const unusedItems = inventory.filter(i => !i.isUsed);
-  const usedItems = inventory.filter(i => i.isUsed);
+  const unusedItems = inventory.filter(i => !i.isUsed || (i.savedTimer && Number(i.savedTimer.remainingSeconds) > 0));
+  const usedItems = inventory.filter(i => i.isUsed && (!i.savedTimer || Number(i.savedTimer.remainingSeconds) <= 0));
   usedItems.sort((a, b) => (Number(b.usedAt || b.purchasedAt || 0)) - (Number(a.usedAt || a.purchasedAt || 0)));
   state.inventory = [...unusedItems, ...usedItems.slice(0, 20)];
 
@@ -732,6 +762,10 @@ async function hydrateFromCloud(isManual = false) {
       const prevRemaining = focusRemainingSeconds;
       const prevActiveQuest = activeFocusQuest;
 
+      // Bảo tồn savedTimer cục bộ nếu cloudData snapshot chưa kịp cập nhật
+      const localSavedQuests = new Map((appState.quests || []).filter(q => q.savedTimer).map(q => [q.id, q.savedTimer]));
+      const localSavedItems = new Map((appState.inventory || []).filter(i => i.savedTimer).map(i => [i.id, i.savedTimer]));
+
       appState = normalizeObjectNFC({
         ...DEFAULT_STATE,
         ...cloudData,
@@ -742,6 +776,22 @@ async function hydrateFromCloud(isManual = false) {
           googleToken: appState.profile.googleToken || cloudData.profile?.googleToken
         }
       });
+
+      for (const q of (appState.quests || [])) {
+        if (!q.savedTimer && localSavedQuests.has(q.id)) {
+          q.savedTimer = localSavedQuests.get(q.id);
+        }
+      }
+      for (const it of (appState.inventory || [])) {
+        if (!it.savedTimer && localSavedItems.has(it.id)) {
+          it.savedTimer = localSavedItems.get(it.id);
+        }
+      }
+
+      if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+        appState.activeTimer = null;
+      }
+
       const checked = deriveLegitimateBalance(appState);
       appState.profile.coins = checked.coins;
       appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
@@ -758,7 +808,7 @@ async function hydrateFromCloud(isManual = false) {
         renderFocusStationUI();
         updateTimerDisplay();
         updateQuestCardTimerState(activeFocusQuest?.id, true, true);
-      } else {
+      } else if (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem) {
         restoreFocusTimer();
       }
 
@@ -773,10 +823,14 @@ async function hydrateFromCloud(isManual = false) {
             clearFocusTimerSession(false);
           }
         } else if (timerCloudTime > timerLocalTime) {
-          appState.activeTimer = cloudData.activeTimer || null;
-          const isMyRunnerRunning = isFocusRunning && (!cloudData.activeTimer.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID);
-          if (!isMyRunnerRunning) {
-            restoreFocusTimer();
+          if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+            // Local vừa dừng/bảo lưu, bỏ qua
+          } else {
+            appState.activeTimer = cloudData.activeTimer || null;
+            const isMyRunnerRunning = isFocusRunning && (!cloudData.activeTimer.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID);
+            if (!isMyRunnerRunning) {
+              restoreFocusTimer();
+            }
           }
         }
       }
@@ -1824,7 +1878,10 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
     let doingBadge = card.querySelector('.badge-quest-doing');
 
     if (isTarget) {
+      card.classList.remove('ring-1', 'ring-sky-500/50', 'shadow-sky-500/10');
       card.classList.add('ring-2', 'ring-amber-500', 'shadow-xl', 'shadow-amber-500/20', 'bg-amber-500/5', 'border-amber-500/50');
+      const savedBadge = card.querySelector('.badge-quest-saved');
+      if (savedBadge) savedBadge.remove();
       if (!doingBadge && headerLeft) {
         doingBadge = document.createElement('span');
         doingBadge.className = 'badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse';
@@ -1843,7 +1900,16 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
       if (doingBadge) {
         doingBadge.remove();
       }
-      if (startBtn && startBtn.classList.contains('bg-amber-500/15')) {
+      const q = appState.quests?.find(x => x.id === cid);
+      const hasSaved = Boolean(q?.savedTimer && q.savedTimer.remainingSeconds > 0);
+      if (hasSaved) {
+        card.classList.add('ring-1', 'ring-sky-500/50', 'shadow-md', 'shadow-sky-500/10');
+        if (startBtn) {
+          startBtn.className = 'btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold';
+          const span = startBtn.querySelector('span');
+          if (span) span.textContent = `Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️`;
+        }
+      } else if (startBtn && startBtn.classList.contains('bg-amber-500/15')) {
         startBtn.className = 'btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold';
         const span = startBtn.querySelector('span');
         if (span) span.textContent = 'Bắt Đầu ⏱️';
@@ -1910,6 +1976,7 @@ async function startFocusTimer(quest) {
       totalSeconds: focusTotalSeconds || (extractRewardDuration(prevItem) * 60),
       savedAt: Date.now()
     };
+    activeRewardItem = null;
     renderInventory();
   }
 
@@ -1974,9 +2041,9 @@ async function startFocusTimer(quest) {
   lastTickTime = Date.now();
 
   // Optimistic UI updates - 0ms latency phản hồi ngay trên giao diện
+  renderQuests();
   renderFocusStationUI();
   updateTimerDisplay();
-  updateQuestCardTimerState(quest.id, true, true);
   saveFocusTimerState(true, true, 'start');
   requestWakeLock();
 
@@ -2107,6 +2174,8 @@ async function holdFocusTimer() {
     return;
   }
 
+  lastLocalTimerActionTime = Date.now();
+
   // 1. Giờ nghỉ giải lao
   if (isBreakMode) {
     clearFocusTimerSession(true);
@@ -2127,12 +2196,12 @@ async function holdFocusTimer() {
       savedAt: Date.now()
     };
 
-    clearFocusTimerSession(true);
+    clearFocusTimerSession(false);
     sfx.playClick();
     showToast(`Đã bảo lưu phần thưởng "${item.name}" (còn ${minsLeft} phút). Bạn có thể quay lại dùng tiếp bất cứ lúc nào!`, 'purple');
     renderInventory();
     renderFocusStationUI();
-    triggerSave(true);
+    triggerSave(true, true, 'hold', true);
     return;
   }
 
@@ -2151,12 +2220,12 @@ async function holdFocusTimer() {
       savedAt: Date.now()
     };
 
-    clearFocusTimerSession(true);
+    clearFocusTimerSession(false);
     sfx.playClick();
     showToast(`Đã bảo lưu nhiệm vụ "${quest.title}" (còn ${minsLeft} phút). Bạn có thể làm việc khác và tiếp tục bất cứ lúc nào!`, 'info');
     renderQuests();
     renderFocusStationUI();
-    triggerSave(true);
+    triggerSave(true, true, 'hold', true);
     return;
   }
 
@@ -2170,10 +2239,11 @@ async function holdFocusTimer() {
         totalSeconds: appState.activeTimer.totalSeconds || 1500,
         savedAt: Date.now()
       };
-      clearFocusTimerSession(true);
+      clearFocusTimerSession(false);
       showToast(`Đã bảo lưu nhiệm vụ "${q.title}".`, 'info');
       renderQuests();
-      triggerSave(true);
+      renderFocusStationUI();
+      triggerSave(true, true, 'hold', true);
       return;
     }
   } else if (appState.activeTimer?.rewardItemId) {
@@ -2184,10 +2254,11 @@ async function holdFocusTimer() {
         totalSeconds: appState.activeTimer.totalSeconds || 1800,
         savedAt: Date.now()
       };
-      clearFocusTimerSession(true);
+      clearFocusTimerSession(false);
       showToast(`Đã bảo lưu phần thưởng "${it.name}".`, 'purple');
       renderInventory();
-      triggerSave(true);
+      renderFocusStationUI();
+      triggerSave(true, true, 'hold', true);
       return;
     }
   }
@@ -3504,6 +3575,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         totalSeconds: focusTotalSeconds || ((activeFocusQuest.targetMinutes || 25) * 60),
         savedAt: Date.now()
       };
+      activeFocusQuest = null;
       renderQuests();
     } else if (isBreakMode) {
       // Case 4: Xung đột với giờ nghỉ giải lao
@@ -3516,6 +3588,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         btnColor: 'purple'
       });
       if (!ok) return;
+      isBreakMode = false;
     } else if (activeRewardItem && activeRewardItem.id !== invId) {
       // Case 5: Đang có một phần thưởng khác đang đếm giờ
       const prevReward = activeRewardItem;
@@ -3534,6 +3607,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         totalSeconds: focusTotalSeconds || (extractRewardDuration(prevReward) * 60),
         savedAt: Date.now()
       };
+      activeRewardItem = null;
       renderInventory();
     } else if (hasSavedTimer) {
       // Case 6a: Xác nhận tiếp tục dùng quà đã bảo lưu
@@ -3581,6 +3655,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         totalSeconds: focusTotalSeconds || ((activeFocusQuest.targetMinutes || 25) * 60),
         savedAt: Date.now()
       };
+      activeFocusQuest = null;
       renderQuests();
     } else if (activeRewardItem && activeRewardItem.id !== invId) {
       activeRewardItem.savedTimer = {
@@ -3588,19 +3663,37 @@ async function useInventoryItem(invId, skipConfirm = false) {
         totalSeconds: focusTotalSeconds || (extractRewardDuration(activeRewardItem) * 60),
         savedAt: Date.now()
       };
+      activeRewardItem = null;
       renderInventory();
     }
   }
 
   // Nếu quà không cần bấm giờ
   if (durationMinutes === 0 && !hasSavedTimer) {
+    if (isFocusRunning || focusTimerInterval || activeFocusQuest || activeRewardItem) {
+      clearInterval(focusTimerInterval);
+      focusTimerInterval = null;
+      releaseWakeLock();
+      activeFocusQuest = null;
+      activeRewardItem = null;
+      isFocusRunning = false;
+      isBreakMode = false;
+      focusRemainingSeconds = 0;
+      focusTotalSeconds = 0;
+      actualFocusedSeconds = 0;
+      appState.activeTimer = null;
+      appState.lastTimerClearedAt = Date.now();
+      try { localStorage.removeItem(TIMER_STORAGE_KEY); } catch (_) {}
+      renderFocusStationUI();
+    }
+
     item.isUsed = true;
     item.usedAt = Date.now();
     delete item.savedTimer;
     sfx.playFanfare();
     showToast(`🎉 Đã sử dụng phần thưởng "${item.name}"! Chúc mừng bạn!`, 'success');
     renderInventory();
-    triggerSave(true);
+    triggerSave(true, true, 'cancel', true);
     return;
   }
 
@@ -3620,6 +3713,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
     delete item.savedTimer;
   }
 
+  lastLocalTimerActionTime = Date.now();
   activeRewardItem = item;
   activeFocusQuest = null;
   isBreakMode = false;
@@ -3631,7 +3725,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
 
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState(true, true);
+  saveFocusTimerState(true, true, 'start');
   requestWakeLock();
   renderQuests();
   renderInventory();
@@ -3648,7 +3742,6 @@ async function useInventoryItem(invId, skipConfirm = false) {
       onClick: () => undoUseInventoryItem(invId, true)
     });
   }
-  triggerSave(true);
 }
 
 async function undoUseInventoryItem(invId, skipConfirm = false) {
