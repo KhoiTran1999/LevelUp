@@ -1779,6 +1779,30 @@ export const PROJECT_KNOWLEDGE_BASE = {
 2. Chia nhỏ mục tiêu (Chunking): Đừng bao giờ tạo việc "Học 10 chương sách". Hãy chia thành "Đọc kỹ & tóm tắt Chương 1" (25 phút).
 3. Quy tắc 2 phút: Nếu một việc vặt mất dưới 2 phút (dọn bàn, uống nước, cất tài liệu), hãy hoàn thành ngay lập tức.
 4. Tránh Dopamine vay mượn: Luôn làm xong việc rồi mới tự thưởng, niềm vui sẽ trọn vẹn và không mang lại cảm giác tội lỗi.`
+    },
+    negotiation: {
+      title: 'Cơ Chế Thương Lượng & Xin Xỏ Với AI (Negotiation & Bargaining System)',
+      content: `1. Các lĩnh vực có thể thương lượng trong LevelUp:
+- Thương lượng Nhiệm vụ (Quests):
+  * Xin tăng thêm Vàng (+2 đến +5 Vàng): Dành cho nhiệm vụ độ khó cao, công việc nhọc nhằn hoặc đòi hỏi tư duy sâu.
+  * Xin giảm bớt thời gian hẹn giờ (ví dụ 45p -> 30p, hoặc 25p -> 15p): Dành cho những lúc mệt mỏi, bận rộn nhưng vẫn quyết tâm duy trì chuỗi Streak.
+  * Xin miễn chụp ảnh bằng chứng (requiresProof = false): Khi làm việc nơi riêng tư, bảo mật hoặc không tiện chụp ảnh màn hình/góc làm việc.
+  * Chuyển đổi thể loại: Chuyển từ việc bấm giờ tập trung (focus) sang việc hoàn thành ngay không hẹn giờ (bounty).
+- Thương lượng Phần thưởng Cửa Hàng (Shop & Rewards):
+  * Xin giảm giá Vàng (10% - 25%): Khi người chơi cần nạp lại năng lượng hoặc giải trí tự thưởng nhưng đang thiếu một ít Vàng.
+  * Xin tăng thời lượng tận hưởng phần thưởng giải trí.
+- Thương lượng Ngân Hàng & Khoản Vay (Bank & Loan):
+  * Xin giảm tỷ lệ trích nợ tự động từ nhiệm vụ (ví dụ trích 20% thay vì 50%) để giữ lại thêm Vàng chi tiêu.
+  * Xin giãn nợ, thương lượng lãi suất ưu đãi hoặc xin tư vấn hạn mức tín dụng.
+
+2. Bí quyết thương lượng & xin xỏ thành công với AI:
+- Nêu rõ lý do chính đáng & hoàn cảnh thực tế: Thể hiện sự trung thực, nỗ lực cá nhân và quyết tâm hoàn thành mục tiêu.
+- Đề xuất số liệu hợp lý, khiêm tốn: Tránh xin quá mức (như xin +50 Vàng hay giá 0 Vàng), vì AI bảo vệ tính cân bằng kinh tế RPG.
+- Đưa ra cam kết hành động (Quid Pro Quo): Ví dụ "Nếu được giảm 10 phút, tôi cam kết tập trung 100% không lướt điện thoại" hoặc "Nếu tăng 3 Vàng, tôi sẽ làm thêm 1 việc nhà nữa".
+
+3. Cách bắt đầu phiên thương lượng:
+- Nhấn nút "Thương lượng" trực tiếp trên bất kỳ thẻ nhiệm vụ hoặc phần thưởng nào trong ứng dụng để mở cửa sổ đối thoại thương lượng.
+- Nhắn tin hỏi Phù Thủy AI để được cố vấn chiến thuật, gợi ý lập luận và mẫu câu thương lượng khéo léo nhất!`
     }
   }
 };
@@ -1834,7 +1858,7 @@ export const ASSISTANT_TOOLS = [
         properties: {
           topic: {
             type: 'string',
-            enum: ['all', 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips'],
+            enum: ['all', 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips', 'negotiation'],
             description: 'Chủ đề cẩm nang cần tra cứu'
           }
         },
@@ -1876,6 +1900,47 @@ export const ASSISTANT_TOOLS = [
           description: { type: 'string', description: 'Mô tả phần thưởng' }
         },
         required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_quest',
+      description: 'Cập nhật hoặc thương lượng lại thông số nhiệm vụ (tăng thêm Vàng thưởng, giảm thời gian phút, miễn/đổi yêu cầu chụp ảnh) và ký lại chữ ký số HMAC bảo mật.',
+      parameters: {
+        type: 'object',
+        properties: {
+          questId: { type: 'string', description: 'ID của nhiệm vụ (nếu có)' },
+          title: { type: 'string', description: 'Tên nhiệm vụ' },
+          targetMinutes: { type: 'number', description: 'Thời gian sau thương lượng (phút)' },
+          rewardCoins: { type: 'number', description: 'Mức Vàng sau thương lượng' },
+          type: { type: 'string', enum: ['focus', 'bounty'], description: 'Loại nhiệm vụ (focus hoặc bounty)' },
+          requiresProof: { type: 'boolean', description: 'Có yêu cầu chụp ảnh hay không' },
+          reason: { type: 'string', description: 'Lý do nhượng bộ / thương lượng' },
+          description: { type: 'string', description: 'Mô tả nhiệm vụ' }
+        },
+        required: ['title']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_reward',
+      description: 'Cập nhật hoặc hạ giá Vàng phần thưởng Cửa Hàng sau khi thương lượng với người dùng và ký lại chữ ký số HMAC bảo mật.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rewardId: { type: 'string', description: 'ID phần thưởng (nếu có)' },
+          name: { type: 'string', description: 'Tên phần thưởng' },
+          price: { type: 'number', description: 'Giá Vàng mới sau thương lượng' },
+          tier: { type: 'string', enum: ['common', 'rare', 'epic', 'legendary'], description: 'Phân hạng phần thưởng' },
+          targetMinutes: { type: 'number', description: 'Thời lượng tận hưởng mới' },
+          reason: { type: 'string', description: 'Lý do giảm giá / ưu đãi' },
+          description: { type: 'string', description: 'Mô tả phần thưởng' }
+        },
+        required: ['name', 'price']
       }
     }
   },
@@ -2026,6 +2091,94 @@ export async function executeWorkerTool(toolName, args = {}, context = {}) {
         summary: `Đã tạo & ký số HMAC cho phần thưởng: "${rewardResult.name}" (${rewardResult.price} Vàng • Hạng ${rewardResult.tier}).`
       };
     }
+    case 'update_quest': {
+      const rawTitle = args.title || 'Nhiệm vụ cập nhật';
+      const existingQuestsData = await handleGetMyUserData('quests', callerSub, redis, draftContext);
+      const existing = (existingQuestsData.activeQuests || []).find(q => q.id === args.questId || q.title === rawTitle) || {};
+
+      const rawMinutes = args.targetMinutes !== undefined
+        ? Math.max(0, parseInt(args.targetMinutes, 10))
+        : (existing.targetMinutes !== undefined ? existing.targetMinutes : (args.type === 'bounty' ? 0 : 25));
+      const rawType = (rawMinutes > 0) ? 'focus' : (args.type || existing.type || 'bounty');
+      const rawCoins = args.rewardCoins !== undefined
+        ? Math.max(1, parseInt(args.rewardCoins, 10))
+        : (existing.rewardCoins || (rawType === 'focus' ? Math.max(8, Math.round(rawMinutes * 0.38)) : 4));
+      const rawRequiresProof = args.requiresProof !== undefined
+        ? Boolean(args.requiresProof)
+        : (existing.requiresProof !== undefined ? existing.requiresProof : (rawCoins >= 15 || rawMinutes >= 45));
+
+      const rawQuest = {
+        title: rawTitle,
+        description: args.description || existing.description || 'Nhiệm vụ đã được Phù Thủy chuẩn y thỏa thuận mới.',
+        type: rawType,
+        targetMinutes: rawMinutes,
+        rewardCoins: rawCoins,
+        requiresProof: rawRequiresProof,
+        proofGuidance: args.proofGuidance || existing.proofGuidance || (rawRequiresProof ? 'Chụp ảnh kết quả hoặc góc làm việc để hoàn thành.' : ''),
+        icon: args.icon || existing.icon || (rawType === 'focus' ? '🎯' : '🧹'),
+        isNegotiated: true
+      };
+
+      const clean = sanitizeEvaluatedQuest(rawQuest, rawTitle, rawQuest.description, rawMinutes);
+      const signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
+      const questResult = {
+        ...clean,
+        id: args.questId || existing.id || `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        signature,
+        isNegotiated: true,
+        negotiationNote: args.reason || 'Đã thương lượng thành công cùng Phù Thủy AI',
+        status: existing.status || 'active',
+        createdAt: existing.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: questResult,
+        summary: `Đã cập nhật thỏa thuận & ký số HMAC cho nhiệm vụ [Hạng ${questResult.rank}]: "${questResult.title}" (${questResult.targetMinutes}p • ${questResult.rewardCoins} Vàng).`
+      };
+    }
+    case 'update_reward': {
+      const rawName = args.name || 'Phần thưởng cập nhật';
+      const existingShopData = await handleGetMyUserData('shop_items', callerSub, redis, draftContext);
+      const existing = (existingShopData.shopItems || []).find(r => r.id === args.rewardId || r.name === rawName) || {};
+
+      const rawPrice = args.price !== undefined ? Math.max(1, parseInt(args.price, 10)) : (existing.price || 30);
+      const rawMinutes = args.targetMinutes !== undefined ? parseInt(args.targetMinutes, 10) : (existing.targetMinutes || 0);
+      const rawTier = args.tier || existing.tier || (rawPrice < 30 ? 'common' : (rawPrice < 70 ? 'rare' : 'epic'));
+
+      const rawReward = {
+        name: rawName,
+        description: args.description || existing.description || 'Phần thưởng đã được Phù Thủy ưu đãi giảm giá.',
+        price: rawPrice,
+        tier: rawTier,
+        targetMinutes: rawMinutes,
+        icon: args.icon || existing.icon || '🎁',
+        isNegotiated: true
+      };
+
+      const clean = sanitizeEvaluatedReward(rawReward, rawName, rawReward.description, rawMinutes);
+      const signature = signReward(clean.name, clean.price, clean.tier, clean.targetMinutes);
+      const rewardResult = {
+        ...clean,
+        id: args.rewardId || existing.id || `reward_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        signature,
+        isNegotiated: true,
+        discountReason: args.reason || 'Ưu đãi đặc biệt từ Phù Thủy AI',
+        createdAt: existing.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+
+      return {
+        tool: toolName,
+        status: 'success',
+        executionMs: Date.now() - startTime,
+        data: rewardResult,
+        summary: `Đã cập nhật & ký số HMAC ưu đãi phần thưởng: "${rewardResult.name}" (${rewardResult.price} Vàng • Hạng ${rewardResult.tier}).`
+      };
+    }
     case 'suggest_action_plan': {
       const questsData = await handleGetMyUserData('quests', callerSub, redis, draftContext);
       const activeQuests = questsData.activeQuests || [];
@@ -2071,6 +2224,29 @@ export function runDeterministicAssistant(message, userProfile = {}, callerSub =
   const norm = (message || '').toLowerCase();
   const workerResults = [];
   const suggestedActions = [];
+
+  // Check: Negotiation & Bargaining Advice (Cẩm nang Thương Lượng & Xin Xỏ Với AI)
+  if (/(?:thương lượng|thuong luong|xin xỏ|xin xo|mặc cả|mac ca|xin thêm|xin bot|bí quyết xin|cách thương lượng)/i.test(norm)) {
+    const knowledge = PROJECT_KNOWLEDGE_BASE.sections.negotiation;
+    workerResults.push({
+      tool: 'get_project_knowledge',
+      status: 'success',
+      data: knowledge,
+      summary: 'Đã tra cứu cẩm nang Hệ Thống Thương Lượng & Xin Xỏ với AI trong LevelUp.'
+    });
+
+    return {
+      reply: `Chào hiệp sĩ **${userProfile.nickname || 'bạn'}**! 🧙‍♂️⚖️✨\n\nTrong LevelUp RPG, bạn hoàn toàn có quyền **thương lượng và xin xỏ với AI** để điều chỉnh nhịp độ làm việc sao cho phù hợp với thể trạng cá nhân. Dưới đây là cẩm nang gợi ý giúp bạn thương lượng hiệu quả nhất:\n\n### 🎯 1. Bạn có thể thương lượng những gì?\n- **Nhiệm vụ (Quests):**\n  * **Xin thêm Vàng (+2 đến +5 Vàng):** Khi việc khó, nặng tính nghiên cứu hoặc đòi hỏi tư duy sâu.\n  * **Xin giảm bớt thời gian (ví dụ 45p ➔ 30p, hoặc 25p ➔ 15p):** Khi bạn mệt mỏi nhưng vẫn muốn giữ chuỗi Streak chăm chỉ.\n  * **Xin miễn chụp ảnh bằng chứng:** Khi làm việc riêng tư, nhạy cảm hoặc không tiện chụp hình.\n  * **Chuyển thành việc nhanh (bounty):** Hoàn thành nhận ngay không cần hẹn giờ.\n- **Cửa Hàng (Shop & Rewards):**\n  * **Xin giảm giá Vàng (10% - 25%):** Khi muốn tự thưởng nạp lại năng lượng sau chuỗi ngày nỗ lực mà đang thiếu chút Vàng.\n- **Ngân Hàng (Bank & Loan):**\n  * **Xin giảm tỷ lệ trích nợ tự động (giảm từ 50% xuống 20% - 30%):** Giữ lại nhiều Vàng chi tiêu hơn mỗi ngày.\n\n### 💡 2. Bí quyết xin xỏ thành công với AI:\n1. **Chân thành & Nêu rõ lý do:** AI rất đồng cảm với tinh thần nỗ lực (ví dụ: _"Hôm nay mình hơi đau đầu nhưng vẫn muốn hoàn thành bài học"_).\n2. **Đề xuất khiêm tốn & Hợp lý:** Đừng xin quá mức (như xin +50 Vàng hay giá 0 Vàng), AI sẽ từ chối để giữ kinh tế cân bằng.\n3. **Cam kết tập trung (Quid Pro Quo):** _"Nếu Phù Thủy giảm 10 phút, mình hứa sẽ úp điện thoại và tập trung 100%!"_\n\n### 🚀 3. Cách bắt đầu thương lượng:\nBạn chỉ cần bấm vào nút **"Thương lượng"** trực tiếp trên thẻ nhiệm vụ hoặc phần thưởng bất kỳ để bắt đầu đàm phán nhé! Bạn muốn mình gợi ý mẫu câu xin xỏ cho việc cụ thể nào không?`,
+      thought: 'Người dùng hỏi về cẩm nang và cách thức thương lượng/xin xỏ với AI. Model Brain tra cứu cẩm nang negotiation và hướng dẫn chi tiết các mảng có thể thương lượng cùng bí quyết xin xỏ thuyết phục.',
+      workerResults,
+      suggestedActions,
+      options: [
+        { id: 1, label: '💰 Mẫu câu xin tăng Vàng', argument: 'Gợi ý cho tôi mẫu câu xin tăng Vàng nhiệm vụ' },
+        { id: 2, label: '⏱️ Mẹo xin giảm bớt phút', argument: 'Mẹo xin giảm thời gian tập trung khi mệt' },
+        { id: 3, label: '🎁 Cách xin giảm giá quà Shop', argument: 'Cách xin giảm giá phần thưởng Cửa Hàng' }
+      ]
+    };
+  }
 
   // Check 1: User wants to create/suggest a quest
   if (/(?:tạo|thêm|gợi ý|làm|nhờ|giúp).*(?:nhiệm vụ|việc|task|học|code|đọc)/i.test(norm) || /\d+\s*phút/i.test(norm)) {
@@ -2233,17 +2409,27 @@ Danh mục công cụ mà Worker có thể làm:
 - get_user_shop: Xem danh sách quà trong shop và kho đồ.
 - get_bank_account: Xem tiền gửi tiết kiệm, số nợ hiện tại, lãi suất quỹ, hạn mức vay.
 - get_user_ledger: Xem lịch sử thu/chi Vàng gần đây.
-- get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips').
+- get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips', 'negotiation').
 - create_quest: Tạo nhiệm vụ mới (params: title, targetMinutes, rewardCoins, type, requiresProof, description).
 - create_reward: Tạo phần thưởng mới (params: name, price, tier, targetMinutes, description).
+- update_quest: Cập nhật hoặc điều chỉnh nhiệm vụ sau thương lượng (params: title, targetMinutes, rewardCoins, type, requiresProof, reason).
+- update_reward: Cập nhật hoặc giảm giá phần thưởng sau thương lượng (params: name, price, tier, targetMinutes, reason).
 - suggest_action_plan: Đề xuất kế hoạch hành động 3 bước trong ngày.
+
+CẨM NANG THƯƠNG LƯỢNG & XIN XỎ (NEGOTIATION):
+Khi người dùng hỏi về thương lượng, xin xỏ hoặc muốn mặc cả vấn đề gì:
+- Tra cứu cẩm nang topic 'negotiation' (get_project_knowledge) để nắm chắc các cơ chế.
+- Cố vấn tận tình cho người dùng về:
+  + Những gì có thể thương lượng trong LevelUp: Tăng Vàng thưởng nhiệm vụ (+2-5 Vàng), giảm bớt số phút tập trung khi mệt mỏi, miễn chụp ảnh bằng chứng hoàn thành, giảm giá Vàng cho phần thưởng trong Cửa Hàng, giảm tỷ lệ trích nợ tự động của Ngân Hàng.
+  + Bí quyết xin xỏ thành công: Trung thực nêu lý do khó khăn, xin con số khiêm tốn hợp lý, cam kết tập trung cao độ (quid pro quo).
+  + Gợi ý các mẫu câu đối thoại hoặc lý lẽ thuyết phục cụ thể để người dùng bấm nút "Thương lượng" trực tiếp trên thẻ trong giao diện.
 
 NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
 1. Phân tích câu hỏi của người dùng và lịch sử đối thoại.
 2. Quyết định:
-   - Nếu câu hỏi chỉ là chào hỏi, tư vấn tâm lý, mẹo làm việc, động viên, hoặc câu hỏi lý thuyết có thể trả lời ngay:
+   - Nếu câu hỏi chỉ là chào hỏi, tư vấn tâm lý, mẹo làm việc, tư vấn cách thương lượng/xin xỏ, động viên, hoặc câu hỏi lý thuyết có thể trả lời ngay:
      -> Đặt "needWorker": false và trả lời trực tiếp trong "directReply".
-   - Nếu câu hỏi cần thông tin chi tiết người chơi (nhiệm vụ, ngân hàng, sổ cái) HOẶC người dùng yêu cầu hành động (tạo nhiệm vụ, thêm quà, tạo kế hoạch):
+   - Nếu câu hỏi cần thông tin chi tiết người chơi (nhiệm vụ, ngân hàng, sổ cái, cẩm nang) HOẶC người dùng yêu cầu hành động (tạo nhiệm vụ, thêm quà, tạo kế hoạch):
      -> Đặt "needWorker": true và liệt kê danh sách lệnh cho Worker trong "workerTasks".
 3. TRẢ VỀ JSON:
 {
@@ -2331,6 +2517,7 @@ Nhiệm vụ của bạn:
    - Dùng đại từ thân thiện: "mình" - "bạn".
    - Nếu Worker đã tạo nhiệm vụ hoặc phần thưởng: Khích lệ người dùng bấm nút nhận nhiệm vụ và bắt đầu ngay!
    - Nếu Worker tra cứu dữ liệu (nhiệm vụ, tài khoản ngân hàng): Tóm lược số liệu rõ ràng, đưa ra nhận xét tinh tế và mẹo hữu ích.
+   - Nếu người dùng hỏi về thương lượng / xin xỏ: Hướng dẫn tận tình các mảng có thể thương lượng (nhiệm vụ, quà shop, ngân hàng), chia sẻ bí quyết và gợi ý mẫu câu xin xỏ khéo léo, nhắc người dùng bấm nút "Thương lượng" trên thẻ.
    - Tránh mọi thuật ngữ kỹ thuật khó hiểu (không nói "database", "redis", "JSON", "HMAC", "API").
 3. TRẢ VỀ JSON:
 {

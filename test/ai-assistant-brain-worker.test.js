@@ -24,6 +24,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.levels_and_exp, 'Phải có cẩm nang về Cấp độ & EXP');
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.bank_and_finance, 'Phải có cẩm nang về Ngân Hàng & Kho Bạc');
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.productivity_tips, 'Phải có cẩm nang về Mẹo Năng Suất');
+  assert.ok(PROJECT_KNOWLEDGE_BASE.sections.negotiation, 'Phải có cẩm nang về Thương Lượng & Xin Xỏ (negotiation)');
 
   // Kiểm tra nội dung cốt lõi của LevelUp
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.quests.content.includes('focus'), 'Phải hướng dẫn việc tập trung Pomodoro');
@@ -31,6 +32,8 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.rewards.content.includes('3:1'), 'Phải có nguyên tắc kinh tế 3:1 bảo vệ giá trị thực');
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.levels_and_exp.content.includes('1 Vàng'), 'Phải nêu rõ 1 Vàng = 1 EXP');
   assert.ok(PROJECT_KNOWLEDGE_BASE.sections.bank_and_finance.content.includes('trích'), 'Phải nêu rõ cơ chế trích nợ tự động');
+  assert.ok(PROJECT_KNOWLEDGE_BASE.sections.negotiation.content.includes('Thương lượng Nhiệm vụ'), 'Phải hướng dẫn thương lượng nhiệm vụ');
+  assert.ok(PROJECT_KNOWLEDGE_BASE.sections.negotiation.content.includes('Cửa Hàng'), 'Phải hướng dẫn thương lượng phần thưởng shop');
 
   console.log('✓ Test 1: PROJECT_KNOWLEDGE_BASE chứa đầy đủ và chuẩn xác toàn bộ cơ chế của LevelUp RPG.');
 }
@@ -141,6 +144,13 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   const generalAsk = runDeterministicAssistant('Chào bạn, hôm nay có mẹo gì hay không?', mockProfile);
   assert.ok(generalAsk.reply.includes('Model Brain') && generalAsk.reply.includes('Model Worker'));
   assert.ok(generalAsk.thought.length > 0);
+
+  // 4e. Người dùng hỏi về Thương Lượng & Xin Xỏ Với AI
+  const negAsk = runDeterministicAssistant('Hướng dẫn tôi cách thương lượng và xin xỏ với AI trong LevelUp', mockProfile);
+  assert.ok(negAsk.reply.includes('thương lượng') || negAsk.reply.includes('xin xỏ'));
+  assert.ok(negAsk.reply.includes('Nhiệm vụ') && negAsk.reply.includes('Cửa Hàng'));
+  assert.ok(negAsk.workerResults.some(w => w.tool === 'get_project_knowledge'));
+  assert.strictEqual(negAsk.workerResults[0].data.title, PROJECT_KNOWLEDGE_BASE.sections.negotiation.title);
 
   console.log('✓ Test 4: Deterministic Fallback hoạt động bền bỉ, phản hồi đầy đủ và chuẩn xác theo quy tắc game.');
 }
@@ -292,6 +302,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   assert.ok(html.includes('id="input-assistant-query"'), 'Modal phải có ô nhập câu hỏi #input-assistant-query');
   assert.ok(html.includes('id="btn-send-assistant"'), 'Modal phải có nút gửi #btn-send-assistant');
   assert.ok(html.includes('id="assistant-step-container"'), 'Modal phải có thanh trạng thái tiến trình thời gian thực');
+  assert.ok(html.includes('Mẹo Thương lượng &amp; Xin xỏ') || html.includes('Mẹo Thương lượng'), 'Modal phải có pill gợi ý về Mẹo Thương lượng & Xin xỏ');
 
   // 7b. Kiểm tra CSS: Animation và Bubble Styling
   assert.ok(css.includes('#btn-floating-assistant'), 'CSS phải có style cho Floating Assistant Button');
