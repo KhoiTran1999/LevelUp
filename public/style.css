@@ -1307,3 +1307,99 @@ html.dark .assistant-watermark-wizard {
 .streak-day-card.today {
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6);
 }
+
+/* ========================================================================== */
+/* QUICK SUGGESTION CARDS (Nhiệm Vụ & Phần Thưởng Thông Minh)                */
+/* ========================================================================== */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.suggestion-card {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.16s ease-out;
+  text-align: left;
+  user-select: none;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.dark .suggestion-card {
+  background-color: rgba(15, 23, 42, 0.7);
+  border-color: rgba(51, 65, 85, 0.65);
+}
+
+.suggestion-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.08);
+}
+
+.suggestion-card.quest-suggest:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+  background-color: rgba(254, 243, 199, 0.3);
+}
+
+.dark .suggestion-card.quest-suggest:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  background-color: rgba(245, 158, 11, 0.08);
+}
+
+.suggestion-card.reward-suggest:hover {
+  border-color: rgba(168, 85, 247, 0.6);
+  background-color: rgba(243, 232, 255, 0.3);
+}
+
+.dark .suggestion-card.reward-suggest:hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  background-color: rgba(168, 85, 247, 0.08);
+}
+
+.suggestion-card:active {
+  transform: scale(0.99);
+}
+
+.suggestion-card.suggestion-card-active.quest-suggest {
+  border-color: #f59e0b !important;
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.35);
+}
+
+.suggestion-card.suggestion-card-active.reward-suggest {
+  border-color: #a855f7 !important;
+  background-color: rgba(168, 85, 247, 0.12) !important;
+  box-shadow: 0 0 0 1.5px rgba(168, 85, 247, 0.35);
+}
+
+.suggestion-skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.4) 25%, rgba(203, 213, 225, 0.7) 50%, rgba(226, 232, 240, 0.4) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .suggestion-skeleton {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 25%, rgba(51, 65, 85, 0.8) 50%, rgba(30, 41, 59, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+

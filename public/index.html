@@ -1344,6 +1344,22 @@
 
       <!-- Step 1: Input Form -->
       <div id="quest-form-step" class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
+        <!-- Smart Auto-Suggestions Container (Subtle & Contextual) -->
+        <div id="quest-suggestions-container" class="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 p-2.5 sm:p-3 space-y-2 transition">
+          <div class="flex items-center justify-between gap-1.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="text-xs font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">Gợi ý phù hợp cho bạn</span>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400 font-normal truncate hidden sm:inline">• Chạm để điền nhanh</span>
+            </div>
+            <button id="btn-toggle-quest-suggestions" type="button" class="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-amber-500/10 transition text-xs shrink-0" title="Thu gọn / Mở rộng gợi ý">
+              <span id="icon-toggle-quest-suggestions">▲</span>
+            </button>
+          </div>
+          <div id="quest-suggestions-list" class="space-y-1.5">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tên Nhiệm Vụ *</label>
           <input id="input-quest-title" type="text" placeholder="VD: Giải 10 bài tập Toán / Học 20 từ vựng tiếng Anh / Đọc 1 chương sách" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
@@ -1576,6 +1592,22 @@
 
       <!-- Step 1: Input Form -->
       <div id="reward-form-step" class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
+        <!-- Smart Auto-Suggestions Container (Subtle & Contextual) -->
+        <div id="reward-suggestions-container" class="rounded-xl border border-purple-500/25 bg-purple-500/5 dark:bg-purple-500/10 p-2.5 sm:p-3 space-y-2 transition">
+          <div class="flex items-center justify-between gap-1.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="text-xs font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap">Gợi ý tự thưởng phù hợp</span>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400 font-normal truncate hidden sm:inline">• Chạm để điền nhanh</span>
+            </div>
+            <button id="btn-toggle-reward-suggestions" type="button" class="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-purple-500/10 transition text-xs shrink-0" title="Thu gọn / Mở rộng gợi ý">
+              <span id="icon-toggle-reward-suggestions">▲</span>
+            </button>
+          </div>
+          <div id="reward-suggestions-list" class="space-y-1.5">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tên Phần Thưởng Bạn Muốn *</label>
           <input id="input-reward-name" type="text" placeholder="VD: Uống 1 ly trà sữa / Xem 1 tập phim / 30 phút chơi game" class="w-full rpg-input rounded-xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm">
