@@ -2176,7 +2176,7 @@ export function runDeterministicAssistant(message, userProfile = {}, callerSub =
     suggestedActions.push({ type: 'quest_created', quest: newQuest });
 
     return {
-      reply: `Chào hiệp sĩ **${userProfile.nickname || 'bạn'}**! ✨\n\nModel Brain đã lên kế hoạch và giao cho Model Worker tạo ngay cho bạn một nhiệm vụ chuẩn chỉ:\n\n- **Tên:** ${newQuest.title}\n- **Thời gian:** ${newQuest.targetMinutes > 0 ? `${newQuest.targetMinutes} phút tập trung sâu` : 'Không bấm giờ (việc nhanh)'}\n- **Mức thưởng:** **+${newQuest.rewardCoins} Vàng** & **+${newQuest.rewardCoins} EXP**\n- **Hạng:** ${newQuest.rank}\n\nBạn có thể bấm nút **"Nhận nhiệm vụ này"** ngay bên dưới để thêm vào danh sách và bắt đầu chinh phục nhé! 🚀`,
+      reply: `Chào hiệp sĩ **${userProfile.nickname || 'bạn'}**! ✨\n\nModel Brain đã lên kế hoạch và giao cho Model Worker tạo ngay cho bạn một nhiệm vụ chuẩn chỉ:\n\n- **Tên:** ${newQuest.title}\n- **Thời gian:** ${newQuest.targetMinutes > 0 ? `${newQuest.targetMinutes} phút tập trung sâu` : 'Không bấm giờ (việc nhanh)'}\n- **Mức thưởng:** **+${newQuest.rewardCoins} Vàng** & **+${newQuest.rewardCoins * 3} EXP**\n- **Hạng:** ${newQuest.rank}\n\nBạn có thể bấm nút **"Nhận nhiệm vụ này"** ngay bên dưới để thêm vào danh sách và bắt đầu chinh phục nhé! 🚀`,
       thought: `Người dùng yêu cầu tạo/gợi ý nhiệm vụ. Model Brain xác định thời lượng ${finalMins} phút và mức thưởng ${coins} Vàng, sai Worker tạo nhiệm vụ có chữ ký số HMAC an toàn.`,
       workerResults,
       suggestedActions,
@@ -3160,7 +3160,7 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 
         const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
         const result = sanitizeEvaluatedQuest(rawResult, title, description, effectiveDuration);
-        const isRepeatable = Boolean(payload?.isRepeatable || rawResult?.isRepeatable);
+        const isRepeatable = Boolean(payload?.isRepeatable !== undefined ? payload.isRepeatable : rawResult?.isRepeatable);
         result.isRepeatable = isRepeatable;
         result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof, isRepeatable);
         return res.status(200).json(result);

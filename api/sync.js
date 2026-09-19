@@ -82,10 +82,11 @@ export function verifyQuestSignature(q) {
     const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
     if (q.signature === legacyExpected) return true;
 
-    // Tương thích ngược: Nhiệm vụ lặp lại định mức chuẩn (<= 15 Vàng) có thể dùng chữ ký 6 tham số isRepeatable=false
-    if (Boolean(q.isRepeatable) && (parseInt(q.rewardCoins, 10) || 0) <= 15) {
-      const nonRepeatExpected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof), false);
-      if (q.signature === nonRepeatExpected) return true;
+    // Tương thích ngược & chuyển đổi lặp lại: Nhiệm vụ định mức chuẩn (<= 15 Vàng)
+    // chấp nhận chữ ký chéo giữa isRepeatable=true và isRepeatable=false
+    if ((parseInt(q.rewardCoins, 10) || 0) <= 15) {
+      const altRepeatExpected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof), !Boolean(q.isRepeatable));
+      if (q.signature === altRepeatExpected) return true;
     }
 
     // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
@@ -574,7 +575,13 @@ export function deriveLegitimateBalance(state, existingState = null) {
   if (!tampered && existingTotal > 0 && rawTotal < existingTotal) {
     let totalUndone = 0;
     for (const item of (Array.isArray(state?.ledger) ? state.ledger : [])) {
-      if (item && item.category === 'quest' && item.type === 'spend' && typeof item.title === 'string' && item.title.includes('Hoàn tác')) {
+      if (
+        item &&
+        (item.category === 'quest' || item.category === 'bank_revert') &&
+        (item.type === 'spend' || item.type === 'penalty') &&
+        typeof item.title === 'string' &&
+        item.title.includes('Hoàn tác')
+      ) {
         totalUndone += Math.max(0, parseInt(item.amount, 10) || 0);
       }
     }

@@ -1970,7 +1970,15 @@ async function startFocusTimer(quest) {
     return;
   }
 
-  // Edge case 1b: Nhiệm vụ đã đủ thời gian tập trung, đang chờ chụp ảnh nộp cho AI
+  // Edge case 1b: Nhiệm vụ lặp lại đang trong thời gian chờ (cooldown)
+  const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
+  if (cooldownRemaining > 0) {
+    const mins = Math.ceil(cooldownRemaining / 60000);
+    showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
+    return;
+  }
+
+  // Edge case 1c: Nhiệm vụ đã đủ thời gian tập trung, đang chờ chụp ảnh nộp cho AI
   if (quest.focusTimerCompleted && quest.requiresProof && !quest._proofVerified) {
     showToast(`Nhiệm vụ "${quest.title}" đã hoàn thành đủ thời gian! Vui lòng chụp ảnh để AI duyệt nhận Vàng.`, 'info');
     openQuestProofModal(quest);
@@ -2691,14 +2699,6 @@ async function completeQuest(questId, skipConfirm = false) {
     return;
   }
 
-  if (quest._proofVerified) {
-    delete quest._proofVerified;
-  }
-  if (quest.focusTimerCompleted) {
-    delete quest.focusTimerCompleted;
-  }
-  delete quest.savedTimer;
-
   if (!skipConfirm) {
     const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
     const streakBonusPct = getStreakBonusPercent(curStreak);
@@ -2724,6 +2724,14 @@ async function completeQuest(questId, skipConfirm = false) {
     if (activeFocusQuest && activeFocusQuest.id === questId) {
       clearFocusTimerSession();
     }
+
+    if (quest._proofVerified) {
+      delete quest._proofVerified;
+    }
+    if (quest.focusTimerCompleted) {
+      delete quest.focusTimerCompleted;
+    }
+    delete quest.savedTimer;
 
     quest.completedCount = (quest.completedCount || 0) + 1;
     if (quest.isRepeatable) {
@@ -2799,7 +2807,8 @@ async function completeQuest(questId, skipConfirm = false) {
       principalDeducted,
       loanCleared,
       loanBeforeDeduct,
-      streakSnapshot: {
+      loanSnapshot: loanBeforeDeduct,
+      streakSnapshot: streakResult?.snapshot || {
         streak: appState.profile.streak,
         lastStreakDate: appState.profile.lastStreakDate,
         streakHistory: Array.isArray(appState.profile.streakHistory) ? [...appState.profile.streakHistory] : []
@@ -2971,18 +2980,20 @@ async function undoCompleteQuest(questId) {
         const loan = appState.profile.bank.loan;
         loan.debt = (loan.debt || 0) + deductedAmount;
         loan.principal = (loan.principal || 0) + principalDeducted;
-        if (deductionInfo?.loanSnapshot?.isOverdue) {
+        const snapshotLoan = deductionInfo?.loanSnapshot || deductionInfo?.loanBeforeDeduct;
+        if (snapshotLoan?.isOverdue) {
           loan.isOverdue = true;
           appState.profile.bank.isFrozen = true;
           appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
         }
-      } else if (deductionInfo?.loanSnapshot) {
+      } else if (deductionInfo?.loanSnapshot || deductionInfo?.loanBeforeDeduct) {
+        const snapshotLoan = deductionInfo?.loanSnapshot || deductionInfo?.loanBeforeDeduct;
         appState.profile.bank.loan = {
-          ...deductionInfo.loanSnapshot,
+          ...snapshotLoan,
           debt: deductedAmount,
           principal: principalDeducted
         };
-        if (deductionInfo.loanSnapshot.isOverdue) {
+        if (snapshotLoan?.isOverdue) {
           appState.profile.bank.isFrozen = true;
           appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
         }
@@ -3040,24 +3051,55 @@ async function restartQuest(questId) {
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest) return;
 
-  quest.status = 'active';
-  delete quest.completedAt;
-  delete quest.focusTimerCompleted;
-  delete quest._proofVerified;
-  delete quest.savedTimer;
+  const ok = await confirmAction({
+    title: 'Làm Lại Nhiệm Vụ?',
+    message: `Bạn muốn tạo lại nhiệm vụ "${quest.title}" để thực hiện một lần nữa?`,
+    detail: '💡 Hệ thống sẽ tạo một phiên bản nhiệm vụ mới vào danh sách làm việc của bạn.',
+    confirmText: 'Làm Lại 🔄',
+    cancelText: 'Giữ Nguyên',
+    icon: '🔄',
+    btnColor: 'amber'
+  });
+  if (!ok) return;
+
+  const newQuest = {
+    ...quest,
+    id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    status: 'active',
+    completedCount: 0,
+    createdAt: Date.now()
+  };
+  delete newQuest.completedAt;
+  delete newQuest.focusTimerCompleted;
+  delete newQuest._proofVerified;
+  delete newQuest.savedTimer;
+  delete newQuest.loanDeductions;
+  delete newQuest.lastCompletedAt;
+
+  const idx = appState.quests.findIndex(q => q.id === questId);
+  if (idx >= 0) {
+    appState.quests.splice(idx, 0, newQuest);
+  } else {
+    appState.quests.unshift(newQuest);
+  }
 
   sfx.playClick();
   triggerSave(true);
   renderQuests();
-  showToast(`Đã đưa nhiệm vụ "${quest.title}" trở lại danh sách làm việc!`, 'info');
+  showToast(`Đã thêm nhiệm vụ "${newQuest.title}" vào danh sách làm việc!`, 'info');
 }
 
 function toggleQuestRepeatable(questId) {
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest) return;
 
-  if (!quest.isRepeatable && (parseInt(quest.rewardCoins, 10) || 0) > 15) {
-    showToast(`Nhiệm vụ "${quest.title}" có mức thưởng cao (${quest.rewardCoins} Vàng). Hãy dùng tính năng Đàm Phán / Tạo lại với AI để thiết lập nhiệm vụ lặp lại phù hợp.`, 'warning');
+  if (quest.status === 'completed' && !quest.isRepeatable) {
+    showToast('Nhiệm vụ đã hoàn thành không thể đổi trạng thái lặp lại.', 'info');
+    return;
+  }
+
+  if ((parseInt(quest.rewardCoins, 10) || 0) > 15) {
+    showToast(`Nhiệm vụ "${quest.title}" có mức thưởng cao (${quest.rewardCoins} Vàng). Hãy dùng tính năng Đàm Phán / Tạo lại với AI để điều chỉnh chế độ lặp lại phù hợp.`, 'warning');
     return;
   }
 
@@ -4551,6 +4593,7 @@ async function submitQuestToAI() {
         payload: {
           title,
           description: desc,
+          isRepeatable: Boolean(isRepeatable),
           userEstimateCoins: estimate,
           userEstimateDuration: duration,
           currentRewards,
@@ -4732,8 +4775,14 @@ function openQuestRenegotiateModal(questId) {
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest) return;
 
+  if (quest.status === 'completed' && !quest.isRepeatable) {
+    showToast('Nhiệm vụ đã hoàn thành không thể thương lượng lại.', 'info');
+    return;
+  }
+
   if (activeFocusQuest && activeFocusQuest.id === quest.id && isFocusRunning) {
     showToast('Vui lòng tạm dừng phiên tập trung trước khi thương lượng lại nhiệm vụ này.', 'info');
+    return;
   }
 
   currentEditingQuestId = quest.id;
@@ -7640,20 +7689,24 @@ function renderQuests() {
                   <span>Hủy bảo lưu (Bắt đầu lại)</span>
                 </button>
               ` : ''}
-              <button type="button" class="btn-debate-quest quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Thương lượng lại nhiệm vụ với AI">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                <span>Thương lượng AI</span>
-              </button>
+              ${!isCompleted ? `
+                <button type="button" class="btn-debate-quest quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Thương lượng lại nhiệm vụ với AI">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                  <span>Thương lượng AI</span>
+                </button>
+              ` : ''}
               ${q.isRepeatable && q.completedCount > 0 ? `
                 <button type="button" class="btn-undo-repeat-quest quest-dropdown-item text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn tác lần làm gần nhất">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                   <span>Hoàn tác lần vừa làm (-${q.rewardCoins} Vàng)</span>
                 </button>
               ` : ''}
-              <button type="button" class="btn-toggle-repeat quest-dropdown-item text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
-              </button>
+              ${!isCompleted ? `
+                <button type="button" class="btn-toggle-repeat quest-dropdown-item text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
+                </button>
+              ` : ''}
               <button type="button" class="btn-del-quest quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa nhiệm vụ">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 <span>Xóa nhiệm vụ</span>
@@ -7739,12 +7792,17 @@ function renderQuests() {
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
               </button>
+            ` : (cooldownRemainingMs > 0 && !isCurrentlyFocusing && !hasSavedTimer ? `
+              <button class="w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-none bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed" disabled title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                <span>Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p</span>
+              </button>
             ` : `
               <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : (hasSavedTimer ? 'bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'))}">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
                 <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : (hasSavedTimer ? `Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️` : 'Bắt Đầu ⏱️'))}</span>
               </button>
-            `) : `
+            `)) : `
               <button class="btn-complete-bounty w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${cooldownRemainingMs > 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
                 <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
@@ -12148,7 +12206,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (verdictRepeatToggle) {
     verdictRepeatToggle.addEventListener('click', () => {
       if (!currentPendingVerdict) return;
-      currentPendingVerdict.isRepeatable = !currentPendingVerdict.isRepeatable;
+      const targetState = !currentPendingVerdict.isRepeatable;
+      if (targetState && (parseInt(currentPendingVerdict.rewardCoins, 10) || 0) > 15) {
+        showToast(`Nhiệm vụ có mức thưởng cao (${currentPendingVerdict.rewardCoins} Vàng). Để chuyển sang lặp lại an toàn, hãy dùng tính năng Thương Lượng AI để cân đối lại!`, 'warning');
+        return;
+      }
+      currentPendingVerdict.isRepeatable = targetState;
       sfx.playClick();
       updateVerdictDisplay();
     });
