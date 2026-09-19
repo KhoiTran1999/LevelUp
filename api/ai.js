@@ -3299,6 +3299,9 @@ Trả về ĐÚNG định dạng JSON:
           });
         } catch (_) {}
 
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
+
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
           const parsed = parseAIJsonContent(result.reply);
           if (parsed && typeof parsed.reply === 'string') {
@@ -3311,9 +3314,6 @@ Trả về ĐÚNG định dạng JSON:
             }
           }
         }
-
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
-        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         // Deterministic fallback for quest debate if AI is offline
         if (!result) {
@@ -3429,8 +3429,8 @@ Trả về ĐÚNG định dạng JSON:
       case 'evaluate_reward': {
         const name = clampStr(payload?.name, 150);
         const description = clampStr(payload?.description, 1000);
-        const userEstimatePrice = parseInt(payload?.userEstimatePrice, 10) || 0;
-        const userEstimateDuration = parseInt(payload?.userEstimateDuration, 10) || 0;
+        const userEstimatePrice = Math.max(0, parseInt(payload?.userEstimatePrice, 10) || 0);
+        const userEstimateDuration = Math.max(0, parseInt(payload?.userEstimateDuration, 10) || 0);
         const currentQuests = Array.isArray(payload?.currentQuests) ? payload.currentQuests.slice(0, 5) : [];
         const userCoins = parseInt(payload?.userCoins, 10) || 0;
         if (!name) {
@@ -3637,6 +3637,9 @@ Trả về ĐÚNG định dạng JSON:
           });
         } catch (_) {}
 
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
+
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
           const parsed = parseAIJsonContent(result.reply);
           if (parsed && typeof parsed.reply === 'string') {
@@ -3649,9 +3652,6 @@ Trả về ĐÚNG định dạng JSON:
             }
           }
         }
-
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
-        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         // Deterministic fallback for reward debate if AI is offline
         if (!result) {
@@ -4239,6 +4239,9 @@ ${questSummary}
           });
         } catch (_) {}
 
+        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|sẵn sàng|mình duyệt|mình chấp thuận)\b/i.test(result.reply);
+
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
           const parsed = parseAIJsonContent(result.reply);
           if (parsed && typeof parsed.reply === 'string') {
@@ -4303,9 +4306,6 @@ ${questSummary}
         }
 
         // Option extraction & sync
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
-        const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|sẵn sàng|mình duyệt|mình chấp thuận)\b/i.test(result.reply);
-
         const isAccepted = Boolean(result.accepted) || Boolean(selectedOption) || (userAgreed && aiAgreed);
         if (isAccepted) {
           result.accepted = true;

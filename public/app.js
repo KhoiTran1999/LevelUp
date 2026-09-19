@@ -190,6 +190,7 @@ const DEFAULT_STATE = {
       price: 35,
       tier: 'rare',
       icon: '🧋',
+      targetMinutes: 0,
       verdict: 'Tương đương hơn 1 tiếng tập trung làm việc. Hãy thưởng thức thật ngon miệng!'
     },
     {
@@ -199,6 +200,7 @@ const DEFAULT_STATE = {
       price: 20,
       tier: 'common',
       icon: '📱',
+      targetMinutes: 30,
       verdict: 'Thư giãn hợp lý giúp nạp lại năng lượng cho những mục tiêu tiếp theo.'
     },
     {
@@ -208,6 +210,7 @@ const DEFAULT_STATE = {
       price: 120,
       tier: 'epic',
       icon: '🍿',
+      targetMinutes: 120,
       verdict: 'Mục tiêu lớn! Cần hoàn thành đều đặn nhiệm vụ cả tuần để đổi lấy món quà này.'
     }
   ],
@@ -1579,7 +1582,7 @@ function restoreFocusTimer() {
     } else if (state.isRewardMode && state.rewardItemId) {
       const invItem = appState.inventory?.find(i => i.id === state.rewardItemId);
       if (!invItem) {
-        clearFocusTimerSession(false);
+        // Chưa load xong inventory từ cloud, giữ nguyên timer state tránh xóa nhầm khi reload trang
         return;
       }
       activeRewardItem = invItem;
@@ -1882,8 +1885,12 @@ function renderFocusStationUI() {
       zenToggleBtn.title = 'Tiếp tục ở thiết bị này (Phím tắt: Space)';
     }
   } else {
-    if (modeLabel && !isBreakMode && !activeRewardItem) {
-      modeLabel.textContent = isFocusRunning ? 'ĐANG BẤM GIỜ TẬP TRUNG' : 'ĐANG TẠM DỪNG ⏸️';
+    if (modeLabel && !isBreakMode) {
+      if (activeRewardItem) {
+        modeLabel.textContent = isFocusRunning ? 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎉' : 'ĐANG TẠM DỪNG THƯỞNG ⏸️';
+      } else {
+        modeLabel.textContent = isFocusRunning ? 'ĐANG BẤM GIỜ TẬP TRUNG' : 'ĐANG TẠM DỪNG ⏸️';
+      }
     }
     const toggleText = isFocusRunning ? 'Tạm Dừng' : 'Tiếp Tục';
     if (toggleBtn) {
@@ -2403,6 +2410,7 @@ function clearFocusTimerSession(syncToCloud = true) {
   clearInterval(focusTimerInterval);
   focusTimerInterval = null;
   releaseWakeLock();
+  const hadActiveReward = Boolean(activeRewardItem);
   const hadActiveSession = Boolean(activeFocusQuest || isBreakMode || activeRewardItem || appState.activeTimer);
   const oldQuestId = activeFocusQuest ? activeFocusQuest.id : null;
   activeFocusQuest = null;
@@ -2439,6 +2447,9 @@ function clearFocusTimerSession(syncToCloud = true) {
   }
 
   updateQuestCardTimerState(oldQuestId, false, false);
+  if (hadActiveReward && typeof renderInventory === 'function') {
+    renderInventory();
+  }
 }
 
 function adjustTimer(deltaSec) {
@@ -3576,13 +3587,16 @@ async function buyShopItem(itemId) {
 
 async function refundInventoryItem(invId, skipConfirm = false) {
   const item = appState.inventory.find(i => i.id === invId);
-  if (!item || item.isUsed) return;
+  if (!item) return;
+
+  const isCurrentlyActive = Boolean(activeRewardItem && activeRewardItem.id === invId);
+  if (item.isUsed && !skipConfirm && !isCurrentlyActive) return;
 
   if (!skipConfirm) {
     const ok = await confirmAction({
       title: 'Hoàn Trả Phần Thưởng?',
       message: `Bạn muốn hoàn trả "${item.name}" và nhận lại ${item.price} Vàng?`,
-      detail: '💰 Số Vàng sẽ được hoàn lại đầy đủ vào tài khoản của bạn.',
+      detail: isCurrentlyActive ? '⚠️ Bộ đếm thời gian đang chạy sẽ được dừng và số Vàng sẽ được hoàn lại đầy đủ.' : '💰 Số Vàng sẽ được hoàn lại đầy đủ vào tài khoản của bạn.',
       confirmText: 'Hoàn Trả ↩️',
       cancelText: 'Giữ Lại',
       icon: '💰',
@@ -3796,9 +3810,12 @@ async function useInventoryItem(invId, skipConfirm = false) {
     item.usedAt = Date.now();
     delete item.savedTimer;
     sfx.playFanfare();
-    showToast(`🎉 Đã sử dụng phần thưởng "${item.name}"! Chúc mừng bạn!`, 'success');
+    showToast(`🎉 Đã sử dụng phần thưởng "${item.name}"! Chúc mừng bạn!`, 'success', {
+      label: 'Hoàn tác',
+      onClick: () => undoUseInventoryItem(invId, true)
+    });
     renderInventory();
-    triggerSave(true, true, 'cancel', true);
+    triggerSave(true);
     return;
   }
 
@@ -3852,6 +3869,12 @@ async function useInventoryItem(invId, skipConfirm = false) {
 async function undoUseInventoryItem(invId, skipConfirm = false) {
   const item = appState.inventory.find(i => i.id === invId);
   if (!item || !item.isUsed) return;
+
+  const isCurrentlyActive = Boolean(activeRewardItem && activeRewardItem.id === invId);
+  if (!isCurrentlyActive && item.usedAt && (Date.now() - item.usedAt > 5 * 60 * 1000)) {
+    showToast(`Phần thưởng "${item.name}" đã hoàn thành và quá thời hạn hoàn tác (5 phút).`, 'warning');
+    return;
+  }
 
   if (!skipConfirm) {
     const ok = await confirmAction({
@@ -5783,8 +5806,8 @@ function renderRewardVerdictStep() {
 async function evaluateRewardItem() {
   const name = document.getElementById('input-reward-name').value.trim();
   const desc = document.getElementById('input-reward-desc').value.trim();
-  const estimate = parseInt(document.getElementById('input-reward-estimate')?.value, 10) || 0;
-  let duration = parseInt(document.getElementById('input-reward-duration')?.value, 10) || 0;
+  const estimate = Math.max(0, parseInt(document.getElementById('input-reward-estimate')?.value, 10) || 0);
+  let duration = Math.max(0, parseInt(document.getElementById('input-reward-duration')?.value, 10) || 0);
   if (duration <= 0) {
     const textDur = extractDurationFromText(`${name} ${desc}`);
     if (textDur > 0) duration = textDur;
@@ -6104,6 +6127,7 @@ async function savePendingReward() {
       showToast(`Đã cập nhật phần thưởng "${targetItem.name}"!`, 'success');
       closeModal('modal-reward');
       currentEditingRewardId = null;
+      currentPendingReward = null;
       renderShop();
       triggerSave(true);
       return;
@@ -6121,6 +6145,8 @@ async function savePendingReward() {
   sfx.playFanfare();
   showToast(`Đã thêm món "${finalItem.name}" vào Cửa Hàng!`, 'success');
   closeModal('modal-reward');
+  currentEditingRewardId = null;
+  currentPendingReward = null;
   renderShop();
   triggerSave(true);
 }
@@ -8154,6 +8180,7 @@ function renderInventory() {
     const hasSavedTimer = Boolean(item.savedTimer && item.savedTimer.remainingSeconds > 0);
     const durationMins = extractRewardDuration(item);
     const rawTier = (item.tier || 'rare').toLowerCase();
+    const canUndo = isThisActiveReward || (item.isUsed && item.usedAt && (Date.now() - item.usedAt <= 5 * 60 * 1000));
     const card = document.createElement('div');
     card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier} ${
       isThisActiveReward
@@ -8211,12 +8238,12 @@ function renderInventory() {
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                   <span>Trả quà nhận lại Vàng</span>
                 </button>
-              ` : `
+              ` : (canUndo ? `
                 <button type="button" class="btn-undo-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Đánh dấu chưa sử dụng">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
                   <span>Hoàn tác (Đánh dấu chưa dùng)</span>
                 </button>
-              `)}
+              ` : ''))}
               <button type="button" class="btn-del-inv quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa khỏi Kho Quà">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 <span>Xóa khỏi kho</span>
@@ -8248,9 +8275,9 @@ function renderInventory() {
         <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
           <span class="text-[11px] font-medium text-purple-700 dark:text-purple-300 font-mono inline-flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-            <span>Hiệu lực: <strong class="font-bold">${durationMins} phút</strong>${hasSavedTimer ? ` <span class="text-sky-600 dark:text-sky-400 font-bold">(còn ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>` : ''}</span>
+            <span>Hiệu lực: <strong class="font-bold">${durationMins > 0 ? `${durationMins} phút` : 'Dùng ngay'}</strong>${hasSavedTimer ? ` <span class="text-sky-600 dark:text-sky-400 font-bold">(còn ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>` : ''}</span>
           </span>
-          ${item.isUsed && !isThisActiveReward && !hasSavedTimer ? '<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Đã kết thúc</span>' : ''}
+          ${item.isUsed && !isThisActiveReward && !hasSavedTimer ? `<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}</span>` : ''}
         </div>
 
         <!-- Zone 4: Footer (Action Command Zone) -->
@@ -8261,7 +8288,7 @@ function renderInventory() {
               <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
             </button>
             <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
-              <svg class="w-3.5 h-3.5 fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
               <span>Hoàn tác</span>
             </button>
           </div>
@@ -8279,18 +8306,20 @@ function renderInventory() {
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
               <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>Đã sử dụng</span>
+              <span>${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}</span>
             </span>
-            <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
-              <svg class="w-3.5 h-3.5 fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-              <span>Hoàn tác</span>
-            </button>
+            ${canUndo ? `
+              <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+                <span>Hoàn tác</span>
+              </button>
+            ` : ''}
           </div>
         ` : `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
             <button class="btn-use-inv w-full py-2 px-3 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span>Dùng Quà (${durationMins}p)</span>
+              <span>${durationMins > 0 ? `Dùng Quà (${durationMins}p)` : 'Dùng Quà'}</span>
             </button>
           </div>
         `}
@@ -8687,7 +8716,7 @@ function updateRewardsNavBadge() {
   const totalRewardsBadge = document.getElementById('badge-rewards-total');
   if (totalRewardsBadge) {
     const unusedCount = appState.inventory ? appState.inventory.filter(i => !i.isUsed).length : 0;
-    totalRewardsBadge.textContent = unusedCount > 0 ? unusedCount : (appState.shopItems ? appState.shopItems.length : 0);
+    totalRewardsBadge.textContent = unusedCount;
   }
 }
 
@@ -12650,6 +12679,10 @@ document.addEventListener('DOMContentLoaded', () => {
           closeAssistantModal();
           return;
         }
+        if (modal.id === 'modal-reward') {
+          currentEditingRewardId = null;
+          currentPendingReward = null;
+        }
         modal.classList.add('hidden');
       }
     });
@@ -13537,6 +13570,23 @@ function acceptAssistantReward(encodedJson, btnEl) {
     if (!reward || !reward.name) return;
 
     if (!Array.isArray(appState.shopItems)) appState.shopItems = [];
+
+    if (!reward.id) {
+      reward.id = 'shop_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    }
+
+    const exists = appState.shopItems.some(item => item.id === reward.id || (item.name && item.name.toLowerCase().trim() === reward.name.toLowerCase().trim()));
+    if (exists) {
+      showToast(`Phần thưởng "${reward.name}" đã có trong Cửa Hàng!`, 'info');
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.classList.remove('bg-purple-600', 'hover:bg-purple-500');
+        btnEl.classList.add('bg-emerald-600', 'text-white', 'opacity-90', 'cursor-default');
+        btnEl.innerHTML = `<span>✓ Đã có sẵn</span>`;
+      }
+      return;
+    }
+
     appState.shopItems.unshift(reward);
     if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
     showToast(`Đã thêm phần thưởng: "${reward.name}" vào Cửa Hàng!`, 'success');

@@ -506,8 +506,8 @@ export function deriveLegitimateBalance(state, existingState = null) {
     let price = Math.max(0, parseInt(item.price, 10) || 0);
     if (sigStatus === false) {
       // Bị sửa giá trong DevTools (ví dụ từ 50 xuống 1) -> Khôi phục giá tối thiểu theo Tier
-      const tierMin = { common: 20, rare: 40, epic: 80, legendary: 150 };
-      const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 25;
+      const tierMin = { common: 15, rare: 30, epic: 80, legendary: 150 };
+      const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 15;
       price = Math.max(price, fallbackPrice);
       const declaredPrice = parseInt(item.price, 10) || 0;
       if (declaredPrice < fallbackPrice) {
@@ -2452,8 +2452,8 @@ export default async function handler(req, res) {
       // ponytail: sanitize shopItems to prevent saving tampered prices
       const sanitizedShopItems = (Array.isArray(state.shopItems) ? state.shopItems : []).map(item => {
         if (verifyRewardSignature(item) === false) {
-          const tierMin = { common: 20, rare: 40, epic: 80, legendary: 150 };
-          const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 25;
+          const tierMin = { common: 15, rare: 30, epic: 80, legendary: 150 };
+          const fallbackPrice = tierMin[item.tier?.toLowerCase()] || 15;
           return { ...item, price: Math.max(parseInt(item.price, 10) || 0, fallbackPrice) };
         }
         return item;
