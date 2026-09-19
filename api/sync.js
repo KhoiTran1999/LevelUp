@@ -71,7 +71,7 @@ export function signQuestLegacy(title, type, targetMinutes, rewardCoins) {
 
 export function verifyQuestSignature(q) {
   if (!q || typeof q !== 'object') return false;
-  const canonicalId = q.questId || q.id;
+  const canonicalId = q.canonicalId || q.questId || q.id;
 
   // 1. Kiểm tra chữ ký HMAC trước (ưu tiên chữ ký AI khi đã thẩm định hoặc thương lượng)
   if (q.signature) {
@@ -82,9 +82,10 @@ export function verifyQuestSignature(q) {
     const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
     if (q.signature === legacyExpected) return true;
 
-    // Tương thích ngược & chuyển đổi lặp lại: Nhiệm vụ định mức chuẩn (<= 15 Vàng)
-    // chấp nhận chữ ký chéo giữa isRepeatable=true và isRepeatable=false
-    if ((parseInt(q.rewardCoins, 10) || 0) <= 15) {
+    // Tương thích ngược & chuyển đổi lặp lại:
+    // - Chuyển sang 1 lần (!q.isRepeatable): an toàn tuyệt đối với mọi mức thưởng vì không thể cày lặp lại
+    // - Chuyển sang lặp lại (q.isRepeatable): chỉ chấp nhận định mức chuẩn (<= 15 Vàng) để chống cày lậu
+    if (!q.isRepeatable || (parseInt(q.rewardCoins, 10) || 0) <= 15) {
       const altRepeatExpected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof), !Boolean(q.isRepeatable));
       if (q.signature === altRepeatExpected) return true;
     }
@@ -101,11 +102,11 @@ export function verifyQuestSignature(q) {
     }
   }
 
-  // 2. Kiểm tra nhiệm vụ mẫu mặc định (seed quests khi chưa thương lượng)
-  if (canonicalId === 'q_seed_1') {
+  // 2. Kiểm tra nhiệm vụ mẫu mặc định (seed quests khi chưa thương lượng hoặc khi làm lại)
+  if (canonicalId === 'q_seed_1' || (typeof canonicalId === 'string' && canonicalId.startsWith('q_seed_1'))) {
     return (parseInt(q.rewardCoins, 10) || 0) === 12 && (parseInt(q.targetMinutes, 10) || 0) === 25 && q.type === 'focus';
   }
-  if (canonicalId === 'q_seed_2') {
+  if (canonicalId === 'q_seed_2' || (typeof canonicalId === 'string' && canonicalId.startsWith('q_seed_2'))) {
     return (parseInt(q.rewardCoins, 10) || 0) === 5 && (parseInt(q.targetMinutes, 10) || 0) === 0 && q.type === 'bounty';
   }
 
@@ -235,9 +236,9 @@ export function calculateCreditLimit(profile = {}, autoDeductPercent = 0.50) {
   // Base hard cap limit
   const baseLimit = Math.min(400, (lvl * 25) + (streak * 5) + Math.floor(totalEarned * 0.1));
 
-  // Commitment factor based on user selected deduction rate (0.30 - 0.80)
-  const clampedRate = Math.min(0.80, Math.max(0.30, Number(autoDeductPercent) || 0.50));
-  const kDeduct = 0.7 + ((clampedRate - 0.30) / 0.50) * 0.8; // 0.7 to 1.5
+  // Commitment factor based on user selected deduction rate (0.20 - 0.80)
+  const clampedRate = Math.min(0.80, Math.max(0.20, Number(autoDeductPercent) || 0.50));
+  const kDeduct = 0.7 + ((Math.max(0.30, clampedRate) - 0.30) / 0.50) * 0.8; // 0.7 to 1.5
 
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
@@ -309,7 +310,7 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
       principal: Math.max(0, parseInt(copy.loan.principal, 10) || 0),
       debt: Math.max(0, parseInt(copy.loan.debt, 10) || 0),
       borrowRate: Number(copy.loan.borrowRate) || rates?.borrowRate || 0.06,
-      autoDeductPercent: Math.min(0.80, Math.max(0.30, Number(copy.loan.autoDeductPercent) || 0.50)),
+      autoDeductPercent: Math.min(0.80, Math.max(0.20, Number(copy.loan.autoDeductPercent) || 0.50)),
       isOverdue: Boolean(copy.loan.isOverdue)
     };
 
@@ -2144,7 +2145,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Bạn đang có một khoản vay chưa thanh toán hết. Vui lòng tất toán khoản nợ hiện tại trước khi đăng ký vay mới!' });
           }
 
-          const autoDeduct = Math.min(0.80, Math.max(0.30, Number(req.body?.autoDeductPercent) || 0.50));
+          const autoDeduct = Math.min(0.80, Math.max(0.20, Number(req.body?.autoDeductPercent) || 0.50));
           const standardLimit = calculateCreditLimit(uState.profile, autoDeduct);
           let effectiveLimit = standardLimit;
           let effectiveBorrowRate = rates.borrowRate;
@@ -2610,15 +2611,29 @@ export default async function handler(req, res) {
           finalBankState.deposited = prevDeposited;
         }
 
-        // 2. Bảo vệ khoản vay: Chỉ cho phép giảm dư nợ nếu có trích nợ từ nhiệm vụ
+        // 2. Bảo vệ khoản vay: Chỉ cho phép giảm dư nợ nếu có trích nợ từ nhiệm vụ, hoặc khôi phục nợ khi hoàn tác
         const existingLoan = existingState?.profile?.bank?.loan;
         const incomingLoan = state.profile?.bank?.loan;
         if (existingLoan && (parseInt(existingLoan.debt, 10) || 0) > 0) {
+          const prevDebt = parseInt(existingLoan.debt, 10) || 0;
           if (!incomingLoan) {
-            // Client tự ý xóa nợ bằng loan = null -> Khôi phục khoản vay từ server
-            finalBankState.loan = { ...existingLoan };
+            // Kiểm tra xem người dùng có thực sự thanh toán sạch nợ qua trích nợ nhiệm vụ hay không
+            const hasLoanClearedEvidence = (
+              (Array.isArray(state.quests) && state.quests.some(q => 
+                Array.isArray(q.loanDeductions) && q.loanDeductions.some(d => d.loanCleared)
+              )) ||
+              (Array.isArray(state.ledger) && state.ledger.some(entry =>
+                entry.category === 'bank_deduct' && entry.description && entry.description.includes('thanh toán sạch nợ')
+              ))
+            );
+            if (hasLoanClearedEvidence && prevDebt <= 500 && !balanceCheck.tampered) {
+              finalBankState.loan = null;
+              finalBankState.isFrozen = false;
+            } else {
+              // Client tự ý xóa nợ bất thường -> Khôi phục khoản vay từ server
+              finalBankState.loan = { ...existingLoan };
+            }
           } else {
-            const prevDebt = parseInt(existingLoan.debt, 10) || 0;
             const incomingDebt = parseInt(incomingLoan.debt, 10) || 0;
             if (incomingDebt < prevDebt) {
               const debtDiff = prevDebt - incomingDebt;
@@ -2638,13 +2653,40 @@ export default async function handler(req, res) {
                   finalBankState.isFrozen = false;
                 }
               }
+            } else if (incomingDebt > prevDebt) {
+              // Hoàn tác (Undo) nhiệm vụ có trích nợ: Nợ được khôi phục tăng lên
+              const debtIncrease = incomingDebt - prevDebt;
+              const hasRevertEvidence = Array.isArray(state.ledger) && state.ledger.some(entry =>
+                entry.category === 'bank_revert' && (entry.amount || 0) === debtIncrease
+              );
+              if (hasRevertEvidence && debtIncrease <= 500 && !balanceCheck.tampered) {
+                const prevPrincipal = Math.max(0, parseInt(existingLoan.principal, 10) || 0);
+                const incomingPrincipal = Math.max(0, parseInt(incomingLoan.principal, 10) || 0);
+                finalBankState.loan = {
+                  ...existingLoan,
+                  debt: incomingDebt,
+                  principal: incomingPrincipal || (prevPrincipal + debtIncrease)
+                };
+                if (incomingLoan.isOverdue) {
+                  finalBankState.loan.isOverdue = true;
+                  finalBankState.isFrozen = true;
+                }
+              } else {
+                finalBankState.loan = { ...existingLoan };
+              }
             } else {
               finalBankState.loan = { ...existingLoan };
             }
           }
         } else {
-          // Server không có khoản vay: Client không được tự chế tạo khoản vay qua sync thường
-          finalBankState.loan = null;
+          // Server không có khoản vay: Client không được tự chế tạo khoản vay qua sync thường,
+          // NGOẠI TRỪ trường hợp hoàn tác (Undo) một nhiệm vụ từng xóa nợ (có giao dịch bank_revert)
+          const hasRevertEvidence = incomingLoan && Array.isArray(state.ledger) && state.ledger.some(entry => entry.category === 'bank_revert');
+          if (hasRevertEvidence && !balanceCheck.tampered) {
+            finalBankState.loan = { ...incomingLoan };
+          } else {
+            finalBankState.loan = null;
+          }
         }
 
         if (finalBankState.deposited > 0 || (finalBankState.loan && finalBankState.loan.debt > 0)) {
@@ -2738,7 +2780,7 @@ export default async function handler(req, res) {
         );
         if (!q.isRepeatable && q.status === 'active' && (wasCurrentlyCompleted(qId) || hasRecentUndoLedger)) {
           completedSet.delete(qId);
-        } else if (!q.isRepeatable && (q.status === 'completed' || q.completed === true || (parseInt(q.completedCount, 10) || 0) > 0)) {
+        } else if (!q.isRepeatable && (q.status === 'completed' || q.completed === true)) {
           completedSet.add(qId);
         }
       }

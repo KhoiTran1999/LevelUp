@@ -580,7 +580,7 @@ export function handleUpdateLoanTerms(params = {}, loan = {}, callerId = 'guest'
 
   let cleanDeduct = Number(params.newAutoDeductPercent ?? loan.autoDeductPercent ?? 0.50);
   if (cleanDeduct > 1.0) cleanDeduct = cleanDeduct / 100;
-  cleanDeduct = Math.min(0.80, Math.max(0.30, Number(cleanDeduct.toFixed(2))));
+  cleanDeduct = Math.min(0.80, Math.max(0.20, Number(cleanDeduct.toFixed(2))));
 
   let cleanLimit = parseInt(params.newCreditLimit ?? loan.creditLimit, 10) || 50;
   cleanLimit = Math.max(cleanAmount, cleanLimit);
@@ -819,7 +819,7 @@ export function runDeterministicRewardDebate(reward, argument, selectedOpt) {
 export function runDeterministicLoanDebate(loan, argument, callerSub, macro = {}, selectedOption, profile = {}) {
   const currentAmount = Math.max(10, parseInt(loan?.amount, 10) || 30);
   const currentRate = Number(loan?.borrowRate) || macro.borrowRate || 0.05;
-  const currentDeduct = Math.min(0.80, Math.max(0.30, Number(loan?.autoDeductPercent) || 0.50));
+  const currentDeduct = Math.min(0.80, Math.max(0.20, Number(loan?.autoDeductPercent) || 0.50));
   const currentLimit = Math.max(20, parseInt(loan?.creditLimit, 10) || calculateCreditLimit(profile, currentDeduct));
   const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
   const level = Math.max(1, parseInt(profile?.level, 10) || 1);
@@ -3946,7 +3946,7 @@ Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
       case 'bank_consult_loan':
       case 'bank_credit_appraise': {
         const userProfile = payload?.profile || {};
-        const autoDeduct = Math.min(0.80, Math.max(0.30, Number(payload?.autoDeductPercent) || 0.50));
+        const autoDeduct = Math.min(0.80, Math.max(0.20, Number(payload?.autoDeductPercent) || 0.50));
         const requestedAmount = Math.max(0, parseInt(payload?.requestedAmount, 10) || 0);
         const poolState = payload?.poolState || {};
         const macro = analyzeMacroTelemetry(poolState);
@@ -4140,7 +4140,7 @@ Hãy phân tích và đưa ra lời khuyên cho bạn ấy.`;
         const userCoins = parseInt(userProfile?.coins, 10) || 0;
         const currentAmount = Math.max(10, parseInt(loan?.amount, 10) || 30);
         const currentRate = Number(loan?.borrowRate) || rates.borrowRate;
-        const currentDeduct = Math.min(0.80, Math.max(0.30, Number(loan?.autoDeductPercent) || 0.50));
+        const currentDeduct = Math.min(0.80, Math.max(0.20, Number(loan?.autoDeductPercent) || 0.50));
         const currentLimit = Math.max(20, parseInt(loan?.creditLimit, 10) || calculateCreditLimit(userProfile, currentDeduct));
 
         const systemPrompt = `Bạn là Trợ Lý Vay Vàng & Thống Đốc Ngân Hàng AI của LevelUp RPG.
@@ -4358,7 +4358,7 @@ ${questSummary}
         if (cleanDeduct > 1.0) {
           cleanDeduct = cleanDeduct / 100;
         }
-        cleanDeduct = Math.min(0.80, Math.max(0.30, Number(cleanDeduct.toFixed(2))));
+        cleanDeduct = Math.min(0.80, Math.max(0.20, Number(cleanDeduct.toFixed(2))));
 
         let cleanLimit = parseInt(result.newCreditLimit, 10);
         if (isNaN(cleanLimit) || cleanLimit <= 0) {
@@ -4389,7 +4389,7 @@ ${questSummary}
             let optDeduct = Number(opt.newAutoDeductPercent);
             if (!isNaN(optDeduct)) {
               if (optDeduct > 1.0) optDeduct = optDeduct / 100;
-              opt.newAutoDeductPercent = Math.min(0.80, Math.max(0.30, Number(optDeduct.toFixed(2))));
+              opt.newAutoDeductPercent = Math.min(0.80, Math.max(0.20, Number(optDeduct.toFixed(2))));
             }
             if (opt.newAmount !== undefined) opt.newAmount = parseInt(opt.newAmount, 10);
             if (opt.newCreditLimit !== undefined) opt.newCreditLimit = parseInt(opt.newCreditLimit, 10);

@@ -1624,6 +1624,10 @@ function restoreFocusTimer() {
 
       if (focusRemainingSeconds <= 0) {
         focusRemainingSeconds = 0;
+        actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+        clearInterval(focusTimerInterval);
+        focusTimerInterval = null;
+        releaseWakeLock();
         updateTimerDisplay();
         if (isBreakMode) {
           breakTimerFinished();
@@ -2505,11 +2509,14 @@ function openEditTimerModal() {
     const totalSecs = Math.round(focusRemainingSeconds);
     minInput.value = Math.floor(totalSecs / 60);
     secInput.value = totalSecs % 60;
-    minInput.min = isReward ? 0 : (activeFocusQuest ? (activeFocusQuest.targetMinutes || 1) : 1);
     if (isReward) {
+      minInput.min = 0;
       minInput.max = Math.floor(totalSecs / 60);
       if (titleEl) titleEl.textContent = 'Giảm Thời Gian Hưởng Thụ';
     } else {
+      const minRequiredSecs = activeFocusQuest ? ((activeFocusQuest.targetMinutes || 1) * 60) : 60;
+      const neededRemainingSecs = Math.max(0, minRequiredSecs - actualFocusedSeconds);
+      minInput.min = Math.max(1, Math.ceil(neededRemainingSecs / 60));
       minInput.removeAttribute('max');
       if (titleEl) titleEl.textContent = 'Điều Chỉnh Thời Gian';
     }
@@ -2542,19 +2549,18 @@ function saveEditTimer(mins, secs) {
     return;
   }
 
-  // Anti-Cheat: Không cho phép đặt thời gian thấp hơn mức cam kết của nhiệm vụ
+  // Anti-Cheat: Không cho phép đặt thời gian sao cho tổng phiên thấp hơn mức cam kết của nhiệm vụ
   if (activeFocusQuest) {
     const minRequiredSecs = (activeFocusQuest.targetMinutes || 1) * 60;
-    if (total < minRequiredSecs) {
-      showToast(`Không thể đặt thời gian ít hơn ${activeFocusQuest.targetMinutes} phút do AI đã phê duyệt!`, 'error');
+    if ((actualFocusedSeconds + total) < (minRequiredSecs - 5)) {
+      const neededMinutes = Math.ceil(Math.max(0, minRequiredSecs - actualFocusedSeconds) / 60);
+      showToast(`Không thể đặt thời gian ít hơn ${neededMinutes} phút để đảm bảo đủ ${activeFocusQuest.targetMinutes} phút cam kết!`, 'error');
       return;
     }
   }
 
   focusRemainingSeconds = total;
-  if (total > focusTotalSeconds) {
-    focusTotalSeconds = total;
-  }
+  focusTotalSeconds = Math.max(focusTotalSeconds, actualFocusedSeconds + total);
   updateTimerDisplay();
   saveFocusTimerState(true, true);
   sfx.playClick();
@@ -2691,44 +2697,44 @@ async function completeQuest(questId, skipConfirm = false) {
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest || (!quest.isRepeatable && quest.status === 'completed') || completingQuestIds.has(questId)) return;
 
-  const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
-  if (cooldownRemaining > 0) {
-    const mins = Math.ceil(cooldownRemaining / 60000);
-    showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
-    return;
-  }
-
-  // Yêu cầu nộp ảnh bằng chứng nếu nhiệm vụ yêu cầu và chưa được AI duyệt
-  if (quest.requiresProof && !quest._proofVerified) {
-    openQuestProofModal(quest);
-    return;
-  }
-
-  // Nhiệm vụ focus có thời gian yêu cầu bắt buộc phải hoàn thành bấm giờ
-  if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) > 0 && !quest.focusTimerCompleted && !skipConfirm) {
-    showToast(`Nhiệm vụ "${quest.title}" cần bấm giờ tập trung đủ ${quest.targetMinutes} phút trước khi hoàn thành!`, 'warning');
-    return;
-  }
-
-  if (!skipConfirm) {
-    const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
-    const streakBonusPct = getStreakBonusPercent(curStreak);
-    const streakBonusCoins = Math.floor(quest.rewardCoins * (streakBonusPct / 100));
-    const totalAwarded = quest.rewardCoins + streakBonusCoins;
-    const ok = await confirmAction({
-      title: 'Xác Nhận Hoàn Thành?',
-      message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-      detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''} | ⚡ Kinh nghiệm: +${totalAwarded * 3} EXP`,
-      confirmText: 'Hoàn Thành ✓',
-      cancelText: 'Chưa Xong',
-      icon: '🎉',
-      btnColor: 'emerald'
-    });
-    if (!ok) return;
-  }
-
   completingQuestIds.add(questId);
   try {
+    const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
+    if (cooldownRemaining > 0) {
+      const mins = Math.ceil(cooldownRemaining / 60000);
+      showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
+      return;
+    }
+
+    // Yêu cầu nộp ảnh bằng chứng nếu nhiệm vụ yêu cầu và chưa được AI duyệt
+    if (quest.requiresProof && !quest._proofVerified) {
+      openQuestProofModal(quest);
+      return;
+    }
+
+    // Nhiệm vụ focus có thời gian yêu cầu bắt buộc phải hoàn thành bấm giờ
+    if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) > 0 && !quest.focusTimerCompleted && !skipConfirm) {
+      showToast(`Nhiệm vụ "${quest.title}" cần bấm giờ tập trung đủ ${quest.targetMinutes} phút trước khi hoàn thành!`, 'warning');
+      return;
+    }
+
+    if (!skipConfirm) {
+      const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
+      const streakBonusPct = getStreakBonusPercent(curStreak);
+      const streakBonusCoins = Math.floor(quest.rewardCoins * (streakBonusPct / 100));
+      const totalAwarded = quest.rewardCoins + streakBonusCoins;
+      const ok = await confirmAction({
+        title: 'Xác Nhận Hoàn Thành?',
+        message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
+        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''} | ⚡ Kinh nghiệm: +${totalAwarded * 3} EXP`,
+        confirmText: 'Hoàn Thành ✓',
+        cancelText: 'Chưa Xong',
+        icon: '🎉',
+        btnColor: 'emerald'
+      });
+      if (!ok) return;
+    }
+
     if (!quest.isRepeatable && quest.status === 'completed') return;
     if (getQuestRepeatCooldownRemaining(quest) > 0) return;
 
@@ -2744,6 +2750,7 @@ async function completeQuest(questId, skipConfirm = false) {
     }
     delete quest.savedTimer;
 
+    const previousLastCompletedAt = quest.lastCompletedAt || null;
     quest.completedCount = (quest.completedCount || 0) + 1;
     if (quest.isRepeatable) {
       quest.lastCompletedAt = Date.now();
@@ -2773,7 +2780,7 @@ async function completeQuest(questId, skipConfirm = false) {
         appState.profile.bank.isFrozen = true;
         appState.profile.title = 'Con Nợ Quá Hạn ⚠️';
       }
-      const deductRate = isOverdue ? 1.0 : Math.min(0.80, Math.max(0.30, Number(loan.autoDeductPercent) || 0.50));
+      const deductRate = isOverdue ? 1.0 : Math.min(0.80, Math.max(0.20, Number(loan.autoDeductPercent) || 0.50));
       deductedForLoan = Math.min(loan.debt, Math.floor(earnedCoins * deductRate));
       if (deductedForLoan > 0) {
         loanBeforeDeduct = {
@@ -2819,6 +2826,7 @@ async function completeQuest(questId, skipConfirm = false) {
       loanCleared,
       loanBeforeDeduct,
       loanSnapshot: loanBeforeDeduct,
+      previousLastCompletedAt,
       streakSnapshot: streakResult?.snapshot || {
         streak: appState.profile.streak,
         lastStreakDate: appState.profile.lastStreakDate,
@@ -2965,7 +2973,11 @@ async function undoCompleteQuest(questId) {
     delete quest.focusTimerCompleted;
     delete quest._proofVerified;
     if (quest.isRepeatable) {
-      delete quest.lastCompletedAt;
+      if (deductionInfo?.previousLastCompletedAt) {
+        quest.lastCompletedAt = deductionInfo.previousLastCompletedAt;
+      } else {
+        delete quest.lastCompletedAt;
+      }
     } else {
       quest.status = 'active';
       delete quest.completedAt;
@@ -3076,6 +3088,7 @@ async function restartQuest(questId) {
   const newQuest = {
     ...quest,
     id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    canonicalId: quest.canonicalId || (quest.id && quest.id.startsWith('q_seed_') ? quest.id : undefined),
     status: 'active',
     completedCount: 0,
     createdAt: Date.now()
@@ -3115,6 +3128,14 @@ function toggleQuestRepeatable(questId) {
   }
 
   quest.isRepeatable = !quest.isRepeatable;
+  if (!quest.isRepeatable) {
+    quest.previousRepeatCount = quest.completedCount || 0;
+    quest.completedCount = 0;
+    delete quest.lastCompletedAt;
+  } else if (quest.previousRepeatCount !== undefined) {
+    quest.completedCount = quest.previousRepeatCount;
+    delete quest.previousRepeatCount;
+  }
   sfx.playClick();
   triggerSave(true);
   renderQuests();
@@ -3409,6 +3430,7 @@ async function submitQuestProofToAI() {
       if (data.approved) {
         pendingApprovedQuest = currentProofQuest;
         pendingApprovedQuest._proofVerified = true;
+        triggerSave(true);
 
         closeModal('modal-quest-proof');
 
@@ -7613,7 +7635,7 @@ function renderQuests() {
   if (currentQuestFilter === 'active') {
     filtered = appState.quests.filter(q => q.status === 'active');
   } else if (currentQuestFilter === 'completed') {
-    filtered = appState.quests.filter(q => q.status === 'completed');
+    filtered = appState.quests.filter(q => q.status === 'completed' || (q.isRepeatable && (q.completedCount || 0) > 0));
   }
 
   // Sắp xếp nhiệm vụ: Ghim việc đang làm lên đầu, việc active trước completed, theo Rank & Vàng từ cao xuống thấp
@@ -9933,8 +9955,8 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   const totalEarned = Math.max(20, parseInt(profile?.totalCoinsEarned, 10) || 20);
   const rawBase = level * 25 + streak * 5 + Math.floor(totalEarned * 0.1);
   const baseLimit = Math.min(400, rawBase);
-  const rate = Math.min(0.80, Math.max(0.30, Number(autoDeductPercent) || 0.50));
-  const kDeduct = 0.7 + ((rate - 0.30) / 0.50) * 0.8;
+  const rate = Math.min(0.80, Math.max(0.20, Number(autoDeductPercent) || 0.50));
+  const kDeduct = 0.7 + ((Math.max(0.30, rate) - 0.30) / 0.50) * 0.8;
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
@@ -10737,8 +10759,8 @@ function openCreditLimitModal() {
   const rawBase = levelPoints + streakPoints + earnedPoints;
   const baseLimit = Math.min(400, rawBase);
 
-  const clampedRate = Math.min(0.80, Math.max(0.30, autoDeduct));
-  const kDeduct = 0.7 + ((clampedRate - 0.30) / 0.50) * 0.8;
+  const clampedRate = Math.min(0.80, Math.max(0.20, autoDeduct));
+  const kDeduct = 0.7 + ((Math.max(0.30, clampedRate) - 0.30) / 0.50) * 0.8;
   const totalLimit = Math.max(20, Math.floor(baseLimit * kDeduct));
 
   const elTotal = document.getElementById('modal-credit-limit-total');
@@ -12682,6 +12704,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modal.id === 'modal-reward') {
           currentEditingRewardId = null;
           currentPendingReward = null;
+        }
+        if (modal.id === 'modal-quest' || modal.id === 'modal-verdict') {
+          currentEditingQuestId = null;
+          currentPendingVerdict = null;
         }
         modal.classList.add('hidden');
       }
