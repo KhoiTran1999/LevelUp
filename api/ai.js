@@ -422,10 +422,14 @@ export async function handleGetMyUserData(category = 'all', callerSub, redis, dr
       return {
         coins: profile.coins || 0,
         deposited: bank.deposited || 0,
+        depositInterest: bank.depositInterest || 0,
         loan: bank.loan ? {
-          amount: bank.loan.amount,
+          amount: bank.loan.amount || bank.loan.principal || bank.loan.debt || 0,
+          principal: bank.loan.principal || bank.loan.amount || 0,
+          debt: bank.loan.debt || bank.loan.amount || 0,
           borrowRate: bank.loan.borrowRate,
-          autoDeductPercent: bank.loan.autoDeductPercent
+          autoDeductPercent: bank.loan.autoDeductPercent,
+          isOverdue: Boolean(bank.loan.isOverdue)
         } : null,
         isFrozen: Boolean(bank.isFrozen)
       };
@@ -568,7 +572,7 @@ export function handleUpdateRewardParameters(params = {}, reward = {}) {
 
 export function handleUpdateLoanTerms(params = {}, loan = {}, callerId = 'guest', macro = {}) {
   const accepted = Boolean(params.accepted);
-  let cleanAmount = parseInt(params.newAmount ?? loan.amount, 10) || 30;
+  let cleanAmount = parseInt(params.newAmount ?? (loan.amount || loan.principal || loan.debt), 10) || 30;
   let cleanRate = Number(params.newBorrowRate ?? loan.borrowRate ?? macro.borrowRate ?? 0.05);
   if (cleanRate > 0.30) cleanRate = cleanRate / 100;
   const floor = macro.depositFloor || 0.015;

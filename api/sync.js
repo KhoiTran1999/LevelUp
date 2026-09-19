@@ -242,6 +242,19 @@ export function calculateCreditLimit(profile = {}, autoDeductPercent = 0.50) {
 }
 
 /**
+ * Tính tổng tài sản ròng (Net Worth) cho Bảng Xếp Hạng & Chỉ số tài chính:
+ * Net Worth = Vàng trong ví + Vàng gửi tiết kiệm + Tiền lãi tích lũy - Dư nợ khoản vay
+ */
+export function calculateNetWorth(profile = {}) {
+  const coins = Math.max(0, parseInt(profile?.coins, 10) || 0);
+  const bank = profile?.bank || {};
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  const depositInterest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+  const debt = Math.max(0, parseInt(bank.loan?.debt, 10) || 0);
+  return Math.max(0, coins + deposited + depositInterest - debt);
+}
+
+/**
  * Accrue user bank interest (deposit yield & loan debt interest)
  * Enforce 7-day overdue freeze rule
  */
@@ -372,11 +385,7 @@ export async function reconcileGlobalBankPool(redis, poolState) {
 
       let changed = false;
       if (poolState.totalBorrowed !== totalRealBorrowed) {
-        const diff = poolState.totalBorrowed - totalRealBorrowed;
         poolState.totalBorrowed = totalRealBorrowed;
-        if (diff > 0) {
-          poolState.poolGold = (poolState.poolGold || 0) + diff;
-        }
         changed = true;
       }
       if (poolState.totalDeposited !== totalRealDeposited) {
@@ -471,11 +480,19 @@ export function deriveLegitimateBalance(state, existingState = null) {
   // 2. Nguồn thu nhập hợp lệ bao gồm nhiệm vụ đã kiểm định & lãi tiết kiệm ngân hàng đã rút
   let bankInterestWithdrawn = 0;
   for (const item of (Array.isArray(state?.ledger) ? state.ledger : [])) {
-    if (item.category === 'bank_withdraw' && item.type === 'earn') {
-      const match = (item.description || '').match(/(\d+)\s*lãi/i);
-      if (match) {
-        bankInterestWithdrawn += parseInt(match[1], 10) || 0;
+    if (item && item.category === 'bank_withdraw' && item.type === 'earn') {
+      const amt = Math.max(0, parseInt(item.amount, 10) || 0);
+      let interestVal = typeof item.interestWithdrawn === 'number'
+        ? Math.min(amt, Math.max(0, parseInt(item.interestWithdrawn, 10) || 0))
+        : 0;
+      if (interestVal <= 0) {
+        const match = (item.description || '').match(/(\d+)\s*lãi/i);
+        if (match) {
+          // Lãi rút không bao giờ được vượt quá số Vàng thực tế của giao dịch rút
+          interestVal = Math.min(amt, parseInt(match[1], 10) || 0);
+        }
       }
+      bankInterestWithdrawn += interestVal;
     }
   }
   const maxTrackedEarned = Math.max(20, questEarned + bankInterestWithdrawn);
@@ -1076,8 +1093,8 @@ export default async function handler(req, res) {
           await redis.zadd('levelup:cheaters', Date.now(), sub);
         } else {
           const level = userState.profile?.level || 1;
-          const currentCoins = typeof userState.profile?.coins === 'number' ? userState.profile.coins : (userState.profile?.totalCoinsEarned || 20);
-          const score = (level * 1000) + currentCoins;
+          const netWorth = calculateNetWorth(userState.profile || {});
+          const score = (level * 1000) + netWorth;
           await redis.zadd('levelup:leaderboard', score, sub);
         }
       }
@@ -2069,7 +2086,12 @@ export default async function handler(req, res) {
 
           uState.profile.bank.deposited = Math.max(0, deposited - principalWithdrawn);
           uState.profile.bank.depositInterest = Math.max(0, interest - interestWithdrawn);
-          uState.profile.bank.lastDepositAt = serverTimestamp;
+          if (uState.profile.bank.deposited <= 0) {
+            uState.profile.bank.lastDepositAt = serverTimestamp;
+          } else if (principalWithdrawn > 0) {
+            uState.profile.bank.lastDepositAt = serverTimestamp;
+          }
+          // Khi principalWithdrawn === 0 (chỉ rút lãi), giữ nguyên lastDepositAt để không làm mất thời gian tích lũy của gốc
 
           uState.profile.coins = (parseInt(uState.profile.coins, 10) || 0) + withdrawAmt;
           uState.profile.totalCoinsEarned = (parseInt(uState.profile.totalCoinsEarned, 10) || 0) + interestWithdrawn;
@@ -2080,6 +2102,7 @@ export default async function handler(req, res) {
             type: 'earn',
             category: 'bank_withdraw',
             amount: withdrawAmt,
+            interestWithdrawn: interestWithdrawn,
             title: 'Rút tiền gửi Ngân Hàng',
             description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${bailoutNotice}`,
             timestamp: serverTimestamp
@@ -2223,28 +2246,36 @@ export default async function handler(req, res) {
           }
 
           uState.profile.coins = userCoins - totalPaid;
-          loan.debt = currentDebt - payAmt;
 
-          const principalPaid = Math.min(loan.principal || 0, payAmt);
-          loan.principal = Math.max(0, (loan.principal || 0) - principalPaid);
+          // Chuẩn hóa thứ tự thu hồi nợ: Trừ lãi tích lũy (debt - principal) trước, sau đó mới trừ nợ gốc
+          const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
+          const accruedInterest = Math.max(0, currentDebt - principal);
+          const interestPaid = Math.min(accruedInterest, payAmt);
+          const principalPaid = Math.min(principal, Math.max(0, payAmt - interestPaid));
 
+          loan.debt = Math.max(0, currentDebt - payAmt);
+          loan.principal = Math.max(0, principal - principalPaid);
+
+          // Giảm dư nợ cho vay hệ thống tương ứng với phần gốc được hoàn trả
           poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - principalPaid);
-          poolState.poolGold += payAmt;
 
-          // Phí phạt tất toán sớm bổ sung thẳng vào Quỹ dự phòng Kho Bạc
-          poolState.reserveFund = (poolState.reserveFund || 0) + penaltyFee;
-
-          // HOÀN TRẢ NGƯỢC LẠI KHO BẠC HỆ THỐNG KHI PHỤC HỒI THANH KHOẢN
+          // Bảo toàn dòng tiền: Toàn bộ totalPaid được phân bổ chính xác không sinh thêm tiền ảo
+          // 1. Nếu có nợ cứu trợ Kho Bạc (bailoutDebt > 0): Dùng tối đa 50% payAmt + penaltyFee hoàn trả Kho Bạc
           let treasuryRepaid = 0;
           if (poolState.bailoutDebt > 0) {
             treasuryRepaid = Math.min(poolState.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
             poolState.bailoutDebt -= treasuryRepaid;
-            poolState.reserveFund = (poolState.reserveFund || 0) + (totalPaid - treasuryRepaid);
-          } else {
-            const profit = payAmt - principalPaid;
-            if (profit > 0) {
-              poolState.reserveFund = (poolState.reserveFund || 0) + profit;
-            }
+          }
+
+          // 2. Số tiền thực còn lại sau khi hoàn nợ Kho Bạc
+          const remainingPaid = totalPaid - treasuryRepaid;
+          // Phần gốc hoàn trả chảy vào poolGold để tái lập thanh khoản
+          const goldToPool = Math.min(principalPaid, remainingPaid);
+          poolState.poolGold = (poolState.poolGold || 0) + goldToPool;
+          // Phần lợi nhuận ròng (lãi vay + phí phạt) bổ sung vào Quỹ dự phòng Kho Bạc
+          const goldToReserve = remainingPaid - goldToPool;
+          if (goldToReserve > 0) {
+            poolState.reserveFund = (poolState.reserveFund || 0) + goldToReserve;
           }
 
           let debtCleared = false;
@@ -2322,6 +2353,17 @@ export default async function handler(req, res) {
 
       const userSub = caller.sub;
       await updateUserPresence(redis, userSub);
+
+      // Chờ nhẹ nếu có giao dịch ngân hàng đang được xử lý song song để tránh race condition ghi đè
+      if (redis && typeof redis.get === 'function') {
+        try {
+          const isBankLocked = await redis.get(`levelup:lock:bank:${userSub}`);
+          if (isBankLocked) {
+            await new Promise(r => setTimeout(r, 150));
+          }
+        } catch (_) {}
+      }
+
       const userEmail = caller.email || '';
       const userName = caller.name || '';
       const userPicture = caller.picture || '';
@@ -2543,20 +2585,75 @@ export default async function handler(req, res) {
         : (state.activeTimer || null);
 
       // Tự động tích lũy và bảo toàn lãi suất ngân hàng trước khi lưu đám mây
+      // Bảo vệ an toàn profile.bank: Ngăn chặn client tự bơm tiền gửi khống hoặc tự xóa nợ qua sync thường
       let finalBankState = state.profile?.bank || existingState?.profile?.bank || null;
-      if (finalBankState && (finalBankState.deposited > 0 || (finalBankState.loan && finalBankState.loan.debt > 0))) {
-        try {
-          const poolState = await getGlobalBankState(redis);
-          const rates = calculateBankRates(poolState);
-          // Nếu client bị trễ và gửi lãi thấp hơn mức đã có trên server, giữ mức cao hơn
-          if (existingState?.profile?.bank?.depositInterest > (finalBankState.depositInterest || 0)) {
-            finalBankState.depositInterest = existingState.profile.bank.depositInterest;
+      if (finalBankState) {
+        finalBankState = { ...finalBankState };
+        // 1. Bảo vệ số dư tiền gửi: Cho phép tăng nếu hợp lệ (không tampered, <= 500), không cho phép giảm qua sync thường (phải qua bank_withdraw)
+        const prevDeposited = Math.max(0, parseInt(existingState?.profile?.bank?.deposited, 10) || 0);
+        const incomingDeposited = Math.max(0, parseInt(finalBankState?.deposited, 10) || 0);
+        if (incomingDeposited > prevDeposited) {
+          const depDiff = incomingDeposited - prevDeposited;
+          if (depDiff <= 500 && !balanceCheck.tampered) {
+            finalBankState.deposited = incomingDeposited;
+          } else {
+            finalBankState.deposited = prevDeposited;
           }
-          finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp);
-        } catch (_) {}
+        } else if (incomingDeposited < prevDeposited) {
+          finalBankState.deposited = prevDeposited;
+        }
+
+        // 2. Bảo vệ khoản vay: Chỉ cho phép giảm dư nợ nếu có trích nợ từ nhiệm vụ
+        const existingLoan = existingState?.profile?.bank?.loan;
+        const incomingLoan = state.profile?.bank?.loan;
+        if (existingLoan && (parseInt(existingLoan.debt, 10) || 0) > 0) {
+          if (!incomingLoan) {
+            // Client tự ý xóa nợ bằng loan = null -> Khôi phục khoản vay từ server
+            finalBankState.loan = { ...existingLoan };
+          } else {
+            const prevDebt = parseInt(existingLoan.debt, 10) || 0;
+            const incomingDebt = parseInt(incomingLoan.debt, 10) || 0;
+            if (incomingDebt < prevDebt) {
+              const debtDiff = prevDebt - incomingDebt;
+              // Trần tối đa trích nợ qua nhiệm vụ giữa 2 lần sync (tối đa 500 Vàng)
+              if (debtDiff > 500) {
+                finalBankState.loan = { ...existingLoan };
+              } else {
+                const prevPrincipal = Math.max(0, parseInt(existingLoan.principal, 10) || 0);
+                const principalPaid = Math.min(prevPrincipal, debtDiff);
+                finalBankState.loan = {
+                  ...existingLoan,
+                  debt: Math.max(0, incomingDebt),
+                  principal: Math.max(0, prevPrincipal - principalPaid)
+                };
+                if (finalBankState.loan.debt <= 0) {
+                  finalBankState.loan = null;
+                  finalBankState.isFrozen = false;
+                }
+              }
+            } else {
+              finalBankState.loan = { ...existingLoan };
+            }
+          }
+        } else {
+          // Server không có khoản vay: Client không được tự chế tạo khoản vay qua sync thường
+          finalBankState.loan = null;
+        }
+
+        if (finalBankState.deposited > 0 || (finalBankState.loan && finalBankState.loan.debt > 0)) {
+          try {
+            const poolState = await getGlobalBankState(redis);
+            const rates = calculateBankRates(poolState);
+            // Nếu client bị trễ và gửi lãi thấp hơn mức đã có trên server, giữ mức cao hơn
+            if (existingState?.profile?.bank?.depositInterest > (finalBankState.depositInterest || 0)) {
+              finalBankState.depositInterest = existingState.profile.bank.depositInterest;
+            }
+            finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp);
+          } catch (_) {}
+        }
       }
 
-      // ponytail: Đồng bộ biến động khoản vay từ trích nợ nhiệm vụ & tiền gửi tiết kiệm vào Bể thanh khoản Ngân hàng (AMM Pool)
+      // ponytail: Đồng bộ biến động khoản vay & tiền gửi hợp lệ vào Bể thanh khoản Ngân hàng (AMM Pool)
       try {
         const prevLoanDebt = Math.max(0, parseInt(existingState?.profile?.bank?.loan?.debt || existingState?.profile?.bank?.loan?.principal, 10) || 0);
         const currLoanDebt = Math.max(0, parseInt(finalBankState?.loan?.debt || finalBankState?.loan?.principal, 10) || 0);
@@ -2594,10 +2691,6 @@ export default async function handler(req, res) {
             if (depDiff > 0) {
               poolState.totalDeposited = (poolState.totalDeposited || 0) + depDiff;
               poolState.poolGold = (poolState.poolGold || 0) + depDiff;
-            } else {
-              const withdrawDiff = Math.abs(depDiff);
-              poolState.totalDeposited = Math.max(0, (poolState.totalDeposited || 0) - withdrawDiff);
-              poolState.poolGold = Math.max(0, (poolState.poolGold || 0) - withdrawDiff);
             }
           }
 
@@ -2712,8 +2805,12 @@ export default async function handler(req, res) {
         await redis.zrem('levelup:leaderboard', userSub);
       } else {
         const level = balanceCheck.level;
-        const currentCoins = balanceCheck.coins;
-        const score = (level * 1000) + currentCoins;
+        const profileForNetWorth = {
+          coins: balanceCheck.coins,
+          bank: finalBankState || state?.profile?.bank || existingState?.profile?.bank || {}
+        };
+        const netWorth = calculateNetWorth(profileForNetWorth);
+        const score = (level * 1000) + netWorth;
         await redis.zadd('levelup:leaderboard', score, userSub);
       }
 

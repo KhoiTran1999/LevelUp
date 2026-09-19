@@ -365,12 +365,18 @@ function deriveLegitimateBalance(state) {
       if (entry.category === 'quest' || entry.category === 'admin') {
         ledgerEarned += Math.max(0, parseInt(entry.amount, 10) || 0);
       } else if (entry.category === 'bank_withdraw') {
-        const match = (entry.description || '').match(/(\d+)\s*lãi/i);
-        if (match) {
-          const interestAmt = parseInt(match[1], 10) || 0;
-          bankInterestWithdrawn += interestAmt;
-          ledgerEarned += interestAmt;
+        const amt = Math.max(0, parseInt(entry.amount, 10) || 0);
+        let interestAmt = typeof entry.interestWithdrawn === 'number'
+          ? Math.min(amt, Math.max(0, parseInt(entry.interestWithdrawn, 10) || 0))
+          : 0;
+        if (interestAmt <= 0) {
+          const match = (entry.description || '').match(/(\d+)\s*lãi/i);
+          if (match) {
+            interestAmt = Math.min(amt, parseInt(match[1], 10) || 0);
+          }
         }
+        bankInterestWithdrawn += interestAmt;
+        ledgerEarned += interestAmt;
       }
     }
   }
@@ -2776,9 +2782,6 @@ async function completeQuest(questId, skipConfirm = false) {
           appState.profile.bank.loan = null;
           appState.profile.bank.isFrozen = false;
           updateTitleByLevel();
-          if (typeof currentBankPool === 'object' && currentBankPool) {
-            currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - (principalBefore - principalDeducted));
-          }
         }
       }
     }
@@ -9907,6 +9910,7 @@ async function loadBankState() {
   let userBank = appState.profile.bank;
   let creditLimit = calculateLocalCreditLimit(appState.profile, userBank.loan?.autoDeductPercent || 0.50);
 
+  let fetchSuccess = false;
   try {
     const res = await fetch(`/api/sync?action=bank_state&token=${encodeURIComponent(token || '')}&ts=${Date.now()}`);
     if (res.ok) {
@@ -9922,6 +9926,7 @@ async function loadBankState() {
       if (data.creditLimit) {
         creditLimit = data.creditLimit;
       }
+      fetchSuccess = true;
     } else {
       userBank = accrueLocalUserBank(appState.profile.bank, currentBankPool);
     }
@@ -9942,7 +9947,11 @@ async function loadBankState() {
   loadBankAiCommentary(poolData);
 
   if (isManual) {
-    showToast('Đã cập nhật dữ liệu Ngân Hàng mới nhất!', 'info');
+    if (fetchSuccess) {
+      showToast('Đã cập nhật dữ liệu Ngân Hàng mới nhất!', 'info');
+    } else {
+      showToast('Không thể kết nối máy chủ Ngân Hàng, đang sử dụng dữ liệu lưu tạm.', 'warning');
+    }
   }
 }
 
@@ -10289,6 +10298,10 @@ async function executeBankDeposit() {
     if (!ok) return;
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    if (!token) {
+      showToast('Vui lòng đăng nhập tài khoản Google để gửi tiết kiệm và bảo toàn tài sản!', 'warning');
+      return;
+    }
     let serverSuccess = false;
 
     if (token) {
@@ -10540,6 +10553,10 @@ async function executeBankWithdraw() {
     if (!ok) return;
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    if (!token) {
+      showToast('Vui lòng đăng nhập tài khoản Google để rút tiền tiết kiệm!', 'warning');
+      return;
+    }
     let serverSuccess = false;
 
     if (token) {
@@ -11268,6 +11285,10 @@ async function executeBankBorrow() {
     if (!ok) return;
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    if (!token) {
+      showToast('Vui lòng đăng nhập tài khoản Google để vay Vàng và lưu trữ an toàn!', 'warning');
+      return;
+    }
     let serverSuccess = false;
 
     if (token) {
@@ -11418,6 +11439,10 @@ async function executeBankRepay() {
     if (!ok) return;
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
+    if (!token) {
+      showToast('Vui lòng đăng nhập tài khoản Google để trả nợ Ngân Hàng!', 'warning');
+      return;
+    }
     let serverSuccess = false;
 
     if (token) {
@@ -11456,17 +11481,28 @@ async function executeBankRepay() {
 
     if (!serverSuccess) {
       appState.profile.coins -= totalDeduct;
-      loan.debt = Math.max(0, loan.debt - payAmt);
-      loan.principal = Math.max(0, (loan.principal || 0) - Math.min(loan.principal || 0, payAmt));
-      currentBankPool.poolGold += payAmt;
-      currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - payAmt);
-      currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + penaltyFee;
+
+      const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
+      const accruedInterest = Math.max(0, (parseInt(loan.debt, 10) || 0) - principal);
+      const interestPaid = Math.min(accruedInterest, payAmt);
+      const principalPaid = Math.min(principal, Math.max(0, payAmt - interestPaid));
+
+      loan.debt = Math.max(0, (parseInt(loan.debt, 10) || 0) - payAmt);
+      loan.principal = Math.max(0, principal - principalPaid);
+      currentBankPool.totalBorrowed = Math.max(0, (currentBankPool.totalBorrowed || 0) - principalPaid);
 
       // Hoàn nợ kho bạc nếu có
+      let treasuryRepay = 0;
       if (currentBankPool.bailoutDebt > 0) {
-        const treasuryRepay = Math.min(currentBankPool.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
+        treasuryRepay = Math.min(currentBankPool.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
         currentBankPool.bailoutDebt -= treasuryRepay;
-        currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + (totalDeduct - treasuryRepay);
+      }
+      const remainingPaid = totalDeduct - treasuryRepay;
+      const goldToPool = Math.min(principalPaid, remainingPaid);
+      currentBankPool.poolGold = (currentBankPool.poolGold || 0) + goldToPool;
+      const goldToReserve = remainingPaid - goldToPool;
+      if (goldToReserve > 0) {
+        currentBankPool.reserveFund = (currentBankPool.reserveFund || 0) + goldToReserve;
       }
 
       let loanCleared = false;
