@@ -35,7 +35,22 @@ export function deriveTitleForLevel(lvl) {
   return 'Tân Binh Cấp 1';
 }
 
-export function signQuest(title, type, targetMinutes, rewardCoins, requiresProof = false) {
+export function signQuest(title, type, targetMinutes, rewardCoins, requiresProof = false, isRepeatable = null) {
+  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
+  const t = type === 'bounty' ? 'bounty' : 'focus';
+  const m = parseInt(targetMinutes, 10) || 0;
+  const c = parseInt(rewardCoins, 10) || 0;
+  const p = requiresProof ? '1' : '0';
+  if (isRepeatable !== null && isRepeatable !== undefined) {
+    const r = isRepeatable ? '1' : '0';
+    const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}:${r}`;
+    return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+  }
+  const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}`;
+  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
+}
+
+export function signQuestLegacyProof(title, type, targetMinutes, rewardCoins, requiresProof = false) {
   const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
   const t = type === 'bounty' ? 'bounty' : 'focus';
   const m = parseInt(targetMinutes, 10) || 0;
@@ -60,16 +75,24 @@ export function verifyQuestSignature(q) {
 
   // 1. Kiểm tra chữ ký HMAC trước (ưu tiên chữ ký AI khi đã thẩm định hoặc thương lượng)
   if (q.signature) {
-    const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof));
+    const expected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof), Boolean(q.isRepeatable));
     if (q.signature === expected) return true;
+    const legacyProofExpected = signQuestLegacyProof(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof));
+    if (q.signature === legacyProofExpected) return true;
     const legacyExpected = signQuestLegacy(q.title, q.type, q.targetMinutes, q.rewardCoins);
     if (q.signature === legacyExpected) return true;
+
+    // Tương thích ngược: Nhiệm vụ lặp lại định mức chuẩn (<= 15 Vàng) có thể dùng chữ ký 6 tham số isRepeatable=false
+    if (Boolean(q.isRepeatable) && (parseInt(q.rewardCoins, 10) || 0) <= 15) {
+      const nonRepeatExpected = signQuest(q.title, q.type, q.targetMinutes, q.rewardCoins, Boolean(q.requiresProof), false);
+      if (q.signature === nonRepeatExpected) return true;
+    }
 
     // Self-healing: if quest is type 'bounty' but client suffered 0 || 25 bug (targetMinutes === 25),
     // verify against targetMinutes = 0 and auto-repair
     if (q.type === 'bounty' && (parseInt(q.targetMinutes, 10) || 0) === 25) {
-      const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof));
-      if (q.signature === healingExpected || q.signature === signQuestLegacy(q.title, 'bounty', 0, q.rewardCoins)) {
+      const healingExpected = signQuest(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof), Boolean(q.isRepeatable));
+      if (q.signature === healingExpected || q.signature === signQuestLegacyProof(q.title, 'bounty', 0, q.rewardCoins, Boolean(q.requiresProof)) || q.signature === signQuestLegacy(q.title, 'bounty', 0, q.rewardCoins)) {
         q.targetMinutes = 0;
         q._healed = true;
         return true;
@@ -287,9 +310,11 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
     }
 
     if (elapsedDays >= 1) {
-      const daysCount = Math.floor(elapsedDays);
-      const interest = Math.ceil(loan.debt * loan.borrowRate * daysCount);
-      loan.debt += interest;
+      const daysCount = Math.min(365, Math.floor(elapsedDays));
+      for (let d = 0; d < daysCount; d++) {
+        const dailyInterest = Math.ceil(loan.debt * loan.borrowRate);
+        loan.debt += dailyInterest;
+      }
       loan.lastAccruedAt = lastAcc + (daysCount * 24 * 60 * 60 * 1000);
     }
 
@@ -439,7 +464,7 @@ export function deriveLegitimateBalance(state, existingState = null) {
       }
       continue;
     }
-    const reward = Math.min(40, Math.max(1, parseInt(q.rewardCoins, 10) || 10));
+    const reward = Math.min(60, Math.max(1, parseInt(q.rewardCoins, 10) || 10));
     questEarned += reward * count;
   }
 
@@ -475,12 +500,18 @@ export function deriveLegitimateBalance(state, existingState = null) {
   }
 
   // ponytail: Bảo toàn trần chi tiêu tích lũy (Cumulative Total Coins Spent)
-  // Khi các vật phẩm đã dùng bị cắt tỉa khỏi inventory để tối ưu bộ nhớ,
-  // profile.totalCoinsSpent đảm bảo kẻ gian không thể lợi dụng để hack hoàn tiền (Fake Refund Exploit).
-  const storedTotalSpent = Math.max(
-    parseInt(existingState?.profile?.totalCoinsSpent, 10) || 0,
-    parseInt(state?.profile?.totalCoinsSpent, 10) || 0
-  );
+  // Cho phép giảm hợp lệ nếu người dùng có giao dịch hoàn trả quà (Shop Refund) trong ledger
+  let totalRefunded = 0;
+  for (const item of (Array.isArray(state?.ledger) ? state.ledger : [])) {
+    if (item && item.category === 'reward' && item.type === 'earn') {
+      totalRefunded += Math.max(0, parseInt(item.amount, 10) || 0);
+    }
+  }
+
+  const prevSpent = parseInt(existingState?.profile?.totalCoinsSpent, 10) || 0;
+  const declaredSpent = parseInt(state?.profile?.totalCoinsSpent, 10) || 0;
+  const allowedSpentFloor = Math.max(totalSpent, prevSpent - totalRefunded);
+  const storedTotalSpent = Math.max(declaredSpent, allowedSpentFloor);
   const effectiveTotalSpent = Math.max(totalSpent, storedTotalSpent);
 
   // ponytail: Giới hạn mức tăng tối đa giữa 2 lần đồng bộ (500 vàng ~ 10 nhiệm vụ S-rank tối đa)
@@ -508,19 +539,32 @@ export function deriveLegitimateBalance(state, existingState = null) {
       }
     }
   }
-  const maxHistoricalQuestEarned = questEarned + (completedIdsCount * 40);
-  const actualQuestsHistorical = Math.max(0, questEarned - 20) + (completedIdsCount * 40);
+  const maxHistoricalQuestEarned = questEarned + (completedIdsCount * 60);
+  const actualQuestsHistorical = Math.max(0, questEarned - 20) + (completedIdsCount * 60);
   const maxStreakBonus = Math.max(recordedStreakBonus, Math.floor(actualQuestsHistorical * streakBonusRate));
   const maxSafeTracked = Math.max(maxTrackedEarned, maxHistoricalQuestEarned + bankInterestWithdrawn + maxStreakBonus);
 
   const maxAllowedCeiling = isAdminAdjusted
-    ? Math.max(rawTotal, maxTrackedEarned)
+    ? Math.max(rawTotal, maxSafeTracked)
     : (existingTotal > 0 ? existingTotal + 500 : maxSafeTracked);
 
   if (rawTotal > maxAllowedCeiling) {
-    rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxTrackedEarned) : maxSafeTracked;
+    rawTotal = existingTotal > 0 ? Math.min(existingTotal + 500, maxSafeTracked) : maxSafeTracked;
     tampered = true;
   }
+
+  // Bảo toàn tổng Vàng khi người dùng xóa nhiệm vụ lặp lại cũ
+  if (!tampered && existingTotal > 0 && rawTotal < existingTotal) {
+    let totalUndone = 0;
+    for (const item of (Array.isArray(state?.ledger) ? state.ledger : [])) {
+      if (item && item.category === 'quest' && item.type === 'spend' && typeof item.title === 'string' && item.title.includes('Hoàn tác')) {
+        totalUndone += Math.max(0, parseInt(item.amount, 10) || 0);
+      }
+    }
+    const minAllowedTotal = Math.max(20, existingTotal - totalUndone);
+    rawTotal = Math.max(rawTotal, minAllowedTotal);
+  }
+
   if (rawTotal < 0) {
     rawTotal = 0;
     tampered = true;
@@ -1143,7 +1187,7 @@ export default async function handler(req, res) {
                 title: parsed.profile.title || 'Tập sự',
                 role: isAdminMember ? 'admin' : (parsed.profile.role || 'adventurer'),
                 coins: typeof parsed.profile.coins === 'number' ? parsed.profile.coins : (parsed.profile.totalCoinsEarned || 0),
-                totalCoinsEarned: parsed.profile.totalCoinsEarned || score
+                totalCoinsEarned: typeof parsed.profile.totalCoinsEarned === 'number' ? parsed.profile.totalCoinsEarned : (typeof parsed.profile.coins === 'number' ? parsed.profile.coins : 20)
               };
             }
           } catch (e) {}
@@ -1889,17 +1933,35 @@ export default async function handler(req, res) {
         }
 
         const userSub = caller.sub;
-        const userKey = `levelup:user:google:${userSub}`;
-        const rawUser = await redis.get(userKey);
-        if (!rawUser) {
-          return res.status(404).json({ error: 'Không tìm thấy hồ sơ người chơi.' });
+        const lockKey = `levelup:lock:bank:${userSub}`;
+        let lockAcquired = false;
+        if (redis && typeof redis.set === 'function') {
+          try {
+            const lockRes = await redis.set(lockKey, '1', 'PX', 5000, 'NX');
+            if (lockRes === 'OK' || lockRes === 1 || lockRes === true || (lockRes === undefined && !process.env.REDIS_URL)) {
+              lockAcquired = true;
+            } else if (lockRes === null || lockRes === false || lockRes === 0) {
+              return res.status(429).json({ error: 'Giao dịch ngân hàng đang được xử lý. Vui lòng thử lại sau giây lát.' });
+            } else {
+              lockAcquired = true;
+            }
+          } catch (_) {
+            lockAcquired = true;
+          }
         }
 
-        let uState = null;
-        try { uState = JSON.parse(rawUser); } catch (_) {}
-        if (!uState) {
-          return res.status(500).json({ error: 'Dữ liệu hồ sơ người chơi bị lỗi.' });
-        }
+        try {
+          const userKey = `levelup:user:google:${userSub}`;
+          const rawUser = await redis.get(userKey);
+          if (!rawUser) {
+            return res.status(404).json({ error: 'Không tìm thấy hồ sơ người chơi.' });
+          }
+
+          let uState = null;
+          try { uState = JSON.parse(rawUser); } catch (_) {}
+          if (!uState) {
+            return res.status(500).json({ error: 'Dữ liệu hồ sơ người chơi bị lỗi.' });
+          }
         if (!uState.profile) uState.profile = {};
         if (!uState.profile.bank) {
           uState.profile.bank = { deposited: 0, depositInterest: 0, lastDepositAt: Date.now(), loan: null, isFrozen: false };
@@ -2035,6 +2097,7 @@ export default async function handler(req, res) {
             bailoutInjected,
             userBank: uState.profile.bank,
             coins: uState.profile.coins,
+            totalCoinsEarned: uState.profile.totalCoinsEarned,
             ledger: uState.ledger,
             pool: { ...poolState, ...updatedRates }
           });
@@ -2225,7 +2288,12 @@ export default async function handler(req, res) {
             pool: { ...poolState, ...updatedRates }
           });
         }
+      } finally {
+        if (lockAcquired && redis && typeof redis.del === 'function') {
+          try { await redis.del(lockKey); } catch (_) {}
+        }
       }
+    }
 
       // 3.5 Đăng xuất tài khoản (Xóa session token trên Redis và xóa Cookie)
       if (action === 'logout') {
@@ -2562,7 +2630,13 @@ export default async function handler(req, res) {
       for (const q of incomingQuests) {
         const qId = q.id || q.questId;
         if (!qId) continue;
-        if (!q.isRepeatable && q.status === 'active' && wasCurrentlyCompleted(qId)) {
+        const hasRecentUndoLedger = (Array.isArray(state?.ledger) ? state.ledger : []).some(entry =>
+          entry.category === 'quest' && entry.type === 'spend' && (
+            (entry.title && (entry.title.includes(q.title || '') || entry.title.startsWith('Hoàn tác'))) ||
+            (entry.description && (entry.description.includes(q.title || '') || entry.description.includes(qId)))
+          )
+        );
+        if (!q.isRepeatable && q.status === 'active' && (wasCurrentlyCompleted(qId) || hasRecentUndoLedger)) {
           completedSet.delete(qId);
         } else if (!q.isRepeatable && (q.status === 'completed' || q.completed === true || (parseInt(q.completedCount, 10) || 0) > 0)) {
           completedSet.add(qId);
@@ -2590,6 +2664,7 @@ export default async function handler(req, res) {
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),
+          adminAdjusted: Boolean(existingState?.profile?.adminAdjusted || state.profile?.adminAdjusted),
           totalCoinsSpent: balanceCheck.totalCoinsSpent,
           totalFocusSessions: currentValidFocusSessions,
           bank: finalBankState || state.profile?.bank || existingState?.profile?.bank || null,
@@ -2663,6 +2738,7 @@ export default async function handler(req, res) {
         level: balanceCheck.level,
         coins: balanceCheck.coins,
         totalCoinsEarned: balanceCheck.totalCoinsEarned,
+        adminAdjusted: payloadToSave.profile.adminAdjusted,
         title,
         tampered: balanceCheck.tampered,
         fine: balanceCheck.fine,

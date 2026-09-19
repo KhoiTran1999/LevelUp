@@ -504,8 +504,9 @@ export function handleUpdateQuestParameters(params = {}, quest = {}) {
   };
 
   const clean = sanitizeEvaluatedQuest(rawDebate, quest.title, quest.description);
+  const isRepeatable = Boolean(params.newIsRepeatable !== undefined ? params.newIsRepeatable : quest.isRepeatable);
   const signature = accepted
-    ? signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof)
+    ? signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof, isRepeatable)
     : (quest.signature || '');
 
   return {
@@ -1997,21 +1998,24 @@ export async function executeWorkerTool(toolName, args = {}, context = {}) {
       const rawCoins = parseInt(args.rewardCoins, 10) || (rawType === 'focus' ? Math.max(8, Math.round(rawMinutes * 0.38)) : 4);
       const rawRequiresProof = args.requiresProof !== undefined ? Boolean(args.requiresProof) : (rawCoins >= 15 || rawMinutes >= 45);
 
+      const isRepeatable = Boolean(args.isRepeatable);
       const rawQuest = {
         title: rawTitle,
         description: args.description || '',
         type: rawType,
         targetMinutes: rawMinutes,
         rewardCoins: rawCoins,
+        isRepeatable,
         requiresProof: rawRequiresProof,
         proofGuidance: args.proofGuidance || (rawRequiresProof ? 'Chụp ảnh kết quả hoặc góc làm việc để hoàn thành.' : ''),
         icon: args.icon || (rawType === 'focus' ? '🎯' : '🧹')
       };
 
       const clean = sanitizeEvaluatedQuest(rawQuest, rawTitle, args.description || '', rawMinutes);
-      const signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
+      const signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof, isRepeatable);
       const questResult = {
         ...clean,
+        isRepeatable,
         signature,
         id: `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         status: 'active',
@@ -2149,9 +2153,10 @@ export function runDeterministicAssistant(message, userProfile = {}, callerSub =
       icon: type === 'focus' ? '🎯' : '🧹'
     };
     const clean = sanitizeEvaluatedQuest(questData, title, questData.description, finalMins);
-    const sig = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof);
+    const sig = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, clean.requiresProof, Boolean(clean.isRepeatable));
     const newQuest = {
       ...clean,
+      isRepeatable: Boolean(clean.isRepeatable),
       signature: sig,
       id: `quest_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       status: 'active',
@@ -3151,7 +3156,9 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 
         const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
         const result = sanitizeEvaluatedQuest(rawResult, title, description, effectiveDuration);
-        result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof);
+        const isRepeatable = Boolean(payload?.isRepeatable || rawResult?.isRepeatable);
+        result.isRepeatable = isRepeatable;
+        result.signature = signQuest(result.title, result.type, result.targetMinutes, result.rewardCoins, result.requiresProof, isRepeatable);
         return res.status(200).json(result);
       }
 
@@ -3397,7 +3404,9 @@ Trả về ĐÚNG định dạng JSON:
             result.newProofGuidance = clean.proofGuidance;
           }
 
-          result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, result.newRequiresProof);
+          const isRepeatable = Boolean(payload?.isRepeatable !== undefined ? payload.isRepeatable : quest.isRepeatable);
+          result.isRepeatable = isRepeatable;
+          result.signature = signQuest(clean.title, clean.type, clean.targetMinutes, clean.rewardCoins, result.newRequiresProof, isRepeatable);
         }
         if (!Array.isArray(result.options) || result.options.length === 0) {
           result.options = parseDebateOptionsFromText(result.reply, 'quest');
