@@ -21,8 +21,21 @@ import {
   signQuest,
   signReward,
   signLoanOffer,
-  setGoogleTokenVerifierForTesting
+  setGoogleTokenVerifierForTesting,
+  setRedisClientForTesting
 } from '../api/sync.js';
+
+// Mock Redis Client để tránh mở kết nối TCP thật gây treo tiến trình
+const mockRedis = {
+  get: async () => null,
+  set: async () => 'OK',
+  incr: async () => 1,
+  expire: async () => 1,
+  zadd: async () => 1,
+  zrem: async () => 1
+};
+setRedisClientForTesting(mockRedis);
+
 
 console.log('=== KIỂM THỬ PHÂN TÁCH AI BRAIN (THINKING ON) & WORKER (THINKING OFF) ===\n');
 

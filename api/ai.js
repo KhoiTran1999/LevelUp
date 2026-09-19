@@ -921,22 +921,30 @@ export function createSSEStream(res) {
 
   return {
     send(event, data) {
+      if (res?.writableEnded || res?.socket?.destroyed) return;
       if (typeof res?.write === 'function') {
-        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-        if (typeof res?.flush === 'function') {
-          res.flush();
-        }
+        try {
+          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          if (typeof res?.flush === 'function') {
+            res.flush();
+          }
+        } catch (_) {}
       }
     },
     end(event, data) {
+      if (res?.writableEnded || res?.socket?.destroyed) return;
       if (event && data && typeof res?.write === 'function') {
-        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-        if (typeof res?.flush === 'function') {
-          res.flush();
-        }
+        try {
+          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          if (typeof res?.flush === 'function') {
+            res.flush();
+          }
+        } catch (_) {}
       }
       if (typeof res?.end === 'function') {
-        res.end();
+        try {
+          res.end();
+        } catch (_) {}
       }
     }
   };

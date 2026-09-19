@@ -1450,7 +1450,11 @@ export default async function handler(req, res) {
         if (!rawData) {
           return res.status(404).json({ error: 'Không tìm thấy dữ liệu người chơi.' });
         }
-        const parsed = JSON.parse(rawData);
+        let parsed = null;
+        try { parsed = JSON.parse(rawData); } catch (_) {}
+        if (!parsed) {
+          return res.status(500).json({ error: 'Dữ liệu người chơi không hợp lệ.' });
+        }
         return res.status(200).json({
           success: true,
           target,
@@ -1483,7 +1487,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ found: false, googleId: targetSub });
       }
 
-      const data = JSON.parse(rawData);
+      let data = null;
+      try { data = JSON.parse(rawData); } catch (_) {}
+      if (!data) {
+        return res.status(200).json({ found: false, googleId: targetSub });
+      }
       let dataChanged = false;
       if (caller?.picture && data.profile) {
         const oldGooglePic = data.profile.googlePicture;
@@ -1593,7 +1601,11 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
         }
 
-        const userData = JSON.parse(rawUserData);
+        let userData = null;
+        try { userData = JSON.parse(rawUserData); } catch (_) {}
+        if (!userData) {
+          return res.status(500).json({ error: 'Dữ liệu tài khoản người dùng không hợp lệ.' });
+        }
         if (userData.profile) {
           userData.profile.isCheater = false;
           userData.profile.cheatStrikes = 0;
@@ -1673,7 +1685,11 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Không tìm thấy người chơi cần điều chỉnh.' });
         }
 
-        const userData = JSON.parse(rawUserData);
+        let userData = null;
+        try { userData = JSON.parse(rawUserData); } catch (_) {}
+        if (!userData) {
+          return res.status(500).json({ error: 'Dữ liệu người chơi không hợp lệ.' });
+        }
         if (!userData.profile) userData.profile = {};
 
         const canonicalSub = userData.googleId || userData.profile?.googleId || userData.profile?.sub ||
@@ -1879,7 +1895,11 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Không tìm thấy hồ sơ người chơi.' });
         }
 
-        let uState = JSON.parse(rawUser);
+        let uState = null;
+        try { uState = JSON.parse(rawUser); } catch (_) {}
+        if (!uState) {
+          return res.status(500).json({ error: 'Dữ liệu hồ sơ người chơi bị lỗi.' });
+        }
         if (!uState.profile) uState.profile = {};
         if (!uState.profile.bank) {
           uState.profile.bank = { deposited: 0, depositInterest: 0, lastDepositAt: Date.now(), loan: null, isFrozen: false };

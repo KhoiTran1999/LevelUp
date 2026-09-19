@@ -9334,7 +9334,7 @@ const TOUR_STEPS = [
     getTarget: () => {
       const banner = document.getElementById('active-focus-banner');
       if (banner && !banner.classList.contains('hidden') && banner.offsetParent !== null) return banner;
-      const questList = document.getElementById('quest-list');
+      const questList = document.getElementById('quests-grid') || document.getElementById('quest-list');
       if (questList && questList.offsetParent !== null) return questList;
       return document.getElementById('tab-quests');
     },
@@ -13019,7 +13019,7 @@ async function sendAssistantMessage(userQuery) {
 
     // Record to history
     assistantChatHistory.push({ role: 'user', content: userQuery });
-    assistantChatHistory.push({ role: 'assistant', content: finalResult.reply || renderedReplyText });
+    assistantChatHistory.push({ role: 'assistant', content: finalResult.reply || targetReplyText || '' });
 
     if (typeof sfx !== 'undefined' && sfx.playSuccess) sfx.playSuccess();
   } catch (err) {
