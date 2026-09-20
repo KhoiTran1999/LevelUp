@@ -13,12 +13,12 @@
     "test": "node test/run-all.js"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "ioredis": "^5.4.2"
   },
   "devDependencies": {
+    "canvas-confetti": "^1.9.4",
     "tailwindcss": "^3.4.19"
   }
 }
