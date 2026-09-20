@@ -8171,8 +8171,8 @@ function renderInventory() {
   const empty = document.getElementById('inventory-empty');
   const countBadge = document.getElementById('badge-inventory-count');
 
-  const unusedCount = appState.inventory.filter(i => !i.isUsed).length;
-  if (countBadge) countBadge.textContent = unusedCount;
+  const totalInvCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
+  if (countBadge) countBadge.textContent = totalInvCount;
   updateRewardsNavBadge();
 
   if (appState.inventory.length === 0) {
@@ -8828,10 +8828,10 @@ function renderSkeletons() {
 // =============================================================================
 function updateRewardsNavBadge() {
   const totalRewardsBadge = document.getElementById('badge-rewards-total');
-  if (totalRewardsBadge) {
-    const unusedCount = appState.inventory ? appState.inventory.filter(i => !i.isUsed).length : 0;
-    totalRewardsBadge.textContent = unusedCount;
-  }
+  const unusedCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
+  if (totalRewardsBadge) totalRewardsBadge.textContent = unusedCount;
+  const countBadge = document.getElementById('badge-inventory-count');
+  if (countBadge) countBadge.textContent = unusedCount;
 }
 
 function switchRewardSubtab(subtab) {
@@ -8849,11 +8849,17 @@ function switchRewardSubtab(subtab) {
     if (btnInv) btnInv.className = activeClass;
     if (paneShop) paneShop.classList.add('hidden');
     if (paneInv) paneInv.classList.remove('hidden');
+    if (typeof renderInventory === 'function') {
+      renderInventory();
+    }
   } else {
     if (btnShop) btnShop.className = activeClass;
     if (btnInv) btnInv.className = inactiveClass;
     if (paneShop) paneShop.classList.remove('hidden');
     if (paneInv) paneInv.classList.add('hidden');
+    if (typeof renderShop === 'function') {
+      renderShop();
+    }
   }
 
   if (typeof requestAnimationFrame === 'function') {

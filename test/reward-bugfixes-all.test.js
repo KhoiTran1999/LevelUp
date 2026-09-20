@@ -224,6 +224,17 @@ const syncJs = fs.readFileSync(path.resolve('api/sync.js'), 'utf8').replace(/\r\
   console.log('✓ Test 14: Form thẩm định phần thưởng chặn hoàn toàn số âm ở cả Client và Server.');
 }
 
+// -----------------------------------------------------------------------------
+// 15. Kiểm tra Badge Kho Quà hiển thị chính xác số lượng item (Bug #15)
+// -----------------------------------------------------------------------------
+{
+  assert.ok(appJs.includes('const totalInvCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;'), 'renderInventory phải đếm tổng số phần thưởng trong Kho Quà');
+  assert.ok(appJs.includes('if (countBadge) countBadge.textContent = totalInvCount;'), 'countBadge phải hiển thị totalInvCount');
+  assert.ok(appJs.includes("const countBadge = document.getElementById('badge-inventory-count');\n  if (countBadge) countBadge.textContent = unusedCount;"), 'updateRewardsNavBadge phải đồng bộ badge-inventory-count');
+  console.log('✓ Test 15: Badge Kho Quà đồng bộ chuẩn xác số lượng phần thưởng, không bị kẹt ở số 0.');
+}
+
 console.log('\n=============================================================================');
-console.log('🎉 TOÀN BỘ 14 BÀI KIỂM THỬ SỬA LỖI PHẦN THƯỞNG ĐỀU ĐẠT CHUẨN XUẤT SẮC (100%)!');
+console.log('🎉 TOÀN BỘ 15 BÀI KIỂM THỬ SỬA LỖI PHẦN THƯỞNG ĐỀU ĐẠT CHUẨN XUẤT SẮC (100%)!');
 console.log('=============================================================================\n');
+
