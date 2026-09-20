@@ -546,14 +546,23 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         });
 
         // Khôi phục lại savedTimer nếu cloud state chưa kịp lưu
+        const conflictSnapshotTime = Number(data.state?.lastSyncedAt || data.state?.lastModified || 0);
         for (const q of (appState.quests || [])) {
           if (!q.savedTimer && localSavedQuests.has(q.id)) {
-            q.savedTimer = localSavedQuests.get(q.id);
+            const localSaved = localSavedQuests.get(q.id);
+            const savedAt = Number(localSaved?.savedAt || 0);
+            if (savedAt > conflictSnapshotTime || (Date.now() - savedAt < TIMER_MUTATION_GRACE_MS)) {
+              q.savedTimer = localSaved;
+            }
           }
         }
         for (const it of (appState.inventory || [])) {
           if (!it.savedTimer && localSavedItems.has(it.id)) {
-            it.savedTimer = localSavedItems.get(it.id);
+            const localSaved = localSavedItems.get(it.id);
+            const savedAt = Number(localSaved?.savedAt || 0);
+            if (savedAt > conflictSnapshotTime || (Date.now() - savedAt < TIMER_MUTATION_GRACE_MS)) {
+              it.savedTimer = localSaved;
+            }
           }
         }
 
@@ -758,7 +767,7 @@ async function hydrateFromCloud(isManual = false) {
     const localTime = Number(appState.lastModified || appState.lastSyncedAt || 0);
     const timerCloudTime = Number(cloudData.activeTimer?.updatedAt || cloudData.activeTimer?.lastTickTime || 0);
     const timerLocalTime = appState.activeTimer
-      ? Number(appState.activeTimer?.updatedAt || appState.activeTimer?.lastTickTime || 0)
+      ? Number(appState.activeTimer?.updatedAt || 0)
       : Number(appState.lastTimerClearedAt || appState.lastModified || 0);
     const timerChanged = JSON.stringify(cloudData.activeTimer || null) !== JSON.stringify(appState.activeTimer || null);
     const isRecentLocalAction = (Date.now() - lastLocalTimerActionTime < TIMER_MUTATION_GRACE_MS);
@@ -795,13 +804,15 @@ async function hydrateFromCloud(isManual = false) {
     if (cloudData.activeTimer === null && appState.activeTimer) {
       if (!isRecentLocalAction && cloudTime > Math.max(lastLocalTimerActionTime, timerLocalTime)) {
         clearFocusTimerSession(false);
+      } else if (!isRecentLocalAction && cloudTime >= (lastLocalTimerActionTime || 0)) {
+        clearFocusTimerSession(false);
       }
     }
 
     // Nếu Cloud mới hơn (do làm nhiệm vụ trên máy khác) HOẶC trạng thái Timer từ Cloud thực sự mới hơn:
     const isCloudTimerNewer = !isRecentLocalAction && timerChanged && (
-      Boolean(cloudData.activeTimer && (!appState.activeTimer || timerCloudTime > timerLocalTime)) ||
-      Boolean(!cloudData.activeTimer && appState.activeTimer && cloudTime > timerLocalTime)
+      Boolean(cloudData.activeTimer && (!appState.activeTimer || timerCloudTime > timerLocalTime || timerCloudTime >= (lastLocalTimerActionTime || 0))) ||
+      Boolean(!cloudData.activeTimer && appState.activeTimer && (cloudTime > timerLocalTime || cloudTime >= (lastLocalTimerActionTime || 0)))
     );
 
     if (cloudTime > localTime || isCloudTimerNewer) {
@@ -826,12 +837,20 @@ async function hydrateFromCloud(isManual = false) {
 
       for (const q of (appState.quests || [])) {
         if (!q.savedTimer && localSavedQuests.has(q.id)) {
-          q.savedTimer = localSavedQuests.get(q.id);
+          const localSaved = localSavedQuests.get(q.id);
+          const savedAt = Number(localSaved?.savedAt || 0);
+          if (savedAt > cloudTime || (Date.now() - savedAt < TIMER_MUTATION_GRACE_MS)) {
+            q.savedTimer = localSaved;
+          }
         }
       }
       for (const it of (appState.inventory || [])) {
         if (!it.savedTimer && localSavedItems.has(it.id)) {
-          it.savedTimer = localSavedItems.get(it.id);
+          const localSaved = localSavedItems.get(it.id);
+          const savedAt = Number(localSaved?.savedAt || 0);
+          if (savedAt > cloudTime || (Date.now() - savedAt < TIMER_MUTATION_GRACE_MS)) {
+            it.savedTimer = localSaved;
+          }
         }
       }
 
@@ -848,7 +867,8 @@ async function hydrateFromCloud(isManual = false) {
       renderAll();
 
       // Nếu thiết bị này đang là runner chạy mượt mà và Cloud không có runnerId khác mới hơn, bảo toàn timer đang chạy
-      if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && isRecentLocalAction) {
+      const isCloudSameRunner = cloudData.activeTimer && cloudData.activeTimer.isRunning && (!cloudData.activeTimer.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID);
+      if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && (isRecentLocalAction || isCloudSameRunner)) {
         activeFocusQuest = prevActiveQuest;
         focusRemainingSeconds = prevRemaining;
         isFocusRunning = true;
@@ -866,10 +886,10 @@ async function hydrateFromCloud(isManual = false) {
     } else {
       if (timerChanged && !isRecentLocalAction) {
         if (cloudData.activeTimer === null) {
-          if (cloudTime > timerLocalTime) {
+          if (cloudTime > timerLocalTime || cloudTime >= (lastLocalTimerActionTime || 0)) {
             clearFocusTimerSession(false);
           }
-        } else if (timerCloudTime > timerLocalTime) {
+        } else if (timerCloudTime > timerLocalTime || timerCloudTime >= (lastLocalTimerActionTime || 0)) {
           if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
             // Local vừa dừng/bảo lưu, bỏ qua
           } else {
@@ -1478,6 +1498,37 @@ async function pullLatestTimerFromCloud() {
             remainingSeconds: focusRemainingSeconds,
             actualFocusedSeconds
           };
+
+          if (remoteTimer.isBreakMode) {
+            isBreakMode = true;
+            activeFocusQuest = null;
+            activeRewardItem = null;
+          } else if (remoteTimer.isRewardMode && remoteTimer.rewardItemId) {
+            if (Array.isArray(result.data.inventory)) {
+              for (const inv of result.data.inventory) {
+                if (!appState.inventory?.some(i => i.id === inv.id)) {
+                  appState.inventory = appState.inventory || [];
+                  appState.inventory.push(inv);
+                }
+              }
+            }
+            activeRewardItem = appState.inventory?.find(i => i.id === remoteTimer.rewardItemId) || null;
+            activeFocusQuest = null;
+            isBreakMode = false;
+          } else if (remoteTimer.questId) {
+            if (Array.isArray(result.data.quests)) {
+              for (const q of result.data.quests) {
+                if (!appState.quests?.some(item => item.id === q.id)) {
+                  appState.quests = appState.quests || [];
+                  appState.quests.push(q);
+                }
+              }
+            }
+            activeFocusQuest = appState.quests?.find(q => q.id === remoteTimer.questId) || null;
+            activeRewardItem = null;
+            isBreakMode = false;
+          }
+
           return appState.activeTimer;
         }
       }
@@ -1490,6 +1541,16 @@ async function pullLatestTimerFromCloud() {
 
 function saveFocusTimerState(syncCloudNow = false, immediate = false, timerAction = null) {
   lastLocalTimerActionTime = Date.now();
+  if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
+    if (appState.activeTimer?.questId) {
+      activeFocusQuest = appState.quests?.find(q => q.id === appState.activeTimer.questId) || null;
+    } else if (appState.activeTimer?.isRewardMode && appState.activeTimer?.rewardItemId) {
+      activeRewardItem = appState.inventory?.find(i => i.id === appState.activeTimer.rewardItemId) || null;
+    } else if (appState.activeTimer?.isBreakMode) {
+      isBreakMode = true;
+    }
+  }
+
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) {
     try {
       localStorage.removeItem(TIMER_STORAGE_KEY);
@@ -1524,7 +1585,7 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     isBreakMode: isBreakMode,
     runnerId: isFocusRunning ? CURRENT_RUNNER_ID : (appState.activeTimer?.runnerId || CURRENT_RUNNER_ID),
     lastTickTime: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: (timerAction || !appState.activeTimer?.updatedAt) ? Date.now() : appState.activeTimer.updatedAt
   };
   appState.activeTimer = state;
   try {
@@ -2265,6 +2326,13 @@ async function holdFocusTimer() {
     renderInventory();
     renderFocusStationUI();
     triggerSave(true, true, 'hold', true);
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const syncChannel = new BroadcastChannel('levelup_sync_channel');
+        syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+        syncChannel.close();
+      } catch (_) {}
+    }
     return;
   }
 
@@ -2289,6 +2357,13 @@ async function holdFocusTimer() {
     renderQuests();
     renderFocusStationUI();
     triggerSave(true, true, 'hold', true);
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const syncChannel = new BroadcastChannel('levelup_sync_channel');
+        syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+        syncChannel.close();
+      } catch (_) {}
+    }
     return;
   }
 
@@ -2307,6 +2382,13 @@ async function holdFocusTimer() {
       renderQuests();
       renderFocusStationUI();
       triggerSave(true, true, 'hold', true);
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const syncChannel = new BroadcastChannel('levelup_sync_channel');
+          syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+          syncChannel.close();
+        } catch (_) {}
+      }
       return;
     }
   } else if (appState.activeTimer?.rewardItemId) {
@@ -2322,6 +2404,13 @@ async function holdFocusTimer() {
       renderInventory();
       renderFocusStationUI();
       triggerSave(true, true, 'hold', true);
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const syncChannel = new BroadcastChannel('levelup_sync_channel');
+          syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+          syncChannel.close();
+        } catch (_) {}
+      }
       return;
     }
   }
@@ -2342,8 +2431,16 @@ async function clearSavedQuestTimer(questId) {
     btnColor: 'rose'
   });
   if (!ok) return;
+  lastLocalTimerActionTime = Date.now();
   delete quest.savedTimer;
-  triggerSave(true);
+  triggerSave(true, true, 'hold', true);
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+      syncChannel.close();
+    } catch (_) {}
+  }
   renderQuests();
   showToast(`Đã hủy bảo lưu "${quest.title}".`, 'info');
 }
@@ -2361,9 +2458,17 @@ async function clearSavedRewardTimer(invId) {
     btnColor: 'rose'
   });
   if (!ok) return;
+  lastLocalTimerActionTime = Date.now();
   delete item.savedTimer;
   item.isUsed = true;
-  triggerSave(true);
+  triggerSave(true, true, 'hold', true);
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+      syncChannel.close();
+    } catch (_) {}
+  }
   renderInventory();
   showToast(`Đã kết thúc phần thưởng "${item.name}".`, 'info');
 }
@@ -2480,7 +2585,7 @@ function adjustTimer(deltaSec) {
     }
     focusRemainingSeconds = newRemaining;
     updateTimerDisplay();
-    saveFocusTimerState(true, true);
+    saveFocusTimerState(true, true, 'adjust');
     sfx.playClick();
     showToast(`Đã giảm thời gian: -${Math.abs(deltaSec / 60)}p`, 'info');
     return;
@@ -2498,7 +2603,7 @@ function adjustTimer(deltaSec) {
     focusTotalSeconds = focusRemainingSeconds;
   }
   updateTimerDisplay();
-  saveFocusTimerState(true, true);
+  saveFocusTimerState(true, true, 'adjust');
   sfx.playClick();
   showToast(`Đã thêm thời gian: +${deltaSec / 60}p`, 'info');
 }
@@ -2546,7 +2651,7 @@ function saveEditTimer(mins, secs) {
     }
     focusRemainingSeconds = total;
     updateTimerDisplay();
-    saveFocusTimerState(true, true);
+    saveFocusTimerState(true, true, 'adjust');
     sfx.playClick();
     closeModal('modal-edit-focus-timer');
     showToast(`Đã giảm thời gian: ${mins}p ${secs}s`, 'success');
@@ -2566,7 +2671,7 @@ function saveEditTimer(mins, secs) {
   focusRemainingSeconds = total;
   focusTotalSeconds = Math.max(focusTotalSeconds, actualFocusedSeconds + total);
   updateTimerDisplay();
-  saveFocusTimerState(true, true);
+  saveFocusTimerState(true, true, 'adjust');
   sfx.playClick();
   closeModal('modal-edit-focus-timer');
   showToast(`Đã lưu thời gian: ${mins}p ${secs}s`, 'success');
@@ -11804,7 +11909,7 @@ document.addEventListener('DOMContentLoaded', () => {
             focusTimerInterval = null;
             releaseWakeLock();
           }
-          if (event.data.action === 'cancel') {
+          if (event.data.action === 'cancel' || event.data.action === 'hold') {
             clearFocusTimerSession(false);
           } else if (event.data.action === 'pause' && isFocusRunning) {
             isFocusRunning = false;
@@ -12066,16 +12171,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('storage', (e) => {
     if (e.key === TIMER_STORAGE_KEY) {
       if (!e.newValue) {
-        clearFocusTimerSession();
+        clearFocusTimerSession(false);
       } else {
         try {
           const syncState = JSON.parse(e.newValue);
           if (syncState) {
-            isFocusRunning = !!syncState.isRunning;
-            focusRemainingSeconds = Math.max(0, syncState.remainingSeconds || 0);
-            focusTotalSeconds = syncState.totalSeconds || focusTotalSeconds;
-            updateTimerDisplay();
-            renderFocusStationUI();
+            appState.activeTimer = syncState;
+            restoreFocusTimer();
           }
         } catch (_) {}
       }
