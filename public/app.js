@@ -2335,7 +2335,13 @@ async function holdFocusTimer() {
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         const syncChannel = new BroadcastChannel('levelup_sync_channel');
-        syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+        syncChannel.postMessage({
+          type: 'TIMER_SYNC_UPDATE',
+          tabId: CURRENT_TAB_ID,
+          action: 'hold',
+          rewardItemId: item.id,
+          savedTimer: item.savedTimer
+        });
         syncChannel.close();
       } catch (_) {}
     }
@@ -2366,7 +2372,13 @@ async function holdFocusTimer() {
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         const syncChannel = new BroadcastChannel('levelup_sync_channel');
-        syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+        syncChannel.postMessage({
+          type: 'TIMER_SYNC_UPDATE',
+          tabId: CURRENT_TAB_ID,
+          action: 'hold',
+          questId: quest.id,
+          savedTimer: quest.savedTimer
+        });
         syncChannel.close();
       } catch (_) {}
     }
@@ -2391,7 +2403,13 @@ async function holdFocusTimer() {
       if (typeof BroadcastChannel !== 'undefined') {
         try {
           const syncChannel = new BroadcastChannel('levelup_sync_channel');
-          syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+          syncChannel.postMessage({
+            type: 'TIMER_SYNC_UPDATE',
+            tabId: CURRENT_TAB_ID,
+            action: 'hold',
+            questId: q.id,
+            savedTimer: q.savedTimer
+          });
           syncChannel.close();
         } catch (_) {}
       }
@@ -2413,12 +2431,26 @@ async function holdFocusTimer() {
       if (typeof BroadcastChannel !== 'undefined') {
         try {
           const syncChannel = new BroadcastChannel('levelup_sync_channel');
-          syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+          syncChannel.postMessage({
+            type: 'TIMER_SYNC_UPDATE',
+            tabId: CURRENT_TAB_ID,
+            action: 'hold',
+            rewardItemId: it.id,
+            savedTimer: it.savedTimer
+          });
           syncChannel.close();
         } catch (_) {}
       }
       return;
     }
+  }
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+      syncChannel.close();
+    } catch (_) {}
   }
 
   clearFocusTimerSession(true);
@@ -2443,7 +2475,12 @@ async function clearSavedQuestTimer(questId) {
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const syncChannel = new BroadcastChannel('levelup_sync_channel');
-      syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+      syncChannel.postMessage({
+        type: 'TIMER_SYNC_UPDATE',
+        tabId: CURRENT_TAB_ID,
+        action: 'clearSaved',
+        questId: quest.id
+      });
       syncChannel.close();
     } catch (_) {}
   }
@@ -2471,7 +2508,12 @@ async function clearSavedRewardTimer(invId) {
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const syncChannel = new BroadcastChannel('levelup_sync_channel');
-      syncChannel.postMessage({ type: 'TIMER_SYNC_UPDATE', tabId: CURRENT_TAB_ID, action: 'hold' });
+      syncChannel.postMessage({
+        type: 'TIMER_SYNC_UPDATE',
+        tabId: CURRENT_TAB_ID,
+        action: 'clearSaved',
+        rewardItemId: item.id
+      });
       syncChannel.close();
     } catch (_) {}
   }
@@ -5050,6 +5092,8 @@ async function acceptVerdictAndCreateQuest() {
       showToast(`Đã cập nhật nhiệm vụ [Hạng ${targetQuest.rank}]: "${targetQuest.title}"!`, 'success');
       closeModal('modal-quest');
       currentEditingQuestId = null;
+      currentPendingVerdict = null;
+      renderQuests();
       triggerSave(true);
       return;
     }
@@ -5079,6 +5123,9 @@ async function acceptVerdictAndCreateQuest() {
   sfx.playClick();
   showToast(`Đã thêm nhiệm vụ [Hạng ${newQuest.rank}]: "${newQuest.title}"!`, 'success');
   closeModal('modal-quest');
+  currentEditingQuestId = null;
+  currentPendingVerdict = null;
+  renderQuests();
   triggerSave(true);
 }
 
@@ -10033,7 +10080,9 @@ function finishTour(completed = true) {
 
   switchTab('quests');
 
-  localStorage.setItem('levelup_tour_completed', 'true');
+  try {
+    localStorage.setItem('levelup_tour_completed', 'true');
+  } catch (_) {}
 
   if (completed) {
     if (sfx && typeof sfx.playLevelUp === 'function') {
@@ -13489,6 +13538,9 @@ async function sendAssistantMessage(userQuery) {
                 finalResult = parsed;
                 if (finalResult.reply && finalResult.reply.length > targetReplyText.length) {
                   targetReplyText = finalResult.reply;
+                  if (!streamTimer) {
+                    tickStream();
+                  }
                 }
                 isServerDone = true;
                 if (renderedChars >= targetReplyText.length && notifyDoneResolve) {
@@ -13520,8 +13572,11 @@ async function sendAssistantMessage(userQuery) {
       throw new Error('Không nhận được phản hồi từ Phù Thủy.');
     }
 
-    // Đợi hiệu ứng dòng chảy hoàn tất
-    await typingCompletedPromise;
+    // Đợi hiệu ứng dòng chảy hoàn tất (kèm safety timeout chống kẹt stream)
+    await Promise.race([
+      typingCompletedPromise,
+      new Promise(resolve => setTimeout(resolve, 3500))
+    ]);
 
     // Hoàn tất hiển thị trong bubble active
     if (activeMsg) {

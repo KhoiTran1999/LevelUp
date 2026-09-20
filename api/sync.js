@@ -1646,6 +1646,7 @@ export default async function handler(req, res) {
             await redis.del(`levelup:nick_to_sub:${sanitizedTarget}`);
           }
           await redis.del(`levelup:user:google:${targetSubToDelete}`);
+          await redis.del(`levelup:user:${targetSubToDelete}`);
           await redis.del(`levelup:user:${sanitizedTarget}`);
           await redis.zrem('levelup:leaderboard', targetSubToDelete);
           await redis.zrem('levelup:leaderboard', target);
@@ -1720,8 +1721,8 @@ export default async function handler(req, res) {
         await redis.zrem('levelup:cheaters', targetSub);
 
         const level = userData.profile?.level || 1;
-        const currentCoins = typeof userData.profile?.coins === 'number' ? userData.profile.coins : (userData.profile?.totalCoinsEarned || 20);
-        const score = (level * 1000) + currentCoins;
+        const netWorth = calculateNetWorth(userData.profile);
+        const score = (level * 1000) + netWorth;
         await redis.zadd('levelup:leaderboard', score, targetSub);
 
         return res.status(200).json({
@@ -1873,8 +1874,8 @@ export default async function handler(req, res) {
         // Đồng bộ Bảng Xếp Hạng nếu không phải kẻ gian lận
         if (!userData.profile.isCheater) {
           const finalLevel = userData.profile.level || 1;
-          const finalCoins = userData.profile.coins || 0;
-          const score = (finalLevel * 1000) + finalCoins;
+          const netWorth = calculateNetWorth(userData.profile);
+          const score = (finalLevel * 1000) + netWorth;
           await redis.zadd('levelup:leaderboard', score, canonicalSub);
           if (targetSub !== canonicalSub) {
             await redis.zrem('levelup:leaderboard', targetSub);
@@ -1920,7 +1921,11 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Không tìm thấy người chơi.' });
         }
 
-        const userData = JSON.parse(rawUserData);
+        let userData = null;
+        try { userData = JSON.parse(rawUserData); } catch (_) {}
+        if (!userData) {
+          return res.status(500).json({ error: 'Dữ liệu người chơi không hợp lệ.' });
+        }
         const serverTimestamp = Date.now();
 
         // 1. Xóa nhiều bản ghi theo danh sách tích chọn (entryIds)
