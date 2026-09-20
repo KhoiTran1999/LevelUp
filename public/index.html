@@ -28,30 +28,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Compiled Tailwind CSS (Offline-first & Production PWA ready) -->
+  <link rel="stylesheet" href="tailwind.min.css">
 
   <!-- Google Identity Services SDK -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Be Vietnam Pro"', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-          colors: {
-            guild: {
-              gold: '#f59e0b',
-              goldHover: '#d97706',
-              goldLight: '#fde68a'
-            }
-          }
-        }
-      }
-    }
-  </script>
 
   <!-- Clear legacy storage & default to dark RPG theme before paint -->
   <script>
@@ -3164,6 +3145,9 @@
 
   <!-- Toast Notification Container (Positioned above mobile bottom bar & tour) -->
   <div id="toast-container" class="fixed bottom-20 md:bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-[130] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- RPG Confetti VFX (Offline-first) -->
+  <script src="vendor/confetti.browser.min.js"></script>
 
   <!-- Application Logic -->
   <script src="app.js"></script>

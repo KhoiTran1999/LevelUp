@@ -1077,6 +1077,53 @@ function calculateRank(coins) {
   return 'S';
 }
 
+function triggerRpgCelebration(type = 'levelup') {
+  try {
+    if (typeof window !== 'undefined' && typeof window.confetti === 'function') {
+      if (type === 'levelup') {
+        window.confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#f59e0b', '#fbbf24', '#fef08a', '#6366f1', '#a855f7']
+        });
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && typeof window.confetti === 'function') {
+            window.confetti({
+              particleCount: 45,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0 },
+              colors: ['#f59e0b', '#ffd700', '#ffffff']
+            });
+            window.confetti({
+              particleCount: 45,
+              angle: 120,
+              spread: 55,
+              origin: { x: 1 },
+              colors: ['#f59e0b', '#ffd700', '#ffffff']
+            });
+          }
+        }, 200);
+      } else if (type === 's_rank') {
+        window.confetti({
+          particleCount: 65,
+          spread: 80,
+          origin: { y: 0.65 },
+          colors: ['#ef4444', '#f59e0b', '#ec4899', '#8b5cf6']
+        });
+      } else {
+        window.confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.7 },
+          colors: ['#f59e0b', '#10b981', '#3b82f6']
+        });
+      }
+    }
+  } catch (e) {}
+}
+
 function addEXP(amount) {
   appState.profile.exp += amount;
   let leveledUp = false;
@@ -1089,6 +1136,7 @@ function addEXP(amount) {
     sfx.playFanfare();
     showToast(`🎉 CHÚC MỪNG! BẠN ĐÃ LÊN CẤP ${appState.profile.level}!`, 'gold');
     updateTitleByLevel();
+    triggerRpgCelebration('levelup');
   }
 }
 
@@ -2926,6 +2974,11 @@ async function completeQuest(questId, skipConfirm = false) {
 
     sfx.playCoin();
     sfx.playFanfare();
+    if (calculateRank(quest.rewardCoins) === 'S' || (parseInt(quest.rewardCoins, 10) || 0) >= 50) {
+      triggerRpgCelebration('s_rank');
+    } else if (streakBonusCoins > 0) {
+      triggerRpgCelebration('streak');
+    }
 
     triggerSave(true);
     renderHeader();
