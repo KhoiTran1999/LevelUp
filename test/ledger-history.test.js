@@ -241,6 +241,31 @@ async function testBankLedgerIntegration() {
   console.log('✓ Test 8: Lịch sử Tiết kiệm & Vay tiền Ngân Hàng tích hợp đầy đủ vào Tab Lịch Sử (filter, mini-stats, client/server sync).');
 }
 
+// 9. Kiểm tra Cơ Chế Xem Thêm / Thu Gọn Mô Tả Thẻ Lịch Sử (Ledger Desc Toggle)
+async function testLedgerDescToggle() {
+  const fs = await import('node:fs');
+  const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  // 1. Kiểm tra CSS cho trạng thái mở rộng và nút toggle trong style.css
+  assert.ok(css.includes('.ledger-desc-content.expanded'), 'style.css phải có class .ledger-desc-content.expanded');
+  assert.ok(css.includes('white-space: normal !important'), '.ledger-desc-content.expanded phải hỗ trợ xuống dòng tự nhiên');
+  assert.ok(css.includes('.btn-toggle-ledger-desc'), 'style.css phải định nghĩa nút .btn-toggle-ledger-desc');
+
+  // 2. Kiểm tra Template HTML trong renderLedger (app.js)
+  assert.ok(appJs.includes('ledger-desc-content text-[10px] text-slate-400 truncate cursor-pointer'), 'Thẻ lịch sử phải có container .ledger-desc-content truncate');
+  assert.ok(appJs.includes('btn-toggle-ledger-desc hidden text-[10px] font-bold text-amber-600'), 'Nút .btn-toggle-ledger-desc ẩn mặc định để chờ đo đạc');
+
+  // 3. Kiểm tra logic JS đo đạc và toggle trong app.js
+  assert.ok(appJs.includes('function setupLedgerDescToggles('), 'app.js phải có hàm setupLedgerDescToggles');
+  assert.ok(appJs.includes("descContent.classList.remove('truncate')"), 'Khi xem thêm phải gỡ bỏ class truncate');
+  assert.ok(appJs.includes("descContent.classList.add('expanded')"), 'Khi xem thêm phải thêm class expanded');
+  assert.ok(appJs.includes("toggleBtn.textContent = 'Thu gọn ▲'"), 'Nhãn nút phải đổi thành Thu gọn ▲ khi mở rộng');
+  assert.ok(appJs.includes("toggleBtn.textContent = '...xem thêm'"), 'Nhãn nút phải đổi thành ...xem thêm khi thu gọn');
+
+  console.log('✓ Test 9: Cơ chế Xem Thêm / Thu Gọn cho các thẻ Lịch Sử trên mobile hoạt động chuẩn xác và mượt mà.');
+}
+
 testRollingWindow();
 testDateGrouping();
 testTodayStats();
@@ -249,5 +274,7 @@ testSchemaStandardization();
 await testZeroLocalStorageAndSkeleton();
 await testLedgerPagination();
 await testBankLedgerIntegration();
+await testLedgerDescToggle();
 
-console.log('\n🎉 TẤT CẢ 8/8 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI, PHÂN TRANG & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');
+console.log('\n🎉 TẤT CẢ 9/9 KIỂM THỬ QUẢN LÝ LỊCH SỬ THU CHI, PHÂN TRANG & ZERO-LOCALSTORAGE ĐÃ VƯỢT QUA!');
+

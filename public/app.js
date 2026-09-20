@@ -581,6 +581,10 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       if (data.adminAdjusted !== undefined) appState.profile.adminAdjusted = data.adminAdjusted;
       if (data.level !== undefined) appState.profile.level = data.level;
       if (data.title) appState.profile.title = data.title;
+      if (Array.isArray(data.ledger)) {
+        appState.ledger = data.ledger;
+        renderLedger();
+      }
       appState.lastSyncedAt = data.syncedAt || Date.now();
       saveLocalCache();
 
@@ -7612,6 +7616,11 @@ function refreshAllCardDescToggles() {
       }
     }
   });
+
+  // Đo đạc lại cho thẻ Lịch Sử nếu đang ở tab Ledger
+  if (activeTabPane.id === 'tab-ledger') {
+    setupLedgerDescToggles();
+  }
 }
 window.refreshAllCardDescToggles = refreshAllCardDescToggles;
 
@@ -8478,6 +8487,20 @@ function renderLedger() {
   const list = document.getElementById('ledger-list');
   if (!list) return;
 
+  // ponytail: Tự động dọn dẹp các bản ghi "Khôi phục Danh dự" bị duplicate nếu có trong bộ nhớ
+  if (Array.isArray(appState.ledger)) {
+    const hasPenalty = (appState.profile?.cheatStrikes || 0) > 0 || appState.ledger.some(l => l.category === 'penalty' || l.id?.startsWith('penalty_'));
+    let seenHonor = false;
+    appState.ledger = appState.ledger.filter(item => {
+      const isHonor = item.title === 'Khôi phục Danh dự' || item.id?.startsWith('honor_restored_');
+      if (!isHonor) return true;
+      if (!hasPenalty) return false;
+      if (seenHonor) return false;
+      seenHonor = true;
+      return true;
+    });
+  }
+
   const ledger = Array.isArray(appState.ledger) ? appState.ledger : [];
 
   // 1. Cập nhật thống kê nhanh trong ngày & Ngân Hàng
@@ -8572,20 +8595,23 @@ function renderLedger() {
           const displayDesc = entry.description && entry.description !== entry.title ? entry.description : '';
 
           return `
-            <div class="p-3 rounded-xl bg-white dark:bg-slate-900/60 border ${isBank ? 'border-amber-500/20' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between gap-3 text-xs shadow-xs">
-              <div class="flex items-center gap-2.5 min-w-0">
-                <span class="text-base shrink-0">${icon}</span>
-                <div class="min-w-0">
+            <div class="ledger-item p-3 rounded-xl bg-white dark:bg-slate-900/60 border ${isBank ? 'border-amber-500/20' : 'border-slate-200 dark:border-slate-800'} flex items-start justify-between gap-3 text-xs shadow-xs transition-all">
+              <div class="flex items-start gap-2.5 min-w-0 flex-1">
+                <span class="text-base shrink-0 mt-0.5">${icon}</span>
+                <div class="min-w-0 flex-1">
                   <div class="font-semibold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
                     ${categoryBadge}
                     <span class="truncate">${escapeHtml(displayTitle)}</span>
                   </div>
-                  <div class="text-[10px] text-slate-400 truncate mt-0.5">
-                    <span class="font-mono">${timeStr}</span>${displayDesc ? ` · ${escapeHtml(displayDesc)}` : ''}
+                  <div class="ledger-desc-container mt-0.5">
+                    <div class="ledger-desc-content text-[10px] text-slate-400 truncate cursor-pointer transition-colors hover:text-slate-600 dark:hover:text-slate-300" title="Nhấn để xem thêm / thu gọn">
+                      <span class="font-mono">${timeStr}</span>${displayDesc ? ` · <span class="ledger-desc-text">${escapeHtml(displayDesc)}</span>` : ''}
+                    </div>
+                    ${displayDesc ? `<button type="button" class="btn-toggle-ledger-desc hidden text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>` : ''}
                   </div>
                 </div>
               </div>
-              <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}">
+              <div class="font-mono font-bold text-sm shrink-0 inline-flex items-center gap-1 ${isEarn ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'} pt-0.5">
                 <span>${isEarn ? '+' : '-'}${entry.amount || 0}</span> ${COIN_ICON_HTML}
               </div>
             </div>
@@ -8609,7 +8635,73 @@ function renderLedger() {
       if (pageInfo) pageInfo.textContent = `Trang ${currentLedgerPage} / ${totalPages} (${filtered.length} giao dịch)`;
     }
   }
+
+  // 5. Kích hoạt cơ chế Xem thêm / Thu gọn cho các thẻ lịch sử
+  setupLedgerDescToggles();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setupLedgerDescToggles);
+  }
 }
+
+/**
+ * Tự động đo đạc và quản lý nút "...xem thêm" / "Thu gọn ▲" cho thẻ Lịch sử (Ledger).
+ * Mặc định: 1 dòng (truncate).
+ * Chỉ hiện nút toggle khi nội dung vượt quá 1 dòng trên màn hình thiết bị.
+ * Cho phép nhấn nút toggle hoặc nhấn trực tiếp vào dòng mô tả để mở rộng / thu gọn.
+ */
+function setupLedgerDescToggles() {
+  const list = document.getElementById('ledger-list');
+  if (!list) return;
+  const items = list.querySelectorAll('.ledger-item');
+  items.forEach(item => {
+    const descContent = item.querySelector('.ledger-desc-content');
+    const toggleBtn = item.querySelector('.btn-toggle-ledger-desc');
+    if (!descContent || !toggleBtn) return;
+
+    const checkOverflow = () => {
+      if (descContent.classList.contains('expanded')) return;
+      const isVisible = descContent.clientWidth > 0;
+      // Tràn khi độ rộng thực tế vượt quá độ rộng nhìn thấy (dung sai 1px cho subpixel rendering),
+      // hoặc nếu tab đang ẩn thì dựa vào độ dài ký tự (> 35 ký tự)
+      const isOverflowing = isVisible
+        ? (descContent.scrollWidth > descContent.clientWidth + 1)
+        : (descContent.textContent.trim().length > 35);
+
+      if (isOverflowing) {
+        toggleBtn.classList.remove('hidden');
+      } else {
+        toggleBtn.classList.add('hidden');
+      }
+    };
+
+    if (!item.dataset.toggleBound) {
+      item.dataset.toggleBound = 'true';
+      const toggleExpand = (e) => {
+        if (e) e.stopPropagation();
+        const isExpanded = descContent.classList.contains('expanded');
+        if (isExpanded) {
+          descContent.classList.remove('expanded');
+          descContent.classList.add('truncate');
+          toggleBtn.textContent = '...xem thêm';
+        } else {
+          descContent.classList.remove('truncate');
+          descContent.classList.add('expanded');
+          toggleBtn.textContent = 'Thu gọn ▲';
+        }
+      };
+
+      toggleBtn.addEventListener('click', toggleExpand);
+      descContent.addEventListener('click', (e) => {
+        if (!toggleBtn.classList.contains('hidden')) {
+          toggleExpand(e);
+        }
+      });
+    }
+
+    checkOverflow();
+  });
+}
+window.setupLedgerDescToggles = setupLedgerDescToggles;
 
 function renderAll() {
   renderHeader();
@@ -9062,7 +9154,7 @@ function switchTab(tabId) {
     loadBankState();
   }
 
-  if (['quests', 'shop'].includes(tabId)) {
+  if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(refreshAllCardDescToggles);
     }

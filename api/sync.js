@@ -1592,6 +1592,28 @@ export default async function handler(req, res) {
         } catch (_) {}
       }
 
+      // Dọn dẹp các bản ghi "Khôi phục Danh dự" bị duplicate nếu có trong data.ledger
+      if (Array.isArray(data.ledger)) {
+        const hasPenalty = Boolean(
+          (data.profile?.cheatStrikes || 0) > 0 ||
+          data.profile?.cheatedAt ||
+          data.ledger.some(l => l.category === 'penalty' || l.id?.startsWith('penalty_'))
+        );
+        let seenHonor = false;
+        const cleanedLedger = data.ledger.filter(item => {
+          const isHonor = item.title === 'Khôi phục Danh dự' || item.id?.startsWith('honor_restored_');
+          if (!isHonor) return true;
+          if (!hasPenalty) return false;
+          if (seenHonor) return false;
+          seenHonor = true;
+          return true;
+        });
+        if (cleanedLedger.length !== data.ledger.length) {
+          data.ledger = cleanedLedger;
+          dataChanged = true;
+        }
+      }
+
       if (dataChanged) {
         await redis.set(userKey, JSON.stringify(data), 'EX', 180 * 24 * 3600);
       }
@@ -2494,12 +2516,20 @@ export default async function handler(req, res) {
       }
 
       // Tự động khôi phục danh dự toàn diện cho người dùng bị bắt oan do bug chữ ký phần thưởng, quà mẫu hoặc nhiệm vụ
+      const wasCurrentlyFlagged = Boolean(
+        existingState?.profile?.isCheater ||
+        state?.profile?.isCheater ||
+        existingState?.profile?.title === 'Kẻ Gian Lận ⚠️' ||
+        state?.profile?.title === 'Kẻ Gian Lận ⚠️' ||
+        existingState?.profile?.title?.includes('Chuộc Tội') ||
+        state?.profile?.title?.includes('Chuộc Tội')
+      );
       const hadHealedBounty = Array.isArray(state.quests) && state.quests.some(q => q._healed);
       const hadLegitPurchases = Array.isArray(state.inventory) && state.inventory.some(i =>
         i.shopItemId === 'shop_seed_1' || i.shopItemId === 'shop_seed_2' || i.shopItemId === 'shop_seed_3' ||
         (i.shopItemId && Array.isArray(state.shopItems) && state.shopItems.some(s => s.id === i.shopItemId))
       );
-      const isFalselyFlagged = (hadHealedBounty || hadLegitPurchases) && !balanceCheck.tampered;
+      const isFalselyFlagged = wasCurrentlyFlagged && (hadHealedBounty || hadLegitPurchases) && !balanceCheck.tampered;
 
       if (isFalselyFlagged) {
         if (state.profile) {
@@ -2530,6 +2560,25 @@ export default async function handler(req, res) {
       for (const q of (Array.isArray(state.quests) ? state.quests : [])) {
         delete q._healed;
       }
+
+      // Dọn dẹp các bản ghi "Khôi phục Danh dự" bị duplicate/spam do bug auto-healing trước đó
+      const hasRealPenaltyHistory = Boolean(
+        (existingState?.profile?.cheatStrikes || 0) > 0 ||
+        existingState?.profile?.cheatedAt ||
+        updatedLedger.some(l => l.category === 'penalty' || l.id?.startsWith('penalty_') || l.id?.startsWith('timehack_'))
+      );
+
+      let seenHonorEntry = false;
+      updatedLedger = updatedLedger.filter(item => {
+        const isHonorItem = item.title === 'Khôi phục Danh dự' || item.id?.startsWith('honor_restored_');
+        if (!isHonorItem) return true;
+        // Nếu người chơi hoàn toàn trong sạch (chưa từng bị phạt, không có strike), xóa sạch bản ghi rác này
+        if (!hasRealPenaltyHistory && !isFalselyFlagged) return false;
+        // Nếu người chơi từng có lịch sử bị phạt hoặc vừa được giải oan hợp lệ, giữ lại tối đa 1 bản ghi gần nhất
+        if (seenHonorEntry) return false;
+        seenHonorEntry = true;
+        return true;
+      });
 
       // Xử lý Thử Thách Chuộc Tội (Redemption Challenge - Hướng A)
       let isCheater = Boolean(
@@ -2890,7 +2939,8 @@ export default async function handler(req, res) {
         fine: balanceCheck.fine,
         isCheater,
         redeemed: redeemedJustNow,
-        penalty: penaltyMessage
+        penalty: penaltyMessage,
+        ledger: payloadToSave.ledger
       });
     }
 

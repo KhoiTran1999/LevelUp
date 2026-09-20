@@ -770,4 +770,61 @@ const timeDeviceB_fresh = baseTime + 2000;
   console.log('✓ Test 19: Nhiệm vụ lặp lại dài hạn (> 20 lần) bảo toàn trọn vẹn số Vàng tích lũy hợp lệ.');
 }
 
-console.log('\n🎉 TẤT CẢ 19/19 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');
+// Test 20: Người chơi trung thực không bị spam 'Khôi phục Danh dự' & tự động lọc sạch bản ghi duplicate
+{
+  const userSubHonest = 'google_honest_user_999';
+  const honestToken = 'mock_google_token_honest';
+  setGoogleTokenVerifierForTesting(async (token) => {
+    if (token === honestToken) return { sub: userSubHonest, email: 'honest@example.com', name: 'HonestUser' };
+    if (token === victimToken) return { sub: userSubVictim, email: 'victim@example.com', name: 'NanNhanShop' };
+    return null;
+  });
+
+  const honestQuestSig = signQuest('Làm Báo Cáo', 'focus', 25, 35);
+  const stateHonest = {
+    profile: {
+      nickname: 'HiepSiChanChinh',
+      googleId: userSubHonest,
+      coins: 20,
+      totalCoinsEarned: 55,
+      title: 'Tập Sự Vô Danh',
+      isCheater: false,
+      cheatStrikes: 0
+    },
+    quests: [
+      { id: 'q_honest_1', title: 'Làm Báo Cáo', type: 'focus', targetMinutes: 25, rewardCoins: 35, status: 'completed', signature: honestQuestSig }
+    ],
+    inventory: [
+      { id: 'inv_seed_tea', shopItemId: 'shop_seed_1', name: '1 Ly Trà Sữa', price: 35, tier: 'rare' }
+    ],
+    ledger: [
+      { id: 'honor_restored_old_1', title: 'Khôi phục Danh dự', amount: 0, timestamp: Date.now() - 2000 },
+      { id: 'honor_restored_old_2', title: 'Khôi phục Danh dự', amount: 0, timestamp: Date.now() - 1000 },
+      { id: 'tx_legit_bank', title: 'Gửi tiết kiệm Ngân Hàng', amount: 50, type: 'spend', category: 'bank_deposit', timestamp: Date.now() }
+    ]
+  };
+
+  await mockRedis.set(`levelup:user:google:${userSubHonest}`, JSON.stringify(stateHonest));
+
+  const req = createMockReq({
+    method: 'POST',
+    headers: { Authorization: `Bearer ${honestToken}` },
+    body: {
+      nickname: 'HiepSiChanChinh',
+      token: honestToken,
+      state: stateHonest
+    }
+  });
+  const res = createMockRes();
+  await handler(req, res);
+
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(res.body.isCheater, false);
+  const savedState = JSON.parse(await mockRedis.get(`levelup:user:google:${userSubHonest}`));
+  const honorEntries = (savedState.ledger || []).filter(item => item.title === 'Khôi phục Danh dự' || item.id?.startsWith('honor_restored_'));
+  assert.strictEqual(honorEntries.length, 0, 'Người chơi trung thực phải được lọc sạch các bản ghi Khôi phục Danh dự bị spam do bug');
+  assert.strictEqual(savedState.ledger.length, 1, 'Chỉ còn lại giao dịch ngân hàng hợp lệ');
+  console.log('✓ Test 20: Ngăn chặn triệt để spam Khôi phục Danh dự và tự động dọn dẹp bản ghi rác cho người chơi trung thực.');
+}
+
+console.log('\n🎉 TẤT CẢ 20/20 TEST ANTI-CHEAT & ĐỒNG BỘ ĐA THIẾT BỊ ĐÃ VƯỢT QUA XUẤT SẮC!\n');

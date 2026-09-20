@@ -487,6 +487,29 @@ html.dark .quest-dropdown-menu {
   opacity: 0.8;
 }
 
+/* Ledger / History Description Expand & Collapse */
+.ledger-desc-content.expanded {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  line-height: 1.4 !important;
+}
+
+.btn-toggle-ledger-desc {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 2px;
+  display: inline-block;
+  font-size: 10px;
+  line-height: inherit;
+  transition: opacity 0.15s ease;
+}
+.btn-toggle-ledger-desc:hover {
+  opacity: 0.8;
+}
+
 /* Sub-panel (Verdicts, quotes, advice) */
 .sub-panel {
   background-color: var(--subpanel-bg);
