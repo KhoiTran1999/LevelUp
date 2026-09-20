@@ -10110,6 +10110,7 @@ async function initStartupFlow() {
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
         applyTheme(appState.profile.theme || 'dark');
+        saveLocalCache();
         closeModal('modal-welcome');
         renderAll();
         restoreFocusTimer();
@@ -12031,7 +12032,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 10000);
 
-  // Polling tần suất cao 2.5 giây khi có phiên đếm giờ đang hoạt động để dừng thiết bị cũ và nhận diện kịp thời
+  // Polling tần suất cao 5 giây khi có phiên đếm giờ đang hoạt động để dừng thiết bị cũ và nhận diện kịp thời
   setInterval(() => {
     if (!document.hidden && (isFocusRunning || appState.activeTimer) && appState.profile?.googleId && appState.profile?.nickname) {
       // Nếu thiết bị này đang là runner đang chạy, nó là nguồn sự thật và đã có checkpoint 30s, không cần poll đè lên chính nó
@@ -12040,7 +12041,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hydrateFromCloud(false);
       }
     }
-  }, 2500);
+  }, 5000);
 
   // Navigation Tab buttons (Desktop & Mobile)
   document.querySelectorAll('.nav-tab, .mobile-nav-btn').forEach(btn => {

@@ -46,7 +46,7 @@
   </script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.1">
 </head>
 <body class="min-h-screen antialiased selection:bg-amber-500 selection:text-black pb-24 md:pb-12 overflow-x-hidden">
 
@@ -3150,6 +3150,15 @@
   <script src="vendor/confetti.browser.min.js"></script>
 
   <!-- Application Logic -->
-  <script src="app.js"></script>
+  <script src="app.js?v=1.0.1"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

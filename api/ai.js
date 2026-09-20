@@ -2365,26 +2365,34 @@ NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
   const workerResults = [];
   const actionCards = [];
 
-  for (const task of brainAnalysis.workerTasks.slice(0, 4)) {
+  const workerTasks = brainAnalysis.workerTasks.slice(0, 4);
+  const taskPromises = workerTasks.map(async (task) => {
     const toolName = task.tool || task.action;
     const toolArgs = task.params || task.args || {};
     toolsExecuted.push(toolName);
 
     try {
       const res = await executeWorkerTool(toolName, toolArgs, { callerSub, redis, draftContext });
-      workerResults.push(res);
-
-      if (toolName === 'create_quest' && res.status === 'success') {
-        actionCards.push({ type: 'quest_created', quest: res.data });
-      } else if (toolName === 'create_reward' && res.status === 'success') {
-        actionCards.push({ type: 'reward_created', reward: res.data });
-      }
+      return { toolName, res };
     } catch (toolErr) {
-      workerResults.push({
-        tool: toolName,
-        status: 'error',
-        error: toolErr.message
-      });
+      return {
+        toolName,
+        res: {
+          tool: toolName,
+          status: 'error',
+          error: toolErr.message
+        }
+      };
+    }
+  });
+
+  const resolvedTasks = await Promise.all(taskPromises);
+  for (const { toolName, res } of resolvedTasks) {
+    workerResults.push(res);
+    if (toolName === 'create_quest' && res.status === 'success') {
+      actionCards.push({ type: 'quest_created', quest: res.data });
+    } else if (toolName === 'create_reward' && res.status === 'success') {
+      actionCards.push({ type: 'reward_created', reward: res.data });
     }
   }
 
@@ -4493,15 +4501,10 @@ QUY TẮC:
 
             // 2. Stream từng token/từ của câu trả lời về cho client theo thời gian thực
             const fullReply = result.reply || '';
-            const isTestEnv = process.env.NODE_ENV === 'test';
             const streamChunks = fullReply.match(/\S+\s*|\s+/g) || [fullReply];
-            const delayMs = isTestEnv ? 0 : 16;
 
             for (const chunk of streamChunks) {
               sse.send('chunk', { delta: chunk });
-              if (delayMs > 0) {
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-              }
             }
 
             // 3. Hoàn tất toàn bộ tiến trình
