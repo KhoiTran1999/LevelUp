@@ -1,6 +1,35 @@
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import crypto from 'node:crypto';
+import {
+  QuestSchema,
+  RewardSchema,
+  LoanOfferSchema,
+  BankActionSchema,
+  ProfileSchema,
+  StateSyncSchema,
+  validateQuest,
+  validateReward,
+  validateLoanOffer,
+  validateBankAction,
+  validateProfile,
+  validateStateSync
+} from '../src/schemas/game.js';
+
+export {
+  QuestSchema,
+  RewardSchema,
+  LoanOfferSchema,
+  BankActionSchema,
+  ProfileSchema,
+  StateSyncSchema,
+  validateQuest,
+  validateReward,
+  validateLoanOffer,
+  validateBankAction,
+  validateProfile,
+  validateStateSync
+};
 
 dotenv.config();
 
@@ -1669,6 +1698,10 @@ export default async function handler(req, res) {
 
       // 3.4 Các thao tác Ngân Hàng 3 Bên (Banking Actions: deposit, withdraw, borrow, repay)
       if (action === 'bank_deposit' || action === 'bank_withdraw' || action === 'bank_borrow' || action === 'bank_repay') {
+        const valResult = validateBankAction({ action, ...req.body });
+        if (!valResult.success) {
+          return res.status(400).json({ error: valResult.error });
+        }
         if (!token) {
           return res.status(401).json({ error: 'Cần đăng nhập Google để thực hiện giao dịch ngân hàng.' });
         }

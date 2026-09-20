@@ -13,6 +13,30 @@ import {
   calculateBankRates,
   calculateCreditLimit
 } from './sync.js';
+import {
+  repairJsonString,
+  QuestAppraisalOutputSchema,
+  RewardAppraisalOutputSchema,
+  DebateOutputSchema,
+  AssistantOutputSchema,
+  validateQuestAppraisalOutput,
+  validateRewardAppraisalOutput,
+  validateDebateOutput,
+  validateAssistantOutput
+} from '../src/schemas/ai.js';
+
+export {
+  repairJsonString,
+  QuestAppraisalOutputSchema,
+  RewardAppraisalOutputSchema,
+  DebateOutputSchema,
+  AssistantOutputSchema,
+  validateQuestAppraisalOutput,
+  validateRewardAppraisalOutput,
+  validateDebateOutput,
+  validateAssistantOutput
+};
+
 dotenv.config();
 
 const BASE_URL = (process.env.CUSTOM_AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
@@ -63,7 +87,8 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
       { role: 'user', content: userContent }
     ],
     temperature: temp,
-    stream: false
+    stream: false,
+    response_format: options.response_format || { type: 'json_object' }
   };
 
   if (reasoning_effort) {
@@ -91,13 +116,8 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
   const data = await response.json();
   const rawContent = data.choices?.[0]?.message?.content || '';
 
-  // Extract JSON if model wraps it in markdown codeblocks
-  let cleaned = rawContent.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```\s*/i, '').replace(/```\s*$/, '');
-  }
+  // Extract and repair JSON if model wraps it in markdown or has trailing commas
+  const cleaned = repairJsonString(rawContent);
 
   // Normalize strings recursively to Unicode NFC (precomposed)
   function normalizeNFC(val) {
@@ -117,10 +137,12 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
     const parsed = JSON.parse(cleaned);
     return normalizeNFC(parsed);
   } catch (e) {
-    // If parsing fails, attempt regex extraction of JSON object
+    // If parsing fails, attempt regex extraction and repair
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
-      return normalizeNFC(JSON.parse(match[0]));
+      try {
+        return normalizeNFC(JSON.parse(repairJsonString(match[0])));
+      } catch (_) {}
     }
     throw new Error(`Invalid JSON from AI: ${rawContent}`);
   }
@@ -132,12 +154,7 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
  */
 export function parseAIJsonContent(rawContent) {
   if (!rawContent || typeof rawContent !== 'string') return null;
-  let cleaned = rawContent.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```\s*/i, '').replace(/```\s*$/, '');
-  }
+  const cleaned = repairJsonString(rawContent);
   try {
     const parsed = JSON.parse(cleaned);
     if (parsed && typeof parsed === 'object') return parsed;
@@ -145,7 +162,7 @@ export function parseAIJsonContent(rawContent) {
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
       try {
-        const parsed = JSON.parse(match[0]);
+        const parsed = JSON.parse(repairJsonString(match[0]));
         if (parsed && typeof parsed === 'object') return parsed;
       } catch (_) {}
     }

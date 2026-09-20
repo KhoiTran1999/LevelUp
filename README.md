@@ -60,15 +60,21 @@ LevelUp/
 ├── api/                   # Serverless Endpoints (Vercel Edge Functions)
 │   ├── ai.js              # Xử lý thẩm định nhiệm vụ, đàm phán & Trợ lý Phù Thủy AI
 │   └── sync.js            # Đồng bộ dữ liệu, xác thực Google & quản lý Redis
+├── src/                   # Mã nguồn phát triển giao diện & logic
+│   ├── js/                # 19 Module chức năng chuyên biệt (Sound, Timer, Bank, Quest, AI...)
+│   └── tailwind.css       # Cấu hình Tailwind CSS nguồn
 ├── public/                # Giao diện Web tĩnh & Tài nguyên PWA
 │   ├── index.html         # Khung giao diện chính và các modal RPG
-│   ├── app.js             # Logic ứng dụng phía Client & Web Audio engine
+│   ├── app.js             # Bundle ứng dụng được đóng gói từ src/js/ (< 20ms)
 │   ├── style.css          # Tùy biến hoạt họa và giao diện RPG guild
 │   ├── manifest.json      # Khai báo Progressive Web App
 │   ├── apple-touch-icon.png # Icon chuẩn Apple HIG cho Safari iOS
 │   └── logo.svg           # Biểu tượng thương hiệu vector
-├── test/                  # Bộ 41 suite kiểm thử tự động toàn diện
+├── scripts/               # Scripts đóng gói và tự động hóa build
+│   └── build-client.js    # Đóng gói 19 modules thành public/app.js & watch mode
+├── test/                  # Bộ 46 suite kiểm thử tự động toàn diện
 ├── server.js              # Máy chủ phát triển cục bộ (Express + API proxy)
+├── vite.config.js         # Cấu hình Vite dev server với API proxying
 └── vercel.json            # Cấu hình định tuyến triển khai Serverless
 ```
 
