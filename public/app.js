@@ -13264,7 +13264,7 @@ async function clearAssistantChat() {
 
 function sendQuickAssistantPrompt(text) {
   const input = document.getElementById('input-assistant-query');
-  if (input) input.value = text;
+  if (input) input.value = '';
   sendAssistantMessage(text);
 }
 
@@ -13291,6 +13291,7 @@ async function sendAssistantMessage(userQuery) {
 
   isAssistantBusy = true;
   if (sendBtn) sendBtn.disabled = true;
+  if (input) input.value = '';
   if (input) input.readOnly = true;
 
   // Append user bubble
@@ -13437,6 +13438,10 @@ async function sendAssistantMessage(userQuery) {
         } else {
           step = 1;
         }
+        if (isServerDone) {
+          // Khi server đã hoàn tất, tăng tốc độ gõ nhịp nhàng để không bị trễ
+          step = Math.max(step, Math.ceil(pending / 10));
+        }
 
         renderedChars = Math.min(targetReplyText.length, renderedChars + step);
         const currentSlice = targetReplyText.slice(0, renderedChars);
@@ -13452,6 +13457,12 @@ async function sendAssistantMessage(userQuery) {
         streamTimer = setTimeout(tickStream, 16);
       } else {
         streamTimer = null;
+        if (streamBody && targetReplyText) {
+          streamBody.innerHTML = renderMarkdown(targetReplyText);
+        }
+        if (activeMsg) {
+          activeMsg.querySelectorAll('.assistant-typing-cursor').forEach(el => el.remove());
+        }
         if (isServerDone && notifyDoneResolve) {
           notifyDoneResolve();
           notifyDoneResolve = null;
@@ -13475,7 +13486,10 @@ async function sendAssistantMessage(userQuery) {
         }
         renderedChars = targetReplyText.length;
         if (streamBody) {
-          streamBody.innerHTML = renderStreamingMarkdown(targetReplyText);
+          streamBody.innerHTML = renderMarkdown(targetReplyText);
+        }
+        if (activeMsg) {
+          activeMsg.querySelectorAll('.assistant-typing-cursor').forEach(el => el.remove());
         }
         if (!userScrolledUp && chatLogs) {
           chatLogs.scrollTop = chatLogs.scrollHeight;
@@ -13582,6 +13596,13 @@ async function sendAssistantMessage(userQuery) {
       new Promise(resolve => setTimeout(resolve, 3500))
     ]);
 
+    // Hủy triệt để bộ đếm streamTimer nếu còn sót để không ghi đè lại nội dung hoặc cướp vị trí cuộn
+    if (streamTimer) {
+      clearTimeout(streamTimer);
+      streamTimer = null;
+    }
+    renderedChars = targetReplyText.length;
+
     // Hoàn tất hiển thị trong bubble active
     if (activeMsg) {
       if (activeStatus) activeStatus.classList.add('hidden');
@@ -13590,6 +13611,10 @@ async function sendAssistantMessage(userQuery) {
       // Tắt hào quang đang nói và con trỏ
       const cursor = activeMsg.querySelector('.assistant-typing-cursor');
       if (cursor) cursor.remove();
+      activeMsg.querySelectorAll('.assistant-typing-cursor').forEach(el => el.remove());
+      if (chatLogs) {
+        chatLogs.querySelectorAll('.assistant-typing-cursor').forEach(el => el.remove());
+      }
       const bubbleContainer = activeMsg.querySelector('.assistant-bubble-speaking');
       if (bubbleContainer) bubbleContainer.classList.remove('assistant-bubble-speaking');
       const avatarEl = activeMsg.querySelector('.assistant-avatar-speaking');
@@ -13599,6 +13624,7 @@ async function sendAssistantMessage(userQuery) {
       if (streamBody) {
         streamBody.innerHTML = renderMarkdown(finalResult.reply || targetReplyText || '');
       }
+      activeMsg.querySelectorAll('.assistant-typing-cursor').forEach(el => el.remove());
 
       // Đảm bảo khối suy nghĩ và khối worker được render nếu trước đó chưa nhận reply_start
       if (activeThought && !activeThought.innerHTML.trim() && finalResult.thought) {
@@ -13638,6 +13664,9 @@ async function sendAssistantMessage(userQuery) {
       // Tự động cuộn mượt lên dòng đầu tin nhắn Phù Thủy vừa gửi để user có thể đọc lại từ đầu tin
       requestAnimationFrame(() => {
         scrollAssistantToMessage(finishedMsgEl, true);
+        setTimeout(() => {
+          scrollAssistantToMessage(finishedMsgEl, true);
+        }, 120);
       });
     } else {
       // Fallback nếu DOM activeMsg không tìm thấy
@@ -13676,6 +13705,10 @@ async function sendAssistantMessage(userQuery) {
     }
     showToast(err.message || 'Lỗi kết nối Phù Thủy', 'error');
   } finally {
+    if (streamTimer) {
+      clearTimeout(streamTimer);
+      streamTimer = null;
+    }
     if (chatLogs) {
       chatLogs.removeEventListener('scroll', handleUserScroll);
     }
