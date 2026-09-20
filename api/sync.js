@@ -1306,7 +1306,14 @@ export default async function handler(req, res) {
       return res.status(200).json({
         found: true,
         isOwner: true,
-        data
+        sessionToken: token || undefined,
+        data: {
+          ...data,
+          profile: {
+            ...(data.profile || {}),
+            ...(token ? { sessionToken: token } : {})
+          }
+        }
       });
     }
 

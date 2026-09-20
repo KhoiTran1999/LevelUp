@@ -3043,11 +3043,12 @@ async function undoCompleteQuest(questId) {
     deductEXP(totalAwarded * 3);
 
     if (deductedAmount > 0) {
+      ensureUserBankProfile();
       if (typeof currentBankPool === 'object' && currentBankPool) {
         currentBankPool.totalBorrowed = (currentBankPool.totalBorrowed || 0) + principalDeducted;
         currentBankPool.poolGold = Math.max(0, (currentBankPool.poolGold || 0) - deductedAmount);
       }
-      if (appState.profile.bank.loan) {
+      if (appState.profile.bank?.loan) {
         const loan = appState.profile.bank.loan;
         loan.debt = (loan.debt || 0) + deductedAmount;
         loan.principal = (loan.principal || 0) + principalDeducted;
@@ -3452,6 +3453,7 @@ async function submitQuestProofToAI() {
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'verify_proof',
@@ -4680,6 +4682,7 @@ async function submitQuestToAI() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'evaluate_quest',
@@ -5175,7 +5178,11 @@ function createDebateLoadingBubble(modeOrText = 'quest') {
 
 // Bộ đọc luồng Server-Sent Events (SSE) thời gian thực cho thương lượng AI
 async function fetchDebateStream(url, options, onStep) {
-  const res = await fetch(url, options);
+  const fetchOptions = {
+    credentials: 'include',
+    ...options
+  };
+  const res = await fetch(url, fetchOptions);
   if (!res.ok) {
     let errJson = null;
     try { errJson = await res.json(); } catch (_) {}
@@ -5906,6 +5913,7 @@ async function evaluateRewardItem() {
 
     const res = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'evaluate_reward',
@@ -7946,11 +7954,14 @@ function renderQuests() {
       });
     }
 
-    card.querySelector('.btn-del-quest').addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeAllCardDropdowns();
-      deleteQuest(q.id);
-    });
+    const delQuestBtn = card.querySelector('.btn-del-quest');
+    if (delQuestBtn) {
+      delQuestBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        deleteQuest(q.id);
+      });
+    }
 
     const debateQuestBtn = card.querySelector('.btn-debate-quest');
     if (debateQuestBtn) {
@@ -8188,11 +8199,14 @@ function renderShop() {
     // Toggle description expand / collapse
     setupCardDescToggle(card, '.reward-desc-text');
 
-    card.querySelector('.btn-del-shop-item').addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeAllCardDropdowns();
-      deleteShopItem(item.id);
-    });
+    const delShopBtn = card.querySelector('.btn-del-shop-item');
+    if (delShopBtn) {
+      delShopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        deleteShopItem(item.id);
+      });
+    }
 
     const debateShopBtn = card.querySelector('.btn-debate-shop-item');
     if (debateShopBtn) {
@@ -8203,9 +8217,12 @@ function renderShop() {
       });
     }
 
-    card.querySelector('.btn-buy-item').addEventListener('click', () => {
-      buyShopItem(item.id);
-    });
+    const buyItemBtn = card.querySelector('.btn-buy-item');
+    if (buyItemBtn) {
+      buyItemBtn.addEventListener('click', () => {
+        buyShopItem(item.id);
+      });
+    }
 
     fragment.appendChild(card);
   });
@@ -10033,6 +10050,9 @@ async function initStartupFlow() {
             ...(result.data.profile || {})
           }
         });
+        if (result.sessionToken || result.data?.profile?.sessionToken) {
+          appState.profile.sessionToken = result.sessionToken || result.data?.profile?.sessionToken;
+        }
         const balance = deriveLegitimateBalance(appState);
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
@@ -10111,29 +10131,67 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
 
 function accrueLocalUserBank(bank, pool, now = Date.now()) {
   if (!bank || typeof bank !== 'object') return bank;
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  if (deposited <= 0) return bank;
-
-  const lastDep = parseInt(bank.lastDepositAt, 10) || now;
-  const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
-  if (elapsedDays <= 0) return bank;
 
   const rates = pool?.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
-  const depRate = Number(rates?.depositRate) || 0.02;
-  const standardEarned = Math.floor(deposited * depRate * elapsedDays);
-  // Floor rule: gửi >= 10 Vàng và qua >= 24h thì tối thiểu 1 Vàng/ngày
-  const minFloorEarned = (deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
-  const interestEarned = Math.max(standardEarned, minFloorEarned);
 
-  if (interestEarned > 0) {
-    bank.depositInterest = (parseInt(bank.depositInterest, 10) || 0) + interestEarned;
-    const effectiveDailyRate = Math.max(deposited * depRate, deposited >= 10 ? 1 : 0);
-    const daysConsumed = effectiveDailyRate > 0
-      ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
-      : Math.floor(elapsedDays);
-    const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
-    bank.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
+  // 1. Accrue deposit interest
+  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
+  if (deposited > 0) {
+    const lastDep = parseInt(bank.lastDepositAt, 10) || now;
+    const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
+    if (elapsedDays > 0) {
+      const depRate = Number(rates?.depositRate) || 0.02;
+      const standardEarned = Math.floor(deposited * depRate * elapsedDays);
+      // Floor rule: gửi >= 10 Vàng và qua >= 24h thì tối thiểu 1 Vàng/ngày
+      const minFloorEarned = (deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
+      const interestEarned = Math.max(standardEarned, minFloorEarned);
+
+      if (interestEarned > 0) {
+        bank.depositInterest = (parseInt(bank.depositInterest, 10) || 0) + interestEarned;
+        const effectiveDailyRate = Math.max(deposited * depRate, deposited >= 10 ? 1 : 0);
+        const daysConsumed = effectiveDailyRate > 0
+          ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
+          : Math.floor(elapsedDays);
+        const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
+        bank.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
+      }
+    }
+  } else {
+    bank.lastDepositAt = now;
   }
+
+  // 2. Accrue loan debt interest & check overdue
+  if (bank.loan && parseInt(bank.loan.debt, 10) > 0) {
+    const loan = {
+      ...bank.loan,
+      principal: Math.max(0, parseInt(bank.loan.principal, 10) || 0),
+      debt: Math.max(0, parseInt(bank.loan.debt, 10) || 0),
+      borrowRate: Number(bank.loan.borrowRate) || Number(rates?.borrowRate) || 0.06,
+      autoDeductPercent: Math.min(0.80, Math.max(0.20, Number(bank.loan.autoDeductPercent) || 0.50)),
+      isOverdue: Boolean(bank.loan.isOverdue)
+    };
+
+    const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
+    const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
+    const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
+
+    if ((now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000) {
+      loan.isOverdue = true;
+      bank.isFrozen = true;
+    }
+
+    if (elapsedDays >= 1) {
+      const daysCount = Math.min(365, Math.floor(elapsedDays));
+      for (let d = 0; d < daysCount; d++) {
+        const dailyInterest = Math.ceil(loan.debt * loan.borrowRate);
+        loan.debt += dailyInterest;
+      }
+      loan.lastAccruedAt = lastAcc + (daysCount * 24 * 60 * 60 * 1000);
+    }
+
+    bank.loan = loan;
+  }
+
   return bank;
 }
 
@@ -10170,7 +10228,7 @@ async function loadBankState() {
 
   let fetchSuccess = false;
   try {
-    const res = await fetch(`/api/sync?action=bank_state&token=${encodeURIComponent(token || '')}&ts=${Date.now()}`);
+    const res = await fetch(`/api/sync?action=bank_state&token=${encodeURIComponent(token || '')}&ts=${Date.now()}`, { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       if (data.pool) {
@@ -10437,6 +10495,7 @@ async function loadBankAiCommentary(pool) {
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     const res = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -11082,6 +11141,7 @@ async function loadBankLoanConsultation(forceRefresh = true) {
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     const res = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -13275,6 +13335,7 @@ async function sendAssistantMessage(userQuery) {
   try {
     const response = await fetch('/api/ai', {
       method: 'POST',
+      credentials: 'include',
       signal: currentAssistantAbortCtrl.signal,
       headers: {
         ...getAuthHeaders(),
