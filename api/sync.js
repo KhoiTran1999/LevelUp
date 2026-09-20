@@ -311,7 +311,7 @@ export async function reconcileGlobalBankPool(redis, poolState) {
   return poolState;
 }
 
-export async function getGlobalBankState(redis, autoReconcile = true) {
+export async function getGlobalBankState(redis, autoReconcile = false) {
   const defaultBank = {
     poolGold: 500, // Kho bạc bảo chứng ban đầu
     totalBorrowed: 0,
@@ -984,29 +984,6 @@ export default async function handler(req, res) {
 
       // 2.2 Sổ Đen Kẻ Gian Lận (Cheaters / Hall of Shame)
       if (action === 'cheaters') {
-        // Tự động rà soát và đưa các tài khoản gian lận trước đó vào Sorted Set levelup:cheaters
-        try {
-          if (typeof redis.keys === 'function') {
-            const userKeys = await redis.keys('levelup:user:*');
-            for (const uKey of userKeys) {
-              const raw = await redis.get(uKey);
-              if (!raw) continue;
-              try {
-                const uData = JSON.parse(raw);
-                if (uData.profile && (
-                  uData.profile.isCheater === true ||
-                  uData.profile.title === 'Kẻ Gian Lận ⚠️' ||
-                  (typeof uData.profile.title === 'string' && uData.profile.title.startsWith('Đang Chuộc Tội'))
-                )) {
-                  const subOrKey = uData.profile.googleId || uKey.replace(/^levelup:user:(google:)?/, '');
-                  const cheatedTime = uData.lastSyncedAt || uData.profile.cheatedAt || Date.now();
-                  await redis.zadd('levelup:cheaters', cheatedTime, subOrKey);
-                }
-              } catch (_) {}
-            }
-          }
-        } catch (_) {}
-
         const cheaterEntries = await redis.zrevrange('levelup:cheaters', 0, 49, 'WITHSCORES');
         const cheaters = [];
 
@@ -1143,19 +1120,6 @@ export default async function handler(req, res) {
             chMembers.forEach(m => m && userKeySet.add(m));
           }
         } catch (_) {}
-
-        // 3. Thu thập từ keys pattern 'levelup:user:*'
-        if (typeof redis.keys === 'function') {
-          try {
-            const keys = await redis.keys('levelup:user:*');
-            if (Array.isArray(keys)) {
-              for (const k of keys) {
-                const subOrKey = k.replace(/^levelup:user:(google:)?/, '');
-                if (subOrKey) userKeySet.add(subOrKey);
-              }
-            }
-          } catch (_) {}
-        }
 
         const users = [];
         const seenSubs = new Set();
