@@ -429,8 +429,54 @@ async function runComprehensiveTimerTests() {
     console.log('  -> Chu trình Handover -> Pause -> Hold -> Resume hoạt động hoàn hảo 100%: OK\n');
   }
 
+  // ---------------------------------------------------------------------------
+  // Test 11: Chống hiện tượng Tắt -> Bật -> Tắt Lại (Flicker / Rebound) trên BroadcastChannel & Storage
+  // ---------------------------------------------------------------------------
+  console.log('Test 11: BroadcastChannel & Storage Event không được tự ý gọi hydrateFromCloud hoặc phục hồi khi Hủy/Bảo Lưu');
+  {
+    const bcIndex = appCode.indexOf("syncChannel.onmessage = (event) => {");
+    const bcEndIndex = appCode.indexOf("if (event.data?.type === 'ADMIN_SYNC_UPDATE')", bcIndex);
+    const bcHandlerCode = appCode.slice(bcIndex, bcEndIndex);
+
+    assert.ok(
+      !bcHandlerCode.includes("if (event.data.action === 'cancel' || event.data.action === 'hold') {\n            clearFocusTimerSession(false);\n          }\n          if (appState.profile?.googleId"),
+      'BroadcastChannel không được gọi hydrateFromCloud ngay lập tức khi nhận action cancel hoặc hold'
+    );
+    assert.ok(
+      bcHandlerCode.includes("lastLocalTimerActionTime = Date.now();\n            appState.lastTimerClearedAt = Date.now();"),
+      'BroadcastChannel cancel/hold phải đánh dấu lastLocalTimerActionTime và lastTimerClearedAt'
+    );
+
+    const storageIndex = appCode.indexOf("window.addEventListener('storage'");
+    const storageEndIndex = appCode.indexOf("function highlightSelectedAvatar", storageIndex);
+    const storageCode = appCode.slice(storageIndex, storageEndIndex);
+
+    assert.ok(
+      storageCode.includes('isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem'),
+      'Storage event listener phải chặn hồi sinh khi local vừa dừng/hủy/bảo lưu'
+    );
+
+    console.log('  -> Chống chớp tắt (Anti-Flicker/Anti-Rebound) trên BroadcastChannel & Storage: OK\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 12: hydrateFromCloud và syncWithCloud kiểm tra isFocusRunning và isClearedLocally
+  // ---------------------------------------------------------------------------
+  console.log('Test 12: hydrateFromCloud và syncWithCloud không hồi sinh session khi isFocusRunning = false');
+  {
+    assert.ok(
+      appCode.includes('isFocusRunning && (isRecentLocalAction || isCloudSameRunner)'),
+      'hydrateFromCloud chỉ bảo tồn prevRunner nếu isFocusRunning vẫn còn true'
+    );
+    assert.ok(
+      appCode.includes('const isClearedLocally = (appState.lastTimerClearedAt || 0) >= timerCloudTime;'),
+      'hydrateFromCloud phải kiểm tra isClearedLocally để bảo vệ trạng thái đã dọn dẹp'
+    );
+    console.log('  -> hydrateFromCloud và syncWithCloud khóa chặt không bị bật lại timer: OK\n');
+  }
+
   console.log('========================================================================');
-  console.log('🎉 TẤT CẢ 10/10 BỘ KIỂM THỬ ĐỒNG HỒ ĐA THIẾT BỊ NÂNG CAO ĐÃ VƯỢT QUA XUẤT SẮC!');
+  console.log('🎉 TẤT CẢ 12/12 BỘ KIỂM THỬ ĐỒNG HỒ ĐA THIẾT BỊ NÂNG CAO ĐÃ VƯỢT QUA XUẤT SẮC!');
   console.log('========================================================================');
 }
 

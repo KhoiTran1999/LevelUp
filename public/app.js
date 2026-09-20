@@ -511,14 +511,16 @@ async function syncWithCloud(isManual = false, timerAction = null) {
             clearFocusTimerSession(false);
           }
         } else if (data.activeTimer) {
-          // Revival Guard: Nếu thiết bị này vừa bấm Dừng / Hủy / Bảo lưu gần đây (trong grace period 3.5s) và local hiện không chạy timer,
+          // Revival Guard: Nếu thiết bị này vừa bấm Dừng / Hủy / Bảo lưu gần đây (trong grace period 3.5s) hoặc đã dọn dẹp timer cục bộ,
           // TUYỆT ĐỐI KHÔNG nhận activeTimer cũ từ server để tránh bị bật lại đồng hồ!
-          if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+          const timerServerTime = Number(data.activeTimer.updatedAt || data.activeTimer.lastTickTime || 0);
+          const isClearedLocally = (appState.lastTimerClearedAt || 0) >= timerServerTime;
+          if ((isRecentLocalAction || isClearedLocally) && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
             // Giữ nguyên trạng thái đã bảo lưu/dừng tại local
           } else {
             appState.activeTimer = data.activeTimer;
             const isMyRunnerRunning = isFocusRunning && (!data.activeTimer.runnerId || data.activeTimer.runnerId === CURRENT_RUNNER_ID);
-            if (!isMyRunnerRunning) {
+            if (!isMyRunnerRunning && appState.activeTimer) {
               restoreFocusTimer();
             }
           }
@@ -566,7 +568,9 @@ async function syncWithCloud(isManual = false, timerAction = null) {
           }
         }
 
-        if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+        const conflictTimerTime = Number(data.state?.activeTimer?.updatedAt || data.state?.activeTimer?.lastTickTime || 0);
+        const isClearedLocally = (appState.lastTimerClearedAt || 0) >= conflictTimerTime;
+        if ((isRecentLocalAction || isClearedLocally) && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
           appState.activeTimer = null;
         }
 
@@ -575,7 +579,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
         saveLocalCache();
         renderAll();
-        if (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem) {
+        if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
           restoreFocusTimer();
         }
         if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
@@ -854,7 +858,8 @@ async function hydrateFromCloud(isManual = false) {
         }
       }
 
-      if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+      const isClearedLocally = (appState.lastTimerClearedAt || 0) >= timerCloudTime;
+      if ((isRecentLocalAction || isClearedLocally) && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
         appState.activeTimer = null;
       }
 
@@ -868,14 +873,14 @@ async function hydrateFromCloud(isManual = false) {
 
       // Nếu thiết bị này đang là runner chạy mượt mà và Cloud không có runnerId khác mới hơn, bảo toàn timer đang chạy
       const isCloudSameRunner = cloudData.activeTimer && cloudData.activeTimer.isRunning && (!cloudData.activeTimer.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID);
-      if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && (isRecentLocalAction || isCloudSameRunner)) {
+      if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && isFocusRunning && (isRecentLocalAction || isCloudSameRunner)) {
         activeFocusQuest = prevActiveQuest;
         focusRemainingSeconds = prevRemaining;
         isFocusRunning = true;
         renderFocusStationUI();
         updateTimerDisplay();
         updateQuestCardTimerState(activeFocusQuest?.id, true, true);
-      } else if (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem) {
+      } else if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
         restoreFocusTimer();
       }
 
@@ -890,12 +895,13 @@ async function hydrateFromCloud(isManual = false) {
             clearFocusTimerSession(false);
           }
         } else if (timerCloudTime > timerLocalTime || timerCloudTime >= (lastLocalTimerActionTime || 0)) {
-          if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+          const isClearedLocally = (appState.lastTimerClearedAt || 0) >= timerCloudTime;
+          if ((isRecentLocalAction || isClearedLocally) && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
             // Local vừa dừng/bảo lưu, bỏ qua
           } else {
             appState.activeTimer = cloudData.activeTimer || null;
             const isMyRunnerRunning = isFocusRunning && (!cloudData.activeTimer.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID);
-            if (!isMyRunnerRunning) {
+            if (!isMyRunnerRunning && appState.activeTimer) {
               restoreFocusTimer();
             }
           }
@@ -2520,6 +2526,9 @@ async function resetFocusTimer() {
 
 function clearFocusTimerSession(syncToCloud = true) {
   lastLocalTimerActionTime = Date.now();
+  appState.lastTimerClearedAt = Date.now();
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
   clearInterval(focusTimerInterval);
   focusTimerInterval = null;
   releaseWakeLock();
@@ -2533,7 +2542,6 @@ function clearFocusTimerSession(syncToCloud = true) {
   focusRemainingSeconds = 0;
   focusTotalSeconds = 0;
   actualFocusedSeconds = 0;
-  appState.lastTimerClearedAt = Date.now();
   try {
     localStorage.removeItem(TIMER_STORAGE_KEY);
   } catch (_) {}
@@ -11910,15 +11918,43 @@ document.addEventListener('DOMContentLoaded', () => {
             releaseWakeLock();
           }
           if (event.data.action === 'cancel' || event.data.action === 'hold') {
+            lastLocalTimerActionTime = Date.now();
+            appState.lastTimerClearedAt = Date.now();
             clearFocusTimerSession(false);
+            if (event.data.action === 'hold') {
+              if (event.data.questId && event.data.savedTimer) {
+                const q = appState.quests?.find(x => x.id === event.data.questId);
+                if (q) q.savedTimer = event.data.savedTimer;
+                renderQuests();
+              } else if (event.data.rewardItemId && event.data.savedTimer) {
+                const it = appState.inventory?.find(x => x.id === event.data.rewardItemId);
+                if (it) it.savedTimer = event.data.savedTimer;
+                renderInventory();
+              }
+            }
+          } else if (event.data.action === 'clearSaved') {
+            lastLocalTimerActionTime = Date.now();
+            if (event.data.questId) {
+              const q = appState.quests?.find(x => x.id === event.data.questId);
+              if (q) delete q.savedTimer;
+              renderQuests();
+            } else if (event.data.rewardItemId) {
+              const it = appState.inventory?.find(x => x.id === event.data.rewardItemId);
+              if (it) delete it.savedTimer;
+              renderInventory();
+            }
           } else if (event.data.action === 'pause' && isFocusRunning) {
+            lastLocalTimerActionTime = Date.now();
             isFocusRunning = false;
             clearInterval(focusTimerInterval);
             focusTimerInterval = null;
             releaseWakeLock();
-          }
-          if (appState.profile?.googleId && appState.profile?.nickname) {
-            hydrateFromCloud(false);
+            renderFocusStationUI();
+            updateTimerDisplay();
+          } else if (event.data.action === 'start' || event.data.action === 'resume') {
+            if (appState.profile?.googleId && appState.profile?.nickname) {
+              hydrateFromCloud(false);
+            }
           }
         } else if (event.data?.type === 'ADMIN_SYNC_UPDATE') {
           if (appState.profile?.googleId && appState.profile?.nickname) {
@@ -12176,6 +12212,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const syncState = JSON.parse(e.newValue);
           if (syncState) {
+            const isRecentLocalAction = (Date.now() - lastLocalTimerActionTime < TIMER_MUTATION_GRACE_MS);
+            if (isRecentLocalAction && !isFocusRunning && !activeFocusQuest && !activeRewardItem) {
+              // Tab này vừa chủ động dừng/hủy/bảo lưu, bỏ qua phục hồi từ tab khác
+              return;
+            }
+            const syncTime = Number(syncState.updatedAt || syncState.lastTickTime || 0);
+            if (syncTime < (appState.lastTimerClearedAt || 0) || (isRecentLocalAction && syncTime <= lastLocalTimerActionTime)) {
+              return;
+            }
             appState.activeTimer = syncState;
             restoreFocusTimer();
           }
