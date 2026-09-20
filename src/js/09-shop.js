@@ -342,6 +342,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
       clearInterval(focusTimerInterval);
       focusTimerInterval = null;
       releaseWakeLock();
+      if (typeof stopTimerKeepAlive === 'function') stopTimerKeepAlive();
       activeFocusQuest = null;
       activeRewardItem = null;
       isFocusRunning = false;
@@ -368,7 +369,9 @@ async function useInventoryItem(invId, skipConfirm = false) {
     return;
   }
 
-  if ('Notification' in window && Notification.permission === 'default') {
+  if (typeof requestTimerNotificationPermission === 'function') {
+    requestTimerNotificationPermission();
+  } else if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().catch(() => {});
   }
 
@@ -398,6 +401,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
   updateTimerDisplay();
   saveFocusTimerState(true, true, 'start');
   requestWakeLock();
+  if (typeof startTimerKeepAlive === 'function') startTimerKeepAlive();
   renderQuests();
   renderInventory();
 

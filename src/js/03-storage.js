@@ -531,10 +531,18 @@ async function hydrateFromCloud(isManual = false) {
       if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && isFocusRunning && (isRecentLocalAction || isCloudSameRunner)) {
         activeFocusQuest = prevActiveQuest;
         focusRemainingSeconds = prevRemaining;
-        isFocusRunning = true;
-        renderFocusStationUI();
-        updateTimerDisplay();
-        updateQuestCardTimerState(activeFocusQuest?.id, true, true);
+        if (focusRemainingSeconds <= 0 && activeFocusQuest) {
+          focusRemainingSeconds = 0;
+          actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+          renderFocusStationUI();
+          updateTimerDisplay();
+          focusTimerFinished();
+        } else {
+          isFocusRunning = true;
+          renderFocusStationUI();
+          updateTimerDisplay();
+          updateQuestCardTimerState(activeFocusQuest?.id, true, true);
+        }
       } else if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
         restoreFocusTimer();
       }

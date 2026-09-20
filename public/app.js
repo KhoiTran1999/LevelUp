@@ -765,10 +765,18 @@ async function hydrateFromCloud(isManual = false) {
       if (prevRunner && (!cloudData.activeTimer?.runnerId || cloudData.activeTimer.runnerId === CURRENT_RUNNER_ID) && isFocusRunning && (isRecentLocalAction || isCloudSameRunner)) {
         activeFocusQuest = prevActiveQuest;
         focusRemainingSeconds = prevRemaining;
-        isFocusRunning = true;
-        renderFocusStationUI();
-        updateTimerDisplay();
-        updateQuestCardTimerState(activeFocusQuest?.id, true, true);
+        if (focusRemainingSeconds <= 0 && activeFocusQuest) {
+          focusRemainingSeconds = 0;
+          actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+          renderFocusStationUI();
+          updateTimerDisplay();
+          focusTimerFinished();
+        } else {
+          isFocusRunning = true;
+          renderFocusStationUI();
+          updateTimerDisplay();
+          updateQuestCardTimerState(activeFocusQuest?.id, true, true);
+        }
       } else if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
         restoreFocusTimer();
       }
@@ -1367,18 +1375,84 @@ function releaseWakeLock() {
   }
 }
 
+let timerAudioKeepAlive = null;
+
+// Giữ AudioContext active trên di động để ngăn hệ điều hành đóng băng tab đếm giờ
+function startTimerKeepAlive() {
+  try {
+    if (typeof sfx !== 'undefined') {
+      sfx.init();
+      if (sfx.ctx && sfx.ctx.state === 'suspended') {
+        sfx.ctx.resume().catch(() => {});
+      }
+      if (sfx.ctx && !timerAudioKeepAlive) {
+        // Buffer tĩnh lặng 1s lặp vô hạn báo hiệu cho mobile OS rằng media session đang hoạt động
+        const buffer = sfx.ctx.createBuffer(1, sfx.ctx.sampleRate, sfx.ctx.sampleRate);
+        const source = sfx.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        const gain = sfx.ctx.createGain();
+        gain.gain.value = 0.0001;
+        source.connect(gain);
+        gain.connect(sfx.ctx.destination);
+        source.start();
+        timerAudioKeepAlive = { source, gain };
+      }
+    }
+  } catch (_) {}
+}
+
+function stopTimerKeepAlive() {
+  if (timerAudioKeepAlive) {
+    try {
+      timerAudioKeepAlive.source.stop();
+      timerAudioKeepAlive.source.disconnect();
+      timerAudioKeepAlive.gain.disconnect();
+    } catch (_) {}
+    timerAudioKeepAlive = null;
+  }
+}
+
+function requestTimerNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showToast('🔔 Đã bật thông báo đếm giờ thành công!', 'success');
+      }
+    }).catch(() => {});
+  }
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && isFocusRunning) {
     requestWakeLock();
+    startTimerKeepAlive();
+    // Bù đắp tức thì delta-time khi mở sáng màn hình điện thoại trở lại
+    if (isFocusRunning && (activeFocusQuest || activeRewardItem || isBreakMode)) {
+      tickFocusTimer();
+    }
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (isFocusRunning && (activeFocusQuest || activeRewardItem || isBreakMode)) {
+    requestWakeLock();
+    startTimerKeepAlive();
+    tickFocusTimer();
+  }
+});
+window.addEventListener('focus', () => {
+  if (isFocusRunning && (activeFocusQuest || activeRewardItem || isBreakMode)) {
+    requestWakeLock();
+    startTimerKeepAlive();
+    tickFocusTimer();
   }
 });
 
 let lastNotificationBody = '';
 let lastNotificationTime = 0;
 
-// Web Notifications API
+// Web Notifications API & Mobile Haptic/Sound Alert Engine
 function sendFocusNotification(title, body) {
-  if (!('Notification' in window)) return;
   const now = Date.now();
   if (body === lastNotificationBody && (now - lastNotificationTime < 5000)) {
     return; // Bỏ qua push notification trùng lặp trong 5 giây
@@ -1386,13 +1460,53 @@ function sendFocusNotification(title, body) {
   lastNotificationBody = body;
   lastNotificationTime = now;
 
-  if (Notification.permission === 'granted') {
+  // 1. Rung máy trên điện thoại (Vibration API) — Độc lập hoàn toàn với quyền Notification
+  if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
     try {
-      new Notification(title, {
-        body,
-        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚔️</text></svg>'
-      });
-      if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
+      navigator.vibrate([500, 200, 500, 200, 800]);
+    } catch (_) {}
+  }
+
+  // 2. Chuông âm thanh khải hoàn (SFX)
+  if (typeof sfx !== 'undefined') {
+    try {
+      if (sfx.playFanfare) sfx.playFanfare();
+      if (sfx.playGong) setTimeout(() => { try { sfx.playGong(); } catch (_) {} }, 400);
+      setTimeout(() => {
+        try { if (sfx.playFanfare) sfx.playFanfare(); } catch (_) {}
+      }, 1200);
+    } catch (_) {}
+  }
+
+  // 3. Hệ thống thông báo Web Notification / Service Worker Notification
+  const notifOptions = {
+    body,
+    icon: '/icon-192.png',
+    badge: '/favicon.png',
+    vibrate: [500, 200, 500, 200, 800],
+    tag: 'levelup-focus-timer',
+    renotify: true,
+    requireInteraction: true,
+    data: { url: '/' }
+  };
+
+  // Ưu tiên ServiceWorkerRegistration.showNotification (BẮT BUỘC cho Chrome Android & PWA Mobile)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      if (reg && typeof reg.showNotification === 'function') {
+        return reg.showNotification(title, notifOptions);
+      }
+      throw new Error('showNotification not supported on registration');
+    }).catch(() => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, notifOptions);
+        } catch (_) {}
+      }
+    });
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, notifOptions);
     } catch (_) {}
   }
 }
@@ -1636,6 +1750,7 @@ function restoreFocusTimer() {
         clearInterval(focusTimerInterval);
         focusTimerInterval = null;
         releaseWakeLock();
+        stopTimerKeepAlive();
         updateTimerDisplay();
         if (isBreakMode) {
           breakTimerFinished();
@@ -1649,6 +1764,7 @@ function restoreFocusTimer() {
 
       lastTickTime = Date.now();
       requestWakeLock();
+      startTimerKeepAlive();
       clearInterval(focusTimerInterval);
       focusTimerInterval = setInterval(tickFocusTimer, 500);
     } else {
@@ -1657,6 +1773,7 @@ function restoreFocusTimer() {
       clearInterval(focusTimerInterval);
       focusTimerInterval = null;
       releaseWakeLock();
+      stopTimerKeepAlive();
 
       if (state.isRunning && !isMyRunner) {
         // Đồng bộ thời gian hiển thị tĩnh từ thiết bị đang chạy
@@ -1706,6 +1823,7 @@ function tickFocusTimer() {
     clearInterval(focusTimerInterval);
     focusTimerInterval = null;
     releaseWakeLock();
+    stopTimerKeepAlive();
     renderFocusStationUI();
     updateTimerDisplay();
     return;
@@ -1738,6 +1856,7 @@ function tickFocusTimer() {
     clearInterval(focusTimerInterval);
     focusTimerInterval = null;
     releaseWakeLock();
+    stopTimerKeepAlive();
     if (isBreakMode) {
       breakTimerFinished();
     } else if (activeRewardItem) {
@@ -2081,9 +2200,7 @@ async function startFocusTimer(quest) {
     renderQuests();
   }
 
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => {});
-  }
+  requestTimerNotificationPermission();
 
   lastLocalTimerActionTime = Date.now();
   const isResumingSaved = Boolean(quest.savedTimer && quest.savedTimer.remainingSeconds > 0);
@@ -2113,6 +2230,7 @@ async function startFocusTimer(quest) {
   updateTimerDisplay();
   saveFocusTimerState(true, true, 'start');
   requestWakeLock();
+  startTimerKeepAlive();
 
   // Cuộn ngay đến thanh đếm giờ để người dùng nhìn thấy lập tức
   document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2147,6 +2265,8 @@ function startBreakTimer(breakMinutes = 5) {
   updateQuestCardTimerState(null, false, false);
   saveFocusTimerState(true, true, 'start');
   requestWakeLock();
+  startTimerKeepAlive();
+  requestTimerNotificationPermission();
 
   clearInterval(focusTimerInterval);
   focusTimerInterval = setInterval(tickFocusTimer, 500);
@@ -2199,6 +2319,8 @@ async function toggleFocusTimer() {
     }
 
     requestWakeLock();
+    startTimerKeepAlive();
+    requestTimerNotificationPermission();
     clearInterval(focusTimerInterval);
     focusTimerInterval = setInterval(tickFocusTimer, 500);
     sfx.playClick();
@@ -2221,6 +2343,7 @@ async function toggleFocusTimer() {
     appState.activeTimer.updatedAt = lastTickTime;
   }
   releaseWakeLock();
+  stopTimerKeepAlive();
   clearInterval(focusTimerInterval);
   focusTimerInterval = null;
   sfx.playClick();
@@ -2511,6 +2634,7 @@ function clearFocusTimerSession(syncToCloud = true) {
   clearInterval(focusTimerInterval);
   focusTimerInterval = null;
   releaseWakeLock();
+  stopTimerKeepAlive();
   const hadActiveReward = Boolean(activeRewardItem);
   const hadActiveSession = Boolean(activeFocusQuest || isBreakMode || activeRewardItem || appState.activeTimer);
   const oldQuestId = activeFocusQuest ? activeFocusQuest.id : null;
@@ -2722,6 +2846,7 @@ function focusTimerFinished() {
         '⏳ HẾT GIỜ TẬP TRUNG!',
         `Bạn đã hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}". Hãy chụp ảnh bằng chứng để nhận Vàng nhé!`
       );
+      showToast(`⏳ Hết giờ tập trung: "${quest.title}". Hãy chụp ảnh để nhận Vàng nhé!`, 'info');
       openQuestProofModal(quest);
       return;
     }
@@ -2734,6 +2859,7 @@ function focusTimerFinished() {
       '🎉 HOÀN THÀNH TẬP TRUNG!',
       `Chúc mừng bạn đã xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung: "${quest.title}"!`
     );
+    showToast(`🎉 HOÀN THÀNH TẬP TRUNG: "${quest.title}"! +${quest.rewardCoins} Vàng`, 'gold');
 
     openFocusCompleteModal(quest);
   }
@@ -3918,6 +4044,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
       clearInterval(focusTimerInterval);
       focusTimerInterval = null;
       releaseWakeLock();
+      if (typeof stopTimerKeepAlive === 'function') stopTimerKeepAlive();
       activeFocusQuest = null;
       activeRewardItem = null;
       isFocusRunning = false;
@@ -3944,7 +4071,9 @@ async function useInventoryItem(invId, skipConfirm = false) {
     return;
   }
 
-  if ('Notification' in window && Notification.permission === 'default') {
+  if (typeof requestTimerNotificationPermission === 'function') {
+    requestTimerNotificationPermission();
+  } else if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().catch(() => {});
   }
 
@@ -3974,6 +4103,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
   updateTimerDisplay();
   saveFocusTimerState(true, true, 'start');
   requestWakeLock();
+  if (typeof startTimerKeepAlive === 'function') startTimerKeepAlive();
   renderQuests();
   renderInventory();
 
