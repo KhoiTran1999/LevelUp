@@ -250,6 +250,22 @@ async function submitQuestProofToAI() {
         if (data.proofImageUrl) {
           pendingApprovedQuest.proofImageUrl = data.proofImageUrl;
           currentProofQuest.proofImageUrl = data.proofImageUrl;
+          if (!Array.isArray(appState.proofPhotos)) {
+            appState.proofPhotos = [];
+          }
+          appState.proofPhotos.unshift({
+            id: 'proof_' + Date.now(),
+            questId: currentProofQuest.id,
+            questTitle: currentProofQuest.title,
+            proofImageUrl: data.proofImageUrl,
+            rewardCoins: currentProofQuest.rewardCoins || 10,
+            userNote: userNote || '',
+            feedback: data.feedback || '',
+            timestamp: Date.now()
+          });
+          if (appState.proofPhotos.length > 100) {
+            appState.proofPhotos = appState.proofPhotos.slice(0, 100);
+          }
           triggerSave(false);
         }
 

@@ -333,6 +333,9 @@ function switchTab(tabId) {
     fetchAdminUsers();
   } else if (tabId === 'bank') {
     loadBankState();
+  } else if (tabId === 'ledger') {
+    if (typeof renderLedger === 'function') renderLedger();
+    if (typeof renderProofPhotos === 'function') renderProofPhotos();
   }
 
   if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {

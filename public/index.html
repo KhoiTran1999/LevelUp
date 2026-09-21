@@ -585,57 +585,101 @@
     <section id="tab-ledger" class="tab-pane hidden">
       <div class="mb-4 sm:mb-6">
         <h2 class="font-rpg-title font-extrabold text-lg sm:text-xl text-sky-600 dark:text-sky-400">LỊCH SỬ THU CHI VÀNG</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng, đổi quà và giao dịch tiết kiệm / vay Ngân Hàng.</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Nhật ký chi tiết các lần bạn nhận thưởng Vàng, đổi quà và album toàn bộ ảnh bằng chứng đã được AI Arbiter phê duyệt.</p>
       </div>
 
-      <!-- Mini stats summary -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-sky-500/20 shadow-xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-base shrink-0">📥</div>
-          <div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Thu hôm nay</div>
-            <div id="ledger-stat-earn" class="text-sm sm:text-base font-bold font-mono text-sky-600 dark:text-sky-400">+0 <span class="coin-icon"></span></div>
+      <!-- Sub-tabs navigation for Lịch Sử -->
+      <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-800/80 rounded-2xl mb-4 max-w-sm">
+        <button id="btn-ledger-subtab-transactions" onclick="switchLedgerSubtab('transactions')" class="flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs cursor-pointer">
+          <span>💰</span>
+          <span>Thu Chi Vàng</span>
+        </button>
+        <button id="btn-ledger-subtab-photos" onclick="switchLedgerSubtab('photos')" class="flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
+          <span>📸</span>
+          <span>Lịch Sử Ảnh</span>
+          <span id="ledger-photos-badge" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-sky-500/20 text-sky-600 dark:text-sky-400 font-bold">0</span>
+        </button>
+      </div>
+
+      <!-- VIEW 1: TRANSACTIONS (THU CHI VÀNG) -->
+      <div id="view-ledger-transactions">
+        <!-- Mini stats summary -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-sky-500/20 shadow-xs flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-base shrink-0">📥</div>
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Thu hôm nay</div>
+              <div id="ledger-stat-earn" class="text-sm sm:text-base font-bold font-mono text-sky-600 dark:text-sky-400">+0 <span class="coin-icon"></span></div>
+            </div>
+          </div>
+          <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-rose-500/20 shadow-xs flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-base shrink-0">📤</div>
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Chi hôm nay</div>
+              <div id="ledger-stat-spend" class="text-sm sm:text-base font-bold font-mono text-rose-600 dark:text-rose-400">-0 <span class="coin-icon"></span></div>
+            </div>
+          </div>
+          <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-emerald-500/20 shadow-xs flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base shrink-0">🏦</div>
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Đang tiết kiệm</div>
+              <div id="ledger-stat-bank-deposit" class="text-sm sm:text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">0 <span class="coin-icon"></span></div>
+            </div>
+          </div>
+          <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-blue-500/20 shadow-xs flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base shrink-0">💳</div>
+            <div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Dư nợ hiện tại</div>
+              <div id="ledger-stat-bank-debt" class="text-sm sm:text-base font-bold font-mono text-blue-600 dark:text-blue-400">0 <span class="coin-icon"></span></div>
+            </div>
           </div>
         </div>
-        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-rose-500/20 shadow-xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-base shrink-0">📤</div>
-          <div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Chi hôm nay</div>
-            <div id="ledger-stat-spend" class="text-sm sm:text-base font-bold font-mono text-rose-600 dark:text-rose-400">-0 <span class="coin-icon"></span></div>
-          </div>
+
+        <!-- Filter tabs -->
+        <div class="flex items-center gap-2 mb-3 flex-wrap">
+          <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-sky-500 text-white shadow-xs shadow-sky-500/20 cursor-pointer">Tất Cả</button>
+          <button id="ledger-filter-earn" onclick="setLedgerFilter('earn')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Thu Nhập (+)</button>
+          <button id="ledger-filter-spend" onclick="setLedgerFilter('spend')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Đổi Quà (-)</button>
+          <button id="ledger-filter-bank" onclick="setLedgerFilter('bank')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">🏦 Tiết Kiệm & Vay</button>
         </div>
-        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-emerald-500/20 shadow-xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base shrink-0">🏦</div>
-          <div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Đang tiết kiệm</div>
-            <div id="ledger-stat-bank-deposit" class="text-sm sm:text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">0 <span class="coin-icon"></span></div>
+
+        <div class="rpg-panel rounded-2xl p-3 sm:p-4">
+          <div id="ledger-list" class="space-y-4">
+            <!-- Ledger items rendered dynamically -->
           </div>
-        </div>
-        <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/80 border border-blue-500/20 shadow-xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base shrink-0">💳</div>
-          <div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Dư nợ hiện tại</div>
-            <div id="ledger-stat-bank-debt" class="text-sm sm:text-base font-bold font-mono text-blue-600 dark:text-blue-400">0 <span class="coin-icon"></span></div>
+          <div id="ledger-pagination" class="hidden mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+            <button id="ledger-prev-btn" onclick="changeLedgerPage(-1)" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition active:scale-95 cursor-pointer">◀ Trước</button>
+            <span id="ledger-page-info" class="text-slate-500 dark:text-slate-400 font-mono text-xs">Trang 1 / 1</span>
+            <button id="ledger-next-btn" onclick="changeLedgerPage(1)" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition active:scale-95 cursor-pointer">Sau ▶</button>
           </div>
         </div>
       </div>
 
-      <!-- Filter tabs -->
-      <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <button id="ledger-filter-all" onclick="setLedgerFilter('all')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-bold transition bg-sky-500 text-white shadow-xs shadow-sky-500/20 cursor-pointer">Tất Cả</button>
-        <button id="ledger-filter-earn" onclick="setLedgerFilter('earn')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Thu Nhập (+)</button>
-        <button id="ledger-filter-spend" onclick="setLedgerFilter('spend')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">Đổi Quà (-)</button>
-        <button id="ledger-filter-bank" onclick="setLedgerFilter('bank')" class="ledger-filter-btn px-3 py-1 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer">🏦 Tiết Kiệm & Vay</button>
-      </div>
-
-      <div class="rpg-panel rounded-2xl p-3 sm:p-4">
-        <div id="ledger-list" class="space-y-4">
-          <!-- Ledger items rendered dynamically -->
+      <!-- VIEW 2: PROOF PHOTOS ALBUM (LỊCH SỬ ẢNH BẰNG CHỨNG) -->
+      <div id="view-ledger-photos" class="hidden">
+        <div class="flex items-center justify-between gap-3 mb-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900/80 border border-sky-500/20 shadow-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xl shrink-0">📸</div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">Album Bằng Chứng Đã Duyệt</h3>
+              <p id="ledger-photos-summary" class="text-[11px] text-slate-500 dark:text-slate-400">Toàn bộ ảnh chụp thực tế được AI Arbiter thẩm định và lưu trữ an toàn.</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <span id="ledger-photos-count" class="text-base sm:text-lg font-bold font-mono text-sky-600 dark:text-sky-400">0</span>
+            <span class="text-[10px] text-slate-400 block">ảnh đã lưu</span>
+          </div>
         </div>
-        <div id="ledger-pagination" class="hidden mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
-          <button id="ledger-prev-btn" onclick="changeLedgerPage(-1)" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition active:scale-95 cursor-pointer">◀ Trước</button>
-          <span id="ledger-page-info" class="text-slate-500 dark:text-slate-400 font-mono text-xs">Trang 1 / 1</span>
-          <button id="ledger-next-btn" onclick="changeLedgerPage(1)" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition active:scale-95 cursor-pointer">Sau ▶</button>
+
+        <div id="ledger-photos-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+          <!-- Proof photos rendered dynamically -->
+        </div>
+
+        <!-- Empty state when no photos have been recorded yet -->
+        <div id="ledger-photos-empty" class="hidden text-center py-12 px-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 rpg-panel">
+          <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-3xl">📸</div>
+          <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Chưa có ảnh bằng chứng nào</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">Khi bạn hoàn thành các nhiệm vụ yêu cầu chụp ảnh từ điện thoại và được AI phê duyệt, ảnh sẽ tự động được lưu vào bộ sưu tập tại đây.</p>
         </div>
       </div>
     </section>

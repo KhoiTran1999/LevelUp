@@ -101,6 +101,7 @@ const DEFAULT_STATE = {
   ],
   inventory: [],
   completedQuestIds: [],
+  proofPhotos: [],
   ledger: [
     {
       id: 'led_1',

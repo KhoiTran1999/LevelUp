@@ -179,8 +179,30 @@ async function completeQuest(questId, skipConfirm = false) {
       amount: totalAwardedCoins,
       title: quest.title,
       description: `Hoàn thành nhiệm vụ: ${quest.title} (+${quest.rewardCoins} Vàng${streakBonusCoins > 0 ? ` & +${streakBonusCoins} Vàng Streak 🔥` : ''})${deductedForLoan > 0 ? ` [🏦 Trích trả nợ: -${deductedForLoan} Vàng]` : ''}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      questId: quest.id,
+      proofImageUrl: quest.proofImageUrl || null
     });
+
+    if (quest.proofImageUrl) {
+      if (!Array.isArray(appState.proofPhotos)) {
+        appState.proofPhotos = [];
+      }
+      const alreadyHas = appState.proofPhotos.some(p => p.proofImageUrl === quest.proofImageUrl);
+      if (!alreadyHas) {
+        appState.proofPhotos.unshift({
+          id: 'proof_' + Date.now(),
+          questId: quest.id,
+          questTitle: quest.title,
+          proofImageUrl: quest.proofImageUrl,
+          rewardCoins: quest.rewardCoins || 10,
+          timestamp: Date.now()
+        });
+        if (appState.proofPhotos.length > 100) {
+          appState.proofPhotos = appState.proofPhotos.slice(0, 100);
+        }
+      }
+    }
 
     if (deductedForLoan > 0) {
       addLedgerEntry({

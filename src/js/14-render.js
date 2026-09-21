@@ -271,12 +271,6 @@ function renderQuests() {
                   </span>
                 </div>
               ` : ''}
-              ${q.proofImageUrl ? `
-                <button type="button" class="btn-view-proof-img quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-                  <span>Xem ảnh bằng chứng</span>
-                </button>
-              ` : ''}
               ${hasSavedTimer ? `
                 <button type="button" class="btn-clear-saved-timer quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy thời gian bảo lưu để làm lại từ đầu">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -344,11 +338,6 @@ function renderQuests() {
           </div>
 
           <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            ${q.proofImageUrl ? `
-              <button type="button" class="btn-view-proof-img inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
-                <span>📸 Ảnh</span>
-              </button>
-            ` : ''}
             ${q.isRepeatable ? `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold" title="Nhiệm vụ lặp lại hàng ngày">
                 <span>🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
@@ -367,11 +356,6 @@ function renderQuests() {
             <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
               <span>Hoàn thành</span>
-              ${q.proofImageUrl ? `
-                <button type="button" class="btn-view-proof-img inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer ml-1" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
-                  <span>📸 Xem ảnh</span>
-                </button>
-              ` : ''}
             </div>
             <div class="flex items-center gap-1.5">
               <button class="btn-restart-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Làm lại nhiệm vụ này">
@@ -506,15 +490,6 @@ function renderQuests() {
         openQuestProofModal(q);
       });
     }
-
-    const viewProofBtns = card.querySelectorAll('.btn-view-proof-img');
-    viewProofBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        openProofViewerModal(btn.dataset.proofUrl, btn.dataset.questTitle);
-      });
-    });
 
     const startBtn = card.querySelector('.btn-start-focus');
     if (startBtn) {
@@ -1035,6 +1010,171 @@ function setLedgerFilter(filter) {
 }
 window.setLedgerFilter = setLedgerFilter;
 
+let currentLedgerSubtab = 'transactions';
+
+function switchLedgerSubtab(subtab) {
+  currentLedgerSubtab = subtab;
+  const btnTrans = document.getElementById('btn-ledger-subtab-transactions');
+  const btnPhotos = document.getElementById('btn-ledger-subtab-photos');
+  const viewTrans = document.getElementById('view-ledger-transactions');
+  const viewPhotos = document.getElementById('view-ledger-photos');
+
+  if (subtab === 'photos') {
+    if (btnTrans) {
+      btnTrans.className = 'flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
+    }
+    if (btnPhotos) {
+      btnPhotos.className = 'flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs cursor-pointer';
+    }
+    if (viewTrans) viewTrans.classList.add('hidden');
+    if (viewPhotos) viewPhotos.classList.remove('hidden');
+    renderProofPhotos();
+  } else {
+    if (btnTrans) {
+      btnTrans.className = 'flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs cursor-pointer';
+    }
+    if (btnPhotos) {
+      btnPhotos.className = 'flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
+    }
+    if (viewTrans) viewTrans.classList.remove('hidden');
+    if (viewPhotos) viewPhotos.classList.add('hidden');
+    renderLedger();
+  }
+}
+window.switchLedgerSubtab = switchLedgerSubtab;
+
+function getAllProofPhotos() {
+  const photos = [];
+  const seenUrls = new Set();
+
+  // 1. From appState.proofPhotos
+  if (Array.isArray(appState.proofPhotos)) {
+    for (const p of appState.proofPhotos) {
+      if (p && p.proofImageUrl && !seenUrls.has(p.proofImageUrl)) {
+        seenUrls.add(p.proofImageUrl);
+        photos.push({
+          id: p.id || ('proof_' + (p.timestamp || Date.now())),
+          questId: p.questId || '',
+          questTitle: p.questTitle || 'Nhiệm vụ',
+          proofImageUrl: p.proofImageUrl,
+          rewardCoins: p.rewardCoins || 10,
+          timestamp: p.timestamp || Date.now(),
+          userNote: p.userNote || '',
+          feedback: p.feedback || ''
+        });
+      }
+    }
+  }
+
+  // 2. From appState.ledger
+  if (Array.isArray(appState.ledger)) {
+    for (const entry of appState.ledger) {
+      if (entry && entry.proofImageUrl && !seenUrls.has(entry.proofImageUrl)) {
+        seenUrls.add(entry.proofImageUrl);
+        photos.push({
+          id: 'proof_' + (entry.id || entry.timestamp || Date.now()),
+          questId: entry.questId || '',
+          questTitle: entry.title || 'Nhiệm vụ',
+          proofImageUrl: entry.proofImageUrl,
+          rewardCoins: entry.amount || 10,
+          timestamp: entry.timestamp || Date.now(),
+          userNote: '',
+          feedback: ''
+        });
+      }
+    }
+  }
+
+  // 3. From appState.quests (legacy fallback)
+  if (Array.isArray(appState.quests)) {
+    for (const q of appState.quests) {
+      if (q && q.proofImageUrl && !seenUrls.has(q.proofImageUrl)) {
+        seenUrls.add(q.proofImageUrl);
+        photos.push({
+          id: 'proof_' + q.id,
+          questId: q.id,
+          questTitle: q.title,
+          proofImageUrl: q.proofImageUrl,
+          rewardCoins: q.rewardCoins || 10,
+          timestamp: q.createdAt || Date.now(),
+          userNote: '',
+          feedback: ''
+        });
+      }
+    }
+  }
+
+  photos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  return photos;
+}
+window.getAllProofPhotos = getAllProofPhotos;
+
+function renderProofPhotos() {
+  const grid = document.getElementById('ledger-photos-grid');
+  const empty = document.getElementById('ledger-photos-empty');
+  const badge = document.getElementById('ledger-photos-badge');
+  const countEl = document.getElementById('ledger-photos-count');
+
+  const photos = getAllProofPhotos();
+
+  if (badge) {
+    badge.textContent = photos.length;
+  }
+  if (countEl) {
+    countEl.textContent = photos.length;
+  }
+
+  if (!grid) return;
+
+  if (photos.length === 0) {
+    grid.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+
+  if (empty) empty.classList.add('hidden');
+
+  grid.innerHTML = photos.map(item => {
+    const timeStr = new Date(item.timestamp || Date.now()).toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const safeTitle = escapeHtml(item.questTitle || 'Nhiệm vụ đã hoàn thành');
+    const safeUrl = escapeHtml(item.proofImageUrl);
+    const safeFeedback = item.feedback ? escapeHtml(item.feedback) : '';
+
+    return `
+      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" onclick="openProofViewerModal('${safeUrl}', '${safeTitle}')" title="Nhấn để phóng to ảnh bằng chứng">
+        <div class="relative aspect-square w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <img src="${safeUrl}" alt="${safeTitle}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy">
+          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1">
+            <span>+${item.rewardCoins || 10}</span> ${COIN_ICON_HTML}
+          </div>
+          <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px]">
+            <span class="btn-view-proof-img px-2.5 py-1 rounded-lg bg-sky-500/90 hover:bg-sky-400 text-white flex items-center gap-1 shadow-xs cursor-pointer" data-proof-url="${safeUrl}" data-quest-title="${safeTitle}">
+              <span>🔍 Phóng to</span>
+            </span>
+          </div>
+        </div>
+        <div class="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
+          <div>
+            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors" title="${safeTitle}">${safeTitle}</h4>
+            ${safeFeedback ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1 mt-0.5 italic" title="${safeFeedback}">"${safeFeedback}"</p>` : ''}
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+            <span class="font-mono">${timeStr}</span>
+            <span class="text-sky-600 dark:text-sky-400 font-medium hover:underline">Xem ảnh ↗</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderProofPhotos = renderProofPhotos;
+
 function groupLedgerByDate(entries) {
   const today = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
@@ -1049,6 +1189,12 @@ function groupLedgerByDate(entries) {
 }
 
 function renderLedger() {
+  // Update photo badge and photo gallery
+  const allPhotos = getAllProofPhotos();
+  const badge = document.getElementById('ledger-photos-badge');
+  if (badge) badge.textContent = allPhotos.length;
+  renderProofPhotos();
+
   const list = document.getElementById('ledger-list');
   if (!list) return;
 
@@ -1167,6 +1313,11 @@ function renderLedger() {
                   <div class="font-semibold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
                     ${categoryBadge}
                     <span class="truncate">${escapeHtml(displayTitle)}</span>
+                    ${entry.proofImageUrl ? `
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" title="Xem ảnh bằng chứng đã duyệt" onclick="event.stopPropagation(); openProofViewerModal('${escapeHtml(entry.proofImageUrl)}', '${escapeHtml(displayTitle)}')">
+                        <span>📸 Xem ảnh</span>
+                      </button>
+                    ` : ''}
                   </div>
                   <div class="ledger-desc-container mt-0.5">
                     <div class="ledger-desc-content text-[10px] text-slate-400 truncate cursor-pointer transition-colors hover:text-slate-600 dark:hover:text-slate-300" title="Nhấn để xem thêm / thu gọn">

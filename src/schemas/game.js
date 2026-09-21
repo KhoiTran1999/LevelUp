@@ -113,6 +113,7 @@ export const StateSyncSchema = v.looseObject({
   inventory: v.optional(v.array(v.any())),
   ledger: v.optional(v.array(v.any())),
   completedQuestIds: v.optional(v.array(v.any())),
+  proofPhotos: v.optional(v.array(v.any())),
   lastSyncedAt: v.optional(v.number()),
   lastModified: v.optional(v.number())
 });

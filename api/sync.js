@@ -623,6 +623,7 @@ export async function getUserCloudData(redis, userSub) {
       shopItems: Array.isArray(parsed.shopItems) ? parsed.shopItems : [],
       inventory: Array.isArray(parsed.inventory) ? parsed.inventory : [],
       ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
+      proofPhotos: Array.isArray(parsed.proofPhotos) ? parsed.proofPhotos : [],
       activeTimer: parsed.activeTimer || null
     };
   } catch (_) {
@@ -811,6 +812,7 @@ export default async function handler(req, res) {
             description: 'Thưởng chào mừng hiệp sĩ Google',
             timestamp: Date.now()
           }],
+          proofPhotos: [],
           lastModified: Date.now(),
           lastSyncedAt: Date.now()
         };
@@ -2582,6 +2584,8 @@ export default async function handler(req, res) {
         shopItems: sanitizedShopItems,
         // ponytail: Giới hạn lưu trữ tối đa 100 giao dịch ledger gần nhất trên Cloud/Redis
         ledger: updatedLedger.slice(0, 100),
+        // ponytail: Lưu trữ tối đa 100 ảnh bằng chứng gần nhất trên Cloud/Redis
+        proofPhotos: Array.isArray(state.proofPhotos) ? state.proofPhotos.slice(0, 100) : (Array.isArray(existingState?.proofPhotos) ? existingState.proofPhotos : []),
         googleId: userSub,
         lastModified: incomingModified || serverTimestamp,
         profile: {
