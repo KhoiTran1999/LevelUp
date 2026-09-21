@@ -286,8 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dDate) dDate.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}`;
       if (dStatus) dStatus.textContent = statusText;
       if (dBadge) {
-        dBadge.textContent = badgeText;
-        dBadge.className = `font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full shrink-0 ${badgeClass}`;
+        if (count > 0 || isFuture) {
+          dBadge.innerHTML = isFuture ? 'Chưa tới' : `<span class="font-mono">${count}</span> lần`;
+        } else {
+          dBadge.textContent = '0 lần';
+        }
+        dBadge.className = `font-bold text-xs px-2.5 py-1 rounded-full shrink-0 ${badgeClass}`;
       }
       if (dIcon) dIcon.textContent = icon;
     }

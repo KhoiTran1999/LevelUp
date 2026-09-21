@@ -9776,35 +9776,46 @@ function renderHeatmapGridHTML(item, period = 'monthly', isQuest = true) {
     // 7 cols for Mon-Sun
     const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
-    const headerRow = dayLabels.map(l => `<div class="text-[10px] font-mono font-bold text-slate-400 text-center py-0.5">${l}</div>`).join('');
+    const headerRow = dayLabels.map(l => `<div class="text-[10px] sm:text-xs font-bold text-slate-400 text-center py-1">${l}</div>`).join('');
 
     for (let i = 0; i < gridData.padStart; i++) {
-      cellsHtml += `<div class="aspect-square rounded-lg opacity-0 pointer-events-none"></div>`;
+      cellsHtml += `<div class="aspect-square rounded-xl opacity-0 pointer-events-none"></div>`;
     }
 
     gridData.days.forEach(d => {
-      let bg = 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
+      let bg = 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-800/80 hover:bg-slate-200/60 dark:hover:bg-slate-800/60';
       if (d.count >= 1) {
-        bg = isQuest ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs' : 'bg-sky-500 text-slate-950 font-bold shadow-xs';
+        bg = isQuest
+          ? 'bg-emerald-500 text-slate-950 font-bold border border-emerald-400/80 shadow-xs'
+          : 'bg-sky-500 text-slate-950 font-bold border border-sky-400/80 shadow-xs';
       } else if (d.isFuture) {
-        bg = 'bg-slate-50 dark:bg-slate-900/30 text-slate-300 dark:text-slate-600';
+        bg = 'bg-slate-50/40 dark:bg-slate-950/30 text-slate-300/80 dark:text-slate-700/80 border border-dashed border-slate-200/40 dark:border-slate-800/40';
       }
-      const todayRing = d.isToday ? 'ring-2 ring-amber-400 font-black' : '';
+      const todayRing = d.isToday ? 'ring-2 ring-amber-400 ring-offset-1 dark:ring-offset-slate-950 font-black z-10' : '';
       const dayNum = d.date.getDate();
       const dayLabel = dayNames[d.dayOfWeek] || '';
       const tooltip = `${dayLabel}, ${d.dateStr}: ${d.count > 0 ? (isQuest ? `Đã hoàn thành ${d.count} lần` : `Đã đổi ${d.count} lần`) : (d.isFuture ? 'Chưa tới' : 'Chưa thực hiện')}`;
 
+      let innerContent = '';
+      if (d.count > 1) {
+        innerContent = `
+          <span class="text-[11px] sm:text-xs font-bold leading-none">${dayNum}</span>
+          <span class="text-[8px] sm:text-[9px] font-black leading-none mt-0.5 px-1 py-0.2 rounded-full bg-slate-950/20 text-slate-950">×${d.count}</span>
+        `;
+      } else {
+        innerContent = `<span class="text-xs sm:text-sm font-semibold leading-none">${dayNum}</span>`;
+      }
+
       cellsHtml += `
-        <div class="heatmap-cell aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-mono ${bg} ${todayRing} transition-all hover:scale-110 active:scale-95 cursor-pointer relative select-none" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}">
-          <span>${dayNum}</span>
-          ${d.count > 1 ? `<span class="text-[8px] font-bold absolute bottom-0.5 leading-none">x${d.count}</span>` : ''}
+        <div class="heatmap-cell aspect-square flex flex-col items-center justify-center rounded-xl text-xs ${bg} ${todayRing} transition-all hover:scale-105 active:scale-95 cursor-pointer relative select-none" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}">
+          ${innerContent}
         </div>
       `;
     });
 
     return `
-      <div class="max-w-xs mx-auto">
-        <div class="grid grid-cols-7 gap-1.5 mb-1.5">${headerRow}</div>
+      <div class="max-w-xs mx-auto w-full">
+        <div class="grid grid-cols-7 gap-1.5 mb-2">${headerRow}</div>
         <div class="grid grid-cols-7 gap-1.5">${cellsHtml}</div>
       </div>
     `;
@@ -9822,9 +9833,9 @@ function renderHeatmapGridHTML(item, period = 'monthly', isQuest = true) {
 
       return `
         <div class="heatmap-cell flex-1 min-w-[42px] p-2 sm:p-2.5 rounded-xl border flex flex-col items-center justify-between text-center cursor-pointer transition-all hover:scale-105 active:scale-95 select-none ${bg} ${todayRing}" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}">
-          <div class="text-[10px] font-mono font-semibold uppercase">${dayLabel}</div>
-          <div class="text-sm sm:text-base font-black font-mono my-1">${d.date.getDate()}</div>
-          <div class="text-[10px] font-bold font-mono">${isDone ? (d.count > 1 ? `✓ x${d.count}` : '✓') : (d.isFuture ? '—' : '✕')}</div>
+          <div class="text-[10px] font-semibold uppercase">${dayLabel}</div>
+          <div class="text-sm sm:text-base font-black my-1">${d.date.getDate()}</div>
+          <div class="text-[10px] font-bold">${isDone ? (d.count > 1 ? `✓ ×${d.count}` : '✓') : (d.isFuture ? '—' : '✕')}</div>
         </div>
       `;
     }).join('');
@@ -9889,7 +9900,7 @@ function renderTrackerItemCard(item, period, isQuest) {
       </div>
 
       <!-- Interactive Day Status Bar inside Card -->
-      <div class="tracker-card-day-status mt-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/40 flex items-center justify-between text-[11px] font-mono text-slate-500">
+      <div class="tracker-card-day-status mt-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/40 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
         <div class="flex items-center gap-1.5 min-w-0">
           <span class="day-icon text-xs shrink-0">💡</span>
           <span class="day-text truncate">Rê chuột hoặc bấm vào ô ngày để xem chi tiết</span>
@@ -10065,7 +10076,7 @@ function renderItemFrequencyModal() {
     totalCompletedTimes = item.completedCount;
   }
   const totalEl = document.getElementById('modal-freq-total');
-  if (totalEl) totalEl.textContent = `${totalCompletedTimes} lần`;
+  if (totalEl) totalEl.innerHTML = `<span class="font-mono">${totalCompletedTimes}</span> lần`;
 
   // Sync modal period buttons
   ['weekly', 'monthly', 'yearly'].forEach(p => {
@@ -10099,10 +10110,10 @@ function renderItemFrequencyModal() {
     if (dIcon) dIcon.textContent = todayCount > 0 ? '✨' : '📅';
     if (todayCount > 0) {
       dStatus.textContent = isQuest ? `Đã hoàn thành ${todayCount} lần hôm nay` : `Đã đổi thưởng ${todayCount} lần hôm nay`;
-      dBadge.textContent = `${todayCount} lần`;
+      dBadge.innerHTML = `<span class="font-mono">${todayCount}</span> lần`;
       dBadge.className = isQuest
-        ? 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shrink-0'
-        : 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-sky-500 text-slate-950 shrink-0';
+        ? 'font-bold text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-slate-950 shrink-0 shadow-xs'
+        : 'font-bold text-xs px-2.5 py-1 rounded-full bg-sky-500 text-slate-950 shrink-0 shadow-xs';
     } else {
       // Find most recent active date in history
       const activeDates = Object.keys(item.history || {}).filter(d => (Number(item.history[d]) || 0) > 0).sort();
@@ -10112,12 +10123,12 @@ function renderItemFrequencyModal() {
         const parts = lastDate.split('-');
         const lastFormatted = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : lastDate;
         dStatus.textContent = isQuest ? `Hôm nay chưa làm • Lần làm gần nhất: ${lastFormatted} (${lastCount} lần)` : `Hôm nay chưa đổi • Gần nhất: ${lastFormatted} (${lastCount} lần)`;
-        dBadge.textContent = `${lastCount} lần`;
-        dBadge.className = 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0';
+        dBadge.innerHTML = `<span class="font-mono">${lastCount}</span> lần`;
+        dBadge.className = 'font-bold text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0';
       } else {
         dStatus.textContent = isQuest ? `Chưa từng hoàn thành nhiệm vụ này` : `Chưa từng đổi phần thưởng này`;
         dBadge.textContent = '0 lần';
-        dBadge.className = 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-500 shrink-0';
+        dBadge.className = 'font-bold text-xs px-2.5 py-1 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-500 shrink-0';
       }
     }
   }
@@ -13408,8 +13419,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dDate) dDate.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}`;
       if (dStatus) dStatus.textContent = statusText;
       if (dBadge) {
-        dBadge.textContent = badgeText;
-        dBadge.className = `font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full shrink-0 ${badgeClass}`;
+        if (count > 0 || isFuture) {
+          dBadge.innerHTML = isFuture ? 'Chưa tới' : `<span class="font-mono">${count}</span> lần`;
+        } else {
+          dBadge.textContent = '0 lần';
+        }
+        dBadge.className = `font-bold text-xs px-2.5 py-1 rounded-full shrink-0 ${badgeClass}`;
       }
       if (dIcon) dIcon.textContent = icon;
     }
