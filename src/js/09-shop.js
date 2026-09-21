@@ -89,6 +89,12 @@ async function buyShopItem(itemId) {
   appState.profile.coins = Math.max(0, (parseInt(appState.profile.coins, 10) || 0) - itemPrice);
   appState.profile.totalCoinsSpent = Math.max(0, (parseInt(appState.profile.totalCoinsSpent, 10) || 0) + itemPrice);
 
+  const todayStr = getLocalDayString();
+  if (!item.history || typeof item.history !== 'object') {
+    item.history = {};
+  }
+  item.history[todayStr] = (item.history[todayStr] || 0) + 1;
+
   const newInvItem = {
     id: 'inv_' + Date.now(),
     shopItemId: item.id || item.shopItemId,
@@ -100,6 +106,7 @@ async function buyShopItem(itemId) {
     targetMinutes: item.targetMinutes !== undefined ? item.targetMinutes : durationMinutes,
     signature: item.signature || '',
     purchasedAt: Date.now(),
+    purchasedDateStr: todayStr,
     isUsed: false
   };
 
@@ -156,6 +163,15 @@ async function refundInventoryItem(invId, skipConfirm = false) {
 
   if (activeRewardItem && activeRewardItem.id === invId) {
     clearFocusTimerSession();
+  }
+
+  const refundDateStr = item.purchasedDateStr || getLocalDayString(item.purchasedAt || Date.now());
+  const shopItem = appState.shopItems.find(i => i.id === item.shopItemId || i.name === item.name);
+  if (shopItem && shopItem.history && shopItem.history[refundDateStr]) {
+    shopItem.history[refundDateStr] = Math.max(0, shopItem.history[refundDateStr] - 1);
+    if (shopItem.history[refundDateStr] === 0) {
+      delete shopItem.history[refundDateStr];
+    }
   }
 
   appState.profile.coins += item.price;

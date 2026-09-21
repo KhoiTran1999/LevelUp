@@ -48,6 +48,7 @@ const DEFAULT_STATE = {
       isRepeatable: true,
       completedCount: 0,
       status: 'active',
+      history: {},
       createdAt: Date.now()
     },
     {
@@ -64,6 +65,7 @@ const DEFAULT_STATE = {
       isRepeatable: false,
       completedCount: 0,
       status: 'active',
+      history: {},
       createdAt: Date.now()
     }
   ],
@@ -76,6 +78,7 @@ const DEFAULT_STATE = {
       tier: 'rare',
       icon: '🧋',
       targetMinutes: 0,
+      history: {},
       verdict: 'Tương đương hơn 1 tiếng tập trung làm việc. Hãy thưởng thức thật ngon miệng!'
     },
     {
@@ -86,6 +89,7 @@ const DEFAULT_STATE = {
       tier: 'common',
       icon: '📱',
       targetMinutes: 30,
+      history: {},
       verdict: 'Thư giãn hợp lý giúp nạp lại năng lượng cho những mục tiêu tiếp theo.'
     },
     {
@@ -96,6 +100,7 @@ const DEFAULT_STATE = {
       tier: 'epic',
       icon: '🍿',
       targetMinutes: 120,
+      history: {},
       verdict: 'Mục tiêu lớn! Cần hoàn thành đều đặn nhiệm vụ cả tuần để đổi lấy món quà này.'
     }
   ],

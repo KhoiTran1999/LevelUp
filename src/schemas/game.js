@@ -21,7 +21,8 @@ export const QuestSchema = v.looseObject({
   status: v.optional(v.string(), 'active'),
   completed: v.optional(v.boolean(), false),
   completedCount: v.optional(v.number(), 0),
-  signature: v.optional(v.string())
+  signature: v.optional(v.string()),
+  history: v.optional(v.record(v.string(), v.number()))
 });
 
 /**
@@ -39,7 +40,8 @@ export const RewardSchema = v.looseObject({
   ),
   tier: v.optional(v.picklist(['common', 'rare', 'epic', 'legendary']), 'common'),
   targetMinutes: v.optional(v.number(), 0),
-  signature: v.optional(v.string())
+  signature: v.optional(v.string()),
+  history: v.optional(v.record(v.string(), v.number()))
 });
 
 /**

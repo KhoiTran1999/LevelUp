@@ -77,6 +77,12 @@ async function completeQuest(questId, skipConfirm = false) {
       quest.completedAt = Date.now();
     }
 
+    const todayStr = getLocalDayString();
+    if (!quest.history || typeof quest.history !== 'object') {
+      quest.history = {};
+    }
+    quest.history[todayStr] = (quest.history[todayStr] || 0) + 1;
+
     // Cập nhật chuỗi Streak ngày liên tiếp & tính thưởng Streak
     const streakResult = updateStreakOnQuestComplete(appState.profile);
     const bonusPct = streakResult.bonusPercent;
@@ -145,6 +151,7 @@ async function completeQuest(questId, skipConfirm = false) {
       loanBeforeDeduct,
       loanSnapshot: loanBeforeDeduct,
       previousLastCompletedAt,
+      completedDate: todayStr,
       streakSnapshot: streakResult?.snapshot || {
         streak: appState.profile.streak,
         lastStreakDate: appState.profile.lastStreakDate,
@@ -323,6 +330,14 @@ async function undoCompleteQuest(questId) {
       appState.profile.streak = deductionInfo.streakSnapshot.streak;
       appState.profile.lastStreakDate = deductionInfo.streakSnapshot.lastStreakDate;
       appState.profile.streakHistory = deductionInfo.streakSnapshot.streakHistory;
+    }
+
+    const revertDateStr = deductionInfo?.completedDate || getLocalDayString();
+    if (quest.history && quest.history[revertDateStr]) {
+      quest.history[revertDateStr] = Math.max(0, quest.history[revertDateStr] - 1);
+      if (quest.history[revertDateStr] === 0) {
+        delete quest.history[revertDateStr];
+      }
     }
 
     quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);

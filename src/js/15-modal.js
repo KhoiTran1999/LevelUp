@@ -178,7 +178,7 @@ function switchTab(tabId) {
   }
 
   const isAdmin = isUserAdmin();
-  const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin'].includes(tabId);
+  const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin', 'tracker'].includes(tabId);
 
   // Full Archetype RPG Color Matrix
   const tabColorTheme = {
@@ -189,6 +189,12 @@ function switchTab(tabId) {
     shop: {
       desktop: 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shadow-xs font-bold',
       mobile: 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+    },
+    tracker: {
+      desktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs font-bold',
+      mobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-bold',
+      itemMobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold'
     },
     leaderboard: {
       desktop: 'active bg-yellow-500/15 dark:bg-yellow-500/25 text-yellow-700 dark:text-yellow-300 border border-yellow-500/40 shadow-xs font-bold',
@@ -336,6 +342,8 @@ function switchTab(tabId) {
   } else if (tabId === 'ledger') {
     if (typeof renderLedger === 'function') renderLedger();
     if (typeof renderProofPhotos === 'function') renderProofPhotos();
+  } else if (tabId === 'tracker') {
+    if (typeof renderTracker === 'function') renderTracker();
   }
 
   if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {

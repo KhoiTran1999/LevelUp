@@ -82,6 +82,10 @@ class SoundFX {
 
   playClick() {
     if (!this.enabled) return;
+    const nowMs = Date.now();
+    if (this._lastClickTime && (nowMs - this._lastClickTime) < 120) return;
+    this._lastClickTime = nowMs;
+
     this.init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -89,8 +93,10 @@ class SoundFX {
     const gain = this.ctx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(600, now);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    // Smooth attack and release to eliminate audio clicks/pops and doubled artifacts
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(now);
@@ -99,6 +105,7 @@ class SoundFX {
 }
 
 const sfx = new SoundFX();
+window.sfx = sfx;
 const COIN_ICON_HTML = '<span class="coin-icon"></span>';
 const REWARD_TIER_COLORS = {
   common: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/20 shadow-xs',

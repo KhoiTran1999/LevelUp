@@ -202,6 +202,230 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Habit Frequency Tracker Controls (Period & Category)
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`tracker-period-${p}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentTrackerPeriod = p;
+        renderTracker();
+      });
+    }
+  });
+
+  ['quests', 'rewards'].forEach(c => {
+    const btn = document.getElementById(`tracker-cat-${c}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentTrackerCategory = c;
+        renderTracker();
+      });
+    }
+  });
+
+  // Modal Frequency Period Switcher
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`modal-freq-p-${p}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentModalFreqPeriod = p;
+        renderItemFrequencyModal();
+      });
+    }
+  });
+
+  // =========================================================================
+  // Frequency Tracker Interactive Heatmap Day Selection & Floating Tooltip
+  // =========================================================================
+  function updateHeatmapDayDetailUI(cell) {
+    const dateStr = cell.dataset.date;
+    if (!dateStr) return;
+    const dayName = cell.dataset.dayName || '';
+    const count = Number(cell.dataset.count) || 0;
+    const isFuture = cell.dataset.isFuture === 'true';
+    const isToday = cell.dataset.isToday === 'true';
+    const isQuest = cell.dataset.isQuest !== 'false';
+
+    const parts = dateStr.split('-');
+    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+    let statusText = '';
+    let badgeText = '';
+    let badgeClass = '';
+    let icon = '📅';
+
+    if (isFuture) {
+      statusText = 'Chưa tới ngày này';
+      badgeText = 'Chưa tới';
+      badgeClass = 'bg-slate-200/80 dark:bg-slate-800 text-slate-400';
+      icon = '⏳';
+    } else if (count > 0) {
+      statusText = isQuest ? `Đã hoàn thành ${count} lần` : `Đã đổi thưởng ${count} lần`;
+      badgeText = `${count} lần`;
+      badgeClass = isQuest
+        ? 'bg-emerald-500 text-slate-950 font-bold'
+        : 'bg-sky-500 text-slate-950 font-bold';
+      icon = '✨';
+    } else {
+      statusText = isQuest ? 'Chưa thực hiện' : 'Chưa đổi thưởng';
+      badgeText = '0 lần';
+      badgeClass = 'bg-slate-200/80 dark:bg-slate-800 text-slate-500';
+      icon = '⚪';
+    }
+
+    // 1. If inside modal
+    const modal = cell.closest('#modal-frequency-detail');
+    if (modal) {
+      const dDate = document.getElementById('modal-freq-detail-date');
+      const dStatus = document.getElementById('modal-freq-detail-status');
+      const dBadge = document.getElementById('modal-freq-detail-badge');
+      const dIcon = document.getElementById('modal-freq-detail-icon');
+      if (dDate) dDate.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}`;
+      if (dStatus) dStatus.textContent = statusText;
+      if (dBadge) {
+        dBadge.textContent = badgeText;
+        dBadge.className = `font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full shrink-0 ${badgeClass}`;
+      }
+      if (dIcon) dIcon.textContent = icon;
+    }
+
+    // 2. If inside tracker card
+    const card = cell.closest('.rpg-card');
+    if (card) {
+      const cardStatus = card.querySelector('.tracker-card-day-status');
+      if (cardStatus) {
+        const dayText = cardStatus.querySelector('.day-text');
+        const dayIcon = cardStatus.querySelector('.day-icon');
+        const badge = cardStatus.querySelector('.day-count-badge');
+        if (dayText) dayText.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}: ${statusText}`;
+        if (dayIcon) dayIcon.textContent = icon;
+        if (badge) {
+          badge.textContent = badgeText;
+          badge.className = `day-count-badge px-2 py-0.5 rounded-full font-bold text-[10px] shrink-0 ${badgeClass}`;
+          badge.classList.remove('hidden');
+        }
+      }
+    }
+
+    // 3. Highlight selected cell ring
+    const gridParent = cell.parentElement;
+    if (gridParent) {
+      gridParent.querySelectorAll('.heatmap-cell-selected').forEach(c => {
+        c.classList.remove('heatmap-cell-selected', 'ring-2', 'ring-amber-400', 'ring-offset-1', 'dark:ring-offset-slate-900', 'scale-110');
+      });
+      cell.classList.add('heatmap-cell-selected', 'ring-2', 'ring-amber-400', 'ring-offset-1', 'dark:ring-offset-slate-900', 'scale-110');
+    }
+  }
+
+  function showHeatmapFloatingTooltip(cell, clientX, clientY) {
+    const tooltipEl = document.getElementById('heatmap-floating-tooltip');
+    if (!tooltipEl) return;
+    const dateStr = cell.dataset.date;
+    if (!dateStr) return;
+
+    const dayName = cell.dataset.dayName || '';
+    const count = Number(cell.dataset.count) || 0;
+    const isFuture = cell.dataset.isFuture === 'true';
+    const isToday = cell.dataset.isToday === 'true';
+    const isQuest = cell.dataset.isQuest !== 'false';
+
+    const parts = dateStr.split('-');
+    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+    let statusColor = 'text-slate-300';
+    let statusText = isQuest ? '⚪ Chưa thực hiện' : '⚪ Chưa đổi';
+    if (isFuture) {
+      statusColor = 'text-slate-400';
+      statusText = '⏳ Chưa tới ngày này';
+    } else if (count > 0) {
+      statusColor = isQuest ? 'text-emerald-400 font-bold' : 'text-sky-400 font-bold';
+      statusText = isQuest ? `✨ Đã hoàn thành ${count} lần` : `🎁 Đã đổi ${count} lần`;
+    }
+
+    tooltipEl.innerHTML = `
+      <div class="text-[11px] font-bold text-amber-400 mb-0.5 flex items-center justify-between gap-3">
+        <span>📅 ${escapeHtml(dayName ? dayName + ', ' : '')}${formattedDate}</span>
+        ${isToday ? '<span class="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold">Hôm nay</span>' : ''}
+      </div>
+      <div class="text-xs ${statusColor}">${statusText}</div>
+    `;
+
+    // Position tooltip smoothly above the element or cursor
+    const rect = cell.getBoundingClientRect();
+    const tooltipWidth = 190;
+    let x = (clientX !== undefined) ? clientX : (rect.left + rect.width / 2);
+    let y = (clientY !== undefined) ? (clientY - 12) : (rect.top - 8);
+
+    // Clamp inside viewport
+    x = Math.max(tooltipWidth / 2 + 10, Math.min(window.innerWidth - tooltipWidth / 2 - 10, x));
+    y = Math.max(50, y);
+
+    tooltipEl.style.left = `${x}px`;
+    tooltipEl.style.top = `${y}px`;
+    tooltipEl.classList.remove('hidden');
+  }
+
+  function hideHeatmapFloatingTooltip() {
+    const tooltipEl = document.getElementById('heatmap-floating-tooltip');
+    if (tooltipEl) tooltipEl.classList.add('hidden');
+  }
+
+  let heatmapTouchTimer = null;
+  let lastHeatmapTouchTime = 0;
+
+  document.addEventListener('mouseover', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      showHeatmapFloatingTooltip(cell, e.clientX, e.clientY);
+      updateHeatmapDayDetailUI(cell);
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      showHeatmapFloatingTooltip(cell, e.clientX, e.clientY);
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell && (!e.relatedTarget || !e.relatedTarget.closest('.heatmap-cell'))) {
+      hideHeatmapFloatingTooltip();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      // If triggered immediately after a touch event, do not play duplicate click sound
+      if (Date.now() - lastHeatmapTouchTime > 400) {
+        if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+      }
+      updateHeatmapDayDetailUI(cell);
+      showHeatmapFloatingTooltip(cell);
+      clearTimeout(heatmapTouchTimer);
+      heatmapTouchTimer = setTimeout(hideHeatmapFloatingTooltip, 3000);
+    }
+  });
+
+  document.addEventListener('touchstart', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      lastHeatmapTouchTime = Date.now();
+      if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+      const touch = e.touches[0];
+      updateHeatmapDayDetailUI(cell);
+      if (touch) showHeatmapFloatingTooltip(cell, touch.clientX, touch.clientY);
+      clearTimeout(heatmapTouchTimer);
+      heatmapTouchTimer = setTimeout(hideHeatmapFloatingTooltip, 3000);
+    }
+  }, { passive: true });
+
+
   // Theme Toggle Button
   const themeToggle = document.getElementById('toggle-theme-btn');
   if (themeToggle) {

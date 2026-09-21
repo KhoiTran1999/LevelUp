@@ -82,6 +82,10 @@ class SoundFX {
 
   playClick() {
     if (!this.enabled) return;
+    const nowMs = Date.now();
+    if (this._lastClickTime && (nowMs - this._lastClickTime) < 120) return;
+    this._lastClickTime = nowMs;
+
     this.init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -89,8 +93,10 @@ class SoundFX {
     const gain = this.ctx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(600, now);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    // Smooth attack and release to eliminate audio clicks/pops and doubled artifacts
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(now);
@@ -99,6 +105,7 @@ class SoundFX {
 }
 
 const sfx = new SoundFX();
+window.sfx = sfx;
 const COIN_ICON_HTML = '<span class="coin-icon"></span>';
 const REWARD_TIER_COLORS = {
   common: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/20 shadow-xs',
@@ -163,6 +170,7 @@ const DEFAULT_STATE = {
       isRepeatable: true,
       completedCount: 0,
       status: 'active',
+      history: {},
       createdAt: Date.now()
     },
     {
@@ -179,6 +187,7 @@ const DEFAULT_STATE = {
       isRepeatable: false,
       completedCount: 0,
       status: 'active',
+      history: {},
       createdAt: Date.now()
     }
   ],
@@ -191,6 +200,7 @@ const DEFAULT_STATE = {
       tier: 'rare',
       icon: '🧋',
       targetMinutes: 0,
+      history: {},
       verdict: 'Tương đương hơn 1 tiếng tập trung làm việc. Hãy thưởng thức thật ngon miệng!'
     },
     {
@@ -201,6 +211,7 @@ const DEFAULT_STATE = {
       tier: 'common',
       icon: '📱',
       targetMinutes: 30,
+      history: {},
       verdict: 'Thư giãn hợp lý giúp nạp lại năng lượng cho những mục tiêu tiếp theo.'
     },
     {
@@ -211,6 +222,7 @@ const DEFAULT_STATE = {
       tier: 'epic',
       icon: '🍿',
       targetMinutes: 120,
+      history: {},
       verdict: 'Mục tiêu lớn! Cần hoàn thành đều đặn nhiệm vụ cả tuần để đổi lấy món quà này.'
     }
   ],
@@ -1309,6 +1321,240 @@ function updateStreakOnQuestComplete(profile = appState.profile, now = new Date(
   };
 }
 window.updateStreakOnQuestComplete = updateStreakOnQuestComplete;
+
+function getDaysInYear(year) {
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  return isLeap ? 366 : 365;
+}
+window.getDaysInYear = getDaysInYear;
+
+function getFrequencyGridData(historyMap = {}, period = 'yearly', targetDate = new Date()) {
+  const now = new Date(targetDate);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const todayStr = getLocalDayString(now);
+
+  const days = [];
+  let totalPeriodDays = 0;
+  let daysPassed = 0;
+  let padStart = 0;
+
+  if (period === 'weekly') {
+    const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Mon, 6 = Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek);
+    monday.setHours(0, 0, 0, 0);
+
+    totalPeriodDays = 7;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dStr = getLocalDayString(d);
+      const count = (historyMap && historyMap[dStr]) || 0;
+      const isPastOrToday = dStr <= todayStr;
+      if (isPastOrToday) daysPassed++;
+      days.push({
+        date: d,
+        dateStr: dStr,
+        count,
+        isFuture: dStr > todayStr,
+        isToday: dStr === todayStr,
+        dayOfWeek: (d.getDay() + 6) % 7
+      });
+    }
+  } else if (period === 'monthly') {
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    totalPeriodDays = endOfMonth.getDate();
+    padStart = (startOfMonth.getDay() + 6) % 7;
+
+    for (let i = 1; i <= totalPeriodDays; i++) {
+      const d = new Date(currentYear, currentMonth, i);
+      const dStr = getLocalDayString(d);
+      const count = (historyMap && historyMap[dStr]) || 0;
+      const isPastOrToday = dStr <= todayStr;
+      if (isPastOrToday) daysPassed++;
+      days.push({
+        date: d,
+        dateStr: dStr,
+        count,
+        isFuture: dStr > todayStr,
+        isToday: dStr === todayStr,
+        dayOfWeek: (d.getDay() + 6) % 7
+      });
+    }
+  } else {
+    // Yearly: Jan 1 to Dec 31
+    const startOfYear = new Date(currentYear, 0, 1);
+    const endOfYear = new Date(currentYear, 11, 31);
+    totalPeriodDays = getDaysInYear(currentYear);
+    padStart = (startOfYear.getDay() + 6) % 7; // Align to Monday
+
+    const cur = new Date(startOfYear);
+    while (cur <= endOfYear) {
+      const dStr = getLocalDayString(cur);
+      const count = (historyMap && historyMap[dStr]) || 0;
+      const isPastOrToday = dStr <= todayStr;
+      if (isPastOrToday) daysPassed++;
+      days.push({
+        date: new Date(cur),
+        dateStr: dStr,
+        count,
+        isFuture: dStr > todayStr,
+        isToday: dStr === todayStr,
+        dayOfWeek: (cur.getDay() + 6) % 7
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
+  const activeDaysCount = days.filter(d => d.count > 0).length;
+  const denominator = Math.max(1, daysPassed || totalPeriodDays);
+  const percentage = Math.round((activeDaysCount / denominator) * 10000) / 100;
+
+  return {
+    period,
+    year: currentYear,
+    month: currentMonth + 1,
+    padStart,
+    days,
+    activeDaysCount,
+    totalPeriodDays,
+    daysPassed,
+    percentage
+  };
+}
+window.getFrequencyGridData = getFrequencyGridData;
+
+function backfillItemHistories() {
+  if (typeof appState !== 'object' || !appState) return;
+
+  // 1. Quests
+  if (Array.isArray(appState.quests)) {
+    appState.quests.forEach(q => {
+      if (!q.history || typeof q.history !== 'object') q.history = {};
+
+      // 1A. q.loanDeductions (each item is a completion record)
+      if (Array.isArray(q.loanDeductions)) {
+        const counts = {};
+        q.loanDeductions.forEach(ld => {
+          const dStr = ld.completedDate || (ld.timestamp ? getLocalDayString(ld.timestamp) : null);
+          if (dStr) counts[dStr] = (counts[dStr] || 0) + 1;
+        });
+        Object.entries(counts).forEach(([dStr, cnt]) => {
+          q.history[dStr] = Math.max(q.history[dStr] || 0, cnt);
+        });
+      }
+
+      // 1B. appState.ledger (scan all earn transactions related to this quest)
+      if (Array.isArray(appState.ledger)) {
+        const counts = {};
+        appState.ledger.forEach(l => {
+          if (!l) return;
+          const isMatch = (l.questId && l.questId === q.id) ||
+                          (l.title && (l.title === q.title || l.title === `Hoàn thành: ${q.title}`)) ||
+                          (l.description && (l.description.includes(q.title) || (l.questId && l.questId === q.id)));
+          const isEarn = l.type === 'earn' || l.category === 'quest';
+          const isUndo = l.category === 'quest_undo' || (l.title && l.title.startsWith('Hoàn tác'));
+          if (isMatch && isEarn && !isUndo && l.timestamp) {
+            const dStr = getLocalDayString(l.timestamp);
+            counts[dStr] = (counts[dStr] || 0) + 1;
+          }
+        });
+        Object.entries(counts).forEach(([dStr, cnt]) => {
+          q.history[dStr] = Math.max(q.history[dStr] || 0, cnt);
+        });
+      }
+
+      // 1C. appState.proofPhotos (photo proof submissions)
+      if (Array.isArray(appState.proofPhotos)) {
+        appState.proofPhotos.forEach(p => {
+          if ((p.questId === q.id || p.questTitle === q.title) && p.timestamp) {
+            const dStr = getLocalDayString(p.timestamp);
+            q.history[dStr] = Math.max(q.history[dStr] || 0, 1);
+          }
+        });
+      }
+
+      // 1D. q.completedAt timestamp
+      if (q.completedAt) {
+        const dStr = getLocalDayString(q.completedAt);
+        q.history[dStr] = Math.max(q.history[dStr] || 0, 1);
+      }
+
+      // 1E. q.lastCompletedAt timestamp
+      if (q.lastCompletedAt) {
+        const dStr = getLocalDayString(q.lastCompletedAt);
+        q.history[dStr] = Math.max(q.history[dStr] || 0, 1);
+      }
+
+      // 1F. appState.completedQuestIds (historical completion IDs)
+      if (Array.isArray(appState.completedQuestIds) && appState.completedQuestIds.includes(q.id)) {
+        if (Object.keys(q.history).length === 0) {
+          const dateVal = q.completedAt || q.lastCompletedAt || q.updatedAt || q.createdAt || Date.now();
+          const dStr = getLocalDayString(dateVal);
+          q.history[dStr] = Math.max(q.history[dStr] || 0, 1);
+        }
+      }
+
+      // 1G. q.status === 'completed' or q.completed === true
+      const isStatusCompleted = q.status === 'completed' || q.completed === true;
+      if (isStatusCompleted && Object.keys(q.history).length === 0) {
+        const dateVal = q.completedAt || q.lastCompletedAt || q.updatedAt || q.createdAt || Date.now();
+        const dStr = getLocalDayString(dateVal);
+        q.history[dStr] = Math.max(q.history[dStr] || 0, q.completedCount || 1);
+      }
+
+      // 1H. Consistency reconciliation: total completions in history must be at least q.completedCount
+      const targetCount = Number(q.completedCount) || 0;
+      const historySum = Object.values(q.history).reduce((sum, c) => sum + (Number(c) || 0), 0);
+      if (targetCount > 0 && historySum < targetCount) {
+        const dateVal = q.lastCompletedAt || q.completedAt || q.updatedAt || q.createdAt || Date.now();
+        const dStr = getLocalDayString(dateVal);
+        const diff = targetCount - historySum;
+        q.history[dStr] = (q.history[dStr] || 0) + diff;
+      }
+    });
+  }
+
+  // 2. Shop Items
+  if (Array.isArray(appState.shopItems)) {
+    appState.shopItems.forEach(item => {
+      if (!item.history || typeof item.history !== 'object') item.history = {};
+
+      // 2A. From Inventory
+      if (Array.isArray(appState.inventory)) {
+        appState.inventory.forEach(inv => {
+          if (inv.shopItemId === item.id || inv.name === item.name) {
+            const dateVal = inv.purchasedAt || inv.usedAt || inv.createdAt;
+            if (dateVal) {
+              const dStr = getLocalDayString(dateVal);
+              item.history[dStr] = Math.max(item.history[dStr] || 0, 1);
+            }
+          }
+        });
+      }
+
+      // 2B. From Ledger
+      if (Array.isArray(appState.ledger)) {
+        appState.ledger.forEach(l => {
+          if (!l) return;
+          const isMatch = (l.shopItemId && l.shopItemId === item.id) ||
+                          (l.title && l.title.includes(item.name)) ||
+                          (l.description && l.description.includes(item.name));
+          const isSpend = l.type === 'spend' || l.category === 'reward';
+          const isRefund = l.category === 'reward_refund' || (l.title && l.title.startsWith('Hoàn trả'));
+          if (isMatch && isSpend && !isRefund && l.timestamp) {
+            const dStr = getLocalDayString(l.timestamp);
+            item.history[dStr] = Math.max(item.history[dStr] || 0, 1);
+          }
+        });
+      }
+    });
+  }
+}
+window.backfillItemHistories = backfillItemHistories;
+
 
 // =============================================================================
 // 5. FOCUS POMODORO COUNTDOWN TIMER (Delta-Time Engine, Wake Lock, Persistence)
@@ -2982,6 +3228,12 @@ async function completeQuest(questId, skipConfirm = false) {
       quest.completedAt = Date.now();
     }
 
+    const todayStr = getLocalDayString();
+    if (!quest.history || typeof quest.history !== 'object') {
+      quest.history = {};
+    }
+    quest.history[todayStr] = (quest.history[todayStr] || 0) + 1;
+
     // Cập nhật chuỗi Streak ngày liên tiếp & tính thưởng Streak
     const streakResult = updateStreakOnQuestComplete(appState.profile);
     const bonusPct = streakResult.bonusPercent;
@@ -3050,6 +3302,7 @@ async function completeQuest(questId, skipConfirm = false) {
       loanBeforeDeduct,
       loanSnapshot: loanBeforeDeduct,
       previousLastCompletedAt,
+      completedDate: todayStr,
       streakSnapshot: streakResult?.snapshot || {
         streak: appState.profile.streak,
         lastStreakDate: appState.profile.lastStreakDate,
@@ -3228,6 +3481,14 @@ async function undoCompleteQuest(questId) {
       appState.profile.streak = deductionInfo.streakSnapshot.streak;
       appState.profile.lastStreakDate = deductionInfo.streakSnapshot.lastStreakDate;
       appState.profile.streakHistory = deductionInfo.streakSnapshot.streakHistory;
+    }
+
+    const revertDateStr = deductionInfo?.completedDate || getLocalDayString();
+    if (quest.history && quest.history[revertDateStr]) {
+      quest.history[revertDateStr] = Math.max(0, quest.history[revertDateStr] - 1);
+      if (quest.history[revertDateStr] === 0) {
+        delete quest.history[revertDateStr];
+      }
     }
 
     quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
@@ -3921,6 +4182,12 @@ async function buyShopItem(itemId) {
   appState.profile.coins = Math.max(0, (parseInt(appState.profile.coins, 10) || 0) - itemPrice);
   appState.profile.totalCoinsSpent = Math.max(0, (parseInt(appState.profile.totalCoinsSpent, 10) || 0) + itemPrice);
 
+  const todayStr = getLocalDayString();
+  if (!item.history || typeof item.history !== 'object') {
+    item.history = {};
+  }
+  item.history[todayStr] = (item.history[todayStr] || 0) + 1;
+
   const newInvItem = {
     id: 'inv_' + Date.now(),
     shopItemId: item.id || item.shopItemId,
@@ -3932,6 +4199,7 @@ async function buyShopItem(itemId) {
     targetMinutes: item.targetMinutes !== undefined ? item.targetMinutes : durationMinutes,
     signature: item.signature || '',
     purchasedAt: Date.now(),
+    purchasedDateStr: todayStr,
     isUsed: false
   };
 
@@ -3988,6 +4256,15 @@ async function refundInventoryItem(invId, skipConfirm = false) {
 
   if (activeRewardItem && activeRewardItem.id === invId) {
     clearFocusTimerSession();
+  }
+
+  const refundDateStr = item.purchasedDateStr || getLocalDayString(item.purchasedAt || Date.now());
+  const shopItem = appState.shopItems.find(i => i.id === item.shopItemId || i.name === item.name);
+  if (shopItem && shopItem.history && shopItem.history[refundDateStr]) {
+    shopItem.history[refundDateStr] = Math.max(0, shopItem.history[refundDateStr] - 1);
+    if (shopItem.history[refundDateStr] === 0) {
+      delete shopItem.history[refundDateStr];
+    }
   }
 
   appState.profile.coins += item.price;
@@ -8134,6 +8411,10 @@ function renderQuests() {
                   <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
                 </button>
               ` : ''}
+              <button type="button" class="btn-view-quest-freq quest-dropdown-item text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20 cursor-pointer" title="Xem biểu đồ tần suất thực hiện">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span>Xem biểu đồ tần suất</span>
+              </button>
               <button type="button" class="btn-del-quest quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa nhiệm vụ">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 <span>Xóa nhiệm vụ</span>
@@ -8321,6 +8602,15 @@ function renderQuests() {
       });
     }
 
+    const freqBtn = card.querySelector('.btn-view-quest-freq');
+    if (freqBtn) {
+      freqBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        openItemFrequencyModal(q, true);
+      });
+    }
+
     const submitProofBtn = card.querySelector('.btn-submit-quest-proof');
     if (submitProofBtn) {
       submitProofBtn.addEventListener('click', (e) => {
@@ -8445,6 +8735,10 @@ function renderShop() {
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 <span>Thương lượng AI</span>
               </button>
+              <button type="button" class="btn-view-shop-freq quest-dropdown-item text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer" title="Xem biểu đồ tần suất đổi quà">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span>Xem biểu đồ tần suất</span>
+              </button>
               <button type="button" class="btn-del-shop-item quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa phần thưởng khỏi Cửa Hàng">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 <span>Xóa phần thưởng</span>
@@ -8527,6 +8821,15 @@ function renderShop() {
         e.stopPropagation();
         closeAllCardDropdowns();
         openRewardRenegotiateModal(item.id);
+      });
+    }
+
+    const freqBtn = card.querySelector('.btn-view-shop-freq');
+    if (freqBtn) {
+      freqBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        openItemFrequencyModal(item, false);
       });
     }
 
@@ -9299,6 +9602,9 @@ function setupLedgerDescToggles() {
 window.setupLedgerDescToggles = setupLedgerDescToggles;
 
 function renderAll() {
+  if (typeof backfillItemHistories === 'function') {
+    backfillItemHistories();
+  }
   renderHeader();
   renderQuests();
   renderShop();
@@ -9417,6 +9723,407 @@ function renderSkeletons() {
   if (earnEl) earnEl.innerHTML = '<span class="inline-block w-12 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
   if (spendEl) spendEl.innerHTML = '<span class="inline-block w-12 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded"></span>';
 }
+
+// =============================================================================
+// 13. FREQUENCY TRACKER & HABIT HEATMAP
+// =============================================================================
+let currentTrackerPeriod = 'monthly';
+let currentTrackerCategory = 'quests';
+
+let currentModalFreqItem = null;
+let currentModalFreqIsQuest = true;
+let currentModalFreqPeriod = 'monthly';
+
+function renderHeatmapGridHTML(item, period = 'monthly', isQuest = true) {
+  const gridData = getFrequencyGridData(item.history || {}, period);
+  const colorClass = isQuest
+    ? 'bg-emerald-500 shadow-xs shadow-emerald-500/30'
+    : 'bg-sky-500 shadow-xs shadow-sky-500/30';
+  const colorMultiClass = isQuest
+    ? 'bg-emerald-600 dark:bg-emerald-400 shadow-xs shadow-emerald-500/50'
+    : 'bg-sky-600 dark:bg-sky-400 shadow-xs shadow-sky-500/50';
+
+  let cellsHtml = '';
+
+  if (period === 'yearly') {
+    // 7 rows x 52-53 cols (Mon = Row 0, Sun = Row 6)
+    for (let i = 0; i < gridData.padStart; i++) {
+      cellsHtml += `<div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-[2px] opacity-0 pointer-events-none"></div>`;
+    }
+
+    const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    gridData.days.forEach(d => {
+      let bg = 'bg-slate-200/80 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700';
+      if (d.count === 1) bg = colorClass;
+      else if (d.count >= 2) bg = colorMultiClass;
+      else if (d.isFuture) bg = 'bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/30 dark:border-slate-800/30';
+
+      const todayRing = d.isToday ? 'ring-1.5 ring-amber-400 dark:ring-amber-300 ring-offset-1 dark:ring-offset-slate-950 z-10' : '';
+      const dayLabel = dayNames[d.dayOfWeek] || '';
+      const tooltip = `${dayLabel}, ${d.dateStr}: ${d.count > 0 ? (isQuest ? `Đã hoàn thành ${d.count} lần` : `Đã đổi ${d.count} lần`) : (d.isFuture ? 'Chưa tới' : 'Chưa thực hiện')}`;
+
+      cellsHtml += `<div class="heatmap-cell w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-[2px] ${bg} ${todayRing} transition-all hover:scale-150 active:scale-95 cursor-pointer" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}"></div>`;
+    });
+
+    return `
+      <div class="overflow-x-auto custom-scrollbar pb-1 pt-1 -mx-1 px-1">
+        <div class="inline-grid grid-rows-7 grid-flow-col gap-1 auto-cols-max min-w-[480px] sm:min-w-0">
+          ${cellsHtml}
+        </div>
+      </div>
+    `;
+  } else if (period === 'monthly') {
+    // 7 cols for Mon-Sun
+    const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const headerRow = dayLabels.map(l => `<div class="text-[10px] font-mono font-bold text-slate-400 text-center py-0.5">${l}</div>`).join('');
+
+    for (let i = 0; i < gridData.padStart; i++) {
+      cellsHtml += `<div class="aspect-square rounded-lg opacity-0 pointer-events-none"></div>`;
+    }
+
+    gridData.days.forEach(d => {
+      let bg = 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
+      if (d.count >= 1) {
+        bg = isQuest ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs' : 'bg-sky-500 text-slate-950 font-bold shadow-xs';
+      } else if (d.isFuture) {
+        bg = 'bg-slate-50 dark:bg-slate-900/30 text-slate-300 dark:text-slate-600';
+      }
+      const todayRing = d.isToday ? 'ring-2 ring-amber-400 font-black' : '';
+      const dayNum = d.date.getDate();
+      const dayLabel = dayNames[d.dayOfWeek] || '';
+      const tooltip = `${dayLabel}, ${d.dateStr}: ${d.count > 0 ? (isQuest ? `Đã hoàn thành ${d.count} lần` : `Đã đổi ${d.count} lần`) : (d.isFuture ? 'Chưa tới' : 'Chưa thực hiện')}`;
+
+      cellsHtml += `
+        <div class="heatmap-cell aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-mono ${bg} ${todayRing} transition-all hover:scale-110 active:scale-95 cursor-pointer relative select-none" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}">
+          <span>${dayNum}</span>
+          ${d.count > 1 ? `<span class="text-[8px] font-bold absolute bottom-0.5 leading-none">x${d.count}</span>` : ''}
+        </div>
+      `;
+    });
+
+    return `
+      <div class="max-w-xs mx-auto">
+        <div class="grid grid-cols-7 gap-1.5 mb-1.5">${headerRow}</div>
+        <div class="grid grid-cols-7 gap-1.5">${cellsHtml}</div>
+      </div>
+    `;
+  } else {
+    // Weekly: 7 day cards
+    const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const weekHtml = gridData.days.map(d => {
+      const isDone = d.count > 0;
+      const bg = isDone
+        ? (isQuest ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : 'bg-sky-500/15 border-sky-500/40 text-sky-700 dark:text-sky-300')
+        : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-400';
+      const todayRing = d.isToday ? 'ring-2 ring-amber-400 font-bold' : '';
+      const dayLabel = dayLabels[d.dayOfWeek] || '';
+      const tooltip = `${dayLabel}, ${d.dateStr}: ${d.count > 0 ? (isQuest ? `Đã hoàn thành ${d.count} lần` : `Đã đổi ${d.count} lần`) : (d.isFuture ? 'Chưa tới' : 'Chưa thực hiện')}`;
+
+      return `
+        <div class="heatmap-cell flex-1 min-w-[42px] p-2 sm:p-2.5 rounded-xl border flex flex-col items-center justify-between text-center cursor-pointer transition-all hover:scale-105 active:scale-95 select-none ${bg} ${todayRing}" title="${escapeHtml(tooltip)}" data-date="${d.dateStr}" data-day-name="${dayLabel}" data-count="${d.count}" data-is-future="${d.isFuture ? 'true' : 'false'}" data-is-today="${d.isToday ? 'true' : 'false'}" data-is-quest="${isQuest ? 'true' : 'false'}">
+          <div class="text-[10px] font-mono font-semibold uppercase">${dayLabel}</div>
+          <div class="text-sm sm:text-base font-black font-mono my-1">${d.date.getDate()}</div>
+          <div class="text-[10px] font-bold font-mono">${isDone ? (d.count > 1 ? `✓ x${d.count}` : '✓') : (d.isFuture ? '—' : '✕')}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="flex gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+        ${weekHtml}
+      </div>
+    `;
+  }
+}
+
+function renderTrackerItemCard(item, period, isQuest) {
+  const gridData = getFrequencyGridData(item.history || {}, period);
+  const percentageStr = gridData.percentage.toFixed(2).replace('.', ',');
+  const icon = item.icon || (isQuest ? '📜' : '🎁');
+  const title = item.title || item.name;
+  const rank = item.rank ? `HẠNG ${item.rank}` : (item.tier ? item.tier.toUpperCase() : '');
+  const coins = isQuest ? (item.rewardCoins || 0) : (item.price || 0);
+
+  return `
+    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800/80 transition-all hover:shadow-md">
+      <!-- Header: Title, Category, Gold Value, Percentage & Days -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="text-xl sm:text-2xl shrink-0">${escapeHtml(icon)}</span>
+          <div class="min-w-0">
+            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">${escapeHtml(title)}</h4>
+            <div class="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5 flex-wrap">
+              <span class="px-1.5 py-0.2 rounded font-semibold ${isQuest ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-purple-500/15 text-purple-700 dark:text-purple-300'}">${isQuest ? 'Nhiệm vụ' : 'Phần thưởng'}</span>
+              ${rank ? `<span class="font-mono text-slate-400">${rank}</span>` : ''}
+              <span class="font-mono font-bold ${isQuest ? 'text-amber-600 dark:text-amber-400' : 'text-purple-600 dark:text-purple-400'} inline-flex items-center gap-0.5">
+                <span class="coin-icon"></span>${isQuest ? `+${coins}` : coins} Vàng
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-4 shrink-0">
+          <!-- Percentage Pill -->
+          <div class="flex items-center gap-1 text-xs font-mono font-bold ${isQuest ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-400'}" title="Tỷ lệ hoàn thành trong kỳ">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+            <span>${percentageStr}%</span>
+          </div>
+
+          <!-- Active Days Pill (e.g. 1d, 33d) -->
+          <div class="flex items-center gap-1 text-xs font-mono font-bold text-amber-600 dark:text-amber-400" title="Tổng số ngày đã thực hiện">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z"/></svg>
+            <span>${gridData.activeDaysCount}d</span>
+          </div>
+
+          <!-- Detail Button -->
+          <button type="button" class="btn-tracker-open-detail p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" data-item-id="${item.id}" data-is-quest="${isQuest}" title="Xem chi tiết biểu đồ">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Heatmap Grid Zone -->
+      <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60">
+        ${renderHeatmapGridHTML(item, period, isQuest)}
+      </div>
+
+      <!-- Interactive Day Status Bar inside Card -->
+      <div class="tracker-card-day-status mt-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/40 flex items-center justify-between text-[11px] font-mono text-slate-500">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="day-icon text-xs shrink-0">💡</span>
+          <span class="day-text truncate">Rê chuột hoặc bấm vào ô ngày để xem chi tiết</span>
+        </div>
+        <span class="day-count-badge hidden px-2 py-0.5 rounded-full font-bold text-[10px] shrink-0"></span>
+      </div>
+    </div>
+  `;
+}
+
+function renderTracker() {
+  if (typeof backfillItemHistories === 'function') {
+    backfillItemHistories();
+  }
+
+  const container = document.getElementById('tracker-list-container');
+  const emptyState = document.getElementById('tracker-empty-state');
+  if (!container) return;
+
+  const yearBadge = document.getElementById('tracker-year-badge');
+  if (yearBadge) yearBadge.textContent = new Date().getFullYear();
+
+  // Sync Period Buttons
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`tracker-period-${p}`);
+    if (btn) {
+      if (p === currentTrackerPeriod) {
+        btn.className = 'tracker-period-btn px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs shadow-amber-500/20 cursor-pointer';
+      } else {
+        btn.className = 'tracker-period-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 cursor-pointer';
+      }
+    }
+  });
+
+  // Sync Category Filter Buttons (2 tabs: quests & rewards)
+  ['quests', 'rewards'].forEach(c => {
+    const btn = document.getElementById(`tracker-cat-${c}`);
+    if (btn) {
+      if (c === currentTrackerCategory) {
+        btn.className = c === 'quests'
+          ? 'tracker-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-500 text-slate-950 shadow-xs cursor-pointer'
+          : 'tracker-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-purple-500 text-white shadow-xs cursor-pointer';
+      } else {
+        btn.className = 'tracker-cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 cursor-pointer';
+      }
+    }
+  });
+
+  const itemsToRender = [];
+
+  // Sort from most gold to least gold
+  if (currentTrackerCategory === 'quests') {
+    const quests = [...(appState.quests || [])].sort((a, b) => (Number(b.rewardCoins) || 0) - (Number(a.rewardCoins) || 0));
+    quests.forEach(q => {
+      itemsToRender.push({ item: q, isQuest: true });
+    });
+  } else if (currentTrackerCategory === 'rewards') {
+    const shopItems = [...(appState.shopItems || [])].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    shopItems.forEach(it => {
+      itemsToRender.push({ item: it, isQuest: false });
+    });
+  }
+
+  if (itemsToRender.length === 0) {
+    container.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+  container.innerHTML = itemsToRender.map(({ item, isQuest }) =>
+    renderTrackerItemCard(item, currentTrackerPeriod, isQuest)
+  ).join('');
+
+  container.querySelectorAll('.btn-tracker-open-detail').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+      const itemId = btn.dataset.itemId;
+      const isQuest = btn.dataset.isQuest === 'true';
+      const targetItem = isQuest
+        ? appState.quests.find(q => q.id === itemId)
+        : appState.shopItems.find(s => s.id === itemId);
+      if (targetItem) {
+        openItemFrequencyModal(targetItem, isQuest);
+      }
+    });
+  });
+}
+window.renderTracker = renderTracker;
+
+function openItemFrequencyModal(item, isQuest = true) {
+  if (typeof backfillItemHistories === 'function') {
+    backfillItemHistories();
+  }
+
+  let targetItem = item;
+  if (item && item.id) {
+    if (isQuest && Array.isArray(appState.quests)) {
+      targetItem = appState.quests.find(q => q.id === item.id) || item;
+    } else if (!isQuest && Array.isArray(appState.shopItems)) {
+      targetItem = appState.shopItems.find(s => s.id === item.id) || item;
+    }
+  }
+
+  currentModalFreqItem = targetItem;
+  currentModalFreqIsQuest = isQuest;
+
+  // Intelligent period selection:
+  // If current month has completions, default to 'monthly'.
+  // If current month has 0 completions, but previous months have completions, default to 'yearly' so completed squares light up immediately!
+  const monthData = getFrequencyGridData(targetItem.history || {}, 'monthly');
+  const totalCompletions = Object.values(targetItem.history || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+  if (monthData.activeDaysCount > 0 || totalCompletions === 0) {
+    currentModalFreqPeriod = 'monthly';
+  } else {
+    currentModalFreqPeriod = 'yearly';
+  }
+
+  renderItemFrequencyModal();
+  openModal('modal-frequency-detail');
+}
+window.openItemFrequencyModal = openItemFrequencyModal;
+
+function renderItemFrequencyModal() {
+  if (!currentModalFreqItem) return;
+
+  if (typeof backfillItemHistories === 'function') {
+    backfillItemHistories();
+  }
+  if (currentModalFreqItem.id) {
+    if (currentModalFreqIsQuest && Array.isArray(appState.quests)) {
+      currentModalFreqItem = appState.quests.find(q => q.id === currentModalFreqItem.id) || currentModalFreqItem;
+    } else if (!currentModalFreqIsQuest && Array.isArray(appState.shopItems)) {
+      currentModalFreqItem = appState.shopItems.find(s => s.id === currentModalFreqItem.id) || currentModalFreqItem;
+    }
+  }
+
+  const item = currentModalFreqItem;
+  const isQuest = currentModalFreqIsQuest;
+  const period = currentModalFreqPeriod;
+
+  const iconEl = document.getElementById('modal-freq-icon');
+  if (iconEl) iconEl.textContent = item.icon || (isQuest ? '📜' : '🎁');
+
+  const titleEl = document.getElementById('modal-freq-title');
+  if (titleEl) titleEl.textContent = item.title || item.name;
+
+  const typeBadge = document.getElementById('modal-freq-type-badge');
+  if (typeBadge) {
+    typeBadge.textContent = isQuest ? 'NHIỆM VỤ' : 'PHẦN THƯỞNG';
+    typeBadge.className = isQuest
+      ? 'text-[10px] font-mono px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold inline-block mt-0.5'
+      : 'text-[10px] font-mono px-2 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold inline-block mt-0.5';
+  }
+
+  const gridData = getFrequencyGridData(item.history || {}, period);
+  const percentageStr = gridData.percentage.toFixed(2).replace('.', ',');
+
+  const pctEl = document.getElementById('modal-freq-pct');
+  if (pctEl) pctEl.textContent = `${percentageStr}%`;
+
+  const daysEl = document.getElementById('modal-freq-days');
+  if (daysEl) daysEl.textContent = `${gridData.activeDaysCount}d`;
+
+  let totalCompletedTimes = 0;
+  if (item.history) {
+    Object.values(item.history).forEach(c => {
+      totalCompletedTimes += (Number(c) || 0);
+    });
+  }
+  if (isQuest && item.completedCount && totalCompletedTimes < item.completedCount) {
+    totalCompletedTimes = item.completedCount;
+  }
+  const totalEl = document.getElementById('modal-freq-total');
+  if (totalEl) totalEl.textContent = `${totalCompletedTimes} lần`;
+
+  // Sync modal period buttons
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`modal-freq-p-${p}`);
+    if (btn) {
+      if (p === period) {
+        btn.className = 'modal-freq-btn px-3 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer';
+      } else {
+        btn.className = 'modal-freq-btn px-3 py-1 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer';
+      }
+    }
+  });
+
+  const gridContainer = document.getElementById('modal-freq-grid-container');
+  if (gridContainer) {
+    gridContainer.innerHTML = renderHeatmapGridHTML(item, period, isQuest);
+  }
+
+  // Initialize day detail banner with today's status or most recent completion
+  const dDate = document.getElementById('modal-freq-detail-date');
+  const dStatus = document.getElementById('modal-freq-detail-status');
+  const dBadge = document.getElementById('modal-freq-detail-badge');
+  const dIcon = document.getElementById('modal-freq-detail-icon');
+  if (dDate && dStatus && dBadge) {
+    const today = new Date();
+    const todayStr = getLocalDayString(today);
+    const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const todayCount = (item.history && item.history[todayStr]) ? (Number(item.history[todayStr]) || 0) : 0;
+
+    dDate.textContent = `Hôm nay (${todayFormatted})`;
+    if (dIcon) dIcon.textContent = todayCount > 0 ? '✨' : '📅';
+    if (todayCount > 0) {
+      dStatus.textContent = isQuest ? `Đã hoàn thành ${todayCount} lần hôm nay` : `Đã đổi thưởng ${todayCount} lần hôm nay`;
+      dBadge.textContent = `${todayCount} lần`;
+      dBadge.className = isQuest
+        ? 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shrink-0'
+        : 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-sky-500 text-slate-950 shrink-0';
+    } else {
+      // Find most recent active date in history
+      const activeDates = Object.keys(item.history || {}).filter(d => (Number(item.history[d]) || 0) > 0).sort();
+      if (activeDates.length > 0) {
+        const lastDate = activeDates[activeDates.length - 1];
+        const lastCount = item.history[lastDate];
+        const parts = lastDate.split('-');
+        const lastFormatted = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : lastDate;
+        dStatus.textContent = isQuest ? `Hôm nay chưa làm • Lần làm gần nhất: ${lastFormatted} (${lastCount} lần)` : `Hôm nay chưa đổi • Gần nhất: ${lastFormatted} (${lastCount} lần)`;
+        dBadge.textContent = `${lastCount} lần`;
+        dBadge.className = 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0';
+      } else {
+        dStatus.textContent = isQuest ? `Chưa từng hoàn thành nhiệm vụ này` : `Chưa từng đổi phần thưởng này`;
+        dBadge.textContent = '0 lần';
+        dBadge.className = 'font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-500 shrink-0';
+      }
+    }
+  }
+}
+window.renderItemFrequencyModal = renderItemFrequencyModal;
+
 
 // =============================================================================
 // 13. MODAL & NAVIGATION CONTROLLERS (Mobile Bottom Bar + Desktop Top Tabs)
@@ -9598,7 +10305,7 @@ function switchTab(tabId) {
   }
 
   const isAdmin = isUserAdmin();
-  const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin'].includes(tabId);
+  const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin', 'tracker'].includes(tabId);
 
   // Full Archetype RPG Color Matrix
   const tabColorTheme = {
@@ -9609,6 +10316,12 @@ function switchTab(tabId) {
     shop: {
       desktop: 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shadow-xs font-bold',
       mobile: 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+    },
+    tracker: {
+      desktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs font-bold',
+      mobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-bold',
+      itemMobile: 'active bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 font-bold'
     },
     leaderboard: {
       desktop: 'active bg-yellow-500/15 dark:bg-yellow-500/25 text-yellow-700 dark:text-yellow-300 border border-yellow-500/40 shadow-xs font-bold',
@@ -9756,6 +10469,8 @@ function switchTab(tabId) {
   } else if (tabId === 'ledger') {
     if (typeof renderLedger === 'function') renderLedger();
     if (typeof renderProofPhotos === 'function') renderProofPhotos();
+  } else if (tabId === 'tracker') {
+    if (typeof renderTracker === 'function') renderTracker();
   }
 
   if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {
@@ -12608,6 +13323,230 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQuests();
     });
   });
+
+  // Habit Frequency Tracker Controls (Period & Category)
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`tracker-period-${p}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentTrackerPeriod = p;
+        renderTracker();
+      });
+    }
+  });
+
+  ['quests', 'rewards'].forEach(c => {
+    const btn = document.getElementById(`tracker-cat-${c}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentTrackerCategory = c;
+        renderTracker();
+      });
+    }
+  });
+
+  // Modal Frequency Period Switcher
+  ['weekly', 'monthly', 'yearly'].forEach(p => {
+    const btn = document.getElementById(`modal-freq-p-${p}`);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        sfx.playClick();
+        currentModalFreqPeriod = p;
+        renderItemFrequencyModal();
+      });
+    }
+  });
+
+  // =========================================================================
+  // Frequency Tracker Interactive Heatmap Day Selection & Floating Tooltip
+  // =========================================================================
+  function updateHeatmapDayDetailUI(cell) {
+    const dateStr = cell.dataset.date;
+    if (!dateStr) return;
+    const dayName = cell.dataset.dayName || '';
+    const count = Number(cell.dataset.count) || 0;
+    const isFuture = cell.dataset.isFuture === 'true';
+    const isToday = cell.dataset.isToday === 'true';
+    const isQuest = cell.dataset.isQuest !== 'false';
+
+    const parts = dateStr.split('-');
+    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+    let statusText = '';
+    let badgeText = '';
+    let badgeClass = '';
+    let icon = '📅';
+
+    if (isFuture) {
+      statusText = 'Chưa tới ngày này';
+      badgeText = 'Chưa tới';
+      badgeClass = 'bg-slate-200/80 dark:bg-slate-800 text-slate-400';
+      icon = '⏳';
+    } else if (count > 0) {
+      statusText = isQuest ? `Đã hoàn thành ${count} lần` : `Đã đổi thưởng ${count} lần`;
+      badgeText = `${count} lần`;
+      badgeClass = isQuest
+        ? 'bg-emerald-500 text-slate-950 font-bold'
+        : 'bg-sky-500 text-slate-950 font-bold';
+      icon = '✨';
+    } else {
+      statusText = isQuest ? 'Chưa thực hiện' : 'Chưa đổi thưởng';
+      badgeText = '0 lần';
+      badgeClass = 'bg-slate-200/80 dark:bg-slate-800 text-slate-500';
+      icon = '⚪';
+    }
+
+    // 1. If inside modal
+    const modal = cell.closest('#modal-frequency-detail');
+    if (modal) {
+      const dDate = document.getElementById('modal-freq-detail-date');
+      const dStatus = document.getElementById('modal-freq-detail-status');
+      const dBadge = document.getElementById('modal-freq-detail-badge');
+      const dIcon = document.getElementById('modal-freq-detail-icon');
+      if (dDate) dDate.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}`;
+      if (dStatus) dStatus.textContent = statusText;
+      if (dBadge) {
+        dBadge.textContent = badgeText;
+        dBadge.className = `font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full shrink-0 ${badgeClass}`;
+      }
+      if (dIcon) dIcon.textContent = icon;
+    }
+
+    // 2. If inside tracker card
+    const card = cell.closest('.rpg-card');
+    if (card) {
+      const cardStatus = card.querySelector('.tracker-card-day-status');
+      if (cardStatus) {
+        const dayText = cardStatus.querySelector('.day-text');
+        const dayIcon = cardStatus.querySelector('.day-icon');
+        const badge = cardStatus.querySelector('.day-count-badge');
+        if (dayText) dayText.textContent = `${dayName ? dayName + ', ' : ''}${formattedDate}${isToday ? ' (Hôm nay)' : ''}: ${statusText}`;
+        if (dayIcon) dayIcon.textContent = icon;
+        if (badge) {
+          badge.textContent = badgeText;
+          badge.className = `day-count-badge px-2 py-0.5 rounded-full font-bold text-[10px] shrink-0 ${badgeClass}`;
+          badge.classList.remove('hidden');
+        }
+      }
+    }
+
+    // 3. Highlight selected cell ring
+    const gridParent = cell.parentElement;
+    if (gridParent) {
+      gridParent.querySelectorAll('.heatmap-cell-selected').forEach(c => {
+        c.classList.remove('heatmap-cell-selected', 'ring-2', 'ring-amber-400', 'ring-offset-1', 'dark:ring-offset-slate-900', 'scale-110');
+      });
+      cell.classList.add('heatmap-cell-selected', 'ring-2', 'ring-amber-400', 'ring-offset-1', 'dark:ring-offset-slate-900', 'scale-110');
+    }
+  }
+
+  function showHeatmapFloatingTooltip(cell, clientX, clientY) {
+    const tooltipEl = document.getElementById('heatmap-floating-tooltip');
+    if (!tooltipEl) return;
+    const dateStr = cell.dataset.date;
+    if (!dateStr) return;
+
+    const dayName = cell.dataset.dayName || '';
+    const count = Number(cell.dataset.count) || 0;
+    const isFuture = cell.dataset.isFuture === 'true';
+    const isToday = cell.dataset.isToday === 'true';
+    const isQuest = cell.dataset.isQuest !== 'false';
+
+    const parts = dateStr.split('-');
+    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+    let statusColor = 'text-slate-300';
+    let statusText = isQuest ? '⚪ Chưa thực hiện' : '⚪ Chưa đổi';
+    if (isFuture) {
+      statusColor = 'text-slate-400';
+      statusText = '⏳ Chưa tới ngày này';
+    } else if (count > 0) {
+      statusColor = isQuest ? 'text-emerald-400 font-bold' : 'text-sky-400 font-bold';
+      statusText = isQuest ? `✨ Đã hoàn thành ${count} lần` : `🎁 Đã đổi ${count} lần`;
+    }
+
+    tooltipEl.innerHTML = `
+      <div class="text-[11px] font-bold text-amber-400 mb-0.5 flex items-center justify-between gap-3">
+        <span>📅 ${escapeHtml(dayName ? dayName + ', ' : '')}${formattedDate}</span>
+        ${isToday ? '<span class="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold">Hôm nay</span>' : ''}
+      </div>
+      <div class="text-xs ${statusColor}">${statusText}</div>
+    `;
+
+    // Position tooltip smoothly above the element or cursor
+    const rect = cell.getBoundingClientRect();
+    const tooltipWidth = 190;
+    let x = (clientX !== undefined) ? clientX : (rect.left + rect.width / 2);
+    let y = (clientY !== undefined) ? (clientY - 12) : (rect.top - 8);
+
+    // Clamp inside viewport
+    x = Math.max(tooltipWidth / 2 + 10, Math.min(window.innerWidth - tooltipWidth / 2 - 10, x));
+    y = Math.max(50, y);
+
+    tooltipEl.style.left = `${x}px`;
+    tooltipEl.style.top = `${y}px`;
+    tooltipEl.classList.remove('hidden');
+  }
+
+  function hideHeatmapFloatingTooltip() {
+    const tooltipEl = document.getElementById('heatmap-floating-tooltip');
+    if (tooltipEl) tooltipEl.classList.add('hidden');
+  }
+
+  let heatmapTouchTimer = null;
+  let lastHeatmapTouchTime = 0;
+
+  document.addEventListener('mouseover', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      showHeatmapFloatingTooltip(cell, e.clientX, e.clientY);
+      updateHeatmapDayDetailUI(cell);
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      showHeatmapFloatingTooltip(cell, e.clientX, e.clientY);
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell && (!e.relatedTarget || !e.relatedTarget.closest('.heatmap-cell'))) {
+      hideHeatmapFloatingTooltip();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      // If triggered immediately after a touch event, do not play duplicate click sound
+      if (Date.now() - lastHeatmapTouchTime > 400) {
+        if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+      }
+      updateHeatmapDayDetailUI(cell);
+      showHeatmapFloatingTooltip(cell);
+      clearTimeout(heatmapTouchTimer);
+      heatmapTouchTimer = setTimeout(hideHeatmapFloatingTooltip, 3000);
+    }
+  });
+
+  document.addEventListener('touchstart', (e) => {
+    const cell = e.target.closest('.heatmap-cell');
+    if (cell) {
+      lastHeatmapTouchTime = Date.now();
+      if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+      const touch = e.touches[0];
+      updateHeatmapDayDetailUI(cell);
+      if (touch) showHeatmapFloatingTooltip(cell, touch.clientX, touch.clientY);
+      clearTimeout(heatmapTouchTimer);
+      heatmapTouchTimer = setTimeout(hideHeatmapFloatingTooltip, 3000);
+    }
+  }, { passive: true });
+
 
   // Theme Toggle Button
   const themeToggle = document.getElementById('toggle-theme-btn');
