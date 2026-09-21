@@ -247,6 +247,11 @@ async function submitQuestProofToAI() {
         pendingApprovedQuest = currentProofQuest;
         pendingApprovedQuest._proofVerified = true;
         triggerSave(true);
+        if (data.proofImageUrl) {
+          pendingApprovedQuest.proofImageUrl = data.proofImageUrl;
+          currentProofQuest.proofImageUrl = data.proofImageUrl;
+          triggerSave(false);
+        }
 
         closeModal('modal-quest-proof');
 
@@ -285,5 +290,39 @@ async function submitQuestProofToAI() {
   } finally {
     isSubmittingProof = false;
   }
+}
+
+/**
+ * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt
+ * @param {string} imageUrl 
+ * @param {string} questTitle 
+ */
+function openProofViewerModal(imageUrl, questTitle = '') {
+  if (!imageUrl) {
+    showToast('Không tìm thấy đường dẫn ảnh bằng chứng.', 'warning');
+    return;
+  }
+  const modal = document.getElementById('modal-proof-viewer');
+  if (!modal) return;
+
+  const imgEl = document.getElementById('proof-viewer-img');
+  const titleEl = document.getElementById('proof-viewer-title');
+  const subtitleEl = document.getElementById('proof-viewer-subtitle');
+  const downloadLink = document.getElementById('proof-viewer-download');
+
+  if (imgEl) {
+    imgEl.src = imageUrl;
+  }
+  if (titleEl) {
+    titleEl.textContent = questTitle || 'Ảnh Bằng Chứng Nhiệm Vụ';
+  }
+  if (subtitleEl) {
+    subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
+  }
+  if (downloadLink) {
+    downloadLink.href = imageUrl;
+  }
+
+  openModal('modal-proof-viewer');
 }
 

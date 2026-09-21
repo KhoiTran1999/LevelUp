@@ -788,6 +788,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Close buttons for Proof Viewer Modal
+  const btnCloseProofViewer = document.getElementById('btn-close-proof-viewer');
+  if (btnCloseProofViewer) {
+    btnCloseProofViewer.addEventListener('click', () => closeModal('modal-proof-viewer'));
+  }
+  const btnCloseProofViewerFooter = document.getElementById('btn-close-proof-viewer-footer');
+  if (btnCloseProofViewerFooter) {
+    btnCloseProofViewerFooter.addEventListener('click', () => closeModal('modal-proof-viewer'));
+  }
+
   // Handle live window resize / DevTools toggling while proof modal is open
   window.addEventListener('resize', () => {
     const modal = document.getElementById('modal-quest-proof');

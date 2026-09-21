@@ -13,6 +13,7 @@ import {
   calculateBankRates,
   calculateCreditLimit
 } from './sync.js';
+import { uploadProofImage } from './storage.js';
 import {
   repairJsonString,
   QuestAppraisalOutputSchema,
@@ -3959,9 +3960,25 @@ ${userNote ? `- Lời giải trình/ghi chú của người làm: "${userNote}"`
 Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
 
         const result = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.2, imageBase64 });
+        const approved = Boolean(result.approved);
+        let proofImageUrl = null;
+
+        if (approved && imageBase64) {
+          try {
+            proofImageUrl = await uploadProofImage({
+              imageBase64,
+              questId: payload?.questId || 'quest',
+              userId: caller?.sub || caller?.nickname || 'guest'
+            });
+          } catch (storageErr) {
+            console.error('[AI] Lỗi lưu ảnh bằng chứng lên R2:', storageErr);
+          }
+        }
+
         return res.status(200).json({
-          approved: Boolean(result.approved),
-          feedback: (result.feedback || (result.approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim()
+          approved,
+          feedback: (result.feedback || (approved ? 'Bằng chứng hợp lệ! Chúc mừng bạn đã hoàn thành nhiệm vụ.' : 'Ảnh chưa thấy rõ kết quả công việc, bạn vui lòng chụp lại nhé.')).trim(),
+          proofImageUrl
         });
       }
 

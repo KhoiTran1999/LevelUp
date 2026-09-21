@@ -271,6 +271,12 @@ function renderQuests() {
                   </span>
                 </div>
               ` : ''}
+              ${q.proofImageUrl ? `
+                <button type="button" class="btn-view-proof-img quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+                  <span>Xem ảnh bằng chứng</span>
+                </button>
+              ` : ''}
               ${hasSavedTimer ? `
                 <button type="button" class="btn-clear-saved-timer quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy thời gian bảo lưu để làm lại từ đầu">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -337,7 +343,12 @@ function renderQuests() {
             ` : ''}
           </div>
 
-          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            ${q.proofImageUrl ? `
+              <button type="button" class="btn-view-proof-img inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
+                <span>📸 Ảnh</span>
+              </button>
+            ` : ''}
             ${q.isRepeatable ? `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold" title="Nhiệm vụ lặp lại hàng ngày">
                 <span>🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
@@ -353,9 +364,14 @@ function renderQuests() {
         <!-- Zone 4: Footer (Action Command Zone) -->
         ${isCompleted ? `
           <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-            <div class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
               <span>Hoàn thành</span>
+              ${q.proofImageUrl ? `
+                <button type="button" class="btn-view-proof-img inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer ml-1" data-proof-url="${escapeHtml(q.proofImageUrl)}" data-quest-title="${escapeHtml(q.title)}" title="Xem lại ảnh bằng chứng đã duyệt">
+                  <span>📸 Xem ảnh</span>
+                </button>
+              ` : ''}
             </div>
             <div class="flex items-center gap-1.5">
               <button class="btn-restart-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Làm lại nhiệm vụ này">
@@ -490,6 +506,15 @@ function renderQuests() {
         openQuestProofModal(q);
       });
     }
+
+    const viewProofBtns = card.querySelectorAll('.btn-view-proof-img');
+    viewProofBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        openProofViewerModal(btn.dataset.proofUrl, btn.dataset.questTitle);
+      });
+    });
 
     const startBtn = card.querySelector('.btn-start-focus');
     if (startBtn) {
