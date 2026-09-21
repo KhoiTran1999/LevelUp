@@ -44,7 +44,7 @@ async function completeQuest(questId, skipConfirm = false) {
       const ok = await confirmAction({
         title: 'Xác Nhận Hoàn Thành?',
         message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''} | ⚡ Kinh nghiệm: +${totalAwarded * 3} EXP`,
+        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''}`,
         confirmText: 'Hoàn Thành ✓',
         cancelText: 'Chưa Xong',
         icon: '🎉',
@@ -82,6 +82,9 @@ async function completeQuest(questId, skipConfirm = false) {
       quest.history = {};
     }
     quest.history[todayStr] = (quest.history[todayStr] || 0) + 1;
+    if (typeof getQuestStreak === 'function') {
+      quest.streak = getQuestStreak(quest);
+    }
 
     // Cập nhật chuỗi Streak ngày liên tiếp & tính thưởng Streak
     const streakResult = updateStreakOnQuestComplete(appState.profile);
@@ -253,7 +256,7 @@ async function completeQuest(questId, skipConfirm = false) {
     const bonusMsg = streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : '';
     const deductMsg = deductedForLoan > 0 ? ` (đã tự động trích ${deductedForLoan} Vàng trả nợ)` : '';
     showToast(
-      `Đã hoàn thành "${quest.title}"! Nhận +${earnedCoins} Vàng vào ví${bonusMsg}${deductMsg} & +${totalAwardedCoins * 3} EXP!`,
+      `Đã hoàn thành "${quest.title}"! Nhận +${earnedCoins} Vàng vào ví${bonusMsg}${deductMsg}!`,
       'gold',
       {
         label: 'Hoàn tác',
@@ -313,7 +316,7 @@ async function undoCompleteQuest(questId) {
       message: isRepeat
         ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
         : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
-      detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''} | ⚡ Sẽ thu hồi: -${totalAwarded * 3} EXP`,
+      detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''}`,
       confirmText: 'Hoàn Tác ↩️',
       cancelText: 'Giữ Nguyên',
       icon: '↩️',
@@ -338,6 +341,9 @@ async function undoCompleteQuest(questId) {
       if (quest.history[revertDateStr] === 0) {
         delete quest.history[revertDateStr];
       }
+    }
+    if (typeof getQuestStreak === 'function') {
+      quest.streak = getQuestStreak(quest);
     }
 
     quest.completedCount = Math.max(0, (quest.completedCount || 1) - 1);
@@ -494,11 +500,6 @@ function toggleQuestRepeatable(questId) {
     return;
   }
 
-  if ((parseInt(quest.rewardCoins, 10) || 0) > 15) {
-    showToast(`Nhiệm vụ "${quest.title}" có mức thưởng cao (${quest.rewardCoins} Vàng). Hãy dùng tính năng Đàm Phán / Tạo lại với AI để điều chỉnh chế độ lặp lại phù hợp.`, 'warning');
-    return;
-  }
-
   quest.isRepeatable = !quest.isRepeatable;
   if (!quest.isRepeatable) {
     quest.previousRepeatCount = quest.completedCount || 0;
@@ -516,7 +517,7 @@ function toggleQuestRepeatable(questId) {
 
 async function deleteQuest(questId) {
   const quest = appState.quests.find(q => q.id === questId);
-  if (!quest) return;
+  if (!quest) return false;
 
   const ok = await confirmAction({
     title: 'Xóa Nhiệm Vụ?',
@@ -527,7 +528,7 @@ async function deleteQuest(questId) {
     icon: '🗑️',
     btnColor: 'rose'
   });
-  if (!ok) return;
+  if (!ok) return false;
 
   if (activeFocusQuest && activeFocusQuest.id === questId) {
     clearFocusTimerSession();
@@ -553,5 +554,6 @@ async function deleteQuest(questId) {
       showToast(`Đã khôi phục nhiệm vụ "${deletedQuest.title}".`, 'success');
     }
   });
+  return true;
 }
 

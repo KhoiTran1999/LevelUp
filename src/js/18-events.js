@@ -1317,6 +1317,16 @@ document.addEventListener('DOMContentLoaded', () => {
           currentPendingVerdict = null;
         }
         modal.classList.add('hidden');
+
+        // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
+        if (window.parentDetailQuestId && (modal.id === 'modal-quest' || modal.id === 'modal-frequency-detail' || modal.id === 'modal-quest-proof')) {
+          const returnQuestId = window.parentDetailQuestId;
+          window.parentDetailQuestId = null;
+          const q = Array.isArray(appState.quests) ? appState.quests.find(item => item.id === returnQuestId) : null;
+          if (q && typeof openQuestDetailModal === 'function') {
+            setTimeout(() => openQuestDetailModal(returnQuestId), 50);
+          }
+        }
       }
     });
   });

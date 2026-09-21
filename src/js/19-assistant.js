@@ -730,7 +730,6 @@ function renderAssistantActionCards(suggestedActions) {
             <div class="flex items-center gap-1.5">
               <span class="text-base">${escapeHtml(q.icon || '🎯')}</span>
               <span class="font-bold text-xs text-amber-800 dark:text-amber-200 truncate">${escapeHtml(q.title)}</span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono bg-amber-500/20 text-amber-800 dark:text-amber-300">Hạng ${q.rank || 'D'}</span>
             </div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               ${q.targetMinutes > 0 ? `⏱️ ${q.targetMinutes} phút tập trung` : '⚡ Việc nhanh không hẹn giờ'} • 🪙 +${q.rewardCoins} Vàng
@@ -846,7 +845,7 @@ function acceptAssistantQuest(encodedJson, btnEl) {
 
     appState.quests.unshift(quest);
     if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
-    showToast(`Đã thêm nhiệm vụ [Hạng ${quest.rank || 'D'}]: "${quest.title}"!`, 'success');
+    showToast(`Đã thêm nhiệm vụ: "${quest.title}"!`, 'success');
 
     if (btnEl) {
       btnEl.disabled = true;

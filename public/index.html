@@ -46,7 +46,7 @@
   </script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.1">
+  <link rel="stylesheet" href="style.css?v=1.0.2">
 </head>
 <body class="min-h-screen antialiased selection:bg-amber-500 selection:text-black pb-24 md:pb-12 overflow-x-hidden">
 
@@ -73,15 +73,13 @@
       <!-- Adventurer Stats Pill (Right) -->
       <div class="flex items-center gap-1.5 sm:gap-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors shrink-0">
 
-        <!-- Level & EXP (Compact on mobile, expanded on tablet/desktop) -->
+        <!-- Level Display (EXP hidden from UI per user request) -->
         <button id="btn-level-info" type="button" class="flex flex-col justify-center shrink-0 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-lg px-1 sm:px-1.5 py-0.5 transition cursor-pointer text-left group" title="Xem thông tin Cấp độ & Cách tăng LV">
           <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-mono leading-tight">
             <span class="text-amber-600 dark:text-amber-400 font-bold group-hover:underline flex items-center gap-0.5" id="hero-level-badge">LV. 1</span>
-            <span class="hidden sm:inline text-slate-500 dark:text-slate-400" id="hero-exp-text">0/100</span>
+            <span class="hidden" id="hero-exp-text">0/100</span>
           </div>
-          <div class="hidden sm:block w-14 sm:w-16 md:w-20 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-0.5">
-            <div id="hero-exp-bar" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-          </div>
+          <div class="hidden"><div id="hero-exp-bar" style="width: 0%"></div></div>
         </button>
 
         <!-- Vertical Divider -->
@@ -210,13 +208,11 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-0.5">
               <span id="timer-mode-label" class="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold font-mono">ĐANG BẤM GIỜ TẬP TRUNG</span>
-              <span id="timer-quest-rank" class="rank-badge-B text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">HẠNG B</span>
+              <span id="timer-quest-rank" class="hidden"></span>
               <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
                 <span class="coin-icon"></span><span id="timer-quest-coins">+15</span>
               </span>
-              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
-                <span>🌟</span><span id="timer-quest-exp">+45</span>
-              </span>
+              <span class="hidden"><span id="timer-quest-exp"></span></span>
             </div>
             <h3 id="timer-quest-title" class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">Học bài tập trung</h3>
           </div>
@@ -273,6 +269,20 @@
           <span>+ Nhiệm vụ mới</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
         </button>
+      </div>
+
+      <!-- Week Calendar Strip (Faithful to Reference Image) -->
+      <div id="week-calendar-container" class="mb-4 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-2.5 border border-slate-200/60 dark:border-slate-800/60 shadow-2xs">
+        <div class="flex items-center justify-between px-2 sm:px-3 py-1 mb-1">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-slate-800 dark:text-slate-200 text-sm tracking-tight">Hôm nay</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold font-mono">Today</span>
+          </div>
+          <span id="current-week-month-label" class="text-[11px] font-medium text-slate-400 font-mono"></span>
+        </div>
+        <div id="week-strip-days" class="week-calendar-strip">
+          <!-- Populated dynamically by renderWeekStrip() -->
+        </div>
       </div>
 
       <!-- Quests Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) -->
@@ -440,7 +450,7 @@
 
       <!-- Subtabs and Action Ribbon -->
       <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-900/80 rounded-xl border border-slate-300/60 dark:border-slate-800 text-xs shadow-sm">
+        <div class="flex items-center gap-1 p-1 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm">
             <span class="text-sm sm:text-base leading-none">🏪</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
@@ -1405,6 +1415,150 @@
   <!-- MODALS (Centered Dialogs)                                               -->
   <!-- ======================================================================= -->
 
+  <!-- MODAL: QUEST DETAIL & ACTIONS (Opened when clicking quest card) -->
+  <div id="modal-quest-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="mqd-title">
+    <div class="rpg-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+
+      <!-- Modal Header -->
+      <div id="mqd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-amber-500/10 dark:bg-amber-500/15 border-b border-slate-200/80 dark:border-slate-800">
+        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+          <div id="mqd-icon" class="w-14 h-14 rounded-2xl bg-white/50 dark:bg-white/20 backdrop-blur-md border border-white/60 flex items-center justify-center text-3xl shadow-sm shrink-0">
+            🎯
+          </div>
+          <h3 id="mqd-title" class="font-bold text-lg sm:text-xl text-slate-900 dark:text-white leading-snug break-words flex-1 min-w-0"></h3>
+        </div>
+        <button type="button" class="modal-close w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-slate-800 dark:text-slate-100 flex items-center justify-center text-lg leading-none cursor-pointer transition shrink-0">&times;</button>
+      </div>
+
+      <!-- Modal Body (Details, Rewards, Timers, Proofs, AI Verdict) -->
+      <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+        
+        <!-- Rewards Strip (Gold only - EXP hidden per user request) -->
+        <div class="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">💰</span>
+            <div>
+              <div class="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 font-mono">Phần thưởng hoàn thành</div>
+              <div id="mqd-coins-reward" class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-300 font-mono">+10 Vàng</div>
+            </div>
+          </div>
+          <div id="mqd-exp-reward" class="hidden"></div>
+        </div>
+
+        <!-- Description Box -->
+        <div id="mqd-desc-box" class="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
+          <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 font-mono">Mục tiêu & Mô tả</div>
+          <p id="mqd-desc" class="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap break-words"></p>
+        </div>
+
+        <!-- Supplementary Info / Metadata Chips (Thời gian, Chế độ lặp, Bằng chứng ảnh, Hạng, Chuỗi ngày) -->
+        <div id="mqd-meta-container" class="p-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+          <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 font-mono">Thông tin bổ trợ</div>
+          <div id="mqd-meta-badges" class="flex flex-wrap items-center gap-1.5">
+            <!-- Dynamically populated: ⏱️ Thời gian, 🔁 Chế độ, 📸 Bằng chứng, 🎖️ Hạng, 🔥 Chuỗi -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer (Actions) -->
+      <div class="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 shrink-0">
+        <!-- Primary Action Button Container -->
+        <div id="mqd-primary-action-container">
+          <!-- Dynamically populated: Start Timer / Complete / Submit Proof / Restart / Undo -->
+        </div>
+
+        <!-- Secondary Actions Area (Undo repeat + Utility buttons) -->
+        <div id="mqd-secondary-actions" class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2">
+          <!-- Hoàn lại lần vừa làm (đi chung với các nút dưới cùng) -->
+          <div id="mqd-undo-container" class="hidden"></div>
+
+          <!-- Bottom Utility Buttons Grid: 2 columns to prevent text truncation -->
+          <div class="grid grid-cols-2 gap-2 text-center">
+            <button id="mqd-btn-debate" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Thương lượng lại độ khó và phần thưởng với AI">
+              <span>💬</span>
+              <span>Thương lượng</span>
+            </button>
+            <button id="mqd-btn-freq" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Xem biểu đồ tần suất thói quen">
+              <span>📊</span>
+              <span>Xem tần suất</span>
+            </button>
+            <button id="mqd-btn-repeat" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-200/70 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-300/60 dark:border-slate-700/60 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Thay đổi chế độ lặp lại">
+              <span>🔁</span>
+              <span id="mqd-repeat-btn-label">Đổi lặp lại</span>
+            </button>
+            <button id="mqd-btn-delete" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Xóa nhiệm vụ này">
+              <span>🗑️</span>
+              <span>Xóa nhiệm vụ</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: REWARD DETAIL (Shop & Inventory) -->
+  <div id="modal-reward-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="mrd-title">
+    <div class="rpg-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+
+      <!-- Modal Header -->
+      <div id="mrd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+          <div id="mrd-icon" class="w-14 h-14 rounded-2xl bg-white/50 dark:bg-white/20 backdrop-blur-md border border-white/60 flex items-center justify-center text-3xl shadow-sm shrink-0">
+            🎁
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 id="mrd-title" class="font-bold text-lg sm:text-xl text-slate-900 dark:text-white leading-snug break-words"></h3>
+            <span id="mrd-tier-badge" class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider"></span>
+          </div>
+        </div>
+        <button type="button" class="modal-close w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-slate-800 dark:text-slate-100 flex items-center justify-center text-lg leading-none cursor-pointer transition shrink-0">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+
+        <!-- Price / Value Strip -->
+        <div id="mrd-price-strip" class="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">💰</span>
+            <div>
+              <div id="mrd-price-label" class="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 font-mono">Giá đổi phần thưởng</div>
+              <div id="mrd-price-value" class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-300 font-mono">50 Vàng</div>
+            </div>
+          </div>
+          <div id="mrd-affordability" class="text-right"></div>
+        </div>
+
+        <!-- Description Box -->
+        <div id="mrd-desc-box" class="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
+          <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 font-mono">Mô tả phần thưởng</div>
+          <p id="mrd-desc" class="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap break-words"></p>
+        </div>
+
+        <!-- Meta Badges -->
+        <div id="mrd-meta-container" class="p-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+          <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 font-mono">Thông tin bổ trợ</div>
+          <div id="mrd-meta-badges" class="flex flex-wrap items-center gap-1.5"></div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer (Actions) -->
+      <div class="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 shrink-0">
+        <!-- Primary Action Button Container -->
+        <div id="mrd-primary-action-container"></div>
+
+        <!-- Secondary Actions Area -->
+        <div id="mrd-secondary-actions" class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2">
+          <div id="mrd-secondary-grid" class="grid grid-cols-2 gap-2 text-center"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- MODAL 1: SUBMIT QUEST TO AI ARBITER -->
   <div id="modal-quest" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
     <div class="rpg-panel rounded-2xl w-full sm:max-w-lg border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
@@ -1513,8 +1667,8 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <span id="verdict-rank" class="rank-badge-C text-xs font-mono font-black px-2.5 py-1 rounded-lg">HẠNG C</span>
-            <div class="flex items-center gap-2">
+            <span id="verdict-rank" class="hidden">HẠNG C</span>
+            <div class="flex items-center gap-2 ml-auto">
               <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏳ HẸN GIỜ TẬP TRUNG</span>
               <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
             </div>
@@ -1736,8 +1890,8 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <span id="eval-tier" class="text-xs font-mono font-black px-2.5 py-1 rounded-lg border">RARE</span>
-            <div class="flex items-center gap-2">
+            <span id="eval-tier" class="hidden">RARE</span>
+            <div class="flex items-center gap-2 ml-auto">
               <span id="eval-category-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/30">🎁 TỰ THƯỞNG</span>
               <span id="eval-price" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 35 Vàng</span>
             </div>
@@ -1784,9 +1938,8 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 text-xs">
-              <div class="bg-white dark:bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-center">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400">Phân loại:</span>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="hidden">
                 <span id="reward-locked-tier-label" class="font-bold text-purple-600 dark:text-purple-400 font-mono uppercase truncate">RARE</span>
               </div>
               <div id="reward-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-center">
@@ -1901,7 +2054,7 @@
             <span class="text-base">⭐</span>
             <div>
               <div class="font-bold text-slate-800 dark:text-slate-200" id="profile-modal-level-title">LV. 1 • Tân Binh Cấp 1</div>
-              <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono" id="profile-modal-exp-text">0/100 EXP</div>
+              <div class="hidden" id="profile-modal-exp-text">0/100 EXP</div>
             </div>
           </div>
           <button id="btn-open-level-info-from-profile" type="button" class="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer">
@@ -1916,7 +2069,7 @@
             <span class="text-base">🔥</span>
             <div>
               <div class="font-bold text-slate-800 dark:text-slate-200" id="profile-modal-streak-title">Chuỗi Chăm Chỉ: 1 ngày</div>
-              <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono" id="profile-modal-streak-perk">Thưởng nhiệm vụ: +0% Vàng & EXP</div>
+              <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono" id="profile-modal-streak-perk">Thưởng nhiệm vụ: +0% Vàng</div>
             </div>
           </div>
           <button id="btn-open-streak-info-from-profile" type="button" class="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 border border-orange-500/30 transition flex items-center gap-1 cursor-pointer">
@@ -2004,7 +2157,7 @@
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="text-lg">⭐</span>
-          <h3 id="modal-level-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">CẤP ĐỘ & KINH NGHIỆM (EXP)</h3>
+          <h3 id="modal-level-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">CẤP ĐỘ & DANH HIỆU</h3>
         </div>
         <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none cursor-pointer">&times;</button>
       </div>
@@ -2023,17 +2176,13 @@
             </div>
           </div>
 
-          <div>
-            <div class="flex justify-between text-[11px] font-mono mb-1">
-              <span class="text-slate-500 dark:text-slate-400">Tiến trình EXP:</span>
-              <span class="font-bold text-amber-600 dark:text-amber-400" id="modal-level-exp-ratio">0/100 EXP</span>
-            </div>
-            <div class="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-              <div id="modal-level-exp-bar" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 text-right" id="modal-level-needed-text">
-              Cần thêm 100 EXP nữa để lên LV. 2
-            </div>
+          <div class="hidden">
+            <span id="modal-level-exp-ratio">0/100 EXP</span>
+            <div id="modal-level-exp-bar" style="width: 0%"></div>
+            <div id="modal-level-needed-text"></div>
+          </div>
+          <div class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+            ✨ Tiếp tục hoàn thành nhiệm vụ để tích lũy tiến trình tự động thăng cấp và nâng tầm danh xưng.
           </div>
         </div>
 
@@ -2046,20 +2195,12 @@
           <div class="space-y-2 text-[11px] leading-relaxed">
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
               <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">1. Hoàn thành Nhiệm Vụ:</div>
-              <div>Mỗi khi làm xong một nhiệm vụ, bạn nhận được điểm EXP tương ứng với độ khó:</div>
-              <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">1 Vàng thưởng = +3 EXP 🌟</div>
-              <div class="text-slate-500 text-[10px] mt-0.5">(Ví dụ: Nhiệm vụ thưởng 15 Vàng sẽ cho bạn +45 EXP).</div>
+              <div>Mỗi khi làm xong nhiệm vụ, hệ thống tự động ghi nhận khối lượng công việc và Vàng thưởng để nâng cao cấp độ.</div>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-              <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">2. Công thức thăng cấp:</div>
-              <div>Điểm EXP cần để lên cấp tiếp theo tăng dần theo cấp bậc:</div>
-              <div class="font-mono font-bold text-slate-800 dark:text-slate-200 mt-1">EXP cần = Cấp độ hiện tại × 100</div>
-              <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-500 dark:text-slate-400 text-[10px]">
-                <li>Từ Lv. 1 lên Lv. 2: cần 100 EXP (~34 Vàng)</li>
-                <li>Từ Lv. 2 lên Lv. 3: cần 200 EXP (~67 Vàng)</li>
-                <li>Từ Lv. 3 lên Lv. 4: cần 300 EXP (~100 Vàng)</li>
-              </ul>
+              <div class="font-semibold text-amber-600 dark:text-amber-400 mb-0.5">2. Cơ chế thăng cấp tự động:</div>
+              <div>Cấp độ thăng tiến theo quá trình rèn luyện bền bỉ. Cấp độ càng cao, danh hiệu và uy tín hiệp sĩ càng tỏa sáng.</div>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
@@ -2158,7 +2299,7 @@
           <div class="grid grid-cols-2 gap-2 text-[11px]">
             <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
               <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Thưởng Nhiệm Vụ</div>
-              <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5" id="modal-streak-perk-quest">+0% Vàng & EXP</div>
+              <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5" id="modal-streak-perk-quest">+0% Vàng</div>
               <div class="text-[9px] text-slate-400 mt-0.5" id="modal-streak-perk-quest-next">Chuỗi 3 ngày: +5%</div>
             </div>
             <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
@@ -2553,8 +2694,8 @@
                 ⚖️
               </div>
               <div class="text-xs">
-                <div class="font-bold text-slate-200">2. Trợ Lý AI Đánh Giá & Định Hạng</div>
-                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">AI đánh giá độ khó khách quan (Hạng S, A, B, C, D) và thưởng Vàng <span class="coin-icon"></span>, EXP 🌟 xứng đáng với công sức bỏ ra.</div>
+                <div class="font-bold text-slate-200">2. Trợ Lý AI Thẩm Định & Định Giá</div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-relaxed">AI đánh giá công việc khách quan và thưởng Vàng <span class="coin-icon"></span> xứng đáng với công sức bỏ ra.</div>
               </div>
             </div>
 
@@ -2580,7 +2721,7 @@
           <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
             <div class="text-xs font-bold text-amber-300 uppercase tracking-wide">Đăng nhập tài khoản để lưu tiến trình</div>
             <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-              Toàn bộ Nhiệm vụ, Vàng tích lũy <span class="coin-icon"></span>, EXP và Cửa hàng sẽ được tự động đồng bộ trên đám mây bằng tài khoản Google.
+              Toàn bộ Nhiệm vụ, Cấp độ, Vàng tích lũy <span class="coin-icon"></span> và Cửa hàng sẽ được tự động đồng bộ trên đám mây bằng tài khoản Google.
             </p>
           </div>
 
@@ -2666,12 +2807,11 @@
 
       <!-- Reward Badges Row -->
       <div class="flex justify-center items-center gap-3 py-2">
-        <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-sm">
+        <div class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-sm">
           <span class="coin-icon"></span>
           <span id="focus-complete-coins">+0 VÀNG</span>
         </div>
-        <div class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono font-black text-sm">
-          <span>🌟</span>
+        <div class="hidden">
           <span id="focus-complete-exp">+0 EXP</span>
         </div>
       </div>
@@ -2694,7 +2834,7 @@
   <div id="focus-zen-overlay" class="fixed inset-0 z-[90] hidden bg-black flex flex-col items-center justify-center select-none text-white p-4">
     <div class="relative flex flex-col items-center justify-center text-center space-y-6 max-w-md w-full">
       <div class="flex items-center gap-2">
-        <span id="zen-quest-rank" class="rank-badge-B text-xs px-2.5 py-0.5 rounded font-bold font-mono">HẠNG B</span>
+        <span id="zen-quest-rank" class="hidden">HẠNG B</span>
         <h2 id="zen-quest-title" class="text-slate-300 text-sm sm:text-base font-semibold tracking-wide truncate max-w-xs">Học bài tập trung</h2>
       </div>
 
@@ -2778,8 +2918,8 @@
         <!-- Quest Snapshot Card -->
         <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-1.5">
           <div class="flex items-center justify-between">
-            <span id="proof-quest-rank" class="rank-badge-B text-[10px] font-mono font-black px-2 py-0.5 rounded-md">HẠNG B</span>
-            <span id="proof-quest-reward" class="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1">
+            <span id="proof-quest-rank" class="hidden">HẠNG B</span>
+            <span id="proof-quest-reward" class="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1 ml-auto">
               <span class="coin-icon"></span> <span id="proof-quest-coins">+15 Vàng</span>
             </span>
           </div>
@@ -2913,8 +3053,7 @@
           <span class="coin-icon"></span>
           <span id="proof-approved-coins">+0 VÀNG</span>
         </div>
-        <div class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono font-black text-sm">
-          <span>🌟</span>
+        <div class="hidden">
           <span id="proof-approved-exp">+0 EXP</span>
         </div>
       </div>
@@ -3037,7 +3176,7 @@
             Hồ Sơ & Trạng Thái Hiệp Sĩ
           </h4>
           <p id="tour-step-desc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Theo dõi Cấp độ, EXP và Vàng tích lũy. Dữ liệu tự động đồng bộ qua Google. Nhấn vào đây để đổi Avatar, biệt danh hoặc xem lịch sử giao dịch.
+            Theo dõi Cấp độ và Vàng tích lũy. Dữ liệu tự động đồng bộ qua Google. Nhấn vào đây để đổi Avatar, biệt danh hoặc xem lịch sử giao dịch.
           </p>
         </div>
       </div>
@@ -3369,7 +3508,7 @@
   <script src="vendor/confetti.browser.min.js"></script>
 
   <!-- Application Logic -->
-  <script src="app.js?v=1.0.3"></script>
+  <script src="app.js?v=1.0.4"></script>
 
   <!-- PWA Service Worker Registration & Auto-update -->
   <script>

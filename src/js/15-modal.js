@@ -117,7 +117,7 @@ function openStreakInfoModal() {
   }
 
   const perkQuestEl = document.getElementById('modal-streak-perk-quest');
-  if (perkQuestEl) perkQuestEl.textContent = `+${bonusPct}% Vàng & EXP`;
+  if (perkQuestEl) perkQuestEl.textContent = `+${bonusPct}% Vàng`;
 
   const perkQuestNextEl = document.getElementById('modal-streak-perk-quest-next');
   if (perkQuestNextEl) perkQuestNextEl.textContent = nextMilestone.label;
@@ -364,6 +364,16 @@ function closeModal(id) {
   }
   const modal = document.getElementById(id);
   if (modal) modal.classList.add('hidden');
+
+  // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
+  if (window.parentDetailQuestId && (id === 'modal-quest' || id === 'modal-frequency-detail' || id === 'modal-quest-proof')) {
+    const returnQuestId = window.parentDetailQuestId;
+    window.parentDetailQuestId = null;
+    const q = Array.isArray(appState.quests) ? appState.quests.find(item => item.id === returnQuestId) : null;
+    if (q && typeof openQuestDetailModal === 'function') {
+      setTimeout(() => openQuestDetailModal(returnQuestId), 50);
+    }
+  }
 }
 
 function isAvatarUrl(avatar) {

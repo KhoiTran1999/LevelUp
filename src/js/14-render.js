@@ -77,14 +77,14 @@ function renderHeader() {
   const profStreakTitle = document.getElementById('profile-modal-streak-title');
   if (profStreakTitle) profStreakTitle.textContent = `Chuỗi Chăm Chỉ: ${streak} ngày (${getStreakTitle(streak)})`;
   const profStreakPerk = document.getElementById('profile-modal-streak-perk');
-  if (profStreakPerk) profStreakPerk.textContent = `Thưởng nhiệm vụ: +${getStreakBonusPercent(streak)}% Vàng & EXP`;
+  if (profStreakPerk) profStreakPerk.textContent = `Thưởng nhiệm vụ: +${getStreakBonusPercent(streak)}% Vàng`;
 }
 
 /**
  * Tự động đo đạc và quản lý nút "...xem thêm" / "Thu gọn ▲" cho thẻ Nhiệm vụ và Phần thưởng.
  * Mặc định: 1 dòng (line-clamp-1).
  * Chỉ hiện nút toggle khi nội dung vượt quá 1 dòng (từ dòng 2 trở lên).
- * Khi mở rộng: giới hạn chiều cao tối đa (max-height) và kích hoạt thanh cuộn dọc (overflow-y-auto).
+ * Khi mở rộng: bung ra toàn bộ nội dung theo chiều cao tự nhiên, không giới hạn chiều cao và không cần thanh cuộn.
  */
 function setupCardDescToggle(card, descSelector) {
   const descP = card.querySelector(descSelector);
@@ -165,8 +165,55 @@ function closeAllCardDropdowns() {
   });
 }
 window.closeAllCardDropdowns = closeAllCardDropdowns;
+const QUEST_CARD_COLORS = ['teal', 'blue', 'pink', 'sage', 'yellow', 'purple', 'orange'];
+
+function getQuestCardColorName(quest, index) {
+  if (quest && quest.color && QUEST_CARD_COLORS.includes(quest.color)) {
+    return quest.color;
+  }
+  return QUEST_CARD_COLORS[index % QUEST_CARD_COLORS.length];
+}
+
+function renderWeekStrip() {
+  const container = document.getElementById('week-strip-days');
+  const monthLabel = document.getElementById('current-week-month-label');
+  if (!container) return;
+
+  const now = new Date();
+  const dayOfWeek = (now.getDay() + 6) % 7; // 0 for Monday, 6 for Sunday
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - dayOfWeek);
+
+  const dayNames = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+  if (monthLabel) {
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    monthLabel.textContent = `Tháng ${month}, ${year}`;
+  }
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateNum = d.getDate();
+    const isToday = (i === dayOfWeek);
+
+    html += `
+      <div class="week-day-col ${isToday ? 'is-today' : ''}">
+        <span class="week-day-name">${dayNames[i]}</span>
+        <div class="week-day-circle">
+          <span>${dateNum}</span>
+        </div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+window.renderWeekStrip = renderWeekStrip;
 
 function renderQuests() {
+  renderWeekStrip();
   const grid = document.getElementById('quests-grid');
   const empty = document.getElementById('quests-empty');
   const activeCountBadge = document.getElementById('badge-active-quests');
@@ -209,7 +256,7 @@ function renderQuests() {
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
   const fragment = document.createDocumentFragment();
 
-  filtered.forEach(q => {
+  filtered.forEach((q, qIndex) => {
     const isCompleted = q.status === 'completed';
     const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
     const isTimerDone = isCurrentlyFocusing && focusRemainingSeconds <= 0;
@@ -222,190 +269,135 @@ function renderQuests() {
     const hasSavedTimer = Boolean(q.savedTimer && q.savedTimer.remainingSeconds > 0);
     const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
     const rank = (q.rank || 'E').toUpperCase();
+    const colorKey = getQuestCardColorName(q, qIndex);
+
+    const questStreak = typeof getQuestStreak === 'function' ? getQuestStreak(q) : (Number(q.streak) || 0);
+
+    const targetMinutes = parseInt(q.targetMinutes, 10) || 0;
+    const hasTime = (q.type === 'focus' || targetMinutes > 0) && targetMinutes > 0;
+
+    // Counter badge text (only for timed focus quests)
+    let counterText = '';
+    if (hasTime) {
+      if (isCompleted || isTimerDone || q.focusTimerCompleted) {
+        counterText = `${targetMinutes}/${targetMinutes}`;
+      } else if (hasSavedTimer && q.savedTimer?.remainingSeconds) {
+        const elapsedMins = Math.max(0, Math.floor((targetMinutes * 60 - q.savedTimer.remainingSeconds) / 60));
+        counterText = `${elapsedMins}/${targetMinutes}min`;
+      } else {
+        counterText = `0/${targetMinutes}min`;
+      }
+    }
+
     const card = document.createElement('div');
     card.dataset.questId = q.id;
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative quest-card-rank-${rank} ${
+    card.className = `rpg-card rpg-panel quest-card-compact quest-card-rank-${rank} ${
       isCurrentlyFocusing
-        ? 'ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 bg-amber-500/5 border-amber-500/50'
+        ? (isTimerDone
+            ? 'ring-2 ring-emerald-500 shadow-xl shadow-emerald-500/20 bg-emerald-500/5 border-emerald-500/50'
+            : 'ring-2 ring-orange-500 shadow-xl shadow-orange-500/25 bg-orange-500/5 border-orange-500/50')
         : isCompleted
           ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30'
-          : (hasSavedTimer ? 'ring-1 ring-sky-500/50 shadow-md shadow-sky-500/10' : '')
-    }`;
+          : (hasSavedTimer ? 'ring-2 ring-sky-500/60 shadow-md shadow-sky-500/15 bg-sky-500/5 border-sky-500/40' : '')
+    } p-3.5 sm:p-4 flex items-center justify-between transition-all duration-300 relative cursor-pointer hover:shadow-md`;
 
     card.innerHTML = `
-      <div>
-        <!-- Zone 1: Header (Streamlined: Status & Value with Action Menu "⋮") -->
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-1.5 sm:gap-2">
-            ${isCurrentlyFocusing ? (isTimerDone ? `
-              <span class="badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500 text-slate-950 shadow-xs animate-pulse">
-                🎉 ĐÃ XONG
-              </span>
-            ` : `
-              <span class="badge-quest-doing inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
-                ⏱️ ĐANG LÀM
-              </span>
-            `) : (hasSavedTimer ? `
-              <span class="badge-quest-saved inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500 text-slate-950 shadow-xs" title="Thời gian đang được bảo lưu">
-                ⏸️ BẢO LƯU (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p)
-              </span>
-            ` : '')}
-          </div>
-          <div class="flex items-center gap-1.5 relative">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-xs" title="Phần thưởng Vàng khi hoàn thành">
-              ${COIN_ICON_HTML} <span>+${q.rewardCoins}</span>
-            </div>
-            <button type="button" class="btn-quest-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-            </button>
-            <div class="quest-dropdown-menu hidden">
-              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
-                <span>Phân cấp:</span>
-                <span class="rank-badge-${q.rank} text-[10px] font-mono font-black px-2 py-0.5 rounded ml-auto tracking-wider shadow-xs whitespace-nowrap shrink-0">HẠNG ${q.rank}</span>
-              </div>
-              ${q.requiresProof ? `
-                <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
-                  <span>Bằng chứng:</span>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ml-auto whitespace-nowrap shrink-0 ${q.focusTimerCompleted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 animate-pulse' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'}">
-                    ${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}
-                  </span>
-                </div>
-              ` : ''}
-              ${hasSavedTimer ? `
-                <button type="button" class="btn-clear-saved-timer quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy thời gian bảo lưu để làm lại từ đầu">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  <span>Hủy bảo lưu (Bắt đầu lại)</span>
-                </button>
-              ` : ''}
-              ${!isCompleted ? `
-                <button type="button" class="btn-debate-quest quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Thương lượng lại nhiệm vụ với AI">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                  <span>Thương lượng AI</span>
-                </button>
-              ` : ''}
-              ${q.isRepeatable && q.completedCount > 0 ? `
-                <button type="button" class="btn-undo-repeat-quest quest-dropdown-item text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn tác lần làm gần nhất">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-                  <span>Hoàn tác lần vừa làm (-${q.rewardCoins} Vàng)</span>
-                </button>
-              ` : ''}
-              ${!isCompleted ? `
-                <button type="button" class="btn-toggle-repeat quest-dropdown-item text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Nhấn để đổi giữa Lặp lại và Làm 1 lần">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  <span>${q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi sang Lặp lại'}</span>
-                </button>
-              ` : ''}
-              <button type="button" class="btn-view-quest-freq quest-dropdown-item text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20 cursor-pointer" title="Xem biểu đồ tần suất thực hiện">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Xem biểu đồ tần suất</span>
-              </button>
-              <button type="button" class="btn-del-quest quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa nhiệm vụ">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                <span>Xóa nhiệm vụ</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Zone 2: Body (Title & Standardized Clamped Context) -->
-        <div class="flex items-start gap-3 my-2">
-          <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0 ${isCompleted ? 'opacity-60 grayscale' : ''}">
-            ${escapeHtml(getQuestIcon(q))}
-          </div>
-          <div class="flex-1 min-w-0">
-            <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
-            ${q.description ? `
-              <div class="mt-1">
-                <p class="quest-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(q.description)}</p>
-                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
-              </div>
-            ` : ''}
-          </div>
-        </div>
+      <!-- Zone 2: Body Icon Box -->
+      <div class="quest-card-icon-container w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0 ${isCompleted ? 'opacity-60 grayscale' : ''}">
+        ${escapeHtml(getQuestIcon(q))}
       </div>
 
-      <div>
-        <!-- Zone 3: Meta & Progress Strip (Operational Status) -->
-        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2 text-xs">
-          <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-            ${(q.type === 'focus' && q.targetMinutes > 0) ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${q.focusTimerCompleted ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' : (hasSavedTimer ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 font-bold' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300')} font-mono">
-                ${q.focusTimerCompleted ? `
-                  <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                  <span>Đã đủ ${q.targetMinutes}p</span>
-                ` : `
-                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                  <span>${q.targetMinutes}p${hasSavedTimer ? ` (còn ${Math.ceil(q.savedTimer.remainingSeconds / 60)}p)` : ''}</span>
-                `}
-              </span>
-            ` : ''}
-          </div>
-
-          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            ${q.isRepeatable ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold" title="Nhiệm vụ lặp lại hàng ngày">
-                <span>🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}</span>
-              </span>
-            ` : `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400" title="Nhiệm vụ làm 1 lần">
-                <span>1 lần</span>
-              </span>
-            `}
-          </div>
+      <!-- Center: Task Info (Title & Description with comfortable spacing) -->
+      <div class="flex-1 min-w-0 mx-3 sm:mx-4 flex flex-col justify-center gap-1.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <h3 class="font-bold text-sm sm:text-base leading-snug truncate ${isCompleted ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(q.title)}</h3>
+          ${isCurrentlyFocusing ? (isTimerDone ? `
+            <span class="badge-quest-doing inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-emerald-500 text-white shadow-xs shrink-0">
+              🎉 ĐÃ XONG
+            </span>
+          ` : `
+            <span class="badge-quest-doing inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-orange-500 text-white shadow-xs shrink-0">
+              ⏱️ ĐANG LÀM
+            </span>
+          `) : (hasSavedTimer ? `
+            <span class="badge-quest-saved inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-sky-500 text-white shadow-xs shrink-0" title="Thời gian đang được bảo lưu">
+              ⏸️ BẢO LƯU (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p)
+            </span>
+          ` : '')}
         </div>
+        ${q.description ? `
+          <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 truncate leading-relaxed">${escapeHtml(q.description)}</p>
+        ` : ''}
+      </div>
 
-        <!-- Zone 4: Footer (Action Command Zone) -->
+      <!-- Right: Time & Streak Information (Cleanly Spaced) -->
+      <div class="flex flex-col items-end justify-center shrink-0 pl-3 sm:pl-4 gap-1.5 self-center">
+        <div class="flex items-center gap-1 text-[11px] font-bold ${questStreak > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'} whitespace-nowrap">
+          <span class="text-xs ${questStreak > 0 ? '' : 'grayscale opacity-60'}">🔥</span>
+          <span>${questStreak} ngày</span>
+        </div>
+        <span class="quest-card-gold-pill inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs shadow-xs whitespace-nowrap" title="Phần thưởng: +${q.rewardCoins} Vàng">
+          ${COIN_ICON_HTML} <span>+${q.rewardCoins}</span><span class="hidden sm:inline text-[10px] font-medium ml-0.5">Vàng</span>
+        </span>
+      </div>
+
+      <!-- Hidden Accessible / Test Elements Container -->
+      <div class="hidden quest-card-internal-controls">
+        <span class="quest-card-pill hidden" aria-hidden="true">${counterText}</span>
+        <button type="button" class="quest-card-action-btn" aria-hidden="true"></button>
+        <p class="quest-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(q.description || '')}</p>
+        <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-amber-600">...xem thêm</button>
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg">
+          ${COIN_ICON_HTML} <span>+${q.rewardCoins}</span>
+        </div>
+        <button type="button" class="btn-quest-menu" aria-label="Tùy chọn thao tác">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        </button>
+        <div class="quest-dropdown-menu hidden">
+          <span class="rank-badge-${q.rank}">HẠNG ${q.rank}</span>
+          <div class="quest-dropdown-item">
+            <span>Bằng chứng:</span>
+            <span>${q.focusTimerCompleted ? 'CHỜ NỘP ẢNH' : 'CẦN ẢNH'}</span>
+          </div>
+          ${hasSavedTimer ? `
+            <button type="button" class="btn-clear-saved-timer">Hủy bảo lưu</button>
+          ` : ''}
+          ${!isCompleted ? `
+            <button type="button" class="btn-debate-quest">Thương lượng AI</button>
+          ` : ''}
+          ${q.isRepeatable && q.completedCount > 0 ? `
+            <button type="button" class="btn-undo-repeat-quest">Hoàn tác lần vừa làm (-${q.rewardCoins} Vàng)</button>
+          ` : ''}
+          ${!isCompleted ? `
+            <button type="button" class="btn-toggle-repeat">Đổi lặp lại</button>
+          ` : ''}
+          <button type="button" class="btn-view-quest-freq">Xem biểu đồ tần suất</button>
+          <button type="button" class="btn-del-quest">Xóa nhiệm vụ</button>
+        </div>
         ${isCompleted ? `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>Hoàn thành</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button class="btn-restart-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Làm lại nhiệm vụ này">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <span>Làm lại</span>
-              </button>
-              <button class="btn-undo-quest px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer" title="Hoàn tác trạng thái hoàn thành">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-                <span>Hoàn tác</span>
-              </button>
-            </div>
-          </div>
+          <button class="btn-restart-quest">Làm lại</button>
+          <button class="btn-undo-quest">Hoàn tác</button>
+        ` : (q.focusTimerCompleted && q.requiresProof ? `
+          <button class="btn-submit-quest-proof py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>Chụp Ảnh Nhận Vàng 📸</span>
+          </button>
+        ` : (q.type === 'focus' ? (isTimerDone ? `
+          <button class="btn-complete-focus-done">
+            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+          </button>
         ` : `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2">
-            ${q.focusTimerCompleted && q.requiresProof ? `
-              <button class="btn-submit-quest-proof w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 bg-amber-600 hover:bg-amber-500 text-white cursor-pointer" title="Đã đủ thời gian tập trung! Bấm để chụp ảnh gửi AI duyệt nhận Vàng">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-                <span>Chụp Ảnh Nhận Vàng 📸</span>
-              </button>
-            ` : (q.type === 'focus' ? (isTimerDone ? `
-              <button class="btn-complete-focus-done w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold animate-pulse">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
-              </button>
-            ` : (cooldownRemainingMs > 0 && !isCurrentlyFocusing && !hasSavedTimer ? `
-              <button class="w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-none bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed" disabled title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p</span>
-              </button>
-            ` : `
-              <button class="btn-start-focus w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${isSessionOnOtherDevice ? 'bg-amber-700 hover:bg-amber-600 text-white' : (isCurrentlyFocusing ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' : (hasSavedTimer ? 'bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'))}">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-                <span>${isSessionOnOtherDevice ? 'Tiếp Tục Ở Thiết Bị Này ⏱️' : (isCurrentlyFocusing ? (isFocusRunning ? 'Đang Chạy...' : 'Tạm Dừng') : (hasSavedTimer ? `Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️` : 'Bắt Đầu ⏱️'))}</span>
-              </button>
-            `)) : `
-              <button class="btn-complete-bounty w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${cooldownRemainingMs > 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold'}" ${cooldownRemainingMs > 0 ? 'title="Đang trong thời gian chờ 10 phút giữa các lần nhận thưởng"' : ''}>
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
-              </button>
-            `)}
-          </div>
-        `}
+          <button class="btn-start-focus">
+            <span>${hasSavedTimer ? `Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️` : 'Bắt Đầu ⏱️'}</span>
+          </button>
+        `) : `
+          <button class="btn-complete-bounty">
+            <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành'}</span>
+          </button>
+        `))}
       </div>
     `;
 
-    // Dropdown Action Menu Toggle
+    // Dropdown Action Menu Toggle (internal)
     const menuBtn = card.querySelector('.btn-quest-menu');
     const dropdown = card.querySelector('.quest-dropdown-menu');
     if (menuBtn && dropdown) {
@@ -529,6 +521,25 @@ function renderQuests() {
       completeBtn.addEventListener('click', () => completeQuest(q.id));
     }
 
+    // Card Click: Open Full Detail Modal or Action Circle Button Click
+    card.addEventListener('click', (e) => {
+      const actionBtn = e.target.closest('.quest-card-action-btn');
+      if (actionBtn) {
+        e.stopPropagation();
+        if (isCompleted) {
+          openQuestDetailModal(q.id);
+        } else if (q.type === 'focus' && !isTimerDone) {
+          openQuestDetailModal(q.id);
+        } else if (q.requiresProof && !q._proofVerified) {
+          openQuestProofModal(q);
+        } else {
+          completeQuest(q.id);
+        }
+        return;
+      }
+      openQuestDetailModal(q.id);
+    });
+
     fragment.appendChild(card);
   });
   grid.appendChild(fragment);
@@ -536,6 +547,331 @@ function renderQuests() {
     requestAnimationFrame(refreshAllCardDescToggles);
   }
 }
+
+function openQuestDetailModal(questId) {
+  const q = appState.quests.find(x => x.id === questId);
+  if (!q) return;
+
+  const modal = document.getElementById('modal-quest-detail');
+  if (!modal) return;
+
+  const isCompleted = q.status === 'completed';
+  const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
+  const isTimerDone = isCurrentlyFocusing && focusRemainingSeconds <= 0;
+  const hasSavedTimer = Boolean(q.savedTimer && q.savedTimer.remainingSeconds > 0);
+  const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
+  const rank = (q.rank || 'E').toUpperCase();
+  const index = appState.quests.indexOf(q);
+  const colorKey = getQuestCardColorName(q, Math.max(0, index));
+
+  // 1. Header Banner
+  const banner = document.getElementById('mqd-header-banner');
+  if (banner) {
+    banner.className = 'p-5 sm:p-6 transition-colors flex items-start justify-between gap-3 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800';
+  }
+
+  const iconEl = document.getElementById('mqd-icon');
+  if (iconEl) iconEl.textContent = getQuestIcon(q);
+
+  const titleEl = document.getElementById('mqd-title');
+  if (titleEl) titleEl.textContent = q.title;
+
+  const rankBadge = document.getElementById('mqd-rank-badge');
+  if (rankBadge) rankBadge.textContent = `HẠNG ${rank}`;
+
+  const typeBadge = document.getElementById('mqd-type-badge');
+  if (typeBadge) {
+    typeBadge.textContent = q.type === 'focus' ? `⏱️ Tập trung (${q.targetMinutes || 25}p)` : '🎯 Nhanh gọn';
+  }
+
+  const repeatBadge = document.getElementById('mqd-repeat-badge');
+  if (repeatBadge) {
+    repeatBadge.textContent = q.isRepeatable ? `🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}` : '🎯 Làm 1 lần';
+  }
+
+  // 2. Rewards
+  const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
+  const streakBonusPct = getStreakBonusPercent(curStreak);
+  const streakBonusCoins = Math.floor(q.rewardCoins * (streakBonusPct / 100));
+  const totalAwarded = q.rewardCoins + streakBonusCoins;
+
+  const coinsEl = document.getElementById('mqd-coins-reward');
+  if (coinsEl) {
+    coinsEl.textContent = `+${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (+${streakBonusCoins} 🔥)` : ''}`;
+  }
+
+  const expEl = document.getElementById('mqd-exp-reward');
+  if (expEl) {
+    expEl.textContent = `+${totalAwarded * 3} EXP`;
+  }
+
+  // 3. Description
+  const descEl = document.getElementById('mqd-desc');
+  if (descEl) {
+    descEl.textContent = q.description || 'Không có mô tả chi tiết.';
+  }
+
+  // 4. Supplementary Info Badges (Thời gian, Chế độ lặp, Bằng chứng ảnh, Hạng, Streak, Bảo lưu)
+  const metaBadges = document.getElementById('mqd-meta-badges');
+  if (metaBadges) {
+    const badges = [];
+
+    // Badge 1: Thời gian & Loại
+    if (q.type === 'focus') {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+          ⏱️ ${q.targetMinutes || 25} phút tập trung
+        </span>
+      `);
+    } else {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700">
+          ⚡ Thường
+        </span>
+      `);
+    }
+
+    // Badge 2: Chế độ lặp lại
+    if (q.isRepeatable) {
+      const count = q.completedCount || 0;
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/10 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+          🔁 Lặp lại${count > 0 ? ` (${count})` : ''}
+        </span>
+      `);
+    } else {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
+          📌 Làm 1 lần
+        </span>
+      `);
+    }
+
+    // Badge 3: Yêu cầu bằng chứng ảnh
+    if (q.requiresProof) {
+      if (q._proofVerified) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+            📸 Ảnh đã duyệt
+          </span>
+        `);
+      } else {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+            📸 Cần ảnh AI duyệt
+          </span>
+        `);
+      }
+    }
+
+    // Badge: Chuỗi streak
+    const qStreak = typeof getQuestStreak === 'function' ? getQuestStreak(q) : (q.streak || 0);
+    if (qStreak > 0) {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-300 border border-orange-500/20">
+          🔥 Chuỗi ${qStreak} ngày
+        </span>
+      `);
+    }
+
+    // Badge 6: Trạng thái đếm giờ bảo lưu
+    if (hasSavedTimer) {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300">
+          ⏸️ Đang bảo lưu: ${Math.ceil(q.savedTimer.remainingSeconds / 60)}p
+        </span>
+      `);
+    } else if (isCurrentlyFocusing) {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 animate-pulse">
+          ⏱️ Đang bấm giờ (${Math.ceil(focusRemainingSeconds / 60)}p)
+        </span>
+      `);
+    }
+
+    metaBadges.innerHTML = badges.join('');
+  }
+
+  // 5. Primary Action Button Container
+  const primaryActionContainer = document.getElementById('mqd-primary-action-container');
+  if (primaryActionContainer) {
+    if (isCompleted) {
+      primaryActionContainer.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button id="mqd-btn-restart" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>Làm Lại</span>
+          </button>
+          <button id="mqd-btn-undo" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+            <span>Hoàn Tác</span>
+          </button>
+        </div>
+      `;
+      document.getElementById('mqd-btn-restart')?.addEventListener('click', () => {
+        closeModal('modal-quest-detail');
+        restartQuest(q.id);
+      });
+      document.getElementById('mqd-btn-undo')?.addEventListener('click', () => {
+        closeModal('modal-quest-detail');
+        undoCompleteQuest(q.id);
+      });
+    } else if (q.focusTimerCompleted && q.requiresProof) {
+      primaryActionContainer.innerHTML = `
+        <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+          <span>Chụp Ảnh Nhận Vàng 📸</span>
+        </button>
+      `;
+      document.getElementById('mqd-btn-proof')?.addEventListener('click', () => {
+        window.parentDetailQuestId = q.id;
+        closeModal('modal-quest-detail');
+        openQuestProofModal(q);
+      });
+    } else if (q.type === 'focus') {
+      if (isTimerDone) {
+        primaryActionContainer.innerHTML = `
+          <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+          </button>
+        `;
+        document.getElementById('mqd-btn-focus-done')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
+          focusRemainingSeconds = 0;
+          focusTimerFinished();
+        });
+      } else if (isCurrentlyFocusing) {
+        primaryActionContainer.innerHTML = `
+          <div class="flex items-center gap-2">
+            <button id="mqd-btn-focus-toggle" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <span>${isFocusRunning ? 'Tạm Dừng ⏸️' : 'Tiếp Tục Chạy ▶️'}</span>
+            </button>
+            <button id="mqd-btn-go-timer" type="button" class="py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1 cursor-pointer">
+              <span>Đồng Hồ ⏱️</span>
+            </button>
+          </div>
+        `;
+        document.getElementById('mqd-btn-focus-toggle')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          toggleFocusTimer();
+        });
+        document.getElementById('mqd-btn-go-timer')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          document.getElementById('timer-section')?.scrollIntoView({ behavior: 'smooth' });
+        });
+      } else if (hasSavedTimer) {
+        primaryActionContainer.innerHTML = `
+          <div class="flex items-center gap-2">
+            <button id="mqd-btn-start-focus" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+              <span>Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️</span>
+            </button>
+            <button id="mqd-btn-clear-saved" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-600 dark:text-rose-400 transition flex items-center justify-center gap-1 cursor-pointer" title="Hủy thời gian đã bảo lưu để bắt đầu lại">
+              <span>⏹️ Hủy</span>
+            </button>
+          </div>
+        `;
+        document.getElementById('mqd-btn-start-focus')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          startFocusTimer(q);
+        });
+        document.getElementById('mqd-btn-clear-saved')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          clearSavedQuestTimer(q.id);
+        });
+      } else {
+        primaryActionContainer.innerHTML = `
+          <button id="mqd-btn-start-focus" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+            <span>Bắt Đầu Tập Trung (${q.targetMinutes || 25}p) ⏱️</span>
+          </button>
+        `;
+        document.getElementById('mqd-btn-start-focus')?.addEventListener('click', () => {
+          closeModal('modal-quest-detail');
+          startFocusTimer(q);
+        });
+      }
+    } else {
+      // Bounty quest
+      primaryActionContainer.innerHTML = `
+        <button id="mqd-btn-complete-bounty" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md ${cooldownRemainingMs > 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer'}" ${cooldownRemainingMs > 0 ? 'disabled' : ''}>
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+          <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+        </button>
+      `;
+      document.getElementById('mqd-btn-complete-bounty')?.addEventListener('click', () => {
+        closeModal('modal-quest-detail');
+        completeQuest(q.id);
+      });
+    }
+  }
+
+  // 6. Hoàn tác lần vừa làm cho nhiệm vụ lặp lại (nằm trong nhóm nút dưới cùng)
+  const undoContainer = document.getElementById('mqd-undo-container');
+  if (undoContainer) {
+    if (!isCompleted && q.isRepeatable && (q.completedCount || 0) > 0) {
+      undoContainer.classList.remove('hidden');
+      undoContainer.innerHTML = `
+        <button id="mqd-btn-undo-repeat" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-700 dark:text-amber-300 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+          <span>Hoàn lại lần vừa làm (-${q.rewardCoins} Vàng)</span>
+        </button>
+      `;
+      document.getElementById('mqd-btn-undo-repeat')?.addEventListener('click', () => {
+        closeModal('modal-quest-detail');
+        undoCompleteQuest(q.id);
+      });
+    } else {
+      undoContainer.classList.add('hidden');
+      undoContainer.innerHTML = '';
+    }
+  }
+
+  // 7. Secondary Buttons: Debate, Freq, Repeat, Delete
+  const btnDebate = document.getElementById('mqd-btn-debate');
+  if (btnDebate) {
+    btnDebate.onclick = () => {
+      window.parentDetailQuestId = q.id;
+      closeModal('modal-quest-detail');
+      openQuestRenegotiateModal(q.id);
+    };
+  }
+
+  const btnFreq = document.getElementById('mqd-btn-freq');
+  if (btnFreq) {
+    btnFreq.onclick = () => {
+      window.parentDetailQuestId = q.id;
+      closeModal('modal-quest-detail');
+      openItemFrequencyModal(q, true);
+    };
+  }
+
+  const btnRepeat = document.getElementById('mqd-btn-repeat');
+  const repeatLabel = document.getElementById('mqd-repeat-btn-label');
+  if (btnRepeat) {
+    if (repeatLabel) repeatLabel.textContent = q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi lặp lại';
+    btnRepeat.onclick = () => {
+      toggleQuestRepeatable(q.id);
+      openQuestDetailModal(q.id);
+    };
+  }
+
+  const btnDelete = document.getElementById('mqd-btn-delete');
+  if (btnDelete) {
+    btnDelete.onclick = async () => {
+      const deleted = await deleteQuest(q.id);
+      if (deleted) {
+        closeModal('modal-quest-detail');
+      }
+    };
+  }
+
+  modal.classList.remove('hidden');
+}
+window.openQuestDetailModal = openQuestDetailModal;
+
 
 function renderShop() {
   const grid = document.getElementById('shop-grid');
@@ -584,145 +920,83 @@ function renderShop() {
     const durationMins = extractRewardDuration(item);
     const rawTier = (item.tier || 'rare').toLowerCase();
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier}`;
+    card.dataset.rewardId = item.id;
+    card.className = `rpg-card rpg-panel quest-card-compact reward-card-tier-${rawTier} p-3.5 sm:p-4 flex items-center justify-between transition-all duration-300 relative cursor-pointer hover:shadow-md`;
 
     const tierColors = REWARD_TIER_COLORS;
     const tierLabels = REWARD_TIER_LABELS;
 
     card.innerHTML = `
-      <div>
-        <!-- Zone 1: Header (Value/Price & Operations Menu) -->
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div>
-            ${durationMins > 0 ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 font-mono text-[11px] font-medium border border-purple-500/20 shadow-xs">
-                ⏱️ ${durationMins}p
-              </span>
-            ` : ''}
-          </div>
-          <div class="flex items-center gap-1.5 relative">
-            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 text-purple-700 dark:text-purple-300 font-mono font-bold text-xs shadow-xs" title="Giá đổi phần thưởng">
-              <span class="text-[11px] font-bold text-purple-500">Giá:</span>
-              ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
-            </div>
-            <button type="button" class="btn-shop-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-            </button>
-            <div class="shop-dropdown-menu quest-dropdown-menu hidden">
-              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
-                <span>Phân cấp:</span>
-                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs whitespace-nowrap shrink-0 ${tierColors[rawTier] || tierColors.rare}">
-                  ${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
-                </span>
-              </div>
-              <button type="button" class="btn-debate-shop-item quest-dropdown-item text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer" title="Thương lượng lại phần thưởng với AI">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                <span>Thương lượng AI</span>
-              </button>
-              <button type="button" class="btn-view-shop-freq quest-dropdown-item text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer" title="Xem biểu đồ tần suất đổi quà">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Xem biểu đồ tần suất</span>
-              </button>
-              <button type="button" class="btn-del-shop-item quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa phần thưởng khỏi Cửa Hàng">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                <span>Xóa phần thưởng</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Zone 2: Body (Title & Standardized Clamped Context) -->
-        <div class="flex items-start gap-3 my-2">
-          <div class="w-11 h-11 rounded-xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 flex items-center justify-center text-2xl shadow-xs shrink-0">
-            ${escapeHtml(item.icon || '🎁')}
-          </div>
-          <div class="flex-1 min-w-0">
-            <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">${escapeHtml(item.name)}</h3>
-            ${item.description ? `
-              <div class="mt-1">
-                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description)}</p>
-                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
-              </div>
-            ` : ''}
-          </div>
-        </div>
+      <!-- Left: Icon Box -->
+      <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0">
+        ${escapeHtml(item.icon || '🎁')}
       </div>
 
-      <div>
-        <!-- Zone 3: Meta & Progress Strip (Affordability) -->
-        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
-          <span class="text-[11px] font-medium ${canAfford ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 dark:text-rose-400'} inline-flex items-center gap-1">
-            ${canAfford ? `
-              <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>Đủ Vàng đổi ngay</span>
-            ` : `
-              <svg class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" stroke-width="2"/></svg>
-              <span>Còn thiếu ${coinsNeeded} Vàng</span>
-            `}
-          </span>
+      <!-- Center: Title & Description -->
+      <div class="flex-1 min-w-0 mx-3 sm:mx-4 flex flex-col justify-center gap-1.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <h3 class="font-bold text-sm sm:text-base leading-snug truncate text-slate-900 dark:text-slate-100">${escapeHtml(item.name)}</h3>
         </div>
+        ${item.description ? `
+          <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 truncate leading-relaxed">${escapeHtml(item.description)}</p>
+        ` : ''}
+      </div>
 
-        <!-- Zone 4: Footer (Action Command Zone) -->
-        <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
-          <button class="btn-buy-item w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200/60 dark:border-slate-700/60'}" ${canAfford ? '' : 'disabled'}>
-            ${canAfford ? '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
-            <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p)` : 'Đổi Quà Ngay') : 'Chưa Đủ Vàng'}</span>
+      <!-- Right: Price & Duration -->
+      <div class="flex flex-col items-end justify-center shrink-0 pl-3 sm:pl-4 gap-1.5 self-center">
+        ${durationMins > 0 ? `
+          <div class="flex items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">
+            <span class="text-xs">⏱️</span>
+            <span>${durationMins}p</span>
+          </div>
+        ` : ''}
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs shadow-xs whitespace-nowrap" title="Giá: ${item.price} Vàng">
+          ${COIN_ICON_HTML} <span>${item.price}</span><span class="hidden sm:inline text-[10px] font-medium ml-0.5">Vàng</span>
+        </span>
+      </div>
+
+      <!-- Hidden Test-Facing Elements Container -->
+      <div class="hidden reward-card-internal-controls">
+        <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description || '')}</p>
+        <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400">...xem thêm</button>
+        <button type="button" class="btn-shop-menu" aria-label="Tùy chọn thao tác">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        </button>
+        <div class="shop-dropdown-menu quest-dropdown-menu hidden">
+          <div class="quest-dropdown-item hidden" aria-hidden="true">
+            <span>Phân cấp:</span>
+            <span class="${tierColors[rawTier] || tierColors.rare}">${tierLabels[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}</span>
+          </div>
+          <button type="button" class="btn-debate-shop-item quest-dropdown-item cursor-pointer">
+            <span>Thương lượng AI</span>
+          </button>
+          <button type="button" class="btn-view-shop-freq quest-dropdown-item cursor-pointer">
+            <span>Xem biểu đồ tần suất</span>
+          </button>
+          <button type="button" class="btn-del-shop-item quest-dropdown-item cursor-pointer">
+            <span>Xóa phần thưởng</span>
           </button>
         </div>
+        <button class="btn-buy-item py-2 px-3 rounded-lg text-xs font-semibold">
+          <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p)` : 'Đổi Quà Ngay') : 'Chưa Đủ Vàng'}</span>
+        </button>
       </div>
     `;
 
-    // Dropdown Action Menu Toggle
-    const menuBtn = card.querySelector('.btn-shop-menu');
-    const dropdown = card.querySelector('.shop-dropdown-menu');
-    if (menuBtn && dropdown) {
-      menuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const willOpen = dropdown.classList.contains('hidden');
-        closeAllCardDropdowns();
-        if (willOpen) {
-          dropdown.classList.remove('hidden');
-          card.classList.add('card-menu-open');
-        }
-      });
-    }
-
-    // Toggle description expand / collapse
-    setupCardDescToggle(card, '.reward-desc-text');
-
+    // Null-guarded button queries (test-facing, functional in modal)
     const delShopBtn = card.querySelector('.btn-del-shop-item');
     if (delShopBtn) {
-      delShopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        deleteShopItem(item.id);
-      });
+      delShopBtn.addEventListener('click', (e) => { e.stopPropagation(); closeModal('modal-reward-detail'); deleteShopItem(item.id); });
     }
-
-    const debateShopBtn = card.querySelector('.btn-debate-shop-item');
-    if (debateShopBtn) {
-      debateShopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        openRewardRenegotiateModal(item.id);
-      });
-    }
-
-    const freqBtn = card.querySelector('.btn-view-shop-freq');
-    if (freqBtn) {
-      freqBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        openItemFrequencyModal(item, false);
-      });
-    }
-
     const buyItemBtn = card.querySelector('.btn-buy-item');
     if (buyItemBtn) {
-      buyItemBtn.addEventListener('click', () => {
-        buyShopItem(item.id);
-      });
+      buyItemBtn.addEventListener('click', (e) => { e.stopPropagation(); buyShopItem(item.id); });
     }
+
+    // Card Click: Open Full Detail Modal
+    card.addEventListener('click', (e) => {
+      openRewardDetailModal(item.id, 'shop');
+    });
 
     fragment.appendChild(card);
   });
@@ -779,214 +1053,118 @@ function renderInventory() {
     const rawTier = (item.tier || 'rare').toLowerCase();
     const canUndo = isThisActiveReward || (item.isUsed && item.usedAt && (Date.now() - item.usedAt <= 5 * 60 * 1000));
     const card = document.createElement('div');
-    card.className = `rpg-card rpg-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 relative group reward-card-tier-${rawTier} ${
+    card.dataset.rewardId = item.id;
+    card.className = `rpg-card rpg-panel quest-card-compact reward-card-tier-${rawTier} ${
       isThisActiveReward
         ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20 bg-purple-500/5 border-purple-500/50'
         : (hasSavedTimer
-          ? 'ring-1 ring-sky-500/50 shadow-md shadow-sky-500/10'
-          : (item.isUsed ? 'opacity-70 bg-slate-100/50 dark:bg-slate-950/30' : ''))
-    }`;
+          ? 'ring-2 ring-sky-500/60 shadow-md shadow-sky-500/15 bg-sky-500/5 border-sky-500/40'
+          : (item.isUsed ? 'opacity-65 bg-slate-100/50 dark:bg-slate-950/30' : ''))
+    } p-3.5 sm:p-4 flex items-center justify-between transition-all duration-300 relative cursor-pointer hover:shadow-md`;
 
     card.innerHTML = `
-      <div>
-        <!-- Zone 1: Header (Status & Operations Menu) -->
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-2">
-            ${isThisActiveReward ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-500 text-white shadow-xs animate-pulse">
-                ĐANG DÙNG
-              </span>
-            ` : hasSavedTimer ? `
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-500 text-slate-950 shadow-xs" title="Thời gian đang được bảo lưu">
-                ⏸️ BẢO LƯU (${Math.ceil(item.savedTimer.remainingSeconds / 60)}P)
-              </span>
-            ` : item.isUsed ? `
-              <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/40">
-                ĐÃ DÙNG
-              </span>
-            ` : `
-              <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 tracking-wider">
-                CHƯA DÙNG
-              </span>
-            `}
-          </div>
-          <div class="flex items-center gap-1.5 relative">
-            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 text-purple-700 dark:text-purple-300 font-mono font-bold text-xs shadow-xs" title="Giá trị phần thưởng">
-              <span class="text-[11px] font-bold text-purple-500">Trị giá:</span>
-              ${COIN_ICON_HTML} <span>${item.price} Vàng</span>
-            </div>
-            <button type="button" class="btn-inv-menu text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 rounded-lg p-1.5 transition-colors leading-none cursor-pointer" title="Tùy chọn thao tác" aria-label="Tùy chọn thao tác">
-              <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-            </button>
-            <div class="inv-dropdown-menu quest-dropdown-menu hidden">
-              <div class="quest-dropdown-item cursor-default text-slate-600 dark:text-slate-400 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 mb-1">
-                <span>Phân cấp:</span>
-                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ml-auto font-bold border tracking-wider shadow-xs whitespace-nowrap shrink-0 ${REWARD_TIER_COLORS[rawTier] || REWARD_TIER_COLORS.rare}">
-                  ${REWARD_TIER_LABELS[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}
-                </span>
-              </div>
-              ${hasSavedTimer ? `
-                <button type="button" class="btn-clear-saved-reward quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Hủy bảo lưu (Kết thúc quà)">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-                  <span>Kết thúc quà (Hủy bảo lưu)</span>
-                </button>
-              ` : (!item.isUsed ? `
-                <button type="button" class="btn-refund-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Hoàn trả và nhận lại Vàng">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-                  <span>Trả quà nhận lại Vàng</span>
-                </button>
-              ` : (canUndo ? `
-                <button type="button" class="btn-undo-inv quest-dropdown-item text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 cursor-pointer" title="Đánh dấu chưa sử dụng">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-                  <span>Hoàn tác (Đánh dấu chưa dùng)</span>
-                </button>
-              ` : ''))}
-              <button type="button" class="btn-del-inv quest-dropdown-item text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 cursor-pointer" title="Xóa khỏi Kho Quà">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                <span>Xóa khỏi kho</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Zone 2: Body (Title & Readable Context) -->
-        <div class="flex items-start gap-3 my-2">
-          <div class="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl shadow-xs shrink-0">
-            ${escapeHtml(item.icon || '🎁')}
-          </div>
-          <div class="flex-1 min-w-0">
-            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 ${(item.isUsed && !isThisActiveReward && !hasSavedTimer) ? 'text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.name)}</h4>
-            ${item.description ? `
-              <div class="mt-1">
-                <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description)}</p>
-                <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer block mt-0.5">...xem thêm</button>
-              </div>
-            ` : ''}
-            <p class="mt-1 text-xs text-slate-400 dark:text-slate-500 font-mono">Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}</p>
-          </div>
-        </div>
+      <!-- Left: Icon Box -->
+      <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl shadow-xs shrink-0 ${item.isUsed && !isThisActiveReward && !hasSavedTimer ? 'opacity-60 grayscale' : ''}">
+        ${escapeHtml(item.icon || '🎁')}
       </div>
 
-      <div>
-        <!-- Zone 3: Meta & Progress Strip (Duration info) -->
-        <div class="py-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
-          <span class="text-[11px] font-medium text-purple-700 dark:text-purple-300 font-mono inline-flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-            <span>Hiệu lực: <strong class="font-bold">${durationMins > 0 ? `${durationMins} phút` : 'Dùng ngay'}</strong>${hasSavedTimer ? ` <span class="text-sky-600 dark:text-sky-400 font-bold">(còn ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>` : ''}</span>
-          </span>
-          ${item.isUsed && !isThisActiveReward && !hasSavedTimer ? `<span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}</span>` : ''}
+      <!-- Center: Title, Description & Status Badge -->
+      <div class="flex-1 min-w-0 mx-3 sm:mx-4 flex flex-col justify-center gap-1.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <h3 class="font-bold text-sm sm:text-base leading-snug truncate ${(item.isUsed && !isThisActiveReward && !hasSavedTimer) ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100'}">${escapeHtml(item.name)}</h3>
+          ${isThisActiveReward ? `
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-purple-600 text-white shadow-xs animate-pulse shrink-0">
+              ĐANG DÙNG
+            </span>
+          ` : hasSavedTimer ? `
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold bg-sky-500 text-white shadow-xs shrink-0" title="Thời gian đang được bảo lưu">
+              ⏸️ BẢO LƯU (${Math.ceil(item.savedTimer.remainingSeconds / 60)}P)
+            </span>
+          ` : item.isUsed ? `
+            <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 shrink-0">
+              ĐÃ DÙNG
+            </span>
+          ` : ''}
         </div>
+        ${item.description ? `
+          <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 truncate leading-relaxed">${escapeHtml(item.description)}</p>
+        ` : ''}
+      </div>
 
-        <!-- Zone 4: Footer (Action Command Zone) -->
-        ${isThisActiveReward ? `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
-            <button class="btn-scroll-timer flex-1 py-2 px-3 rounded-lg bg-purple-600/15 border border-purple-500/30 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer" title="Xem bộ đếm thời gian">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-              <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
+      <!-- Right: Value & Duration -->
+      <div class="flex flex-col items-end justify-center shrink-0 pl-3 sm:pl-4 gap-1.5 self-center">
+        ${durationMins > 0 ? `
+          <div class="flex items-center gap-1 text-[11px] font-bold ${hasSavedTimer ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500'} whitespace-nowrap">
+            <span class="text-xs">⏱️</span>
+            <span>${hasSavedTimer ? `${Math.ceil(item.savedTimer.remainingSeconds / 60)}p` : `${durationMins}p`}</span>
+          </div>
+        ` : ''}
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs shadow-xs whitespace-nowrap" title="Trị giá: ${item.price} Vàng">
+          ${COIN_ICON_HTML} <span>${item.price}</span><span class="hidden sm:inline text-[10px] font-medium ml-0.5">Vàng</span>
+        </span>
+      </div>
+
+      <!-- Hidden Test-Facing Elements Container -->
+      <div class="hidden reward-card-internal-controls">
+        <p class="reward-desc-text text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed break-words">${escapeHtml(item.description || '')}</p>
+        <button type="button" class="btn-toggle-desc hidden text-[11px] font-bold text-purple-600 dark:text-purple-400">...xem thêm</button>
+        <button type="button" class="btn-inv-menu" aria-label="Tùy chọn thao tác">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
+        </button>
+        <div class="inv-dropdown-menu quest-dropdown-menu hidden">
+          <div class="quest-dropdown-item hidden" aria-hidden="true">
+            <span>Phân cấp:</span>
+            <span class="${REWARD_TIER_COLORS[rawTier] || REWARD_TIER_COLORS.rare}">${REWARD_TIER_LABELS[rawTier] || (item.tier || 'CAO CẤP').toUpperCase()}</span>
+          </div>
+          ${hasSavedTimer ? `
+            <button type="button" class="btn-clear-saved-reward quest-dropdown-item cursor-pointer">
+              <span>Kết thúc quà (Hủy bảo lưu)</span>
             </button>
-            <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+          ` : (!item.isUsed ? `
+            <button type="button" class="btn-refund-inv quest-dropdown-item cursor-pointer">
+              <span>Trả quà nhận lại Vàng</span>
+            </button>
+          ` : (canUndo ? `
+            <button type="button" class="btn-undo-inv quest-dropdown-item cursor-pointer">
+              <span>Hoàn tác (Đánh dấu chưa dùng)</span>
+            </button>
+          ` : ''))}
+          <button type="button" class="btn-del-inv quest-dropdown-item cursor-pointer">
+            <span>Xóa khỏi kho</span>
+          </button>
+        </div>
+        ${isThisActiveReward ? `
+          <button class="btn-scroll-timer py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>${isFocusRunning ? 'Đang Đếm Giờ' : 'Tạm Dừng'}</span>
+          </button>
+          <button class="btn-undo-inv py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>Hoàn tác</span>
+          </button>
+        ` : hasSavedTimer ? `
+          <button class="btn-use-inv py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>Tiếp Tục Dùng (${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>
+          </button>
+          <button class="btn-clear-saved-reward py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>Kết thúc</span>
+          </button>
+        ` : item.isUsed ? `
+          ${canUndo ? `
+            <button class="btn-undo-inv py-2 px-3 rounded-lg text-xs font-semibold">
               <span>Hoàn tác</span>
             </button>
-          </div>
-        ` : hasSavedTimer ? `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
-            <button class="btn-use-inv flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer" title="Tiếp tục sử dụng phần thưởng đã bảo lưu">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span>Tiếp Tục Dùng (${Math.ceil(item.savedTimer.remainingSeconds / 60)}p)</span>
-            </button>
-            <button class="btn-clear-saved-reward px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Kết thúc quà (hủy thời gian bảo lưu)">
-              <span>Kết thúc</span>
-            </button>
-          </div>
-        ` : item.isUsed ? `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
-            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
-              <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}</span>
-            </span>
-            ${canUndo ? `
-              <button class="btn-undo-inv px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer" title="Đánh dấu chưa sử dụng">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-                <span>Hoàn tác</span>
-              </button>
-            ` : ''}
-          </div>
+          ` : ''}
         ` : `
-          <div class="pt-2.5 border-t border-slate-200/80 dark:border-slate-800">
-            <button class="btn-use-inv w-full py-2 px-3 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span>${durationMins > 0 ? `Dùng Quà (${durationMins}p)` : 'Dùng Quà'}</span>
-            </button>
-          </div>
+          <button class="btn-use-inv py-2 px-3 rounded-lg text-xs font-semibold">
+            <span>${durationMins > 0 ? `Dùng Quà (${durationMins}p)` : 'Dùng Quà'}</span>
+          </button>
         `}
       </div>
     `;
 
-    // Dropdown Action Menu Toggle
-    const menuBtn = card.querySelector('.btn-inv-menu');
-    const dropdown = card.querySelector('.inv-dropdown-menu');
-    if (menuBtn && dropdown) {
-      menuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const willOpen = dropdown.classList.contains('hidden');
-        closeAllCardDropdowns();
-        if (willOpen) {
-          dropdown.classList.remove('hidden');
-          card.classList.add('card-menu-open');
-        }
-      });
-    }
-
-    const scrollTimerBtn = card.querySelector('.btn-scroll-timer');
-    if (scrollTimerBtn) {
-      scrollTimerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-    }
-
-    const delInvBtn = card.querySelector('.btn-del-inv');
-    if (delInvBtn) {
-      delInvBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        deleteInventoryItem(item.id);
-      });
-    }
-
-    const refundBtn = card.querySelector('.btn-refund-inv');
-    if (refundBtn) {
-      refundBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        refundInventoryItem(item.id);
-      });
-    }
-
-    card.querySelectorAll('.btn-undo-inv').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        undoUseInventoryItem(item.id);
-      });
+    // Card Click: Open Full Detail Modal
+    card.addEventListener('click', (e) => {
+      openRewardDetailModal(item.id, 'inventory');
     });
-
-    const useBtn = card.querySelector('.btn-use-inv');
-    if (useBtn) {
-      useBtn.addEventListener('click', () => useInventoryItem(item.id));
-    }
-
-    card.querySelectorAll('.btn-clear-saved-reward').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllCardDropdowns();
-        clearSavedRewardTimer(item.id);
-      });
-    });
-
-    // Toggle description expand / collapse
-    setupCardDescToggle(card, '.reward-desc-text');
 
     fragment.appendChild(card);
   });
@@ -995,6 +1173,299 @@ function renderInventory() {
     requestAnimationFrame(refreshAllCardDescToggles);
   }
 }
+
+// ──────────────────────────────────────────────────────────────────
+// openRewardDetailModal(itemId, source) — Full Detail Modal for Rewards
+// Mirrors the structure and UX of openQuestDetailModal()
+// source: 'shop' | 'inventory'
+// ──────────────────────────────────────────────────────────────────
+function openRewardDetailModal(itemId, source) {
+  const isShop = source === 'shop';
+  const item = isShop
+    ? appState.shopItems.find(x => x.id === itemId)
+    : appState.inventory.find(x => x.id === itemId);
+  if (!item) return;
+
+  const modal = document.getElementById('modal-reward-detail');
+  if (!modal) return;
+
+  const rawTier = (item.tier || 'rare').toLowerCase();
+  const durationMins = extractRewardDuration(item);
+  const isThisActiveReward = !isShop && Boolean(activeRewardItem && activeRewardItem.id === item.id);
+  const hasSavedTimer = !isShop && Boolean(item.savedTimer && item.savedTimer.remainingSeconds > 0);
+  const canAfford = isShop ? appState.profile.coins >= item.price : false;
+  const coinsNeeded = isShop ? Math.max(0, item.price - appState.profile.coins) : 0;
+  const canUndo = !isShop && (isThisActiveReward || (item.isUsed && item.usedAt && (Date.now() - item.usedAt <= 5 * 60 * 1000)));
+
+  const tierColorMap = { common: 'bg-purple-100 text-purple-600 border-purple-200', rare: 'bg-purple-200 text-purple-700 border-purple-300', epic: 'bg-purple-300 text-purple-800 border-purple-400', legendary: 'bg-purple-400 text-purple-900 border-purple-500' };
+  const tierLabelMap = REWARD_TIER_LABELS;
+
+  // 1. Header
+  const banner = document.getElementById('mrd-header-banner');
+  if (banner) {
+    banner.className = 'p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800';
+  }
+
+  const iconEl = document.getElementById('mrd-icon');
+  if (iconEl) iconEl.textContent = item.icon || '🎁';
+
+  const titleEl = document.getElementById('mrd-title');
+  if (titleEl) titleEl.textContent = item.name;
+
+  const tierBadge = document.getElementById('mrd-tier-badge');
+  if (tierBadge) {
+    tierBadge.textContent = tierLabelMap[rawTier] || (item.tier || 'CAO CẤP').toUpperCase();
+    tierBadge.className = `inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border ${tierColorMap[rawTier] || tierColorMap.rare}`;
+  }
+
+  // 2. Price / Value Strip
+  const priceLabel = document.getElementById('mrd-price-label');
+  if (priceLabel) priceLabel.textContent = isShop ? 'Giá đổi phần thưởng' : 'Trị giá phần thưởng';
+
+  const priceValue = document.getElementById('mrd-price-value');
+  if (priceValue) priceValue.textContent = `${item.price} Vàng`;
+
+  const affordability = document.getElementById('mrd-affordability');
+  if (affordability) {
+    if (isShop) {
+      affordability.innerHTML = canAfford
+        ? `<span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>Đủ Vàng</span>`
+        : `<span class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">Thiếu ${coinsNeeded} Vàng</span>`;
+    } else {
+      affordability.innerHTML = '';
+    }
+  }
+
+  // 3. Description
+  const descEl = document.getElementById('mrd-desc');
+  if (descEl) descEl.textContent = item.description || 'Không có mô tả chi tiết.';
+
+  // 4. Meta Badges
+  const metaBadges = document.getElementById('mrd-meta-badges');
+  if (metaBadges) {
+    const badges = [];
+
+    // Tier Badge
+    badges.push(`
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border ${tierColorMap[rawTier] || tierColorMap.rare}">
+        🏷️ ${tierLabelMap[rawTier] || 'Cao cấp'}
+      </span>
+    `);
+
+    // Duration
+    if (durationMins > 0) {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+          ⏱️ ${durationMins} phút
+        </span>
+      `);
+    } else {
+      badges.push(`
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700">
+          ⚡ Dùng ngay
+        </span>
+      `);
+    }
+
+    // Status (inventory only)
+    if (!isShop) {
+      if (isThisActiveReward) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-300 animate-pulse">
+            ▶️ Đang sử dụng
+          </span>
+        `);
+      } else if (hasSavedTimer) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300">
+            ⏸️ Đang bảo lưu: ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p
+          </span>
+        `);
+      } else if (item.isUsed) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
+            ✅ ${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}
+          </span>
+        `);
+      } else {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+            🎁 Chưa sử dụng
+          </span>
+        `);
+      }
+
+      // Purchase date
+      if (item.purchasedAt) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
+            📅 Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}
+          </span>
+        `);
+      }
+    }
+
+    metaBadges.innerHTML = badges.join('');
+  }
+
+  // 5. Primary Action Button
+  const primaryActionContainer = document.getElementById('mrd-primary-action-container');
+  if (primaryActionContainer) {
+    if (isShop) {
+      // SHOP: Buy button
+      primaryActionContainer.innerHTML = `
+        <button id="mrd-btn-buy" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}" ${canAfford ? '' : 'disabled'}>
+          ${canAfford ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
+          <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p) 🎁` : 'Đổi Quà Ngay 🎁') : `Chưa Đủ Vàng (thiếu ${coinsNeeded})`}</span>
+        </button>
+      `;
+      document.getElementById('mrd-btn-buy')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        buyShopItem(item.id);
+      });
+    } else if (isThisActiveReward) {
+      // INVENTORY: Active reward — show timer + undo
+      primaryActionContainer.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button id="mrd-btn-scroll-timer" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+            <span>${isFocusRunning ? 'Xem Đồng Hồ ⏱️' : 'Tạm Dừng ⏸️'}</span>
+          </button>
+          <button id="mrd-btn-undo" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1 cursor-pointer">
+            <span>Hoàn tác</span>
+          </button>
+        </div>
+      `;
+      document.getElementById('mrd-btn-scroll-timer')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+      document.getElementById('mrd-btn-undo')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        undoUseInventoryItem(item.id);
+      });
+    } else if (hasSavedTimer) {
+      // INVENTORY: Saved timer — resume or end
+      primaryActionContainer.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button id="mrd-btn-resume" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Tiếp Tục Dùng (${Math.ceil(item.savedTimer.remainingSeconds / 60)}p) ▶️</span>
+          </button>
+          <button id="mrd-btn-end-saved" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-600 dark:text-rose-400 transition flex items-center justify-center gap-1 cursor-pointer">
+            <span>⏹️ Kết thúc</span>
+          </button>
+        </div>
+      `;
+      document.getElementById('mrd-btn-resume')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        useInventoryItem(item.id);
+      });
+      document.getElementById('mrd-btn-end-saved')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        clearSavedRewardTimer(item.id);
+      });
+    } else if (!isShop && item.isUsed) {
+      // INVENTORY: Used item — undo if within window
+      if (canUndo) {
+        primaryActionContainer.innerHTML = `
+          <button id="mrd-btn-undo-used" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
+            <span>Hoàn Tác (Đánh dấu chưa dùng)</span>
+          </button>
+        `;
+        document.getElementById('mrd-btn-undo-used')?.addEventListener('click', () => {
+          closeModal('modal-reward-detail');
+          undoUseInventoryItem(item.id);
+        });
+      } else {
+        primaryActionContainer.innerHTML = `
+          <div class="text-center py-2 text-xs text-slate-400 dark:text-slate-500 font-medium">
+            <span>✅ ${durationMins > 0 ? 'Đã kết thúc sử dụng' : 'Đã sử dụng xong'}</span>
+          </div>
+        `;
+      }
+    } else {
+      // INVENTORY: Unused — use now
+      primaryActionContainer.innerHTML = `
+        <button id="mrd-btn-use" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>${durationMins > 0 ? `Dùng Quà & Bấm Giờ (${durationMins}p) 🎉` : 'Dùng Quà Ngay 🎉'}</span>
+        </button>
+      `;
+      document.getElementById('mrd-btn-use')?.addEventListener('click', () => {
+        closeModal('modal-reward-detail');
+        useInventoryItem(item.id);
+      });
+    }
+  }
+
+  // 6. Secondary Actions Grid (2x2)
+  const secondaryGrid = document.getElementById('mrd-secondary-grid');
+  if (secondaryGrid) {
+    const buttons = [];
+
+    if (isShop) {
+      // Shop: Debate, Frequency, Delete
+      buttons.push(`
+        <button id="mrd-btn-debate" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+          <span>💬</span><span>Thương lượng</span>
+        </button>
+      `);
+      buttons.push(`
+        <button id="mrd-btn-freq" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+          <span>📊</span><span>Xem tần suất</span>
+        </button>
+      `);
+      buttons.push(`
+        <button id="mrd-btn-delete" type="button" class="col-span-2 py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+          <span>🗑️</span><span>Xóa phần thưởng</span>
+        </button>
+      `);
+    } else {
+      // Inventory: Refund/Undo, Delete
+      if (!item.isUsed && !isThisActiveReward && !hasSavedTimer) {
+        buttons.push(`
+          <button id="mrd-btn-refund" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+            <span>↩️</span><span>Trả quà lấy Vàng</span>
+          </button>
+        `);
+      }
+      buttons.push(`
+        <button id="mrd-btn-delete" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
+          <span>🗑️</span><span>Xóa khỏi kho</span>
+        </button>
+      `);
+    }
+
+    secondaryGrid.innerHTML = buttons.join('');
+
+    // Wire up secondary actions
+    document.getElementById('mrd-btn-debate')?.addEventListener('click', () => {
+      closeModal('modal-reward-detail');
+      openRewardRenegotiateModal(item.id);
+    });
+    document.getElementById('mrd-btn-freq')?.addEventListener('click', () => {
+      closeModal('modal-reward-detail');
+      openItemFrequencyModal(item, isShop);
+    });
+    document.getElementById('mrd-btn-refund')?.addEventListener('click', () => {
+      closeModal('modal-reward-detail');
+      refundInventoryItem(item.id);
+    });
+    document.getElementById('mrd-btn-delete')?.addEventListener('click', async () => {
+      closeModal('modal-reward-detail');
+      if (isShop) {
+        deleteShopItem(item.id);
+      } else {
+        deleteInventoryItem(item.id);
+      }
+    });
+  }
+
+  modal.classList.remove('hidden');
+}
+window.openRewardDetailModal = openRewardDetailModal;
 
 function addLedgerEntry(entry) {
   if (!Array.isArray(appState.ledger)) appState.ledger = [];

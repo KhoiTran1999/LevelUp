@@ -123,6 +123,66 @@ function updateStreakOnQuestComplete(profile = appState.profile, now = new Date(
 }
 window.updateStreakOnQuestComplete = updateStreakOnQuestComplete;
 
+/**
+ * Tính toán số ngày chuỗi liên tiếp (Streak) của riêng một nhiệm vụ cụ thể dựa trên dữ liệu thực tế
+ * (q.history, q.streak, q.status, q.completedAt, ledger)
+ */
+function getQuestStreak(quest, now = new Date()) {
+  if (!quest) return 0;
+
+  const history = (quest.history && typeof quest.history === 'object') ? quest.history : {};
+  const activeDates = Object.keys(history).filter(d => (Number(history[d]) || 0) > 0);
+
+  if (activeDates.length === 0) {
+    if (typeof quest.streak === 'number' && quest.streak > 0) return quest.streak;
+    if (quest.status === 'completed') return 1;
+    return 0;
+  }
+
+  const todayStr = getLocalDayString(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = getLocalDayString(yesterday);
+
+  let streak = 0;
+  let checkDate = new Date(now);
+
+  if ((history[todayStr] || 0) > 0) {
+    // Đã hoàn thành trong ngày hôm nay -> Đếm lùi liên tiếp từ hôm nay
+    while (true) {
+      const dStr = getLocalDayString(checkDate);
+      if ((history[dStr] || 0) > 0) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  } else if ((history[yesterdayStr] || 0) > 0) {
+    // Chưa làm hôm nay nhưng đã làm hôm qua -> Chuỗi vẫn được duy trì chờ người chơi làm tiếp hôm nay
+    checkDate = new Date(yesterday);
+    while (true) {
+      const dStr = getLocalDayString(checkDate);
+      if ((history[dStr] || 0) > 0) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  } else {
+    // Đã bỏ lỡ từ 2 ngày trở lên -> Chuỗi đứt về 0
+    streak = 0;
+  }
+
+  if (streak === 0 && typeof quest.streak === 'number' && quest.streak > 0) {
+    return quest.streak;
+  }
+
+  return streak;
+}
+window.getQuestStreak = getQuestStreak;
+
 function getDaysInYear(year) {
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
   return isLeap ? 366 : 365;
@@ -315,6 +375,7 @@ function backfillItemHistories() {
         const diff = targetCount - historySum;
         q.history[dStr] = (q.history[dStr] || 0) + diff;
       }
+      q.streak = getQuestStreak(q);
     });
   }
 

@@ -1490,7 +1490,7 @@ function toggleZenMode(show) {
       if (zenTitle) zenTitle.textContent = 'Nghỉ giải lao nạp năng lượng';
       if (zenRank) {
         zenRank.textContent = 'GIẢI LAO';
-        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hidden';
       }
       if (zenProtocol) zenProtocol.textContent = 'NGHỈ NGƠI NẠP NĂNG LƯỢNG';
     } else if (activeRewardItem) {
@@ -1498,14 +1498,14 @@ function toggleZenMode(show) {
       if (zenRank) {
         const rawTier = (activeRewardItem.tier || 'rare').toLowerCase();
         zenRank.textContent = REWARD_TIER_LABELS[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
-        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30';
+        zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30 hidden';
       }
       if (zenProtocol) zenProtocol.textContent = 'TẬN HƯỞNG PHẦN THƯỞNG';
     } else if (activeFocusQuest) {
       if (zenTitle) zenTitle.textContent = activeFocusQuest.title;
       if (zenRank) {
         zenRank.textContent = `HẠNG ${activeFocusQuest.rank}`;
-        zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono`;
+        zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono hidden`;
       }
       if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
     }

@@ -13,7 +13,7 @@ function updateRewardVerdictDisplay() {
   const evalTier = document.getElementById('eval-tier');
   if (evalTier) {
     evalTier.textContent = tierUpper;
-    evalTier.className = `text-xs font-mono font-black px-2.5 py-1 rounded-lg border ${
+    evalTier.className = `hidden text-xs font-mono font-black px-2.5 py-1 rounded-lg border ${
       tier === 'legendary' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40' :
       tier === 'epic' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/40' :
       tier === 'rare' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/40' :
@@ -268,9 +268,6 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
       if (data.newPrice && data.newPrice !== prevReward.price) {
         diffTags.push(`💰 Giá: ${prevReward.price} ➔ ${data.newPrice} Vàng`);
       }
-      if (data.newTier && data.newTier !== prevReward.tier) {
-        diffTags.push(`⭐ Hạng: ${(prevReward.tier || 'rare').toUpperCase()} ➔ ${(data.newTier || '').toUpperCase()}`);
-      }
       if (data.newTargetMinutes !== undefined && data.newTargetMinutes !== prevReward.targetMinutes) {
         const oldM = prevReward.targetMinutes ? `${prevReward.targetMinutes}p` : 'Không bấm giờ';
         const newM = data.newTargetMinutes ? `${data.newTargetMinutes}p` : 'Không bấm giờ';
@@ -409,7 +406,7 @@ async function savePendingReward() {
     message: isEditing
       ? `Bạn có chắc muốn lưu các thay đổi cho phần thưởng "${rewardName}"?`
       : `Bạn có chắc chắn muốn thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
-    detail: `💰 Giá: ${rewardPrice} Vàng • ⭐ Hạng: ${rewardTier}${timeInfo} • Biểu tượng: ${rewardIcon}`,
+    detail: `💰 Giá: ${rewardPrice} Vàng${timeInfo} • Biểu tượng: ${rewardIcon}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Thêm Vào Cửa Hàng',
     cancelText: 'Xem Lại',
     icon: rewardIcon,

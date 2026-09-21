@@ -8,30 +8,28 @@ const css = fs.readFileSync(path.join(process.cwd(), 'public', 'style.css'), 'ut
 const appJs = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf8');
 
 // =============================================================================
-// Test 1: CSS line-clamp-1, expanded max-height & Themed Scrollbar trong style.css
+// Test 1: CSS line-clamp-1 & expanded bung toàn bộ chiều cao trong style.css
 // =============================================================================
 function testCardDescriptionCss() {
-  console.log('Kiểm thử 1: CSS cho line-clamp-1 mặc định, trạng thái expanded và thanh cuộn RPG...');
+  console.log('Kiểm thử 1: CSS cho line-clamp-1 mặc định và trạng thái expanded bung toàn bộ chiều cao không thanh cuộn...');
 
   // 1. Kiểm tra class line-clamp-1 mặc định
   assert.ok(css.includes('.quest-desc-text.line-clamp-1'), 'style.css phải có .quest-desc-text.line-clamp-1');
   assert.ok(css.includes('.reward-desc-text.line-clamp-1'), 'style.css phải có .reward-desc-text.line-clamp-1');
   assert.ok(css.includes('-webkit-line-clamp: 1 !important'), 'style.css phải kẹp cứng 1 dòng với -webkit-line-clamp: 1');
 
-  // 2. Kiểm tra trạng thái mở rộng .expanded có max-height và overflow-y: auto
+  // 2. Kiểm tra trạng thái mở rộng .expanded bung trọn vẹn (max-height: none, overflow: visible)
   assert.ok(css.includes('.quest-desc-text.expanded'), 'style.css phải có class .quest-desc-text.expanded');
   assert.ok(css.includes('.reward-desc-text.expanded'), 'style.css phải có class .reward-desc-text.expanded');
-  assert.ok(css.includes('max-height: 48px'), 'Trạng thái expanded phải chặn chiều cao tối đa (max-height: 48px) để thẻ không bị bự lên');
-  assert.ok(css.includes('overflow-y: auto !important'), 'Trạng thái expanded phải cuộn dọc khi xuất hiện dòng thứ 2 trở lên');
-  assert.ok(css.includes('scrollbar-width: thin !important'), 'Phải bật thanh cuộn chuẩn W3C mỏng scrollbar-width: thin');
+  assert.ok(css.includes('max-height: none !important'), 'Trạng thái expanded phải bung hết chiều cao (max-height: none !important)');
+  assert.ok(css.includes('overflow: visible !important'), 'Trạng thái expanded không bị cắt hay cuộn (overflow: visible !important)');
+  assert.ok(css.includes('white-space: normal !important'), 'Trạng thái expanded hỗ trợ hiển thị nhiều dòng tự nhiên');
 
-  // 3. Kiểm tra thanh cuộn RPG WebKit đơn sắc phân tầng
-  assert.ok(css.includes('.quest-desc-text.expanded::-webkit-scrollbar'), 'style.css phải tùy biến thanh cuộn cho Nhiệm vụ');
-  assert.ok(css.includes('.reward-desc-text.expanded::-webkit-scrollbar'), 'style.css phải tùy biến thanh cuộn cho Phần thưởng');
-  assert.ok(css.includes('rgba(245, 158, 11,'), 'Thanh cuộn Nhiệm vụ phải mang sắc Vàng Hổ Phách');
-  assert.ok(css.includes('rgba(168, 85, 247,'), 'Thanh cuộn Phần thưởng phải mang sắc Tím Hoàng Gia');
+  // 3. Ẩn thanh cuộn webkit
+  assert.ok(css.includes('.quest-desc-text.expanded::-webkit-scrollbar'), 'style.css phải xử lý scrollbar cho Nhiệm vụ');
+  assert.ok(css.includes('.reward-desc-text.expanded::-webkit-scrollbar'), 'style.css phải xử lý scrollbar cho Phần thưởng');
 
-  console.log('✓ Test 1: style.css định nghĩa chuẩn xác line-clamp-1 mặc định, max-height 48px chống phình thẻ và thanh cuộn RPG.\n');
+  console.log('✓ Test 1: style.css định nghĩa chuẩn xác line-clamp-1 mặc định và trạng thái expanded bung hết chiều cao không còn thanh scroll.\n');
 }
 
 // =============================================================================

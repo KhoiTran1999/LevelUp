@@ -117,7 +117,7 @@ function openQuestProofModal(quest) {
   const rankEl = document.getElementById('proof-quest-rank');
   if (rankEl) {
     rankEl.textContent = `HẠNG ${quest.rank || 'B'}`;
-    rankEl.className = `rank-badge-${quest.rank || 'B'} text-[10px] font-mono font-black px-2 py-0.5 rounded-md`;
+    rankEl.className = `rank-badge-${quest.rank || 'B'} text-[10px] font-mono font-black px-2 py-0.5 rounded-md hidden`;
   }
 
   const coinsEl = document.getElementById('proof-quest-coins');

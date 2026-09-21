@@ -696,7 +696,7 @@ function updateVerdictDisplay() {
   const rankBadge = document.getElementById('verdict-rank');
   if (rankBadge) {
     rankBadge.textContent = `HẠNG ${currentPendingVerdict.rank}`;
-    rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg`;
+    rankBadge.className = `rank-badge-${currentPendingVerdict.rank} text-xs font-mono font-black px-2.5 py-1 rounded-lg hidden`;
   }
 
   const typeBadge = document.getElementById('verdict-type-badge');
@@ -936,7 +936,7 @@ async function acceptVerdictAndCreateQuest() {
       }
 
       sfx.playClick();
-      showToast(`Đã cập nhật nhiệm vụ [Hạng ${targetQuest.rank}]: "${targetQuest.title}"!`, 'success');
+      showToast(`Đã cập nhật nhiệm vụ: "${targetQuest.title}"!`, 'success');
       closeModal('modal-quest');
       currentEditingQuestId = null;
       currentPendingVerdict = null;
@@ -968,7 +968,7 @@ async function acceptVerdictAndCreateQuest() {
 
   appState.quests.unshift(newQuest);
   sfx.playClick();
-  showToast(`Đã thêm nhiệm vụ [Hạng ${newQuest.rank}]: "${newQuest.title}"!`, 'success');
+  showToast(`Đã thêm nhiệm vụ: "${newQuest.title}"!`, 'success');
   closeModal('modal-quest');
   currentEditingQuestId = null;
   currentPendingVerdict = null;
@@ -1550,7 +1550,7 @@ function initRewardDebateChat(forceReset = false) {
       <div class="max-w-[90%] sm:max-w-[92%] bg-amber-50/80 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-[13px] text-amber-950 dark:text-amber-200/90 shadow-xs leading-relaxed space-y-2">
         <div class="font-bold text-xs sm:text-[13px] text-amber-600 dark:text-amber-400">Trợ Lý Cửa Hàng AI:</div>
         <div>
-          ${isRenegotiate ? 'Bạn đang thương lượng lại phần thưởng' : 'Bạn đang xem xét phần thưởng'} <strong>"${escapeHtml(reward.name || 'Phần thưởng')}"</strong> (Giá: ${reward.price || 30} Vàng, Hạng: ${(reward.tier || 'rare').toUpperCase()}).
+          ${isRenegotiate ? 'Bạn đang thương lượng lại phần thưởng' : 'Bạn đang xem xét phần thưởng'} <strong>"${escapeHtml(reward.name || 'Phần thưởng')}"</strong> (Giá: ${reward.price || 30} Vàng).
         </div>
         <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
           💡 Chọn một gợi ý nhanh bên dưới hoặc nhập đề xuất để mình điều chỉnh giá hoặc tên phần thưởng nhé!

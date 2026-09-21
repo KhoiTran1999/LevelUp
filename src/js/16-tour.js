@@ -13,7 +13,7 @@ const TOUR_STEPS = [
     icon: '🛡️',
     tab: 'quests',
     getTarget: () => document.getElementById('open-profile-btn'),
-    desc: 'Theo dõi Cấp độ, EXP và Vàng tích lũy. Dữ liệu tự động đồng bộ qua Google. Nhấn vào đây để đổi Avatar, biệt danh hoặc xem lịch sử giao dịch.'
+    desc: 'Theo dõi Cấp độ và Vàng tích lũy. Dữ liệu tự động đồng bộ qua Google. Nhấn vào đây để đổi Avatar, biệt danh hoặc xem lịch sử giao dịch.'
   },
   {
     id: 'add-quest',
@@ -25,7 +25,7 @@ const TOUR_STEPS = [
       if (window.innerWidth < 768 && mobBtn && mobBtn.offsetParent !== null) return mobBtn;
       return document.getElementById('btn-open-add-quest');
     },
-    desc: 'Tạo nhiệm vụ mới (phím tắt Q). Trợ lý AI sẽ tự động định Hạng (S/A/B/C/D), thưởng Vàng và EXP tương xứng với độ khó nhiệm vụ.'
+    desc: 'Tạo nhiệm vụ mới (phím tắt Q). Trợ lý AI sẽ thẩm định và thưởng Vàng tương xứng với công sức nhiệm vụ.'
   },
   {
     id: 'focus-timer',
@@ -65,7 +65,7 @@ const TOUR_STEPS = [
       }
       return document.querySelector('.nav-tab[data-tab="leaderboard"]');
     },
-    desc: 'Vinh danh Top người chăm chỉ nhất dựa trên Cấp độ và EXP kiếm được. Hãy hoàn thành nhiệm vụ hàng ngày để thăng hạng và vươn lên dẫn đầu!'
+    desc: 'Vinh danh Top người chăm chỉ nhất dựa trên Cấp độ và Vàng tích lũy. Hãy hoàn thành nhiệm vụ hàng ngày để thăng hạng và vươn lên dẫn đầu!'
   }
 ];
 
