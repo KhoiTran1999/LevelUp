@@ -247,9 +247,13 @@ async function submitQuestProofToAI() {
         pendingApprovedQuest = currentProofQuest;
         pendingApprovedQuest._proofVerified = true;
         triggerSave(true);
+        pendingApprovedQuest.proofUserNote = userNote || '';
+        pendingApprovedQuest.proofFeedback = data.feedback || '';
         if (data.proofImageUrl) {
           pendingApprovedQuest.proofImageUrl = data.proofImageUrl;
           currentProofQuest.proofImageUrl = data.proofImageUrl;
+          currentProofQuest.proofUserNote = userNote || '';
+          currentProofQuest.proofFeedback = data.feedback || '';
           if (!Array.isArray(appState.proofPhotos)) {
             appState.proofPhotos = [];
           }
@@ -309,11 +313,14 @@ async function submitQuestProofToAI() {
 }
 
 /**
- * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt
+ * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt kèm ghi chú và nhận xét AI
  * @param {string} imageUrl 
  * @param {string} questTitle 
+ * @param {string} userNote
+ * @param {string} feedback
+ * @param {number|null} timestamp
  */
-function openProofViewerModal(imageUrl, questTitle = '') {
+function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback = '', timestamp = null) {
   if (!imageUrl) {
     showToast('Không tìm thấy đường dẫn ảnh bằng chứng.', 'warning');
     return;
@@ -326,6 +333,11 @@ function openProofViewerModal(imageUrl, questTitle = '') {
   const subtitleEl = document.getElementById('proof-viewer-subtitle');
   const downloadLink = document.getElementById('proof-viewer-download');
 
+  const noteZone = document.getElementById('proof-viewer-note-zone');
+  const noteText = document.getElementById('proof-viewer-note-text');
+  const feedbackZone = document.getElementById('proof-viewer-feedback-zone');
+  const feedbackText = document.getElementById('proof-viewer-feedback-text');
+
   if (imgEl) {
     imgEl.src = imageUrl;
   }
@@ -333,10 +345,39 @@ function openProofViewerModal(imageUrl, questTitle = '') {
     titleEl.textContent = questTitle || 'Ảnh Bằng Chứng Nhiệm Vụ';
   }
   if (subtitleEl) {
-    subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
+    if (timestamp) {
+      const timeStr = new Date(timestamp).toLocaleDateString('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      subtitleEl.textContent = `Chụp lúc: ${timeStr} · AI Arbiter đã thẩm định`;
+    } else {
+      subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
+    }
   }
   if (downloadLink) {
     downloadLink.href = imageUrl;
+  }
+
+  // Hiển thị ghi chú thông tin thêm của người dùng gửi cho AI
+  if (noteZone && noteText) {
+    if (userNote && userNote.trim()) {
+      noteText.textContent = userNote.trim();
+      noteZone.classList.remove('hidden');
+    } else {
+      noteZone.classList.add('hidden');
+      noteText.textContent = '';
+    }
+  }
+
+  // Hiển thị lời nhận xét thẩm định của AI
+  if (feedbackZone && feedbackText) {
+    if (feedback && feedback.trim()) {
+      feedbackText.textContent = feedback.trim();
+      feedbackZone.classList.remove('hidden');
+    } else {
+      feedbackZone.classList.add('hidden');
+      feedbackText.textContent = '';
+    }
   }
 
   openModal('modal-proof-viewer');

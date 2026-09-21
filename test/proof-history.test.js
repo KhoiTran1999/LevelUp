@@ -157,10 +157,38 @@ function testSchemaAndCloudSync() {
   console.log('✓ Test 5: Hệ thống Cloud Sync & Valibot Schema tương thích 100% với cấu trúc album ảnh bằng chứng.');
 }
 
+// 6. Kiểm tra lưu trữ và hiển thị ghi chú thông tin thêm của người dùng (userNote)
+function testUserNoteStorageAndDisplay() {
+  const proofJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '08-proof.js'), 'utf8');
+  const questJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '07-quest.js'), 'utf8');
+
+  // DOM modal xem ảnh
+  assert.ok(indexHtml.includes('id="proof-viewer-note-zone"'), 'index.html phải có vùng proof-viewer-note-zone');
+  assert.ok(indexHtml.includes('id="proof-viewer-note-text"'), 'index.html phải có thẻ text proof-viewer-note-text');
+  assert.ok(indexHtml.includes('id="proof-viewer-feedback-zone"'), 'index.html phải có vùng proof-viewer-feedback-zone');
+  assert.ok(indexHtml.includes('id="proof-viewer-feedback-text"'), 'index.html phải có thẻ text proof-viewer-feedback-text');
+
+  // src/js/08-proof.js lưu userNote
+  assert.ok(proofJs.includes('pendingApprovedQuest.proofUserNote = userNote || \'\''), '08-proof.js phải gán userNote vào pendingApprovedQuest');
+  assert.ok(proofJs.includes('userNote: userNote || \'\''), '08-proof.js phải ghi nhận userNote vào appState.proofPhotos');
+  assert.ok(proofJs.includes('noteText.textContent = userNote.trim()'), 'openProofViewerModal phải hiển thị userNote');
+
+  // src/js/07-quest.js lưu proofUserNote
+  assert.ok(questJs.includes('proofUserNote: quest.proofUserNote || null'), '07-quest.js phải lưu proofUserNote vào ledger');
+  assert.ok(questJs.includes('userNote: quest.proofUserNote || \'\''), '07-quest.js phải lưu userNote vào proofPhotos khi completeQuest');
+
+  // 14-render.js hiển thị snippet ghi chú trên thẻ ảnh
+  assert.ok(renderJs.includes('safeNote'), '14-render.js phải xử lý safeNote');
+  assert.ok(renderJs.includes('item.userNote'), '14-render.js phải trích xuất userNote');
+
+  console.log('✓ Test 6: Thông tin ghi chú thêm gửi cho AI (userNote) được lưu trữ bền vững và hiển thị rõ ràng trong Lịch Sử Ảnh & Modal Xem Ảnh.');
+}
+
 testTasksTabCleanFromProofViewing();
 testHistoryTabMarkup();
 testAppJsProofHistoryLogic();
 testGetAllProofPhotosAlgorithm();
 testSchemaAndCloudSync();
+testUserNoteStorageAndDisplay();
 
-console.log('\n🎉 TẤT CẢ 5/5 KIỂM THỬ LỊCH SỬ ẢNH BẰNG CHỨNG & TINH GỌN TAB NHIỆM VỤ ĐÃ THÀNH CÔNG!');
+console.log('\n🎉 TẤT CẢ 6/6 KIỂM THỬ LỊCH SỬ ẢNH BẰNG CHỨNG, USENOTE & TINH GỌN TAB NHIỆM VỤ ĐÃ THÀNH CÔNG!');

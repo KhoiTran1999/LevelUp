@@ -181,25 +181,36 @@ async function completeQuest(questId, skipConfirm = false) {
       description: `Hoàn thành nhiệm vụ: ${quest.title} (+${quest.rewardCoins} Vàng${streakBonusCoins > 0 ? ` & +${streakBonusCoins} Vàng Streak 🔥` : ''})${deductedForLoan > 0 ? ` [🏦 Trích trả nợ: -${deductedForLoan} Vàng]` : ''}`,
       timestamp: Date.now(),
       questId: quest.id,
-      proofImageUrl: quest.proofImageUrl || null
+      proofImageUrl: quest.proofImageUrl || null,
+      proofUserNote: quest.proofUserNote || null,
+      proofFeedback: quest.proofFeedback || null
     });
 
     if (quest.proofImageUrl) {
       if (!Array.isArray(appState.proofPhotos)) {
         appState.proofPhotos = [];
       }
-      const alreadyHas = appState.proofPhotos.some(p => p.proofImageUrl === quest.proofImageUrl);
-      if (!alreadyHas) {
+      const existing = appState.proofPhotos.find(p => p.proofImageUrl === quest.proofImageUrl);
+      if (!existing) {
         appState.proofPhotos.unshift({
           id: 'proof_' + Date.now(),
           questId: quest.id,
           questTitle: quest.title,
           proofImageUrl: quest.proofImageUrl,
           rewardCoins: quest.rewardCoins || 10,
+          userNote: quest.proofUserNote || '',
+          feedback: quest.proofFeedback || '',
           timestamp: Date.now()
         });
         if (appState.proofPhotos.length > 100) {
           appState.proofPhotos = appState.proofPhotos.slice(0, 100);
+        }
+      } else {
+        if (!existing.userNote && quest.proofUserNote) {
+          existing.userNote = quest.proofUserNote;
+        }
+        if (!existing.feedback && quest.proofFeedback) {
+          existing.feedback = quest.proofFeedback;
         }
       }
     }

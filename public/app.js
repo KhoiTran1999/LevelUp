@@ -3086,25 +3086,36 @@ async function completeQuest(questId, skipConfirm = false) {
       description: `Hoàn thành nhiệm vụ: ${quest.title} (+${quest.rewardCoins} Vàng${streakBonusCoins > 0 ? ` & +${streakBonusCoins} Vàng Streak 🔥` : ''})${deductedForLoan > 0 ? ` [🏦 Trích trả nợ: -${deductedForLoan} Vàng]` : ''}`,
       timestamp: Date.now(),
       questId: quest.id,
-      proofImageUrl: quest.proofImageUrl || null
+      proofImageUrl: quest.proofImageUrl || null,
+      proofUserNote: quest.proofUserNote || null,
+      proofFeedback: quest.proofFeedback || null
     });
 
     if (quest.proofImageUrl) {
       if (!Array.isArray(appState.proofPhotos)) {
         appState.proofPhotos = [];
       }
-      const alreadyHas = appState.proofPhotos.some(p => p.proofImageUrl === quest.proofImageUrl);
-      if (!alreadyHas) {
+      const existing = appState.proofPhotos.find(p => p.proofImageUrl === quest.proofImageUrl);
+      if (!existing) {
         appState.proofPhotos.unshift({
           id: 'proof_' + Date.now(),
           questId: quest.id,
           questTitle: quest.title,
           proofImageUrl: quest.proofImageUrl,
           rewardCoins: quest.rewardCoins || 10,
+          userNote: quest.proofUserNote || '',
+          feedback: quest.proofFeedback || '',
           timestamp: Date.now()
         });
         if (appState.proofPhotos.length > 100) {
           appState.proofPhotos = appState.proofPhotos.slice(0, 100);
+        }
+      } else {
+        if (!existing.userNote && quest.proofUserNote) {
+          existing.userNote = quest.proofUserNote;
+        }
+        if (!existing.feedback && quest.proofFeedback) {
+          existing.feedback = quest.proofFeedback;
         }
       }
     }
@@ -3683,9 +3694,13 @@ async function submitQuestProofToAI() {
         pendingApprovedQuest = currentProofQuest;
         pendingApprovedQuest._proofVerified = true;
         triggerSave(true);
+        pendingApprovedQuest.proofUserNote = userNote || '';
+        pendingApprovedQuest.proofFeedback = data.feedback || '';
         if (data.proofImageUrl) {
           pendingApprovedQuest.proofImageUrl = data.proofImageUrl;
           currentProofQuest.proofImageUrl = data.proofImageUrl;
+          currentProofQuest.proofUserNote = userNote || '';
+          currentProofQuest.proofFeedback = data.feedback || '';
           if (!Array.isArray(appState.proofPhotos)) {
             appState.proofPhotos = [];
           }
@@ -3745,11 +3760,14 @@ async function submitQuestProofToAI() {
 }
 
 /**
- * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt
+ * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt kèm ghi chú và nhận xét AI
  * @param {string} imageUrl 
  * @param {string} questTitle 
+ * @param {string} userNote
+ * @param {string} feedback
+ * @param {number|null} timestamp
  */
-function openProofViewerModal(imageUrl, questTitle = '') {
+function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback = '', timestamp = null) {
   if (!imageUrl) {
     showToast('Không tìm thấy đường dẫn ảnh bằng chứng.', 'warning');
     return;
@@ -3762,6 +3780,11 @@ function openProofViewerModal(imageUrl, questTitle = '') {
   const subtitleEl = document.getElementById('proof-viewer-subtitle');
   const downloadLink = document.getElementById('proof-viewer-download');
 
+  const noteZone = document.getElementById('proof-viewer-note-zone');
+  const noteText = document.getElementById('proof-viewer-note-text');
+  const feedbackZone = document.getElementById('proof-viewer-feedback-zone');
+  const feedbackText = document.getElementById('proof-viewer-feedback-text');
+
   if (imgEl) {
     imgEl.src = imageUrl;
   }
@@ -3769,10 +3792,39 @@ function openProofViewerModal(imageUrl, questTitle = '') {
     titleEl.textContent = questTitle || 'Ảnh Bằng Chứng Nhiệm Vụ';
   }
   if (subtitleEl) {
-    subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
+    if (timestamp) {
+      const timeStr = new Date(timestamp).toLocaleDateString('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      subtitleEl.textContent = `Chụp lúc: ${timeStr} · AI Arbiter đã thẩm định`;
+    } else {
+      subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
+    }
   }
   if (downloadLink) {
     downloadLink.href = imageUrl;
+  }
+
+  // Hiển thị ghi chú thông tin thêm của người dùng gửi cho AI
+  if (noteZone && noteText) {
+    if (userNote && userNote.trim()) {
+      noteText.textContent = userNote.trim();
+      noteZone.classList.remove('hidden');
+    } else {
+      noteZone.classList.add('hidden');
+      noteText.textContent = '';
+    }
+  }
+
+  // Hiển thị lời nhận xét thẩm định của AI
+  if (feedbackZone && feedbackText) {
+    if (feedback && feedback.trim()) {
+      feedbackText.textContent = feedback.trim();
+      feedbackZone.classList.remove('hidden');
+    } else {
+      feedbackZone.classList.add('hidden');
+      feedbackText.textContent = '';
+    }
   }
 
   openModal('modal-proof-viewer');
@@ -8865,8 +8917,8 @@ function getAllProofPhotos() {
           proofImageUrl: entry.proofImageUrl,
           rewardCoins: entry.amount || 10,
           timestamp: entry.timestamp || Date.now(),
-          userNote: '',
-          feedback: ''
+          userNote: entry.proofUserNote || entry.userNote || '',
+          feedback: entry.proofFeedback || entry.feedback || ''
         });
       }
     }
@@ -8884,8 +8936,8 @@ function getAllProofPhotos() {
           proofImageUrl: q.proofImageUrl,
           rewardCoins: q.rewardCoins || 10,
           timestamp: q.createdAt || Date.now(),
-          userNote: '',
-          feedback: ''
+          userNote: q.proofUserNote || q.userNote || '',
+          feedback: q.proofFeedback || q.feedback || ''
         });
       }
     }
@@ -8931,10 +8983,11 @@ function renderProofPhotos() {
     });
     const safeTitle = escapeHtml(item.questTitle || 'Nhiệm vụ đã hoàn thành');
     const safeUrl = escapeHtml(item.proofImageUrl);
+    const safeNote = item.userNote ? escapeHtml(item.userNote) : '';
     const safeFeedback = item.feedback ? escapeHtml(item.feedback) : '';
 
     return `
-      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" onclick="openProofViewerModal('${safeUrl}', '${safeTitle}')" title="Nhấn để phóng to ảnh bằng chứng">
+      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" data-proof-id="${escapeHtml(item.id)}" title="Nhấn để xem chi tiết ảnh và ghi chú">
         <div class="relative aspect-square w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
           <img src="${safeUrl}" alt="${safeTitle}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy">
           <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1">
@@ -8949,16 +9002,40 @@ function renderProofPhotos() {
         <div class="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
           <div>
             <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors" title="${safeTitle}">${safeTitle}</h4>
-            ${safeFeedback ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1 mt-0.5 italic" title="${safeFeedback}">"${safeFeedback}"</p>` : ''}
+            ${safeNote ? `
+              <div class="mt-1.5 p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-1 leading-snug">
+                <span class="shrink-0 text-xs">📝</span>
+                <span class="line-clamp-2" title="${safeNote}">${safeNote}</span>
+              </div>
+            ` : ''}
+            ${safeFeedback ? `<p class="text-[10px] text-emerald-600 dark:text-emerald-400 line-clamp-1 mt-1 italic" title="${safeFeedback}">🤖 "${safeFeedback}"</p>` : ''}
           </div>
           <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
             <span class="font-mono">${timeStr}</span>
-            <span class="text-sky-600 dark:text-sky-400 font-medium hover:underline">Xem ảnh ↗</span>
+            <span class="text-sky-600 dark:text-sky-400 font-medium hover:underline">Xem chi tiết ↗</span>
           </div>
         </div>
       </div>
     `;
   }).join('');
+
+  // Gắn sự kiện click mở modal kèm thông tin giải trình người dùng và nhận xét AI
+  const cards = grid.querySelectorAll('.proof-photo-card');
+  cards.forEach(card => {
+    const cardId = card.dataset.proofId;
+    const item = photos.find(p => p.id === cardId);
+    if (item) {
+      card.addEventListener('click', () => {
+        openProofViewerModal(
+          item.proofImageUrl,
+          item.questTitle,
+          item.userNote || '',
+          item.feedback || '',
+          item.timestamp || null
+        );
+      });
+    }
+  });
 }
 window.renderProofPhotos = renderProofPhotos;
 
@@ -9101,7 +9178,7 @@ function renderLedger() {
                     ${categoryBadge}
                     <span class="truncate">${escapeHtml(displayTitle)}</span>
                     ${entry.proofImageUrl ? `
-                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" title="Xem ảnh bằng chứng đã duyệt" onclick="event.stopPropagation(); openProofViewerModal('${escapeHtml(entry.proofImageUrl)}', '${escapeHtml(displayTitle)}')">
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem ảnh bằng chứng đã duyệt">
                         <span>📸 Xem ảnh</span>
                       </button>
                     ` : ''}
@@ -9123,6 +9200,21 @@ function renderLedger() {
       </div>
     </div>
   `).join('');
+
+  // Gắn sự kiện click mở modal cho các nút xem ảnh trên giao dịch sổ cái
+  const viewProofBtns = list.querySelectorAll('.btn-view-proof-img');
+  viewProofBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openProofViewerModal(
+        btn.dataset.proofUrl,
+        btn.dataset.questTitle,
+        btn.dataset.userNote || '',
+        btn.dataset.feedback || '',
+        btn.dataset.timestamp ? Number(btn.dataset.timestamp) : null
+      );
+    });
+  });
 
   // 4. Cập nhật thanh phân trang
   if (paginationEl) {
