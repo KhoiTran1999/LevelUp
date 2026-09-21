@@ -3,7 +3,7 @@
  * Offline-First Caching & Background Asset Revalidation
  */
 
-const CACHE_NAME = 'levelup-app-shell-v1';
+const CACHE_NAME = 'levelup-app-shell-v2';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -75,7 +75,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static assets: Stale-While-Revalidate
+  // 3. Core App Code (app.js, tailwind.min.css): Network-First to guarantee fresh updates on mobile
+  if (url.pathname.endsWith('app.js') || url.pathname.endsWith('tailwind.min.css')) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const resClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, resClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // 4. Other static assets: Stale-While-Revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

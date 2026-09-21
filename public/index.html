@@ -3369,13 +3369,15 @@
   <script src="vendor/confetti.browser.min.js"></script>
 
   <!-- Application Logic -->
-  <script src="app.js?v=1.0.1"></script>
+  <script src="app.js?v=1.0.3"></script>
 
-  <!-- PWA Service Worker Registration -->
+  <!-- PWA Service Worker Registration & Auto-update -->
   <script>
     if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+          reg.update().catch(() => {});
+        }).catch(() => {});
       });
     }
   </script>

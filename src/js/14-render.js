@@ -1937,8 +1937,8 @@ function renderItemFrequencyModal() {
   if (typeBadge) {
     typeBadge.textContent = isQuest ? 'NHIỆM VỤ' : 'PHẦN THƯỞNG';
     typeBadge.className = isQuest
-      ? 'text-[10px] font-mono px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold inline-block mt-0.5'
-      : 'text-[10px] font-mono px-2 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold inline-block mt-0.5';
+      ? 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold inline-block mt-0.5'
+      : 'text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold inline-block mt-0.5';
   }
 
   const gridData = getFrequencyGridData(item.history || {}, period);
