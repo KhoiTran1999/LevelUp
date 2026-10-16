@@ -1380,5 +1380,61 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Material Design 3 Interactions: Universal Ripple & Top App Bar Scroll Elevation
+  function initMaterialDesignInteractions() {
+    // 1. Universal Material Ripple
+    document.addEventListener('pointerdown', (e) => {
+      const target = e.target.closest(
+        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
+      );
+      if (!target || target.disabled || target.classList.contains('no-ripple')) return;
+
+      const rect = target.getBoundingClientRect();
+      const diameter = Math.max(rect.width, rect.height) * 2;
+      const radius = diameter / 2;
+
+      const ripple = document.createElement('span');
+      ripple.className = 'md-ripple';
+      ripple.style.width = ripple.style.height = `${diameter}px`;
+      ripple.style.left = `${e.clientX - rect.left - radius}px`;
+      ripple.style.top = `${e.clientY - rect.top - radius}px`;
+
+      const computedPos = window.getComputedStyle(target).position;
+      if (computedPos === 'static') {
+        target.style.position = 'relative';
+      }
+      target.classList.add('md-ripple-target');
+
+      const existingRipples = target.getElementsByClassName('md-ripple');
+      while (existingRipples[0]) {
+        existingRipples[0].remove();
+      }
+
+      target.appendChild(ripple);
+
+      setTimeout(() => {
+        if (ripple.parentElement) {
+          ripple.remove();
+        }
+      }, 600);
+    }, { passive: true });
+
+    // 2. Material Top App Bar Scroll Elevation
+    const header = document.querySelector('header');
+    if (header) {
+      const handleScroll = () => {
+        if (window.scrollY > 8) {
+          header.classList.add('md-scrolled');
+        } else {
+          header.classList.remove('md-scrolled');
+        }
+      };
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      handleScroll();
+    }
+  }
+
+  initMaterialDesignInteractions();
 });
 
