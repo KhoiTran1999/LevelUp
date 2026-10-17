@@ -3,7 +3,7 @@
  * Offline-First Caching & Background Asset Revalidation
  */
 
-const CACHE_NAME = 'levelup-app-shell-v3';
+const CACHE_NAME = 'levelup-app-shell-v4';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -19,7 +19,8 @@ const PRECACHE_ASSETS = [
   '/icon-512.png',
   '/apple-touch-icon.png',
   '/coin.svg',
-  '/wizard.svg'
+  '/wizard.svg',
+  '/silent.wav'
 ];
 
 // Install: Pre-cache core App Shell assets
@@ -126,5 +127,36 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Background & Scheduled Timer Notification Dispatcher
+self.addEventListener('message', (event) => {
+  if (!event.data || typeof event.data !== 'object') return;
+
+  if (event.data.type === 'SHOW_TIMER_NOTIFICATION') {
+    event.waitUntil(
+      self.registration.showNotification(event.data.title, event.data.options || {})
+    );
+  } else if (event.data.type === 'SCHEDULE_TIMER_NOTIFICATION') {
+    const { title, options, timestamp } = event.data;
+    // Android Chrome Notification Triggers native scheduling
+    if ('showTrigger' in Notification.prototype && typeof TimestampTrigger !== 'undefined' && timestamp) {
+      try {
+        event.waitUntil(
+          self.registration.showNotification(title, {
+            ...options,
+            showTrigger: new TimestampTrigger(timestamp)
+          })
+        );
+        return;
+      } catch (_) {}
+    }
+  } else if (event.data.type === 'CANCEL_TIMER_NOTIFICATION') {
+    event.waitUntil(
+      self.registration.getNotifications({ tag: 'levelup-focus-timer' }).then((notifications) => {
+        notifications.forEach((n) => n.close());
+      })
+    );
+  }
 });
 

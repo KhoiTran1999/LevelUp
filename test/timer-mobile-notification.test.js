@@ -135,8 +135,100 @@ async function runTests() {
     console.log('  -> In-App completion toast verified: OK\n');
   }
 
+  // Test 9: HTML5 Audio silent loop keep-alive for Mobile OS sleep prevention
+  console.log('Test 9: HTML5 Audio silent loop keep-alive prevents OS suspension');
+  {
+    assert.ok(
+      code.includes('function getOrCreateKeepAliveAudio() {'),
+      '06-timer.js must define getOrCreateKeepAliveAudio'
+    );
+    assert.ok(
+      code.includes("timerAudioElement = new Audio('/silent.wav');"),
+      'getOrCreateKeepAliveAudio must load /silent.wav'
+    );
+    assert.ok(
+      code.includes('SILENT_WAV_BASE64'),
+      '06-timer.js must have inline SILENT_WAV_BASE64 fallback'
+    );
+    console.log('  -> HTML5 Audio silent loop keep-alive verified: OK\n');
+  }
+
+  // Test 10: Dedicated Web Worker background timer engine
+  console.log('Test 10: Dedicated Web Worker background timer engine');
+  {
+    assert.ok(
+      code.includes('function startTimerWorker() {'),
+      '06-timer.js must define startTimerWorker'
+    );
+    assert.ok(
+      code.includes('function stopTimerWorker() {'),
+      '06-timer.js must define stopTimerWorker'
+    );
+    assert.ok(
+      code.includes("timerWorker.postMessage('START')"),
+      'startTimerWorker must start background worker'
+    );
+    console.log('  -> Web Worker background timer engine verified: OK\n');
+  }
+
+  // Test 11: MediaSession API Lock Screen Status
+  console.log('Test 11: MediaSession API Lock Screen Status');
+  {
+    assert.ok(
+      code.includes('function updateMediaSessionStatus('),
+      '06-timer.js must define updateMediaSessionStatus'
+    );
+    assert.ok(
+      code.includes("navigator.mediaSession.playbackState = 'playing'"),
+      'updateMediaSessionStatus must set playbackState to playing'
+    );
+    assert.ok(
+      code.includes("navigator.mediaSession.setActionHandler('play'"),
+      'updateMediaSessionStatus must register play action handler'
+    );
+    assert.ok(
+      code.includes("navigator.mediaSession.setActionHandler('pause'"),
+      'updateMediaSessionStatus must register pause action handler'
+    );
+    console.log('  -> MediaSession lock screen status verified: OK\n');
+  }
+
+  // Test 12: Service Worker Scheduled & Background Notification Dispatcher
+  console.log('Test 12: Service Worker Scheduled & Background Notification Dispatcher');
+  {
+    assert.ok(
+      sw.includes("event.data.type === 'SHOW_TIMER_NOTIFICATION'"),
+      'sw.js must handle SHOW_TIMER_NOTIFICATION'
+    );
+    assert.ok(
+      sw.includes("event.data.type === 'SCHEDULE_TIMER_NOTIFICATION'"),
+      'sw.js must handle SCHEDULE_TIMER_NOTIFICATION'
+    );
+    assert.ok(
+      sw.includes("event.data.type === 'CANCEL_TIMER_NOTIFICATION'"),
+      'sw.js must handle CANCEL_TIMER_NOTIFICATION'
+    );
+    console.log('  -> Service Worker scheduled notification dispatcher verified: OK\n');
+  }
+
+  // Test 13: /silent.wav asset in precache and filesystem
+  console.log('Test 13: /silent.wav asset in precache and filesystem');
+  {
+    assert.ok(
+      sw.includes("'/silent.wav'"),
+      'sw.js PRECACHE_ASSETS must include /silent.wav'
+    );
+    assert.ok(
+      fs.existsSync(path.resolve('public/silent.wav')),
+      'public/silent.wav must exist on disk'
+    );
+    const stat = fs.statSync(path.resolve('public/silent.wav'));
+    assert.ok(stat.size > 0, 'public/silent.wav must not be empty');
+    console.log(`  -> public/silent.wav verified (${stat.size} bytes): OK\n`);
+  }
+
   console.log('============================================================');
-  console.log('✅ All 8 mobile timer notification tests passed!');
+  console.log('✅ All 13 mobile timer notification tests passed!');
   console.log('============================================================');
 }
 

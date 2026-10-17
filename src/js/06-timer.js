@@ -65,6 +65,138 @@ function releaseWakeLock() {
 }
 
 let timerAudioKeepAlive = null;
+let timerAudioElement = null;
+let timerWorker = null;
+
+const SILENT_WAV_BASE64 = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+
+function getOrCreateKeepAliveAudio() {
+  if (!timerAudioElement && typeof Audio !== 'undefined') {
+    try {
+      timerAudioElement = new Audio('/silent.wav');
+      timerAudioElement.onerror = () => {
+        if (timerAudioElement) timerAudioElement.src = SILENT_WAV_BASE64;
+      };
+      timerAudioElement.loop = true;
+      timerAudioElement.preload = 'auto';
+      timerAudioElement.volume = 0.01;
+    } catch (_) {
+      try {
+        timerAudioElement = new Audio(SILENT_WAV_BASE64);
+        timerAudioElement.loop = true;
+        timerAudioElement.volume = 0.01;
+      } catch (_) {}
+    }
+  }
+  return timerAudioElement;
+}
+
+function startTimerWorker() {
+  if (typeof Worker === 'undefined') return;
+  try {
+    if (!timerWorker) {
+      const workerCode = `
+        let timer = null;
+        self.onmessage = function(e) {
+          if (e.data === 'START') {
+            if (timer) clearInterval(timer);
+            timer = setInterval(function() {
+              self.postMessage('TICK');
+            }, 500);
+          } else if (e.data === 'STOP') {
+            if (timer) {
+              clearInterval(timer);
+              timer = null;
+            }
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      timerWorker = new Worker(workerUrl);
+      timerWorker.onmessage = function(e) {
+        if (e.data === 'TICK' && isFocusRunning) {
+          tickFocusTimer();
+        }
+      };
+    }
+    timerWorker.postMessage('START');
+  } catch (_) {}
+}
+
+function stopTimerWorker() {
+  if (timerWorker) {
+    try {
+      timerWorker.postMessage('STOP');
+    } catch (_) {}
+  }
+}
+
+function updateMediaSessionStatus(title, timeStr) {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    if (isFocusRunning) {
+      navigator.mediaSession.playbackState = 'playing';
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `${timeStr ? `(${timeStr}) ` : ''}${title || 'Đang tập trung'}`,
+        artist: 'LevelUp Pomodoro',
+        album: 'LevelUp — RPG Productivity',
+        artwork: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      });
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (!isFocusRunning) toggleFocusTimer();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (isFocusRunning) toggleFocusTimer();
+      });
+      navigator.mediaSession.setActionHandler('stop', () => {
+        resetFocusTimer();
+      });
+    } else {
+      navigator.mediaSession.playbackState = 'paused';
+    }
+  } catch (_) {}
+}
+
+function scheduleSWTimerNotification() {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  if (!isFocusRunning || focusRemainingSeconds <= 0) return;
+
+  const sessionName = activeFocusQuest ? activeFocusQuest.title : (activeRewardItem ? activeRewardItem.name : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung'));
+  const title = isBreakMode ? '☕ HẾT GIỜ NGHỈ GIẢI LAO!' : (activeRewardItem ? '🎉 HẾT THỜI GIAN PHẦN THƯỞNG!' : '🎉 HOÀN THÀNH TẬP TRUNG!');
+  const body = isBreakMode ? 'Đã hết giờ nghỉ ngơi. Hãy sẵn sàng cho nhiệm vụ tiếp theo!' : (activeRewardItem ? `Đã hết thời gian phần thưởng: "${sessionName}".` : `Chúc mừng bạn đã hoàn thành phiên tập trung: "${sessionName}"!`);
+  const targetTimestamp = Date.now() + Math.round(focusRemainingSeconds * 1000);
+
+  try {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SCHEDULE_TIMER_NOTIFICATION',
+      timestamp: targetTimestamp,
+      title,
+      options: {
+        body,
+        icon: '/icon-192.png',
+        badge: '/favicon.png',
+        vibrate: [500, 200, 500, 200, 800],
+        tag: 'levelup-focus-timer',
+        renotify: true,
+        requireInteraction: true,
+        data: { url: '/' }
+      }
+    });
+  } catch (_) {}
+}
+
+function cancelSWTimerNotification() {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  try {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CANCEL_TIMER_NOTIFICATION'
+    });
+  } catch (_) {}
+}
 
 // Giữ AudioContext active trên di động để ngăn hệ điều hành đóng băng tab đếm giờ
 function startTimerKeepAlive() {
@@ -89,9 +221,31 @@ function startTimerKeepAlive() {
       }
     }
   } catch (_) {}
+
+  // HTML5 Audio Loop & MediaSession (Bắt buộc để Mobile OS không freeze JS khi khóa màn hình)
+  try {
+    const audio = getOrCreateKeepAliveAudio();
+    if (audio) {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    }
+  } catch (_) {}
+
+  startTimerWorker();
+
+  const totalSecs = Math.max(0, Math.round(focusRemainingSeconds));
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const sessionName = activeFocusQuest ? activeFocusQuest.title : (activeRewardItem ? activeRewardItem.name : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung'));
+  updateMediaSessionStatus(sessionName, timeStr);
+  scheduleSWTimerNotification();
 }
 
 function stopTimerKeepAlive() {
+  const immediate = arguments[0];
   if (timerAudioKeepAlive) {
     try {
       timerAudioKeepAlive.source.stop();
@@ -99,6 +253,31 @@ function stopTimerKeepAlive() {
       timerAudioKeepAlive.gain.disconnect();
     } catch (_) {}
     timerAudioKeepAlive = null;
+  }
+
+  stopTimerWorker();
+  cancelSWTimerNotification();
+
+  const shutdownAudio = () => {
+    try {
+      if (timerAudioElement) {
+        timerAudioElement.pause();
+        timerAudioElement.currentTime = 0;
+      }
+    } catch (_) {}
+
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = 'paused';
+      } catch (_) {}
+    }
+  };
+
+  if (immediate) {
+    shutdownAudio();
+  } else {
+    // Duy trì audio keep-alive thêm 2.5s khi hết giờ để SFX chuông và Push Notification kịp phát ra hệ thống
+    setTimeout(shutdownAudio, 2500);
   }
 }
 
@@ -109,6 +288,8 @@ function requestTimerNotificationPermission() {
         showToast('🔔 Đã bật thông báo đếm giờ thành công!', 'success');
       }
     }).catch(() => {});
+  } else if ('Notification' in window && Notification.permission === 'denied') {
+    showToast('⚠️ Bạn đang chặn thông báo. Vui lòng bật lại trong cài đặt trình duyệt để nhận chuông khi hết giờ!', 'warning');
   }
 }
 
@@ -159,6 +340,10 @@ function sendFocusNotification(title, body) {
   // 2. Chuông âm thanh khải hoàn (SFX)
   if (typeof sfx !== 'undefined') {
     try {
+      sfx.init();
+      if (sfx.ctx && sfx.ctx.state === 'suspended') {
+        sfx.ctx.resume().catch(() => {});
+      }
       if (sfx.playFanfare) sfx.playFanfare();
       if (sfx.playGong) setTimeout(() => { try { sfx.playGong(); } catch (_) {} }, 400);
       setTimeout(() => {
@@ -193,6 +378,15 @@ function sendFocusNotification(title, body) {
         } catch (_) {}
       }
     });
+    if (navigator.serviceWorker.controller) {
+      try {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_TIMER_NOTIFICATION',
+          title,
+          options: notifOptions
+        });
+      } catch (_) {}
+    }
   } else if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification(title, notifOptions);
@@ -594,13 +788,14 @@ function updateTimerDisplay() {
     zenRing.setAttribute('stroke', isBreakMode ? '#10b981' : (activeRewardItem ? '#a855f7' : '#f59e0b'));
   }
 
-  // Dynamic Browser Tab Title
+  // Dynamic Browser Tab Title & MediaSession Lock Screen
   const titlePrefix = isBreakMode ? '☕' : (activeRewardItem ? '🎉' : (isFocusRunning ? '▶' : '⏸'));
   const sessionName = activeFocusQuest ? activeFocusQuest.title : (activeRewardItem ? activeRewardItem.name : (isBreakMode ? 'Nghỉ giải lao' : 'Tập trung'));
   const newTitle = `${titlePrefix} (${timeStr}) ${sessionName} | LevelUp`;
   if (newTitle !== lastFormattedTitle) {
     lastFormattedTitle = newTitle;
     document.title = newTitle;
+    updateMediaSessionStatus(sessionName, timeStr);
   }
 }
 
