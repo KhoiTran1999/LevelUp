@@ -151,4 +151,58 @@ console.log('Test 4: Gói Tiết Kiệm Đa Kỳ Hạn (7, 14, 30 ngày) và X�
   console.log('  -> Đa kỳ hạn, đáo hạn và tương thích ngược dữ liệu cũ: OK\n');
 }
 
-console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ A, B, C, D ĐỀU VƯỢT QUA 100%!');
+// -----------------------------------------------------------------------------
+// Test 5: Kiểm thử Sửa lỗi Logic Sổ Tiết Kiệm (Zombie Deposit, Grace Period, Empty Filtering)
+// -----------------------------------------------------------------------------
+console.log('Test 5: Sửa lỗi Logic Sổ Tiết Kiệm (Chống Zombie Sổ, Đệm lệch giờ 5s, Lọc sổ rỗng)');
+{
+  const now = Date.now();
+
+  // 1. Chống Zombie Sổ sau khi rút toàn bộ tiền (deposits = [])
+  const emptyBankAfterWithdraw = {
+    deposited: 100, // giá trị trước khi normalize đồng bộ lại
+    depositInterest: 0,
+    lastDepositAt: now,
+    deposits: [] // Người dùng đã rút hết sổ
+  };
+  normalizeBankDeposits(emptyBankAfterWithdraw, now);
+  assert.strictEqual(emptyBankAfterWithdraw.deposits.length, 0, 'Không được tự ý hồi sinh sổ legacy khi user đã rút hết');
+  assert.strictEqual(emptyBankAfterWithdraw.deposited, 0, 'deposited phải reset về 0');
+  assert.strictEqual(emptyBankAfterWithdraw.depositInterest, 0, 'depositInterest phải reset về 0');
+
+  // 2. Lọc bỏ các sổ rỗng (amount <= 0 && interest <= 0)
+  const bankWithEmptyDeposit = {
+    deposited: 50,
+    depositInterest: 2,
+    deposits: [
+      { id: 'dep_active', amount: 50, interest: 2, termDays: 0, status: 'active', createdAt: now, lastAccruedAt: now, maturityAt: 0 },
+      { id: 'dep_empty', amount: 0, interest: 0, termDays: 7, status: 'active', createdAt: now, lastAccruedAt: now, maturityAt: now + 1000 }
+    ]
+  };
+  normalizeBankDeposits(bankWithEmptyDeposit, now);
+  assert.strictEqual(bankWithEmptyDeposit.deposits.length, 1, 'Sổ rỗng đã tất toán phải được dọn dẹp sạch');
+  assert.strictEqual(bankWithEmptyDeposit.deposits[0].id, 'dep_active', 'Chỉ giữ lại sổ còn số dư');
+
+  // 3. Grace period 5 giây khi đáo hạn tránh lỗi Clock-skew
+  const clockSkewBank = {
+    deposited: 100,
+    depositInterest: 5,
+    deposits: [{
+      id: 'dep_skew',
+      amount: 100,
+      termDays: 7,
+      interest: 5,
+      createdAt: now - 7 * 86400000,
+      lastAccruedAt: now - 86400000,
+      maturityAt: now + 2000, // Còn 2 giây nữa mới đúng millisecond đáo hạn
+      status: 'active'
+    }]
+  };
+  // Dưới 5000ms đệm, hệ thống phải công nhận là đã đáo hạn
+  const accruedSkew = accrueUserBank(clockSkewBank, { depositRate: 0.002 }, now, { streak: 10 });
+  assert.strictEqual(accruedSkew.deposits[0].status, 'matured', 'Khoảng cách 2 giây phải được ân hạn là đã đáo hạn an toàn');
+
+  console.log('  -> Khắc phục hoàn toàn lỗi Zombie Sổ, Clock Skew và lọc sổ rỗng: OK\n');
+}
+
+console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ A, B, C, D VÀ FIXES ĐỀU VƯỢT QUA 100%!');

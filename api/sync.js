@@ -174,12 +174,12 @@ export function calculateDisciplineMultiplier(profile = {}) {
 export function normalizeBankDeposits(bank, now = Date.now()) {
   if (!bank || typeof bank !== 'object') return bank;
 
-  if (!Array.isArray(bank.deposits) || bank.deposits.length === 0) {
+  if (!Array.isArray(bank.deposits)) {
     const dep = Math.max(0, parseInt(bank.deposited, 10) || 0);
     const int = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
     if (dep > 0 || int > 0) {
       bank.deposits = [{
-        id: `dep_legacy_${bank.lastDepositAt || now}`,
+        id: bank.lastDepositAt ? `dep_legacy_${bank.lastDepositAt}` : `dep_legacy_${now}`,
         amount: dep,
         termDays: 0,
         interest: int,
@@ -193,7 +193,16 @@ export function normalizeBankDeposits(bank, now = Date.now()) {
     }
   }
 
-  bank.deposits = bank.deposits.filter(d => d && (d.status === 'active' || d.status === 'matured'));
+  bank.deposits = bank.deposits.filter(d => {
+    if (!d) return false;
+    const amount = parseInt(d.amount, 10) || 0;
+    const interest = parseInt(d.interest, 10) || 0;
+    if (amount <= 0 && interest <= 0) return false;
+    if (!d.status) {
+      d.status = (d.termDays > 0 && d.maturityAt && now >= d.maturityAt) ? 'matured' : 'active';
+    }
+    return d.status === 'active' || d.status === 'matured';
+  });
   bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
   bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
   return bank;
@@ -298,7 +307,7 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now(), profile =
 
       // Nếu có kỳ hạn, chỉ tính lãi đến lúc đáo hạn
       if (termDays > 0 && dep.maturityAt) {
-        if (now >= dep.maturityAt) {
+        if (now >= dep.maturityAt || (dep.maturityAt - now) <= 5000) {
           dep.status = 'matured';
           targetNow = Math.min(now, dep.maturityAt);
         }
@@ -317,6 +326,9 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now(), profile =
           dep.interest = (parseInt(dep.interest, 10) || 0) + earned;
           const daysConsumed = cappedDailyInterest > 0 ? (earned / cappedDailyInterest) : elapsedDays;
           dep.lastAccruedAt = Math.min(targetNow, lastAcc + Math.round(daysConsumed * 24 * 60 * 60 * 1000));
+        }
+        if (termDays > 0 && dep.maturityAt && targetNow === dep.maturityAt && now >= dep.maturityAt) {
+          dep.lastAccruedAt = dep.maturityAt;
         }
       }
     }
@@ -974,7 +986,7 @@ export default async function handler(req, res) {
               if (rawUser) {
                 const uState = JSON.parse(rawUser);
                 const currentBank = uState?.profile?.bank || { deposited: 0, depositInterest: 0, loan: null, isFrozen: false };
-                userBank = accrueUserBank(currentBank, rates);
+                userBank = accrueUserBank(currentBank, rates, Date.now(), uState?.profile || {});
                 creditLimit = calculateCreditLimit(uState?.profile || {}, userBank?.loan?.autoDeductPercent || 0.5);
 
                 // Lưu bền vững vào Redis nếu trạng thái ngân hàng có cập nhật lãi hoặc nợ
@@ -1388,7 +1400,7 @@ export default async function handler(req, res) {
         try {
           const poolState = await getGlobalBankState(redis);
           const rates = calculateBankRates(poolState);
-          const accruedBank = accrueUserBank(data.profile.bank, rates);
+          const accruedBank = accrueUserBank(data.profile.bank, rates, Date.now(), data.profile || {});
           if (JSON.stringify(data.profile.bank) !== JSON.stringify(accruedBank)) {
             data.profile.bank = accruedBank;
             dataChanged = true;
@@ -1840,7 +1852,7 @@ export default async function handler(req, res) {
         const rates = calculateBankRates(poolState);
 
         // Đồng bộ lãi suất cho tài khoản trước khi giao dịch
-        uState.profile.bank = accrueUserBank(uState.profile.bank, rates, serverTimestamp);
+        uState.profile.bank = accrueUserBank(uState.profile.bank, rates, serverTimestamp, uState.profile || {});
 
         // --- ACTION 1: GỬI TIẾT KIỆM (bank_deposit) ---
         if (action === 'bank_deposit') {
@@ -1859,22 +1871,41 @@ export default async function handler(req, res) {
           const maturityAt = termDays > 0 ? (serverTimestamp + termDays * 24 * 60 * 60 * 1000) : 0;
 
           normalizeBankDeposits(uState.profile.bank, serverTimestamp);
-
-          const newDeposit = {
-            id: `dep_${serverTimestamp}_${Math.random().toString(36).substring(2, 7)}`,
-            amount: depositAmt,
-            termDays,
-            interest: 0,
-            createdAt: serverTimestamp,
-            lastAccruedAt: serverTimestamp,
-            maturityAt,
-            status: 'active'
-          };
-
           if (!Array.isArray(uState.profile.bank.deposits)) {
             uState.profile.bank.deposits = [];
           }
-          uState.profile.bank.deposits.push(newDeposit);
+
+          // Nếu gửi Linh Hoạt (termDays === 0) và đã có 1 sổ Linh Hoạt đang hoạt động, cộng dồn vào sổ đó
+          if (termDays === 0) {
+            const existingFlex = uState.profile.bank.deposits.find(d => d.termDays === 0 && d.status === 'active');
+            if (existingFlex) {
+              existingFlex.amount = (parseInt(existingFlex.amount, 10) || 0) + depositAmt;
+              existingFlex.lastAccruedAt = serverTimestamp;
+            } else {
+              uState.profile.bank.deposits.push({
+                id: `dep_${serverTimestamp}_${Math.random().toString(36).substring(2, 7)}`,
+                amount: depositAmt,
+                termDays: 0,
+                interest: 0,
+                createdAt: serverTimestamp,
+                lastAccruedAt: serverTimestamp,
+                maturityAt: 0,
+                status: 'active'
+              });
+            }
+          } else {
+            // Sổ có kỳ hạn: Tạo sổ mới riêng biệt có ngày đáo hạn cụ thể
+            uState.profile.bank.deposits.push({
+              id: `dep_${serverTimestamp}_${Math.random().toString(36).substring(2, 7)}`,
+              amount: depositAmt,
+              termDays,
+              interest: 0,
+              createdAt: serverTimestamp,
+              lastAccruedAt: serverTimestamp,
+              maturityAt,
+              status: 'active'
+            });
+          }
           normalizeBankDeposits(uState.profile.bank, serverTimestamp);
 
           uState.profile.coins = userCoins - depositAmt;
@@ -1925,7 +1956,7 @@ export default async function handler(req, res) {
               return res.status(400).json({ error: 'Không tìm thấy sổ tiết kiệm này hoặc sổ đã tất toán.' });
             }
             const dep = deposits[depIndex];
-            const isEarly = dep.termDays > 0 && serverTimestamp < dep.maturityAt;
+            const isEarly = dep.termDays > 0 && dep.status !== 'matured' && (dep.maturityAt - serverTimestamp) > 5000;
 
             if (isEarly) {
               if (!req.body.confirmEarly) {
@@ -1954,11 +1985,11 @@ export default async function handler(req, res) {
             deposits.splice(depIndex, 1);
           } else {
             // Nhánh 2: Rút nhanh số tiền (hoặc 'all') - Chỉ rút từ các sổ an toàn (Linh hoạt & Đã đáo hạn)
-            const safeDeposits = deposits.filter(d => d.termDays === 0 || serverTimestamp >= d.maturityAt);
+            const safeDeposits = deposits.filter(d => d.termDays === 0 || d.status === 'matured' || (d.maturityAt && (d.maturityAt - serverTimestamp) <= 5000));
             const safeTotalAvailable = safeDeposits.reduce((sum, d) => sum + (d.amount || 0) + (d.interest || 0), 0);
 
             if (safeTotalAvailable <= 0) {
-              if (deposits.some(d => d.termDays > 0 && serverTimestamp < d.maturityAt)) {
+              if (deposits.some(d => d.termDays > 0 && d.status !== 'matured' && (d.maturityAt - serverTimestamp) > 5000)) {
                 return res.status(400).json({
                   error: 'Bạn chỉ có sổ tiết kiệm có kỳ hạn chưa đáo hạn. Để bảo vệ tiền lãi, vui lòng chọn rút riêng từng sổ từ danh sách.'
                 });
@@ -1970,8 +2001,11 @@ export default async function handler(req, res) {
             withdrawAmt = Math.min(safeTotalAvailable, reqAmt);
             let remainingToWithdraw = withdrawAmt;
 
+            // Ưu tiên sổ Linh Hoạt trước, rồi đến sổ đã đáo hạn
+            const sortedSafe = [...safeDeposits].sort((a, b) => a.termDays - b.termDays);
+
             // Ưu tiên 1: Rút lãi từ các sổ an toàn
-            for (const dep of safeDeposits) {
+            for (const dep of sortedSafe) {
               if (remainingToWithdraw <= 0) break;
               if (dep.interest > 0) {
                 const intDraw = Math.min(dep.interest, remainingToWithdraw);
@@ -1981,8 +2015,7 @@ export default async function handler(req, res) {
               }
             }
 
-            // Ưu tiên 2: Rút gốc từ các sổ an toàn (ưu tiên sổ linh hoạt termDays === 0 trước, rồi đến sổ đã đáo hạn)
-            const sortedSafe = [...safeDeposits].sort((a, b) => a.termDays - b.termDays);
+            // Ưu tiên 2: Rút gốc từ các sổ an toàn
             for (const dep of sortedSafe) {
               if (remainingToWithdraw <= 0) break;
               if (dep.amount > 0) {
@@ -2554,7 +2587,12 @@ export default async function handler(req, res) {
             finalBankState.deposited = prevDeposited;
           }
         } else if (incomingDeposited < prevDeposited) {
-          finalBankState.deposited = prevDeposited;
+          const hasWithdrawEvidence = Array.isArray(state.ledger) && state.ledger.some(entry => entry.category === 'bank_withdraw');
+          if (hasWithdrawEvidence && !balanceCheck.tampered) {
+            finalBankState.deposited = incomingDeposited;
+          } else {
+            finalBankState.deposited = prevDeposited;
+          }
         }
 
         // 2. Bảo vệ khoản vay: Chỉ cho phép giảm dư nợ nếu có trích nợ từ nhiệm vụ, hoặc khôi phục nợ khi hoàn tác
@@ -2643,7 +2681,7 @@ export default async function handler(req, res) {
             if (existingState?.profile?.bank?.depositInterest > (finalBankState.depositInterest || 0)) {
               finalBankState.depositInterest = existingState.profile.bank.depositInterest;
             }
-            finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp);
+            finalBankState = accrueUserBank(finalBankState, rates, serverTimestamp, state.profile || existingState?.profile || {});
           } catch (_) {}
         }
       }

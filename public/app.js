@@ -12108,12 +12108,12 @@ function calculateDisciplineMultiplier(profile = {}) {
 function normalizeBankDeposits(bank, now = Date.now()) {
   if (!bank || typeof bank !== 'object') return bank;
 
-  if (!Array.isArray(bank.deposits) || bank.deposits.length === 0) {
+  if (!Array.isArray(bank.deposits)) {
     const dep = Math.max(0, parseInt(bank.deposited, 10) || 0);
     const int = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
     if (dep > 0 || int > 0) {
       bank.deposits = [{
-        id: `dep_legacy_${bank.lastDepositAt || now}`,
+        id: bank.lastDepositAt ? `dep_legacy_${bank.lastDepositAt}` : `dep_legacy_${now}`,
         amount: dep,
         termDays: 0,
         interest: int,
@@ -12127,7 +12127,16 @@ function normalizeBankDeposits(bank, now = Date.now()) {
     }
   }
 
-  bank.deposits = bank.deposits.filter(d => d && (d.status === 'active' || d.status === 'matured'));
+  bank.deposits = bank.deposits.filter(d => {
+    if (!d) return false;
+    const amount = parseInt(d.amount, 10) || 0;
+    const interest = parseInt(d.interest, 10) || 0;
+    if (amount <= 0 && interest <= 0) return false;
+    if (!d.status) {
+      d.status = (d.termDays > 0 && d.maturityAt && now >= d.maturityAt) ? 'matured' : 'active';
+    }
+    return d.status === 'active' || d.status === 'matured';
+  });
   bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
   bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
   return bank;
@@ -12183,7 +12192,7 @@ function accrueLocalUserBank(bank, pool, now = Date.now(), profile = appState.pr
       let targetNow = now;
 
       if (termDays > 0 && dep.maturityAt) {
-        if (now >= dep.maturityAt) {
+        if (now >= dep.maturityAt || (dep.maturityAt - now) <= 5000) {
           dep.status = 'matured';
           targetNow = Math.min(now, dep.maturityAt);
         }
@@ -12202,6 +12211,9 @@ function accrueLocalUserBank(bank, pool, now = Date.now(), profile = appState.pr
           dep.interest = (parseInt(dep.interest, 10) || 0) + earned;
           const daysConsumed = cappedDailyInterest > 0 ? (earned / cappedDailyInterest) : elapsedDays;
           dep.lastAccruedAt = Math.min(targetNow, lastAcc + Math.round(daysConsumed * 24 * 60 * 60 * 1000));
+        }
+        if (termDays > 0 && dep.maturityAt && targetNow === dep.maturityAt && now >= dep.maturityAt) {
+          dep.lastAccruedAt = dep.maturityAt;
         }
       }
     }
@@ -12936,21 +12948,42 @@ async function executeBankDeposit() {
       ensureUserBankProfile();
       const now = Date.now();
       const maturityAt = selectedDepositTerm > 0 ? (now + selectedDepositTerm * 24 * 60 * 60 * 1000) : 0;
-      const newDeposit = {
-        id: `dep_${now}_${Math.random().toString(36).substring(2, 7)}`,
-        amount: amount,
-        termDays: selectedDepositTerm,
-        interest: 0,
-        createdAt: now,
-        lastAccruedAt: now,
-        maturityAt,
-        status: 'active'
-      };
 
       if (!Array.isArray(appState.profile.bank.deposits)) {
         appState.profile.bank.deposits = [];
       }
-      appState.profile.bank.deposits.push(newDeposit);
+
+      // Hợp nhất vào sổ linh hoạt có sẵn nếu gửi linh hoạt (termDays === 0)
+      if (selectedDepositTerm === 0) {
+        const existingFlexible = appState.profile.bank.deposits.find(d => Number(d.termDays) === 0);
+        if (existingFlexible) {
+          existingFlexible.amount = (parseInt(existingFlexible.amount, 10) || 0) + amount;
+          existingFlexible.status = 'active';
+        } else {
+          appState.profile.bank.deposits.push({
+            id: `dep_${now}_${Math.random().toString(36).substring(2, 7)}`,
+            amount: amount,
+            termDays: 0,
+            interest: 0,
+            createdAt: now,
+            lastAccruedAt: now,
+            maturityAt: 0,
+            status: 'active'
+          });
+        }
+      } else {
+        const newDeposit = {
+          id: `dep_${now}_${Math.random().toString(36).substring(2, 7)}`,
+          amount: amount,
+          termDays: selectedDepositTerm,
+          interest: 0,
+          createdAt: now,
+          lastAccruedAt: now,
+          maturityAt,
+          status: 'active'
+        };
+        appState.profile.bank.deposits.push(newDeposit);
+      }
       normalizeBankDeposits(appState.profile.bank, now);
 
       appState.profile.coins -= amount;
@@ -12980,15 +13013,49 @@ async function executeBankDeposit() {
   }
 }
 
+function getBankAvailableFunds(userBank, now = Date.now()) {
+  normalizeBankDeposits(userBank, now);
+  const deposits = userBank?.deposits || [];
+  let safeDeposited = 0;
+  let safeInterest = 0;
+  let lockedDeposited = 0;
+  let lockedInterest = 0;
+
+  for (const dep of deposits) {
+    const isTerm = dep.termDays > 0;
+    const isMatured = isTerm && (dep.status === 'matured' || now >= dep.maturityAt || (dep.maturityAt - now) <= 5000);
+    if (!isTerm || isMatured) {
+      safeDeposited += (parseInt(dep.amount, 10) || 0);
+      safeInterest += (parseInt(dep.interest, 10) || 0);
+    } else {
+      lockedDeposited += (parseInt(dep.amount, 10) || 0);
+      lockedInterest += (parseInt(dep.interest, 10) || 0);
+    }
+  }
+
+  return {
+    safeDeposited,
+    safeInterest,
+    safeTotal: safeDeposited + safeInterest,
+    lockedDeposited,
+    lockedInterest,
+    lockedTotal: lockedDeposited + lockedInterest,
+    totalDeposited: safeDeposited + lockedDeposited,
+    totalInterest: safeInterest + lockedInterest
+  };
+}
+
 function openBankWithdrawModal() {
   ensureUserBankProfile();
   const bank = appState.profile.bank || {};
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-  const totalAvailable = deposited + interest;
+  const funds = getBankAvailableFunds(bank);
 
-  if (totalAvailable <= 0) {
-    showToast('Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi để rút!', 'info');
+  if (funds.safeTotal <= 0) {
+    if (funds.lockedTotal > 0) {
+      showToast('Bạn chỉ có sổ tiết kiệm kỳ hạn chưa đáo hạn! Vui lòng bấm "Rút Sớm" trên từng sổ nếu muốn tất toán trước hạn.', 'warning');
+    } else {
+      showToast('Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi để rút!', 'info');
+    }
     return;
   }
 
@@ -12997,11 +13064,11 @@ function openBankWithdrawModal() {
   const elTotal = document.getElementById('withdraw-modal-total');
   const inputAmt = document.getElementById('input-withdraw-amount');
 
-  if (elDeposited) elDeposited.textContent = deposited.toLocaleString('vi-VN');
-  if (elInterest) elInterest.textContent = interest.toLocaleString('vi-VN');
-  if (elTotal) elTotal.textContent = totalAvailable.toLocaleString('vi-VN');
+  if (elDeposited) elDeposited.textContent = funds.safeDeposited.toLocaleString('vi-VN');
+  if (elInterest) elInterest.textContent = funds.safeInterest.toLocaleString('vi-VN');
+  if (elTotal) elTotal.textContent = funds.safeTotal.toLocaleString('vi-VN');
   if (inputAmt) {
-    inputAmt.max = totalAvailable;
+    inputAmt.max = funds.safeTotal;
     inputAmt.value = '';
   }
 
@@ -13013,9 +13080,10 @@ window.openBankWithdrawModal = openBankWithdrawModal;
 function onWithdrawAmountInput(val) {
   ensureUserBankProfile();
   const bank = appState.profile.bank || {};
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-  const totalAvailable = deposited + interest;
+  const funds = getBankAvailableFunds(bank);
+  const deposited = funds.safeDeposited;
+  const interest = funds.safeInterest;
+  const totalAvailable = funds.safeTotal;
 
   let amount = parseInt(val, 10);
   if (isNaN(amount) || amount < 0) amount = 0;
@@ -13050,14 +13118,17 @@ function onWithdrawAmountInput(val) {
   if (elRemaining) elRemaining.textContent = remainingPrincipal.toLocaleString('vi-VN');
 
   if (elNote) {
+    const lockedMsg = funds.lockedTotal > 0
+      ? `<br><span class="text-[10px] text-amber-500 font-medium">🔒 Lưu ý: Bạn còn ${funds.lockedDeposited.toLocaleString('vi-VN')} Vàng gốc (+${funds.lockedInterest.toLocaleString('vi-VN')} lãi) trong sổ kỳ hạn đang khóa sinh lời.</span>`
+      : '';
     if (amount <= 0) {
-      elNote.innerHTML = '💡 <strong>Hướng dẫn:</strong> Nhập số Vàng bạn muốn rút hoặc nhấn các nút chọn nhanh bên trên để xem bảng phân bổ chi tiết.';
+      elNote.innerHTML = `💡 <strong>Hướng dẫn:</strong> Nhập số Vàng bạn muốn rút hoặc nhấn các nút chọn nhanh bên trên để xem bảng phân bổ chi tiết.${lockedMsg}`;
     } else if (amount > totalAvailable) {
-      elNote.innerHTML = `<span class="text-rose-500 font-bold">⚠️ Chú ý:</span> Số Vàng bạn nhập (${amount}) vượt quá tổng số dư khả dụng (${totalAvailable} Vàng)! Tối đa có thể rút là ${totalAvailable} Vàng.`;
+      elNote.innerHTML = `<span class="text-rose-500 font-bold">⚠️ Chú ý:</span> Số Vàng bạn nhập (${amount}) vượt quá tổng số dư khả dụng (${totalAvailable} Vàng)! Tối đa có thể rút là ${totalAvailable} Vàng.${lockedMsg}`;
     } else if (principalWithdrawn === 0) {
-      elNote.innerHTML = `💡 <strong>Ưu đãi bảo toàn vốn:</strong> Bạn đang rút <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> từ Tiền Lãi tích lũy. Toàn bộ <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> Vốn Gốc được bảo toàn 100% để tiếp tục sinh lời mỗi ngày!`;
+      elNote.innerHTML = `💡 <strong>Ưu đãi bảo toàn vốn:</strong> Bạn đang rút <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> từ Tiền Lãi tích lũy. Toàn bộ <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> Vốn Gốc được bảo toàn 100% để tiếp tục sinh lời mỗi ngày!${lockedMsg}`;
     } else {
-      elNote.innerHTML = `💡 <strong>Phân bổ thông minh:</strong> Hệ thống rút hết <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> tiền lãi và trích thêm <strong class="text-slate-200 font-bold">${principalWithdrawn} Vàng</strong> từ vốn gốc. ${remainingPrincipal > 0 ? `Phần gốc còn lại <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> vẫn tiếp tục sinh lãi!` : 'Bạn đã chọn tất toán toàn bộ gốc và lãi.'}`;
+      elNote.innerHTML = `💡 <strong>Phân bổ thông minh:</strong> Hệ thống rút hết <strong class="text-emerald-500 font-bold">${interestWithdrawn} Vàng</strong> tiền lãi và trích thêm <strong class="text-slate-200 font-bold">${principalWithdrawn} Vàng</strong> từ vốn gốc. ${remainingPrincipal > 0 ? `Phần gốc còn lại <strong class="text-amber-400 font-bold">${remainingPrincipal} Vàng</strong> vẫn tiếp tục sinh lãi!` : 'Bạn đã chọn tất toán toàn bộ gốc và lãi khả dụng.'}${lockedMsg}`;
     }
   }
 }
@@ -13066,19 +13137,18 @@ window.onWithdrawAmountInput = onWithdrawAmountInput;
 function setWithdrawAmountPreset(preset) {
   ensureUserBankProfile();
   const bank = appState.profile.bank || {};
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-  const totalAvailable = deposited + interest;
+  const funds = getBankAvailableFunds(bank);
+  const totalAvailable = funds.safeTotal;
 
   if (totalAvailable <= 0) return;
 
   let targetAmt = 0;
   if (preset === 'interest') {
-    if (interest <= 0) {
-      showToast('Hiện tại bạn chưa có tiền lãi tích lũy để rút!', 'info');
+    if (funds.safeInterest <= 0) {
+      showToast('Hiện tại bạn chưa có tiền lãi tích lũy khả dụng để rút!', 'info');
       return;
     }
-    targetAmt = interest;
+    targetAmt = funds.safeInterest;
   } else if (preset === 'all') {
     targetAmt = totalAvailable;
   } else if (typeof preset === 'number') {
@@ -13098,7 +13168,8 @@ function confirmAndExecuteWithdraw() {
   const amount = parseInt(input?.value, 10);
   ensureUserBankProfile();
   const bank = appState.profile.bank || {};
-  const totalAvailable = (bank.deposited || 0) + (bank.depositInterest || 0);
+  const funds = getBankAvailableFunds(bank);
+  const totalAvailable = funds.safeTotal;
 
   if (!amount || amount <= 0) {
     showToast('Vui lòng nhập số Vàng muốn rút hợp lệ (> 0)!', 'error');
@@ -13139,8 +13210,22 @@ function renderBankDepositsList(userBank) {
   for (const dep of deposits) {
     const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
     const isTerm = dep.termDays > 0;
-    const isMatured = isTerm && now >= dep.maturityAt;
-    const daysLeft = isTerm ? Math.max(0, Math.ceil((dep.maturityAt - now) / (24 * 60 * 60 * 1000))) : 0;
+    const isMatured = isTerm && (dep.status === 'matured' || now >= dep.maturityAt || (dep.maturityAt - now) <= 5000);
+    const msLeft = isTerm ? Math.max(0, dep.maturityAt - now) : 0;
+
+    let timeLeftStr = '';
+    if (msLeft > 0 && !isMatured) {
+      const days = Math.floor(msLeft / 86400000);
+      const hours = Math.floor((msLeft % 86400000) / 3600000);
+      const minutes = Math.floor((msLeft % 3600000) / 60000);
+      if (days >= 1) {
+        timeLeftStr = `Còn ${days} ngày ${hours > 0 ? `${hours}h` : ''}`;
+      } else if (hours >= 1) {
+        timeLeftStr = `Còn ${hours} giờ ${minutes}p`;
+      } else {
+        timeLeftStr = `Còn ${Math.max(1, minutes)} phút`;
+      }
+    }
 
     let statusBadge = '';
     if (!isTerm) {
@@ -13148,7 +13233,7 @@ function renderBankDepositsList(userBank) {
     } else if (isMatured) {
       statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 animate-pulse">🎉 Đã Đáo Hạn</span>';
     } else {
-      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">⏳ Còn ${daysLeft} ngày</span>`;
+      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">⏳ ${timeLeftStr}</span>`;
     }
 
     const actionBtnText = (!isTerm || isMatured) ? 'Tất Toán 📤' : 'Rút Sớm ⚠️';
@@ -13196,14 +13281,19 @@ async function withdrawSingleDeposit(depositId) {
   }
 
   const now = Date.now();
-  const isEarly = dep.termDays > 0 && now < dep.maturityAt;
+  const isEarly = dep.termDays > 0 && dep.status !== 'matured' && (dep.maturityAt - now) > 5000;
   const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
 
   if (isEarly) {
-    const daysLeft = Math.ceil((dep.maturityAt - now) / (24 * 60 * 60 * 1000));
+    const msLeft = Math.max(0, dep.maturityAt - now);
+    const daysLeft = Math.floor(msLeft / 86400000);
+    const hoursLeft = Math.floor((msLeft % 86400000) / 3600000);
+    const timeLeftNotice = daysLeft >= 1
+      ? `${daysLeft} ngày ${hoursLeft > 0 ? `${hoursLeft} giờ` : ''}`
+      : `${Math.max(1, Math.round(msLeft / 3600000))} giờ`;
     const ok = await confirmAction({
       title: '⚠️ Rút Sổ Tiết Kiệm Trước Hạn?',
-      message: `Sổ kỳ hạn ${dep.termDays} ngày (${termConfig.label}) này chưa đến ngày đáo hạn! Còn lại ${daysLeft} ngày.`,
+      message: `Sổ kỳ hạn ${dep.termDays} ngày (${termConfig.label}) này chưa đến ngày đáo hạn! Còn lại ${timeLeftNotice}.`,
       detail: `❌ Phạt rút non: HỦY TOÀN BỘ +${dep.interest} Vàng tiền lãi tích lũy!\n💰 Vốn gốc nhận về ví: +${dep.amount} Vàng.\n\n💡 Bạn có chắc chắn muốn rút ngay bây giờ không?`,
       confirmText: 'Chấp Nhận Phạt & Rút Sớm ⚠️',
       cancelText: 'Giữ Lại Đợi Đáo Hạn',
@@ -13255,7 +13345,7 @@ async function executeBankWithdraw() {
         return;
       }
       const now = Date.now();
-      const isEarly = dep.termDays > 0 && now < dep.maturityAt;
+      const isEarly = dep.termDays > 0 && dep.status !== 'matured' && (dep.maturityAt - now) > 5000;
 
       if (isEarly) {
         principalWithdrawn = dep.amount;
@@ -13270,11 +13360,12 @@ async function executeBankWithdraw() {
     } else {
       // Rút nhanh từ các sổ an toàn (Linh hoạt & Đã đáo hạn)
       const now = Date.now();
-      const safeDeposits = deposits.filter(d => d.termDays === 0 || now >= d.maturityAt);
+      const safeDeposits = deposits.filter(d => d.termDays === 0 || d.status === 'matured' || now >= d.maturityAt || (d.maturityAt - now) <= 5000);
+      safeDeposits.sort((a, b) => (a.termDays || 0) - (b.termDays || 0));
       const safeTotalAvailable = safeDeposits.reduce((sum, d) => sum + (d.amount || 0) + (d.interest || 0), 0);
 
       if (safeTotalAvailable <= 0) {
-        if (deposits.some(d => d.termDays > 0 && now < d.maturityAt)) {
+        if (deposits.some(d => d.termDays > 0 && d.status !== 'matured' && (d.maturityAt - now) > 5000)) {
           showToast('Bạn chỉ có sổ kỳ hạn chưa đáo hạn. Vui lòng bấm "Rút Sớm" trên từng sổ nếu muốn tất toán trước hạn!', 'warning');
         } else {
           showToast('Bạn không có Vàng gửi hoặc tiền lãi khả dụng để rút!', 'info');
@@ -13378,7 +13469,8 @@ async function executeBankWithdraw() {
         if (depIdx !== -1) bank.deposits.splice(depIdx, 1);
       } else {
         const now = Date.now();
-        const safeDeposits = bank.deposits.filter(d => d.termDays === 0 || now >= d.maturityAt);
+        const safeDeposits = bank.deposits.filter(d => d.termDays === 0 || d.status === 'matured' || now >= d.maturityAt || (d.maturityAt - now) <= 5000);
+        safeDeposits.sort((a, b) => (a.termDays || 0) - (b.termDays || 0));
         let rem = withdrawAmt;
         for (const dep of safeDeposits) {
           if (rem <= 0) break;
