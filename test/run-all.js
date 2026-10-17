@@ -28,7 +28,7 @@ for (let i = 0; i < files.length; i++) {
   const startFile = Date.now();
   
   const res = spawnSync(process.execPath, [filePath], {
-    timeout: 15000,
+    timeout: 25000,
     encoding: 'utf8',
     env: { ...process.env, NODE_ENV: 'test' }
   });

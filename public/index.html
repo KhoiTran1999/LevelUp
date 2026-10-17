@@ -27,10 +27,44 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700;800;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Material Symbols: use display=block to eliminate FOUT text flash on load (dark_mode, volume_up, task_alt, etc.) -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
 
   <!-- Compiled Tailwind CSS (Offline-first & Production PWA ready) -->
   <link rel="stylesheet" href="tailwind.min.css">
+  <!-- Custom Stylesheet (Loaded in head to prevent unstyled layout shifts) -->
+  <link rel="stylesheet" href="style.css?v=1.0.3">
+
+  <!-- Critical Anti-FOUT: lock icon dimensions and hide ligature text until font is active -->
+  <style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined' !important;
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+      user-select: none;
+      width: 1em;
+      height: 1em;
+      overflow: hidden;
+    }
+    html:not(.wf-symbols-active) .material-symbols-outlined {
+      color: transparent !important;
+    }
+  </style>
 
   <!-- Google Identity Services SDK -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -38,6 +72,20 @@
   <!-- Clear legacy storage & default to system theme before paint -->
   <script>
     (function() {
+      // Font-load activation for icons
+      if (document.fonts) {
+        document.fonts.load('24px "Material Symbols Outlined"').then(function() {
+          document.documentElement.classList.add('wf-symbols-active');
+        }).catch(function() {
+          document.documentElement.classList.add('wf-symbols-active');
+        });
+        setTimeout(function() {
+          document.documentElement.classList.add('wf-symbols-active');
+        }, 1200);
+      } else {
+        document.documentElement.classList.add('wf-symbols-active');
+      }
+
       try {
         localStorage.removeItem('levelup_state_v1');
         localStorage.removeItem('levelup_onboarded');
@@ -68,9 +116,6 @@
       }
     })();
   </script>
-
-  <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.2">
 </head>
 <body class="min-h-screen antialiased selection:bg-indigo-500 selection:text-white pb-24 md:pb-12 overflow-x-hidden">
 
@@ -748,14 +793,16 @@
                   Bảo Lãnh 100% Vốn
                 </span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400">
-                Gửi Vàng nhàn rỗi nhận lãi thụ động mỗi ngày, hoặc Tạm ứng Vàng giải trí ngay và trích Vàng thưởng trả dần qua nhiệm vụ.
-              </p>
             </div>
           </div>
-          <button id="btn-refresh-bank" onclick="loadBankState(true)" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span id="btn-refresh-bank-icon" class="inline-block transition-transform">🔄</span> <span id="btn-refresh-bank-text">Cập Nhật</span>
-          </button>
+          <div class="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <button type="button" onclick="openBankRulesModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs" title="Xem toàn bộ quy tắc tài chính & cơ chế Ngân hàng">
+              <span>📖</span> <span>Quy Tắc</span>
+            </button>
+            <button id="btn-refresh-bank" onclick="loadBankState(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-slate-950 shadow-xs cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span id="btn-refresh-bank-icon" class="inline-block transition-transform">🔄</span> <span id="btn-refresh-bank-text">Cập Nhật</span>
+            </button>
+          </div>
         </div>
 
         <!-- AI Commentary Box (Hidden to prevent macro leakage) -->
@@ -763,39 +810,10 @@
           <span id="bank-ai-commentary"></span>
         </div>
 
-        <!-- 2 Thẻ Lãi Suất Tinh Gọn Cho Người Dùng -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
-          <div class="p-3.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/25 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0">
-                🌱
-              </div>
-              <div class="min-w-0">
-                <div class="text-[11px] text-slate-600 dark:text-slate-400 font-semibold truncate">Lãi Tiết Kiệm Hôm Nay</div>
-              </div>
-            </div>
-            <div class="text-right shrink-0">
-              <span id="bank-deposit-rate" class="text-lg sm:text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">2.0%/ngày</span>
-            </div>
-          </div>
-
-          <div class="p-3.5 rounded-2xl bg-blue-500/10 dark:bg-blue-950/30 border border-blue-500/25 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shrink-0">
-                ⚡
-              </div>
-              <div class="min-w-0">
-                <div class="text-[11px] text-slate-600 dark:text-slate-400 font-semibold truncate">Lãi Vay Nhanh Hôm Nay</div>
-              </div>
-            </div>
-            <div class="text-right shrink-0">
-              <span id="bank-borrow-rate" class="text-lg sm:text-xl font-black font-mono text-blue-600 dark:text-blue-400">5.0%/ngày</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Hidden telemetry for backward compatibility -->
         <div class="hidden">
+          <span id="bank-deposit-rate">0.15%/ngày</span>
+          <span id="bank-borrow-rate">5.0%/ngày</span>
           <span id="bank-pool-gold">500</span>
           <span id="bank-total-borrowed">0</span>
           <span id="bank-utilization-pct">0%</span>
@@ -807,32 +825,36 @@
       <!-- 2 Cột: Bên trái là Sổ Tiết Kiệm (Depositor), Bên phải là Quầy Vay Vàng (Borrower) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
-        <!-- ==================== CỘT 1: SỔ TIẾT KIỆM (DEPOSITOR) ==================== -->
-        <div class="rpg-panel rounded-2xl p-4 sm:p-5 border border-emerald-500/30 flex flex-col justify-between">
+        <!-- ==================== CỘT 1: GỬI TIẾT KIỆM ==================== -->
+        <div class="rpg-panel rounded-2xl p-4 sm:p-5 border-2 border-emerald-500/40 border-t-4 border-t-emerald-500 bg-gradient-to-b from-emerald-500/[0.07] via-transparent to-transparent flex flex-col justify-between shadow-xs">
           <div>
-            <div class="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">🌱</span>
+            <div class="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-emerald-500/20">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+                  🌱
+                </div>
                 <div>
                   <h3 class="font-bold text-sm sm:text-base text-emerald-700 dark:text-emerald-300">
-                    SỔ TIẾT KIỆM SINH LỜI
+                    GỬI TIẾT KIỆM
                   </h3>
-                  <p class="text-[11px] text-slate-500 dark:text-slate-400">Gửi Vàng nhàn rỗi nhận lãi thụ động 1% - 8%/ngày</p>
                 </div>
               </div>
+              <span class="hidden sm:inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0 uppercase tracking-wide">
+                📥 Sinh Lãi
+              </span>
             </div>
 
             <!-- Tóm tắt tài sản gửi -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="grid grid-cols-2 gap-3 mb-3">
               <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <span class="text-[11px] text-slate-600 dark:text-slate-400">Số Vàng Đang Gửi:</span>
+                <span class="text-[11px] text-slate-600 dark:text-slate-400">Đang Gửi:</span>
                 <div class="flex items-baseline gap-1 mt-1">
                   <span id="bank-user-deposited" class="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">0</span>
                   <span class="coin-icon"></span>
                 </div>
               </div>
               <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <span class="text-[11px] text-slate-600 dark:text-slate-400">Tiền Lãi Tích Lũy:</span>
+                <span class="text-[11px] text-slate-600 dark:text-slate-400">Lãi Tích Lũy:</span>
                 <div class="flex items-baseline gap-1 mt-1">
                   <span id="bank-user-interest" class="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">+0</span>
                   <span class="coin-icon"></span>
@@ -840,14 +862,64 @@
               </div>
             </div>
 
+            <!-- Badge Kỷ Luật Streak -->
+            <div id="bank-discipline-badge" class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2 text-xs mb-3">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-sm shrink-0">🔥</span>
+                <span class="font-bold text-amber-700 dark:text-amber-300 truncate">Đang tải kỷ luật...</span>
+              </div>
+            </div>
+
+            <!-- Danh sách các sổ tiết kiệm đang hoạt động -->
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span>📚</span> <span>Sổ Tiết Kiệm Của Bạn</span>
+                </span>
+              </div>
+              <div id="bank-deposits-list" class="max-h-44 overflow-y-auto pr-0.5 space-y-1.5">
+                <!-- Được render động bởi renderBankDepositsList -->
+              </div>
+            </div>
+
             <!-- Form gửi Vàng -->
-            <div class="space-y-3">
+            <div class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <!-- Chọn Kỳ Hạn (Multi-Term Selector) -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Kỳ Hạn:
+                </label>
+                <div class="grid grid-cols-4 gap-1.5">
+                  <button type="button" onclick="selectDepositTerm(0)" data-term-days="0" class="bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-bold text-xs bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500 transition cursor-pointer shadow-xs">
+                    <span class="block text-sm">🍃</span>
+                    <span class="block text-[11px] font-bold">Linh Hoạt</span>
+                    <span id="bank-term-rate-0" class="block text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">0.12%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectDepositTerm(7)" data-term-days="7" class="bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 transition cursor-pointer">
+                    <span class="block text-sm">⚡</span>
+                    <span class="block text-[11px] font-bold">7 Ngày</span>
+                    <span id="bank-term-rate-7" class="block text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">0.16%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectDepositTerm(14)" data-term-days="14" class="bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 transition cursor-pointer">
+                    <span class="block text-sm">🛡️</span>
+                    <span class="block text-[11px] font-bold">14 Ngày</span>
+                    <span id="bank-term-rate-14" class="block text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">0.19%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectDepositTerm(30)" data-term-days="30" class="bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 transition cursor-pointer">
+                    <span class="block text-sm">👑</span>
+                    <span class="block text-[11px] font-bold">30 Ngày</span>
+                    <span id="bank-term-rate-30" class="block text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">0.24%/ngày</span>
+                  </button>
+                </div>
+                <div id="bank-deposit-term-note" class="hidden"></div>
+              </div>
+
               <div>
                 <label for="input-deposit-amount" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Số Vàng muốn gửi tiết kiệm:
+                  Số Vàng gửi:
                 </label>
                 <div class="relative flex items-center">
-                  <input type="number" id="input-deposit-amount" min="1" oninput="onDepositAmountInput(this.value)" placeholder="Nhập số Vàng..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition font-mono pr-10">
+                  <input type="number" id="input-deposit-amount" min="1" oninput="onDepositAmountInput(this.value)" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition font-mono pr-10">
                   <span class="absolute right-3 pointer-events-none flex items-center"><span class="coin-icon"></span></span>
                 </div>
               </div>
@@ -862,57 +934,38 @@
                 <button type="button" onclick="setDepositMax()" class="px-2 py-0.5 rounded-lg text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold transition cursor-pointer">Tối Đa</button>
               </div>
 
-              <!-- Máy tính dự tính tiền lãi tiết kiệm -->
-              <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs space-y-2.5">
+              <!-- Máy tính dự tính tiền lãi tiết kiệm (Tối giản & Trực quan) -->
+              <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs space-y-2">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
-                    <span>🧮</span> <span>Dự Tính Lãi Tiết Kiệm</span>
+                    <span>🧮</span> <span>Dự Tính Lãi</span>
                   </span>
                   <span class="text-[10px] text-slate-500 dark:text-slate-400">
-                    Lãi suất hôm nay: <b id="calc-deposit-rate-label" class="text-emerald-600 dark:text-emerald-400 font-mono">2.0%/ngày</b>
+                    Lãi suất: <b id="calc-deposit-rate-label" class="text-emerald-600 dark:text-emerald-400 font-mono">0.12%/ngày</b>
                   </span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label for="calc-deposit-coins" class="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Số Vàng tính lãi:</label>
-                    <div class="relative flex items-center">
-                      <input type="number" id="calc-deposit-coins" min="1" value="50" oninput="updateDepositCalculator()" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono pr-7">
-                      <span class="absolute right-2 pointer-events-none flex items-center scale-90"><span class="coin-icon"></span></span>
-                    </div>
+                <div id="calc-deposit-discipline-badge" class="hidden"></div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                  <div class="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/15">
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Lãi dự kiến:</span>
+                    <span class="font-bold font-mono text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+                      +<span id="calc-deposit-result-interest">0</span> <span class="coin-icon"></span>
+                    </span>
                   </div>
-                  <div>
-                    <label for="calc-deposit-days" class="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Thời gian gửi:</label>
-                    <div class="relative flex items-center">
-                      <input type="number" id="calc-deposit-days" min="1" max="365" value="7" oninput="updateDepositCalculator()" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono pr-11">
-                      <span class="absolute right-2 text-[10px] text-slate-400 pointer-events-none">ngày</span>
-                    </div>
+                  <div class="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/15">
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Tổng nhận về:</span>
+                    <span class="font-bold font-mono text-slate-700 dark:text-slate-300 inline-flex items-center gap-1">
+                      <span id="calc-deposit-result-total">0</span> <span class="coin-icon"></span>
+                    </span>
                   </div>
                 </div>
 
-                <!-- Quick days selection -->
-                <div class="flex items-center gap-1 text-[10px] flex-wrap">
-                  <span class="text-slate-400 shrink-0">Chọn nhanh số ngày:</span>
-                  <button type="button" onclick="setCalcDays(3)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">3 ngày</button>
-                  <button type="button" onclick="setCalcDays(7)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">7 ngày</button>
-                  <button type="button" onclick="setCalcDays(14)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">14 ngày</button>
-                  <button type="button" onclick="setCalcDays(30)" class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 transition cursor-pointer">30 ngày</button>
-                </div>
-
-                <!-- Kết quả tính toán -->
-                <div class="pt-2 border-t border-emerald-500/20 flex items-center justify-between">
-                  <div>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Lãi dự kiến nhận:</span>
-                    <span class="text-sm font-extrabold font-mono text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
-                      +<span id="calc-deposit-result-interest">7</span> <span class="coin-icon"></span>
-                    </span>
-                  </div>
-                  <div class="text-right">
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Tổng nhận về (Gốc + Lãi):</span>
-                    <span class="text-xs font-bold font-mono text-slate-700 dark:text-slate-300 inline-flex items-center gap-1">
-                      <span id="calc-deposit-result-total">57</span> <span class="coin-icon"></span>
-                    </span>
-                  </div>
+                <!-- Hidden inputs for backward compatibility -->
+                <div class="hidden">
+                  <input type="number" id="calc-deposit-coins" value="50">
+                  <input type="number" id="calc-deposit-days" value="7">
                 </div>
               </div>
             </div>
@@ -924,101 +977,110 @@
               <span>📥</span> <span>Gửi Tiết Kiệm</span>
             </button>
             <button id="btn-bank-withdraw" onclick="openBankWithdrawModal()" class="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-emerald-500/40 hover:bg-emerald-500/15 active:scale-95 text-emerald-700 dark:text-emerald-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
-              <span>📤</span> <span>Rút Tiền</span>
+              <span>📤</span> <span>Rút Nhanh</span>
             </button>
           </div>
         </div>
 
-        <!-- ==================== CỘT 2: QUẦY VAY VÀNG (BORROWER) ==================== -->
-        <div class="rpg-panel rounded-2xl p-4 sm:p-5 border border-blue-500/30 flex flex-col justify-between">
+        <!-- ==================== CỘT 2: VAY VÀNG (TẠM ỨNG CHI TIÊU) ==================== -->
+        <div class="rpg-panel rounded-2xl p-4 sm:p-5 border-2 border-indigo-500/40 border-t-4 border-t-indigo-500 bg-gradient-to-b from-indigo-500/[0.07] via-transparent to-transparent flex flex-col justify-between shadow-xs">
           <div>
-            <div class="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">⚡</span>
+            <div class="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-indigo-500/20">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl shrink-0">
+                  💳
+                </div>
                 <div>
-                  <h3 class="font-bold text-sm sm:text-base text-blue-700 dark:text-blue-300">
-                    QUẦY VAY VÀNG TỨC THỜI
-                  </h3>
-                  <p class="text-[11px] text-slate-500 dark:text-slate-400">Vay Vàng giải trí ngay - Trích nợ tự động khi làm nhiệm vụ</p>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <h3 class="font-bold text-sm sm:text-base text-indigo-700 dark:text-indigo-300">
+                      VAY VÀNG
+                    </h3>
+                  </div>
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
-                <button id="bank-credit-limit-badge" onclick="openCreditLimitModal()" type="button" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 hover:bg-blue-500/25 active:scale-95 text-blue-700 dark:text-blue-300 border border-blue-500/30 inline-flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Bấm để xem công thức tính & cách nâng hạn mức">
-                  <span>Hạn mức: 50</span> <span class="coin-icon"></span> <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>
+                <span class="hidden sm:inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 uppercase tracking-wide">
+                  💳 Chi Tiêu Trước
+                </span>
+                <button id="bank-credit-limit-badge" onclick="openCreditLimitModal()" type="button" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/15 hover:bg-indigo-500/25 active:scale-95 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 inline-flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Bấm để xem công thức tính & cách nâng hạn mức">
+                  <span>Hạn mức: 50</span> <span class="coin-icon"></span>
                 </button>
               </div>
             </div>
 
             <!-- Tình trạng nợ hiện tại -->
-            <div id="bank-loan-active-box" class="hidden mb-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <div id="bank-loan-active-box" class="hidden mb-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
               <div class="flex items-center justify-between text-xs mb-1">
-                <span class="text-slate-600 dark:text-slate-400">Nợ hiện tại (Gốc + Lãi):</span>
-                <span id="bank-current-debt" class="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm inline-flex items-center gap-1">0 <span class="coin-icon"></span></span>
+                <span class="text-slate-600 dark:text-slate-400 font-bold">Tổng nợ hiện tại:</span>
+                <span id="bank-current-debt" class="font-mono font-black text-rose-600 dark:text-rose-400 text-base inline-flex items-center gap-1">0 <span class="coin-icon"></span></span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-[11px] my-2 p-2 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-indigo-500/15">
+                <div>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Vốn gốc:</span>
+                  <span id="bank-loan-principal" class="font-semibold text-slate-700 dark:text-slate-300 font-mono">0 <span class="coin-icon"></span></span>
+                </div>
+                <div>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Lãi phát sinh:</span>
+                  <span id="bank-loan-accrued-interest" class="font-semibold text-rose-600 dark:text-rose-400 font-mono">+0 <span class="coin-icon"></span></span>
+                </div>
               </div>
               <div class="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Tỷ lệ trích nhiệm vụ:</span>
+                <span>Lãi suất:</span>
+                <span id="bank-active-borrow-rate" class="font-semibold text-indigo-600 dark:text-indigo-400 font-mono">5.0%/ngày</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
+                <span>Trích thưởng:</span>
                 <span id="bank-active-deduct-rate" class="font-semibold text-slate-700 dark:text-slate-300">50%</span>
               </div>
               <div class="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                <span>Thời hạn còn lại:</span>
+                <span>Thời hạn:</span>
                 <span id="bank-loan-days-left" class="font-semibold text-amber-600">7 ngày</span>
               </div>
               <div class="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                <span>Lãi suất phạt tất toán sớm:</span>
+                <span>Tất toán sớm:</span>
                 <span id="bank-early-repay-penalty-label" class="font-semibold text-amber-600 dark:text-amber-400">5% phí trả trước hạn</span>
-              </div>
-              <div class="text-[10px] text-amber-700 dark:text-amber-300/90 mt-1.5 pt-1.5 border-t border-blue-500/15 flex items-start gap-1">
-                <span class="shrink-0">📢</span>
-                <span><strong>Thông báo:</strong> Bấm "Trả Nợ Sớm" bằng ví Vàng chịu <strong>phí phạt 5%</strong> (tối thiểu 1 🪙). Để không tốn phí, hãy làm nhiệm vụ để hệ thống tự động trích nợ <strong>0% phí phạt</strong>!</span>
-              </div>
-              <div class="text-[10px] text-rose-600/90 dark:text-rose-400/90 mt-1 pt-1 border-t border-blue-500/15 flex items-start gap-1">
-                <span class="shrink-0">⚠️</span>
-                <span>Hết 7 ngày chưa trả hết: Tạm đóng băng Cửa Hàng & Kho Quà, tự động trích 100% Vàng thưởng để tự động trừ dần nợ.</span>
               </div>
             </div>
 
             <!-- Form đăng ký vay mới -->
             <div id="bank-loan-form-box" class="space-y-3">
               <!-- Trợ lý AI Tư Vấn & Thương Lượng Khoản Vay -->
-              <div class="p-3 rounded-2xl bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-purple-500/10 border border-blue-500/30 space-y-2.5 shadow-xs">
+              <div class="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-blue-500/10 border border-indigo-500/30 space-y-2.5 shadow-xs">
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-2">
                     <span class="text-xl">🤖</span>
                     <div>
-                      <h4 class="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                      <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
                         <span>TRỢ LÝ VAY VÀNG AI</span>
                         <span id="bank-ai-recommend-tag" class="hidden px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Nên vay vừa sức</span>
                       </h4>
-                      <p class="text-[11px] text-slate-500 dark:text-slate-400">Tự động phân tích ví, nhiệm vụ & lập lộ trình trả nợ</p>
                     </div>
                   </div>
-                  <button id="btn-toggle-bank-ai-chat" type="button" onclick="toggleBankAiDebate()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1">
+                  <button id="btn-toggle-bank-ai-chat" type="button" onclick="toggleBankAiDebate()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white transition cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1">
                     <span>💬</span> <span id="btn-toggle-bank-ai-text">Thương Lượng</span>
                   </button>
                 </div>
 
                 <!-- Lời khuyên & Lộ trình trả nợ từ AI -->
-                <div id="bank-ai-consult-card" class="text-xs space-y-2 pt-1 border-t border-blue-500/15">
+                <div id="bank-ai-consult-card" class="text-xs space-y-2 pt-1 border-t border-indigo-500/15">
                   <div id="bank-ai-consult-trigger" class="space-y-1.5 py-1">
-                    <button id="btn-analyze-loan-roadmap" type="button" onclick="loadBankLoanConsultation(true)" class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white transition cursor-pointer shadow-sm flex items-center justify-center gap-1.5">
+                    <button id="btn-analyze-loan-roadmap" type="button" onclick="loadBankLoanConsultation(true)" class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white transition cursor-pointer shadow-sm flex items-center justify-center gap-1.5">
                       <span>🧭</span> <span id="btn-analyze-loan-text">Phân tích lộ trình trả nợ</span>
                     </button>
-                    <p id="bank-ai-consult-hint" class="text-[11px] text-slate-500 dark:text-slate-400 text-center">
-                      Bấm để AI phân tích ví Vàng & nhiệm vụ để đưa ra lời khuyên và lập kế hoạch trả nợ
-                    </p>
+                    <p id="bank-ai-consult-hint" class="hidden text-[11px] text-slate-500 dark:text-slate-400 text-center"></p>
                   </div>
 
                   <div id="bank-ai-advice-text" class="hidden text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed italic">
                   </div>
 
-                  <div id="bank-ai-roadmap-box" class="hidden p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-blue-500/20 text-[11px] space-y-1">
-                    <div class="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                  <div id="bank-ai-roadmap-box" class="hidden p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-indigo-500/20 text-[11px] space-y-1">
+                    <div class="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
                       <span>🧭</span> <span>Lộ trình làm việc trả nợ:</span>
                     </div>
                     <p id="bank-ai-repayment-plan" class="text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
                     </p>
                     <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5 border-t border-slate-200/60 dark:border-slate-800/80 mt-1">
-                      <span>Dự kiến hoàn thành: <b id="bank-ai-est-days" class="text-blue-600 dark:text-blue-400 font-mono">2-3 ngày</b></span>
+                      <span>Dự kiến hoàn thành: <b id="bank-ai-est-days" class="text-indigo-600 dark:text-indigo-400 font-mono">2-3 ngày</b></span>
                       <span id="bank-ai-daily-income-tag" class="text-slate-400 font-mono">Thu nhập: ~15 Vàng/ngày</span>
                     </div>
                   </div>
@@ -1034,8 +1096,8 @@
                 </div>
 
                 <!-- Hộp Chat Thương Lượng Khoản Vay (Ẩn/Hiện) -->
-                <div id="bank-debate-container" class="hidden p-3 rounded-2xl bg-white/90 dark:bg-slate-950 border border-blue-500/30 dark:border-slate-800 space-y-2.5 shadow-inner">
-                  <div class="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800/80">
+                <div id="bank-debate-container" class="hidden p-3 rounded-2xl bg-white/90 dark:bg-slate-950 border border-indigo-500/30 dark:border-slate-800 space-y-2.5 shadow-inner">
+                  <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800/80">
                     <span class="flex items-center gap-1.5">
                       <span>💬</span>
                       <span>Thương Lượng Với Trợ Lý AI</span>
@@ -1049,17 +1111,17 @@
                   <!-- Quick Suggestion Chips -->
                   <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
                     <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
-                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?">📉 Xin giảm lãi suất</button>
-                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?">🚀 Xin nâng hạn mức</button>
-                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!">⚡ Cam kết trích nợ 70%</button>
-                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?">💡 Có nên vay lúc này?</button>
-                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé.">🧭 Lập kế hoạch trả nợ</button>
+                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?">📉 Xin giảm lãi suất</button>
+                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?">🚀 Xin nâng hạn mức</button>
+                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!">⚡ Cam kết trích nợ 70%</button>
+                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?">💡 Có nên vay lúc này?</button>
+                    <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé.">🧭 Lập kế hoạch trả nợ</button>
                   </div>
 
                   <!-- Chat Input Row -->
                   <div class="flex gap-2 items-center">
                     <input id="input-bank-debate-arg" type="text" placeholder="Nhập đề xuất thương lượng hoặc bấm gợi ý ở trên..." class="flex-1 rpg-input rounded-xl px-3.5 py-2 text-xs transition disabled:opacity-60 disabled:cursor-not-allowed">
-                    <button id="btn-send-bank-debate" type="button" onclick="sendBankDebateMessage()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer">
+                    <button id="btn-send-bank-debate" type="button" onclick="sendBankDebateMessage()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer">
                       <span>Gửi</span>
                       <span class="text-[10px]">➤</span>
                     </button>
@@ -1067,62 +1129,109 @@
                 </div>
               </div>
 
+              <!-- Chọn Kỳ Hạn Vay (Multi-Term Selector) -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Kỳ Hạn Vay:
+                </label>
+                <div class="grid grid-cols-4 gap-1.5">
+                  <button type="button" onclick="selectBorrowTerm(3)" data-borrow-term-days="3" class="bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 transition cursor-pointer">
+                    <span class="block text-sm">⚡</span>
+                    <span class="block text-[11px] font-bold">3 Ngày</span>
+                    <span id="bank-borrow-term-rate-3" class="block text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">4.5%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectBorrowTerm(7)" data-borrow-term-days="7" class="bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-bold text-xs bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 transition cursor-pointer shadow-xs">
+                    <span class="block text-sm">🛡️</span>
+                    <span class="block text-[11px] font-bold">7 Ngày</span>
+                    <span id="bank-borrow-term-rate-7" class="block text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">5.0%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectBorrowTerm(14)" data-borrow-term-days="14" class="bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 transition cursor-pointer">
+                    <span class="block text-sm">⏳</span>
+                    <span class="block text-[11px] font-bold">14 Ngày</span>
+                    <span id="bank-borrow-term-rate-14" class="block text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">5.5%/ngày</span>
+                  </button>
+                  <button type="button" onclick="selectBorrowTerm(30)" data-borrow-term-days="30" class="bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 transition cursor-pointer">
+                    <span class="block text-sm">👑</span>
+                    <span class="block text-[11px] font-bold">30 Ngày</span>
+                    <span id="bank-borrow-term-rate-30" class="block text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">6.0%/ngày</span>
+                  </button>
+                </div>
+                <div id="bank-borrow-term-note" class="hidden"><span id="bank-borrow-term-note-text"></span></div>
+              </div>
+
               <div>
                 <label for="input-borrow-amount" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Số Vàng muốn vay:
+                  Số Vàng vay:
                 </label>
                 <div class="relative flex items-center">
-                  <input type="number" id="input-borrow-amount" min="1" placeholder="Nhập số Vàng vay..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 transition font-mono pr-10">
+                  <input type="number" id="input-borrow-amount" min="1" oninput="updateBorrowCalculator()" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500 transition font-mono pr-10">
                   <span class="absolute right-3 pointer-events-none flex items-center"><span class="coin-icon"></span></span>
+                </div>
+              </div>
+
+              <!-- Quick amount chips for borrowing -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[11px] text-slate-400 mr-1">Nhanh:</span>
+                <button type="button" onclick="setBorrowAmount(10)" class="px-2 py-0.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/20 text-slate-700 dark:text-slate-300 transition cursor-pointer">10</button>
+                <button type="button" onclick="setBorrowAmount(25)" class="px-2 py-0.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/20 text-slate-700 dark:text-slate-300 transition cursor-pointer">25</button>
+                <button type="button" onclick="setBorrowAmount(50)" class="px-2 py-0.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/20 text-slate-700 dark:text-slate-300 transition cursor-pointer">50</button>
+                <button type="button" onclick="setBorrowMax()" class="px-2 py-0.5 rounded-lg text-xs bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-bold transition cursor-pointer">Hạn Mức Tối Đa</button>
+              </div>
+
+              <!-- Máy tính dự tính lãi vay & hoàn trả nợ -->
+              <div class="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 text-xs">
+                    <span>🧮</span> <span>Dự Tính Lãi Vay</span>
+                  </span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                    Lãi suất: <b id="calc-borrow-rate-label" class="text-indigo-600 dark:text-indigo-400 font-mono">5.0%/ngày</b>
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                  <div class="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-indigo-500/15">
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Lãi mỗi ngày:</span>
+                    <span id="calc-borrow-daily-interest" class="font-bold font-mono text-indigo-600 dark:text-indigo-400 inline-flex items-center gap-1">
+                      +0 <span class="coin-icon"></span>/ngày
+                    </span>
+                  </div>
+                  <div class="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-indigo-500/15">
+                    <span id="calc-borrow-total-label" class="text-[10px] text-slate-500 dark:text-slate-400 block">Tổng hoàn trả sau 7 ngày:</span>
+                    <span id="calc-borrow-total-debt" class="font-bold font-mono text-rose-600 dark:text-rose-400 inline-flex items-center gap-1">
+                      0 <span class="coin-icon"></span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <!-- Thanh trượt chọn tỷ lệ trích nợ (Commitment Rate 20% - 80%) -->
               <div>
                 <div class="flex items-center justify-between text-xs mb-1">
-                  <span class="font-semibold text-slate-700 dark:text-slate-300">Tỷ lệ trích Vàng nhiệm vụ để trả nợ:</span>
-                  <span id="deduct-percent-label" class="font-mono font-bold text-blue-600 dark:text-blue-400">50%</span>
+                  <span class="font-semibold text-slate-700 dark:text-slate-300">
+                    Trích thưởng nhiệm vụ trả nợ:
+                  </span>
+                  <span id="deduct-percent-label" class="font-mono font-bold text-indigo-600 dark:text-indigo-400">50%</span>
                 </div>
-                <input type="range" id="input-deduct-percent" min="20" max="80" step="5" value="50" oninput="onDeductPercentChange(this.value)" class="w-full accent-blue-600 cursor-pointer">
-                <div class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
-                  <span>20% (Thong thả)</span>
-                  <span>50% (Khuyên dùng)</span>
-                  <span>80% (Hạn mức cao nhất)</span>
+                <input type="range" id="input-deduct-percent" min="20" max="80" step="5" value="50" oninput="onDeductPercentChange(this.value)" class="w-full accent-indigo-600 cursor-pointer">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5 font-mono">
+                  <span>20%</span>
+                  <span>50%</span>
+                  <span>80%</span>
                 </div>
               </div>
 
-              <!-- Quy định thời hạn nợ & Xử lý khi trễ hạn 7 ngày -->
-              <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
-                <div class="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs">
-                  <span>⏱️</span> <span>Quy định kỳ hạn & Xử lý khi trễ hạn:</span>
-                </div>
-                <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-slate-600 dark:text-slate-300">
-                  <li><strong>Thời hạn tối đa: 7 ngày</strong> kể từ thời điểm nhận Vàng vay.</li>
-                  <li><strong>Hàng ngày:</strong> Tự động trích theo tỷ lệ đã chọn từ Vàng thưởng nhiệm vụ để trả nợ dần.</li>
-                  <li><strong class="text-rose-600 dark:text-rose-400">Nếu quá hạn 7 ngày:</strong> Đóng băng Cửa Hàng, khóa Kho Quà và tự động trích <strong>100% Vàng thưởng</strong> cho đến khi trả hết.</li>
-                  <li><strong class="text-amber-700 dark:text-amber-400">Phí phạt tất toán sớm:</strong> Nếu tự bấm trả nợ sớm bằng Vàng trong ví trước hạn 7 ngày, hệ thống tính <strong>phí phạt 5%</strong> (tối thiểu 1 Vàng) để bảo toàn quỹ thanh khoản. Trả nợ dần qua làm nhiệm vụ được <strong>miễn 100% phí phạt</strong>.</li>
-                </ul>
-              </div>
-
-              <!-- Lời khuyên ân cần từ AI Thống Đốc -->
-              <div id="bank-appraisal-box" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                💡 <em>Hệ thống sẽ tự động trích một phần Vàng thưởng mỗi khi bạn hoàn thành nhiệm vụ để trả nợ dần, giúp bạn thoải mái giải trí mà không lo áp lực trả một lúc!</em>
-              </div>
-
-              <!-- Tra cứu cách tính & nâng hạn mức -->
-              <div class="pt-0.5 text-right">
-                <button type="button" onclick="openCreditLimitModal()" class="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center gap-1 hover:underline cursor-pointer transition">
-                  <span>📊 Xem chi tiết cách tính & mẹo nâng hạn mức</span>
-                  <span class="text-[10px]">→</span>
-                </button>
+              <!-- Lời khuyên & Ghi chú tỷ lệ trích nợ (Tối giản 1 dòng) -->
+              <div id="bank-appraisal-box" class="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+                <span id="bank-appraisal-text" class="truncate">💡 <strong>Trích 50%:</strong> Tỷ lệ cân bằng lý tưởng</span>
               </div>
             </div>
           </div>
 
           <!-- Nút hành động Vay & Trả Nợ -->
           <div class="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
-            <button id="btn-bank-borrow" onclick="executeBankBorrow()" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-xs cursor-pointer flex items-center justify-center gap-1.5">
-              <span>⚡</span> <span>Vay Vàng Ngay</span>
+            <button id="btn-bank-borrow" onclick="executeBankBorrow()" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-xs cursor-pointer flex items-center justify-center gap-1.5">
+              <span>⚡</span> <span>Vay Vàng Tiêu Ngay</span>
             </button>
             <button id="btn-bank-repay" onclick="executeBankRepay()" class="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-rose-500/40 hover:bg-rose-500/15 active:scale-95 text-rose-700 dark:text-rose-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
               <span>💳</span> <span>Trả Nợ Sớm</span>
@@ -2547,22 +2656,115 @@
             </div>
           </div>
 
-          <!-- Lưu ý kỳ hạn & Xử lý khi trễ hạn -->
-          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] space-y-1.5">
-            <div class="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 text-xs">
-              <span>⚠️</span> <span>Lưu ý quan trọng về kỳ hạn & tất toán:</span>
+          <!-- Tóm tắt kỳ hạn & Cơ chế miễn phí trích nợ -->
+          <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 text-[11px] space-y-1.5">
+            <div class="font-bold text-blue-700 dark:text-blue-400 flex items-center justify-between text-xs">
+              <span class="flex items-center gap-1"><span>⏱️</span> <span>Kỳ Hạn Vay & Miễn Phí Trả Nợ:</span></span>
+              <button type="button" onclick="openBankRulesModal()" class="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-bold text-[10px]">Xem toàn bộ quy tắc ➔</button>
             </div>
             <p class="text-slate-600 dark:text-slate-400 text-[10px] leading-relaxed">
-              Mọi khoản vay có thời hạn tối đa <strong>7 ngày</strong>. Nếu sau 7 ngày chưa trả hết nợ, tài khoản sẽ bị đóng băng Cửa Hàng, khóa Kho Quà và tự động trích 100% Vàng thưởng nhiệm vụ để trả dần nợ.
+              Thời hạn khoản vay phụ thuộc vào <strong>gói kỳ hạn bạn chọn khi vay</strong> (3, 7, 14 hoặc 30 ngày). Chỉ khi hết thời hạn của gói đã chọn mà chưa tất toán thì tài khoản mới bị tạm đóng băng Cửa Hàng.
             </p>
-            <p class="text-amber-700 dark:text-amber-300 text-[10px] leading-relaxed font-medium pt-1 border-t border-amber-500/20">
-              💡 <strong>Phí phạt tất toán sớm:</strong> Nếu tự bấm "Trả Nợ Sớm" bằng ví Vàng trước hạn 7 ngày, hệ thống sẽ áp dụng <strong>phí phạt 5%</strong> (tối thiểu 1 Vàng) để bảo toàn thanh khoản. Bạn nên tiếp tục làm nhiệm vụ để hệ thống tự trích nợ dần hoàn toàn <strong>miễn phí phạt (0%)</strong>.
+            <p class="text-emerald-700 dark:text-emerald-400 text-[10px] leading-relaxed font-medium pt-1 border-t border-blue-500/20">
+              💡 <strong>Miễn 100% phí phạt:</strong> Hệ thống tự động trích nợ từ phần thưởng nhiệm vụ hoàn toàn không tốn phí. Chỉ áp dụng phí phạt 5% (tối thiểu 1 Vàng) nếu bạn tự bấm "Trả Nợ Sớm" bằng ví Vàng trước ngày đáo hạn.
             </p>
           </div>
         </div>
 
         <div class="pt-2 flex justify-end">
           <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer">
+            Đã Hiểu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: QUY TẮC & CƠ CHẾ NGÂN HÀNG (GIẢI THÍCH CHI TIẾT) -->
+  <div id="modal-bank-rules-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-bank-rules-title">
+    <div class="rpg-panel rounded-2xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🏦</span>
+          <h3 id="modal-bank-rules-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">QUY TẮC & CƠ CHẾ NGÂN HÀNG</h3>
+        </div>
+        <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-2xl leading-none flex items-center justify-center cursor-pointer" aria-label="Đóng"><span class="material-symbols-outlined text-xl leading-none">close</span></button>
+      </div>
+
+      <div class="p-5 sm:p-6 space-y-3.5 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
+        <!-- 1. Gói kỳ hạn & Lãi suất -->
+        <div id="bank-rule-savings-terms" class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5 transition-all duration-300">
+          <div class="font-bold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+            <span>🌱</span> <span>1. Gói Kỳ Hạn Tiết Kiệm & Lãi Suất</span>
+          </div>
+          <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+            Hệ thống áp dụng lãi suất cơ sở động từ quỹ vốn AMM (~0.12% - 0.25%/ngày). Bạn có thể chọn 4 gói kỳ hạn:
+          </p>
+          <ul class="list-disc pl-4 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+            <li><strong>Linh Hoạt (0 ngày):</strong> Lãi suất chuẩn, rút bất cứ lúc nào bảo toàn 100% gốc và lãi.</li>
+            <li><strong>7 Ngày:</strong> Thưởng <strong>+30%</strong> lãi suất so với lãi cơ sở.</li>
+            <li><strong>14 Ngày:</strong> Thưởng <strong>+60%</strong> lãi suất so với lãi cơ sở.</li>
+            <li><strong>30 Ngày:</strong> Thưởng <strong>+100%</strong> (gấp đôi lãi suất cơ sở!).</li>
+          </ul>
+          <div class="text-[10px] text-amber-700 dark:text-amber-400 font-medium pt-1 border-t border-emerald-500/20">
+            ⚠️ <em>Rút trước hạn ở các gói cố định sẽ bị thu hồi toàn bộ tiền lãi tích lũy (gốc luôn được bảo toàn 100%).</em>
+          </div>
+        </div>
+
+        <!-- 2. Thưởng chuỗi kỷ luật (Streak) -->
+        <div id="bank-rule-streak" class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 transition-all duration-300">
+          <div class="font-bold text-amber-700 dark:text-amber-400 text-xs flex items-center gap-1.5">
+            <span>🔥</span> <span>2. Thưởng Kỷ Luật Chuỗi Ngày (Streak)</span>
+          </div>
+          <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+            Mỗi khi bạn duy trì chuỗi hoàn thành nhiệm vụ đều đặn, lãi suất gửi tiết kiệm được nhân thêm:
+          </p>
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <div class="p-2 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-amber-500/15">
+              <span class="font-bold text-emerald-600 dark:text-emerald-400">Streak ≥ 7 ngày:</span>
+              <span class="block text-[10px] text-slate-500">Thưởng <strong>+50% lãi suất</strong> (x1.5)</span>
+            </div>
+            <div class="p-2 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-amber-500/15">
+              <span class="font-bold text-emerald-600 dark:text-emerald-400">Streak ≥ 3 ngày:</span>
+              <span class="block text-[10px] text-slate-500">Thưởng <strong>+30% lãi suất</strong> (x1.3)</span>
+            </div>
+            <div class="p-2 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-amber-500/15">
+              <span class="font-bold text-emerald-600 dark:text-emerald-400">Streak ≥ 1 ngày:</span>
+              <span class="block text-[10px] text-slate-500">Thưởng <strong>+15% lãi suất</strong> (x1.15)</span>
+            </div>
+            <div class="p-2 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-amber-500/15">
+              <span class="font-bold text-amber-600 dark:text-amber-400">Streak 0 ngày:</span>
+              <span class="block text-[10px] text-slate-500">Giảm 20% lãi suất (x0.8)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Quy tắc chống lạm phát -->
+        <div id="bank-rule-anti-inflation" class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/25 space-y-1.5 transition-all duration-300">
+          <div class="font-bold text-blue-700 dark:text-blue-400 text-xs flex items-center gap-1.5">
+            <span>🛡️</span> <span>3. Quy Tắc Bảo Vệ Kinh Tế RPG</span>
+          </div>
+          <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+            <li><strong>Lãi suất bậc thang:</strong> Dưới 100 Vàng tính 100% gốc; từ 101 - 500 Vàng tính 70%; từ 501 - 2000 Vàng tính 40%; trên 2000 Vàng tính 10%.</li>
+            <li><strong>Trần lãi suất ngày:</strong> Mỗi ngày nhận tối đa <strong>8 Vàng lãi</strong> để bảo đảm giá trị đồng Vàng trong game không bị lạm phát.</li>
+          </ul>
+        </div>
+
+        <!-- 4. Quy tắc vay vàng -->
+        <div id="bank-rule-borrow" class="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25 space-y-1.5 transition-all duration-300">
+          <div class="font-bold text-purple-700 dark:text-purple-400 text-xs flex items-center gap-1.5">
+            <span>⚡</span> <span>4. Quy Định Kỳ Hạn Vay Vàng & Trả Nợ</span>
+          </div>
+          <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+            <li><strong>Đa dạng kỳ hạn vay:</strong> 4 gói kỳ hạn linh hoạt: <strong>3 Ngày (4.5%/ngày)</strong>, <strong>7 Ngày (5.0%/ngày - Chuẩn)</strong>, <strong>14 Ngày (5.5%/ngày)</strong>, <strong>30 Ngày (6.0%/ngày)</strong>.</li>
+            <li><strong>Trả nợ không phí:</strong> Hệ thống tự động trích từ Vàng thưởng mỗi khi bạn hoàn thành nhiệm vụ, hoàn toàn <strong>miễn 100% phí phạt</strong>.</li>
+            <li><strong>Phí phạt tất toán sớm:</strong> Nếu tự bấm trả nợ bằng ví Vàng trước khi đến hạn, áp dụng phí 5% (tối thiểu 1 Vàng).</li>
+            <li><strong>Quá hạn kỳ hạn:</strong> Nếu quá số ngày đã chọn mà chưa trả hết nợ: Đóng băng Cửa Hàng & Kho Quà cho đến khi hoàn thành nhiệm vụ trả hết nợ.</li>
+          </ul>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button class="modal-close px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer">
             Đã Hiểu
           </button>
         </div>

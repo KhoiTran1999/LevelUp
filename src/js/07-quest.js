@@ -101,7 +101,8 @@ async function completeQuest(questId, skipConfirm = false) {
     // Tự động trích nợ Ngân Hàng nếu người chơi có khoản vay đang hoạt động
     if (appState.profile?.bank?.loan && (parseInt(appState.profile.bank.loan.debt, 10) || 0) > 0) {
       const loan = appState.profile.bank.loan;
-      const isOverdue = loan.isOverdue || (Date.now() - (parseInt(loan.borrowedAt, 10) || Date.now())) >= 7 * 24 * 60 * 60 * 1000;
+      const termDays = Math.max(1, parseInt(loan.termDays, 10) || 7);
+      const isOverdue = loan.isOverdue || (Date.now() - (parseInt(loan.borrowedAt, 10) || Date.now())) >= termDays * 24 * 60 * 60 * 1000;
       if (isOverdue) {
         loan.isOverdue = true;
         appState.profile.bank.isFrozen = true;
@@ -113,7 +114,8 @@ async function completeQuest(questId, skipConfirm = false) {
         loanBeforeDeduct = {
           principal: loan.principal || 0,
           debt: loan.debt,
-          interestRate: loan.interestRate || 0.05,
+          termDays: termDays,
+          interestRate: loan.interestRate || loan.borrowRate || 0.05,
           borrowedAt: loan.borrowedAt || Date.now(),
           autoDeductPercent: loan.autoDeductPercent || 0.50,
           isOverdue: Boolean(loan.isOverdue)

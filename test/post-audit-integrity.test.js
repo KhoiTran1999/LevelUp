@@ -120,8 +120,8 @@ console.log('Test 4: Đồng bộ tính toán nợ vay và quá hạn trong accr
   );
 
   assert.ok(
-    appCode.includes('(now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000'),
-    'accrueLocalUserBank phải đánh dấu quá hạn sau 7 ngày tương đồng backend'
+    appCode.includes('(now - borrowedAt) >= loanTermDays * 24 * 60 * 60 * 1000') || appCode.includes('(now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000'),
+    'accrueLocalUserBank phải đánh dấu quá hạn sau kỳ hạn vay tương đồng backend'
   );
 
   assert.ok(

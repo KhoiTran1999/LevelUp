@@ -12,18 +12,81 @@ let currentBankPool = {
 
 let bankCommentaryCache = { text: '', timestamp: 0 };
 
+const BANK_TERMS = {
+  0: { id: 'flex', days: 0, label: 'Linh Hoạt', desc: 'Rút bất cứ lúc nào, an toàn tuyệt đối', rateMultiplier: 1.0, icon: '🍃' },
+  7: { id: 'week', days: 7, label: '7 Ngày', desc: 'Tuần tích lũy, tăng trưởng đều đặn', rateMultiplier: 1.3, icon: '⚡' },
+  14: { id: 'two_weeks', days: 14, label: '14 Ngày', desc: 'Thử thách 2 tuần kiên định', rateMultiplier: 1.6, icon: '🛡️' },
+  30: { id: 'month', days: 30, label: '30 Ngày', desc: 'Chiến binh cam kết, lãi suất tối đa', rateMultiplier: 2.0, icon: '👑' }
+};
+
+const LOAN_TERMS = {
+  3: { id: 'term_3', days: 3, label: '3 Ngày', desc: 'Vay cấp tốc, hoàn nợ trong 3 ngày', rateMultiplier: 0.90, icon: '⚡' },
+  7: { id: 'term_7', days: 7, label: '7 Ngày', desc: 'Gói chuẩn 1 tuần làm nhiệm vụ', rateMultiplier: 1.00, icon: '🛡️' },
+  14: { id: 'term_14', days: 14, label: '14 Ngày', desc: 'Thong thả 2 tuần làm việc', rateMultiplier: 1.10, icon: '⏳' },
+  30: { id: 'term_30', days: 30, label: '30 Ngày', desc: 'Dài hạn 1 tháng, thảnh thơi trả dần', rateMultiplier: 1.20, icon: '👑' }
+};
+
+const DAILY_DEPOSIT_INTEREST_CAP = 8; // Trần tối đa 8 Vàng lãi / ngày
+let selectedDepositTerm = 0; // Mặc định 0 ngày: Linh hoạt
+let selectedBorrowTerm = 7; // Mặc định 7 ngày: Chuẩn
+
+function calculateEffectiveDepositBase(amount) {
+  const a = Math.max(0, parseInt(amount, 10) || 0);
+  if (a <= 100) return a;
+  if (a <= 500) return 100 + (a - 100) * 0.70;
+  if (a <= 2000) return 380 + (a - 500) * 0.40;
+  return 980 + (a - 2000) * 0.10;
+}
+
+function calculateDisciplineMultiplier(profile = {}) {
+  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
+  if (streak >= 7) return { multiplier: 1.5, label: 'Chiến Binh Kỷ Luật (Streak ≥ 7)', icon: '🔥', bonusPct: 50 };
+  if (streak >= 3) return { multiplier: 1.3, label: 'Duy Trì Thói Quen (Streak ≥ 3)', icon: '⚡', bonusPct: 30 };
+  if (streak >= 1) return { multiplier: 1.15, label: 'Khởi Động Ngày Mới (Streak ≥ 1)', icon: '🌱', bonusPct: 15 };
+  return { multiplier: 0.8, label: 'Chưa Có Chuỗi Kỷ Luật (Streak 0)', icon: '⚠️', bonusPct: -20 };
+}
+
+function normalizeBankDeposits(bank, now = Date.now()) {
+  if (!bank || typeof bank !== 'object') return bank;
+
+  if (!Array.isArray(bank.deposits) || bank.deposits.length === 0) {
+    const dep = Math.max(0, parseInt(bank.deposited, 10) || 0);
+    const int = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+    if (dep > 0 || int > 0) {
+      bank.deposits = [{
+        id: `dep_legacy_${bank.lastDepositAt || now}`,
+        amount: dep,
+        termDays: 0,
+        interest: int,
+        createdAt: parseInt(bank.lastDepositAt, 10) || now,
+        lastAccruedAt: parseInt(bank.lastDepositAt, 10) || now,
+        maturityAt: 0,
+        status: 'active'
+      }];
+    } else {
+      bank.deposits = [];
+    }
+  }
+
+  bank.deposits = bank.deposits.filter(d => d && (d.status === 'active' || d.status === 'matured'));
+  bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
+  bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
+  return bank;
+}
+
 function calculateLocalBankRates(poolState) {
   const poolGold = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
   const totalBorrowed = Math.max(0, parseInt(poolState?.totalBorrowed, 10) || 0);
   const totalLiquidity = poolGold + totalBorrowed;
   const utilization = totalLiquidity > 0 ? Math.min(1.0, Math.max(0.0, totalBorrowed / totalLiquidity)) : 0;
-  const depositRate = Math.min(0.08, Math.max(0.01, 0.02 + 0.04 * utilization));
-  const borrowRate = Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * utilization));
+  // Cân bằng cho nền kinh tế RPG: Lãi cơ sở 0.12% đến 0.25%/ngày
+  const depositRate = Number((Math.min(0.0025, Math.max(0.0010, 0.0012 + 0.0013 * utilization))).toFixed(4));
+  const borrowRate = Number((Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * utilization))).toFixed(4));
   return {
     utilization,
     depositRate,
     borrowRate,
-    spread: borrowRate - depositRate
+    spread: Number((borrowRate - depositRate).toFixed(4))
   };
 }
 
@@ -38,43 +101,65 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
-function accrueLocalUserBank(bank, pool, now = Date.now()) {
+function accrueLocalUserBank(bank, pool, now = Date.now(), profile = appState.profile) {
   if (!bank || typeof bank !== 'object') return bank;
 
   const rates = pool?.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  normalizeBankDeposits(bank, now);
 
-  // 1. Accrue deposit interest
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  if (deposited > 0) {
-    const lastDep = parseInt(bank.lastDepositAt, 10) || now;
-    const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
-    if (elapsedDays > 0) {
-      const depRate = Number(rates?.depositRate) || 0.02;
-      const standardEarned = Math.floor(deposited * depRate * elapsedDays);
-      // Floor rule: gửi >= 10 Vàng và qua >= 24h thì tối thiểu 1 Vàng/ngày
-      const minFloorEarned = (deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
-      const interestEarned = Math.max(standardEarned, minFloorEarned);
+  const baseRate = Math.min(0.0025, Math.max(0.0010, Number(rates?.depositRate) || 0.0015));
+  const { multiplier: disciplineMult } = calculateDisciplineMultiplier(profile);
 
-      if (interestEarned > 0) {
-        bank.depositInterest = (parseInt(bank.depositInterest, 10) || 0) + interestEarned;
-        const effectiveDailyRate = Math.max(deposited * depRate, deposited >= 10 ? 1 : 0);
-        const daysConsumed = effectiveDailyRate > 0
-          ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
-          : Math.floor(elapsedDays);
-        const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
-        bank.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
+  // 1. Accrue deposit interest cho từng sổ
+  if (Array.isArray(bank.deposits) && bank.deposits.length > 0) {
+    for (const dep of bank.deposits) {
+      const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
+      if (amount <= 0) continue;
+
+      const termDays = parseInt(dep.termDays, 10) || 0;
+      const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+      const termMult = termConfig.rateMultiplier || 1.0;
+
+      const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
+      let targetNow = now;
+
+      if (termDays > 0 && dep.maturityAt) {
+        if (now >= dep.maturityAt) {
+          dep.status = 'matured';
+          targetNow = Math.min(now, dep.maturityAt);
+        }
+      }
+
+      const elapsedDays = Math.max(0, (targetNow - lastAcc) / (24 * 60 * 60 * 1000));
+      if (elapsedDays > 0) {
+        const effectiveBase = calculateEffectiveDepositBase(amount);
+        const dailyRate = baseRate * termMult * disciplineMult;
+
+        // Giới hạn trần lãi ngày (DAILY_DEPOSIT_INTEREST_CAP = 8 Vàng/ngày)
+        const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
+        const earned = Math.floor(cappedDailyInterest * elapsedDays);
+
+        if (earned > 0) {
+          dep.interest = (parseInt(dep.interest, 10) || 0) + earned;
+          const daysConsumed = cappedDailyInterest > 0 ? (earned / cappedDailyInterest) : elapsedDays;
+          dep.lastAccruedAt = Math.min(targetNow, lastAcc + Math.round(daysConsumed * 24 * 60 * 60 * 1000));
+        }
       }
     }
-  } else {
+
+    bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
+    bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
     bank.lastDepositAt = now;
   }
 
   // 2. Accrue loan debt interest & check overdue
   if (bank.loan && parseInt(bank.loan.debt, 10) > 0) {
+    const loanTermDays = Math.max(1, parseInt(bank.loan.termDays, 10) || 7);
     const loan = {
       ...bank.loan,
       principal: Math.max(0, parseInt(bank.loan.principal, 10) || 0),
       debt: Math.max(0, parseInt(bank.loan.debt, 10) || 0),
+      termDays: loanTermDays,
       borrowRate: Number(bank.loan.borrowRate) || Number(rates?.borrowRate) || 0.06,
       autoDeductPercent: Math.min(0.80, Math.max(0.20, Number(bank.loan.autoDeductPercent) || 0.50)),
       isOverdue: Boolean(bank.loan.isOverdue)
@@ -84,7 +169,7 @@ function accrueLocalUserBank(bank, pool, now = Date.now()) {
     const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
     const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
 
-    if ((now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000) {
+    if ((now - borrowedAt) >= loanTermDays * 24 * 60 * 60 * 1000) {
       loan.isOverdue = true;
       bank.isFrozen = true;
     }
@@ -111,10 +196,12 @@ function ensureUserBankProfile() {
       deposited: 0,
       depositInterest: 0,
       lastDepositAt: Date.now(),
+      deposits: [],
       loan: null,
       isFrozen: false
     };
   }
+  normalizeBankDeposits(appState.profile.bank);
   accrueLocalUserBank(appState.profile.bank, currentBankPool);
   return appState.profile.bank;
 }
@@ -181,8 +268,9 @@ async function loadBankState() {
 }
 
 function renderBankUI(pool, userBank, creditLimit) {
-  // 1. Kiểm tra nợ quá hạn 7 ngày
-  const isOverdue = userBank?.loan?.isOverdue || (userBank?.loan && (Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) >= 7 * 24 * 60 * 60 * 1000);
+  // 1. Kiểm tra nợ quá hạn theo kỳ hạn
+  const loanTermDays = Math.max(1, parseInt(userBank?.loan?.termDays, 10) || 7);
+  const isOverdue = userBank?.loan?.isOverdue || (userBank?.loan && (Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) >= loanTermDays * 24 * 60 * 60 * 1000);
   if (isOverdue && userBank?.loan) {
     userBank.loan.isOverdue = true;
     userBank.isFrozen = true;
@@ -211,7 +299,7 @@ function renderBankUI(pool, userBank, creditLimit) {
   if (elUtil) elUtil.textContent = Math.round((rates.utilization || 0) * 100) + '%';
 
   const elDepRate = document.getElementById('bank-deposit-rate');
-  if (elDepRate) elDepRate.textContent = ((rates.depositRate || 0.02) * 100).toFixed(1) + '%/ngày';
+  if (elDepRate) elDepRate.textContent = ((Math.min(0.0025, rates.depositRate || 0.0015)) * 100).toFixed(2) + '%/ngày';
 
   const elBorRate = document.getElementById('bank-borrow-rate');
   if (elBorRate) elBorRate.textContent = ((rates.borrowRate || 0.05) * 100).toFixed(1) + '%/ngày';
@@ -238,6 +326,33 @@ function renderBankUI(pool, userBank, creditLimit) {
   const elUserInt = document.getElementById('bank-user-interest');
   if (elUserInt) elUserInt.textContent = '+' + (userBank?.depositInterest || 0).toLocaleString('vi-VN');
 
+  // Badge Kỷ luật Streak (Gọn gàng, tối giản)
+  const disc = calculateDisciplineMultiplier(appState.profile || {});
+  const elDiscipline = document.getElementById('bank-discipline-badge');
+  if (elDiscipline) {
+    if (disc.bonusPct > 0) {
+      elDiscipline.className = 'p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2 text-xs mb-3';
+      elDiscipline.innerHTML = `
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-sm shrink-0">${disc.icon}</span>
+          <span class="font-bold text-amber-700 dark:text-amber-300 truncate">${disc.label}</span>
+        </div>
+        <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs shrink-0">+${disc.bonusPct}% Lãi</span>
+      `;
+    } else {
+      elDiscipline.className = 'p-2 rounded-xl bg-slate-500/10 border border-slate-500/20 flex items-center justify-between gap-2 text-xs mb-3';
+      elDiscipline.innerHTML = `
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-sm shrink-0">🔥</span>
+          <span class="text-slate-600 dark:text-slate-400 truncate">Chuỗi kỷ luật: 0 ngày</span>
+        </div>
+        <span class="text-[10px] text-slate-400 shrink-0">Làm NV để tăng lãi</span>
+      `;
+    }
+  }
+
+  renderBankDepositsList(userBank);
+  updateDepositTermButtons(rates);
   updateDepositCalculator(rates.depositRate);
 
   // 4. Quầy Vay Vàng (Borrower)
@@ -250,7 +365,7 @@ function renderBankUI(pool, userBank, creditLimit) {
     if (isNegotiated) {
       elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
     } else {
-      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML}`;
     }
   }
 
@@ -281,18 +396,29 @@ function renderBankUI(pool, userBank, creditLimit) {
     const elDebt = document.getElementById('bank-current-debt');
     if (elDebt) elDebt.innerHTML = `${userBank.loan.debt} ${COIN_ICON_HTML}`;
 
+    const principal = Math.max(0, parseInt(userBank.loan.principal, 10) || 0);
+    const debt = Math.max(0, parseInt(userBank.loan.debt, 10) || 0);
+    const accruedInterest = Math.max(0, debt - principal);
+    const elPrincipal = document.getElementById('bank-loan-principal');
+    if (elPrincipal) elPrincipal.innerHTML = `${principal.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+    const elAccrued = document.getElementById('bank-loan-accrued-interest');
+    if (elAccrued) elAccrued.innerHTML = `+${accruedInterest.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+    const elRate = document.getElementById('bank-active-borrow-rate');
+    if (elRate) elRate.textContent = `${((userBank.loan.borrowRate || rates.borrowRate || 0.05) * 100).toFixed(1)}%/ngày`;
+
     const elDeductRate = document.getElementById('bank-active-deduct-rate');
     if (elDeductRate) elDeductRate.textContent = `${Math.round((userBank.loan.autoDeductPercent || 0.5) * 100)}%`;
 
     const elDaysLeft = document.getElementById('bank-loan-days-left');
     if (elDaysLeft) {
+      const termDays = Math.max(1, parseInt(userBank.loan.termDays, 10) || 7);
       const daysPassed = Math.floor((Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) / (24 * 60 * 60 * 1000));
-      const daysLeft = Math.max(0, 7 - daysPassed);
+      const daysLeft = Math.max(0, termDays - daysPassed);
       if (userBank.loan.isOverdue || daysLeft === 0) {
         elDaysLeft.textContent = 'Đã quá hạn ⚠️';
         elDaysLeft.className = 'font-bold text-rose-600';
       } else {
-        elDaysLeft.textContent = `${daysLeft} ngày`;
+        elDaysLeft.textContent = `${daysLeft} / ${termDays} ngày`;
         elDaysLeft.className = 'font-semibold text-amber-600';
       }
     }
@@ -314,6 +440,8 @@ function renderBankUI(pool, userBank, creditLimit) {
       btnRepay.disabled = true;
       btnRepay.classList.add('opacity-50', 'cursor-not-allowed');
     }
+    updateBorrowTermButtons(rates);
+    updateBorrowCalculator();
   }
 
   // 5. Cập nhật bảng đo lường vĩ mô AMM chi tiết trong Admin Dashboard (nếu có)
@@ -375,14 +503,14 @@ function renderAdminBankTelemetry(pool, rates) {
   }
 
   const elAdminDepRate = document.getElementById('admin-bank-deposit-rate');
-  if (elAdminDepRate) elAdminDepRate.textContent = ((pRates.depositRate || 0.02) * 100).toFixed(1) + '%/ngày';
+  if (elAdminDepRate) elAdminDepRate.textContent = ((Math.min(0.0025, pRates.depositRate || 0.0015)) * 100).toFixed(2) + '%/ngày';
 
   const elAdminBorRate = document.getElementById('admin-bank-borrow-rate');
   if (elAdminBorRate) elAdminBorRate.textContent = ((pRates.borrowRate || 0.05) * 100).toFixed(1) + '%/ngày';
 
   const elAdminSpread = document.getElementById('admin-bank-spread');
   if (elAdminSpread) {
-    const spreadVal = pRates.spread !== undefined ? pRates.spread : ((pRates.borrowRate || 0.05) - (pRates.depositRate || 0.02));
+    const spreadVal = pRates.spread !== undefined ? pRates.spread : ((pRates.borrowRate || 0.05) - (pRates.depositRate || 0.0015));
     elAdminSpread.textContent = (spreadVal * 100).toFixed(1) + '%';
   }
 
@@ -437,24 +565,136 @@ async function loadBankAiCommentary(pool) {
   elCommentary.textContent = fallback;
 }
 
+function updateDepositTermButtons(rates) {
+  const pRates = rates || (currentBankPool?.depositRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool));
+  const rawBase = pRates.depositRate || 0.0015;
+  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
+  const disc = calculateDisciplineMultiplier(appState.profile || {});
+
+  [0, 7, 14, 30].forEach(days => {
+    const termConfig = BANK_TERMS[days] || BANK_TERMS[0];
+    const finalDailyRate = baseRate * termConfig.rateMultiplier * disc.multiplier;
+    const elRate = document.getElementById(`bank-term-rate-${days}`);
+    if (elRate) {
+      elRate.textContent = `${(finalDailyRate * 100).toFixed(2)}%/ngày`;
+    }
+  });
+}
+
+function selectDepositTerm(days) {
+  selectedDepositTerm = [0, 7, 14, 30].includes(Number(days)) ? Number(days) : 0;
+  const termButtons = document.querySelectorAll('.bank-term-select-btn');
+  termButtons.forEach(btn => {
+    const bDays = Number(btn.getAttribute('data-term-days'));
+    if (bDays === selectedDepositTerm) {
+      btn.className = 'bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-bold text-xs bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500 transition cursor-pointer shadow-xs';
+    } else {
+      btn.className = 'bank-term-select-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 transition cursor-pointer';
+    }
+  });
+
+  const termConfig = BANK_TERMS[selectedDepositTerm] || BANK_TERMS[0];
+  const elTermNote = document.getElementById('bank-deposit-term-note');
+  if (elTermNote) {
+    if (selectedDepositTerm === 0) {
+      elTermNote.innerHTML = '🍃 <strong>Linh hoạt:</strong> Rút bất kỳ lúc nào, bảo toàn 100% gốc & lãi.';
+    } else {
+      elTermNote.innerHTML = `${termConfig.icon} <strong>Gói ${termConfig.label}:</strong> Khóa ${termConfig.days} ngày nhận lãi suất cao nhất. Rút trước hạn mất toàn bộ lãi tích lũy.`;
+    }
+  }
+
+  // Cập nhật số ngày trên máy tính nếu là kỳ hạn cố định
+  const inputDays = document.getElementById('calc-deposit-days');
+  if (inputDays && selectedDepositTerm > 0) {
+    inputDays.value = selectedDepositTerm;
+  }
+
+  updateDepositTermButtons();
+  updateDepositCalculator();
+}
+window.selectDepositTerm = selectDepositTerm;
+window.updateDepositTermButtons = updateDepositTermButtons;
+
+function updateBorrowTermButtons(rates) {
+  const pRates = rates || (currentBankPool?.borrowRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool));
+  const rawBase = bankNegotiatedTerms?.borrowRate ?? (pRates.borrowRate || 0.05);
+
+  [3, 7, 14, 30].forEach(days => {
+    const termConfig = LOAN_TERMS[days] || LOAN_TERMS[7];
+    const finalDailyRate = Number((rawBase * termConfig.rateMultiplier).toFixed(4));
+    const elRate = document.getElementById(`bank-borrow-term-rate-${days}`);
+    if (elRate) {
+      elRate.textContent = `${(finalDailyRate * 100).toFixed(1)}%/ngày`;
+    }
+  });
+}
+
+function selectBorrowTerm(days) {
+  selectedBorrowTerm = [3, 7, 14, 30].includes(Number(days)) ? Number(days) : 7;
+  const termButtons = document.querySelectorAll('.bank-borrow-term-btn');
+  termButtons.forEach(btn => {
+    const bDays = Number(btn.getAttribute('data-borrow-term-days'));
+    if (bDays === selectedBorrowTerm) {
+      btn.className = 'bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-bold text-xs bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 transition cursor-pointer shadow-xs';
+    } else {
+      btn.className = 'bank-borrow-term-btn flex-1 py-2 px-1 rounded-xl text-center font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 transition cursor-pointer';
+    }
+  });
+
+  const termConfig = LOAN_TERMS[selectedBorrowTerm] || LOAN_TERMS[7];
+  const elTermNoteText = document.getElementById('bank-borrow-term-note-text');
+  if (elTermNoteText) {
+    elTermNoteText.innerHTML = `${termConfig.icon} <strong>Gói ${termConfig.label}:</strong> ${termConfig.desc}. Sau ${termConfig.days} ngày chưa tất toán sẽ tạm đóng băng Cửa Hàng.`;
+  }
+
+  updateBorrowTermButtons();
+  updateBorrowCalculator();
+}
+window.selectBorrowTerm = selectBorrowTerm;
+window.updateBorrowTermButtons = updateBorrowTermButtons;
+
 function updateDepositCalculator(overrideRate) {
+  const inputDeposit = document.getElementById('input-deposit-amount');
   const inputCoins = document.getElementById('calc-deposit-coins');
   const inputDays = document.getElementById('calc-deposit-days');
   const elRateLabel = document.getElementById('calc-deposit-rate-label');
   const elInterest = document.getElementById('calc-deposit-result-interest');
   const elTotal = document.getElementById('calc-deposit-result-total');
+  const elDisciplineBadge = document.getElementById('calc-deposit-discipline-badge');
 
-  const coins = Math.max(0, parseInt(inputCoins?.value, 10) || 0);
-  const days = Math.max(0, parseInt(inputDays?.value, 10) || 0);
-
-  const rates = currentBankPool?.depositRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool);
-  const rate = typeof overrideRate === 'number' ? overrideRate : (rates.depositRate || 0.02);
-
-  if (elRateLabel) {
-    elRateLabel.textContent = `${(rate * 100).toFixed(1)}%/ngày`;
+  let coins = 0;
+  if (inputDeposit && inputDeposit.value !== '') {
+    coins = Math.max(0, parseInt(inputDeposit.value, 10) || 0);
+    if (inputCoins) inputCoins.value = coins;
+  } else if (inputCoins) {
+    coins = Math.max(0, parseInt(inputCoins.value, 10) || 0);
   }
 
-  const interest = Math.floor(coins * rate * days);
+  const termConfig = BANK_TERMS[selectedDepositTerm] || BANK_TERMS[0];
+  const days = selectedDepositTerm > 0 ? selectedDepositTerm : (Math.max(1, parseInt(inputDays?.value, 10) || 7));
+  if (inputDays) inputDays.value = days;
+
+  const rates = currentBankPool?.depositRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool);
+  const rawBase = typeof overrideRate === 'number' ? overrideRate : (rates.depositRate || 0.0015);
+  // Khống chế lãi suất cơ sở trong khoảng [0.10%, 0.25%]/ngày chuẩn kinh tế RPG
+  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
+
+  const disc = calculateDisciplineMultiplier(appState.profile || {});
+  const effectiveDailyRate = baseRate * termConfig.rateMultiplier * disc.multiplier;
+
+  if (elRateLabel) {
+    const bonusText = termConfig.rateMultiplier > 1 ? ` (Thưởng x${termConfig.rateMultiplier})` : '';
+    elRateLabel.textContent = `${(effectiveDailyRate * 100).toFixed(2)}%/ngày (${termConfig.label}${bonusText})`;
+  }
+
+  if (elDisciplineBadge) {
+    elDisciplineBadge.innerHTML = `${disc.icon} ${disc.label} (Hệ số x${disc.multiplier})`;
+  }
+
+  // Áp dụng bậc thang (Tiered APR) và Trần ngày (Cap 8 Vàng/ngày)
+  const effectiveBase = calculateEffectiveDepositBase(coins);
+  const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * effectiveDailyRate);
+  const interest = Math.floor(cappedDailyInterest * days);
   const total = coins + interest;
 
   if (elInterest) elInterest.textContent = interest.toLocaleString('vi-VN');
@@ -462,20 +702,26 @@ function updateDepositCalculator(overrideRate) {
 }
 
 function setCalcDays(days) {
+  const d = Math.max(1, parseInt(days, 10) || 7);
   const inputDays = document.getElementById('calc-deposit-days');
   if (inputDays) {
-    inputDays.value = days;
-    updateDepositCalculator();
+    inputDays.value = d;
+  }
+  // Tự động đồng bộ với gói kỳ hạn tương ứng nếu bấm 7, 14, 30 ngày
+  if ([7, 14, 30].includes(d)) {
+    selectDepositTerm(d);
+  } else {
+    selectDepositTerm(0);
   }
 }
 
 function onDepositAmountInput(val) {
   const coins = parseInt(val, 10);
   const calcCoins = document.getElementById('calc-deposit-coins');
-  if (calcCoins && !isNaN(coins) && coins > 0) {
-    calcCoins.value = coins;
-    updateDepositCalculator();
+  if (calcCoins) {
+    calcCoins.value = !isNaN(coins) && coins > 0 ? coins : 0;
   }
+  updateDepositCalculator();
 }
 
 function setDepositAmount(amount) {
@@ -492,6 +738,70 @@ function setDepositMax() {
   if (input) {
     input.value = maxCoins;
     onDepositAmountInput(maxCoins);
+  }
+}
+
+function updateBorrowCalculator() {
+  const inputAmount = document.getElementById('input-borrow-amount');
+  const elRateLabel = document.getElementById('calc-borrow-rate-label');
+  const elDaily = document.getElementById('calc-borrow-daily-interest');
+  const elTotal = document.getElementById('calc-borrow-total-debt');
+  const elTotalLabel = document.getElementById('calc-borrow-total-label');
+
+  const amount = Math.max(0, parseInt(inputAmount?.value, 10) || 0);
+  const rates = currentBankPool?.borrowRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool);
+  const baseBorrowRate = bankNegotiatedTerms?.borrowRate ?? (rates.borrowRate || 0.05);
+
+  const termDays = [3, 7, 14, 30].includes(Number(selectedBorrowTerm)) ? Number(selectedBorrowTerm) : 7;
+  const termConfig = LOAN_TERMS[termDays] || LOAN_TERMS[7];
+  const borrowRate = Number((baseBorrowRate * termConfig.rateMultiplier).toFixed(4));
+
+  if (elRateLabel) {
+    const isNegotiated = Boolean(bankNegotiatedTerms?.borrowRate);
+    elRateLabel.textContent = `${(borrowRate * 100).toFixed(1)}%/ngày${isNegotiated ? ' (Ưu Đãi AI)' : ''}`;
+  }
+
+  if (elTotalLabel) {
+    elTotalLabel.textContent = `Tổng hoàn trả sau ${termDays} ngày:`;
+  }
+
+  const initialDaily = amount > 0 ? Math.ceil(amount * borrowRate) : 0;
+
+  // Tính lũy kế theo kỳ hạn vay theo công thức lãi vay hàng ngày của game
+  let simDebt = amount;
+  for (let d = 0; d < termDays; d++) {
+    simDebt += Math.ceil(simDebt * borrowRate);
+  }
+  const totalInterest = simDebt - amount;
+
+  if (elDaily) {
+    elDaily.innerHTML = `+${initialDaily.toLocaleString('vi-VN')} ${COIN_ICON_HTML}/ngày`;
+  }
+  if (elTotal) {
+    if (amount > 0) {
+      elTotal.innerHTML = `${simDebt.toLocaleString('vi-VN')} ${COIN_ICON_HTML} <span class="text-[10px] text-slate-400 font-normal">(+${totalInterest.toLocaleString('vi-VN')} lãi)</span>`;
+    } else {
+      elTotal.innerHTML = `0 ${COIN_ICON_HTML}`;
+    }
+  }
+}
+
+function setBorrowAmount(amount) {
+  const input = document.getElementById('input-borrow-amount');
+  if (input) {
+    input.value = amount;
+    updateBorrowCalculator();
+  }
+}
+
+function setBorrowMax() {
+  const input = document.getElementById('input-borrow-amount');
+  const deductPct = parseInt(document.getElementById('input-deduct-percent')?.value, 10) || 50;
+  const standardLimit = calculateLocalCreditLimit(appState.profile, deductPct / 100);
+  const effectiveLimit = bankNegotiatedTerms?.creditLimit || standardLimit;
+  if (input) {
+    input.value = effectiveLimit;
+    updateBorrowCalculator();
   }
 }
 
@@ -512,13 +822,16 @@ async function executeBankDeposit() {
       return;
     }
 
+    const termConfig = BANK_TERMS[selectedDepositTerm] || BANK_TERMS[0];
+    const isTerm = selectedDepositTerm > 0;
+
     const ok = await confirmAction({
-      title: 'Gửi Tiết Kiệm Ngân Hàng?',
-      message: `Bạn có chắc muốn gửi ${amount} Vàng vào Bể thanh khoản để nhận lãi thụ động mỗi ngày?`,
-      detail: `💰 Vàng trong ví: ${appState.profile.coins} ➔ Còn lại: ${appState.profile.coins - amount}\n🛡️ Vốn được bảo lãnh 100%, có thể rút bất kỳ lúc nào.`,
+      title: `Gửi Tiết Kiệm ${termConfig.label}?`,
+      message: `Bạn có chắc muốn gửi ${amount} Vàng vào gói ${termConfig.label} để sinh lời mỗi ngày?`,
+      detail: `💰 Vàng trong ví: ${appState.profile.coins} ➔ Còn lại: ${appState.profile.coins - amount}\n${isTerm ? `⏳ Kỳ hạn: ${selectedDepositTerm} ngày (Rút trước hạn mất toàn bộ lãi tích lũy).` : '🍃 Kỳ hạn: Linh hoạt (Rút bất kỳ lúc nào, bảo toàn gốc & lãi).'}\n🛡️ Vốn được bảo lãnh 100% từ Kho Bạc Hệ Thống.`,
       confirmText: 'Gửi Ngay 📥',
       cancelText: 'Hủy',
-      icon: '🌱',
+      icon: termConfig.icon,
       btnColor: 'emerald'
     });
     if (!ok) return;
@@ -538,7 +851,7 @@ async function executeBankDeposit() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ amount })
+          body: JSON.stringify({ amount, termDays: selectedDepositTerm })
         });
         if (res.ok) {
           const data = await res.json();
@@ -549,7 +862,7 @@ async function executeBankDeposit() {
           appState.ledger = data.ledger;
         }
           serverSuccess = true;
-          showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+          showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm (${termConfig.label})!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
           showToast(errData.error || 'Giao dịch thất bại trên máy chủ!', 'error');
@@ -562,24 +875,39 @@ async function executeBankDeposit() {
 
     if (!serverSuccess) {
       ensureUserBankProfile();
-      const oldDep = Math.max(0, parseInt(appState.profile.bank.deposited, 10) || 0);
-      appState.profile.coins -= amount;
-      appState.profile.bank.deposited = oldDep + amount;
-      appState.profile.bank.lastDepositAt = Date.now();
+      const now = Date.now();
+      const maturityAt = selectedDepositTerm > 0 ? (now + selectedDepositTerm * 24 * 60 * 60 * 1000) : 0;
+      const newDeposit = {
+        id: `dep_${now}_${Math.random().toString(36).substring(2, 7)}`,
+        amount: amount,
+        termDays: selectedDepositTerm,
+        interest: 0,
+        createdAt: now,
+        lastAccruedAt: now,
+        maturityAt,
+        status: 'active'
+      };
 
+      if (!Array.isArray(appState.profile.bank.deposits)) {
+        appState.profile.bank.deposits = [];
+      }
+      appState.profile.bank.deposits.push(newDeposit);
+      normalizeBankDeposits(appState.profile.bank, now);
+
+      appState.profile.coins -= amount;
       currentBankPool.poolGold = (currentBankPool.poolGold || 0) + amount;
       currentBankPool.totalDeposited = (currentBankPool.totalDeposited || 0) + amount;
 
       addLedgerEntry({
-        id: 'bank_dep_' + Date.now(),
+        id: 'bank_dep_' + now,
         type: 'spend',
         category: 'bank_deposit',
         amount: amount,
-        title: 'Gửi tiết kiệm Ngân Hàng',
-        description: `🏦 Đã gửi ${amount} Vàng vào Bể thanh khoản (Chế độ cục bộ).`,
-        timestamp: Date.now()
+        title: `Gửi tiết kiệm ${termConfig.label}`,
+        description: `🏦 Đã gửi ${amount} Vàng vào Sổ tiết kiệm ${termConfig.label} (Chế độ cục bộ).`,
+        timestamp: now
       });
-      showToast(`Đã gửi ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      showToast(`Đã gửi ${amount} Vàng vào sổ tiết kiệm (${termConfig.label})!`, 'success');
     }
 
     sfx.playCoin();
@@ -729,54 +1057,210 @@ function confirmAndExecuteWithdraw() {
 }
 window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw;
 
+function renderBankDepositsList(userBank) {
+  const container = document.getElementById('bank-deposits-list');
+  if (!container) return;
+
+  normalizeBankDeposits(userBank);
+  const deposits = userBank?.deposits || [];
+
+  if (deposits.length === 0) {
+    container.innerHTML = `
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800 text-center">
+        <span class="text-xl block mb-1">🌱</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Chưa có sổ tiết kiệm nào</span>
+      </div>
+    `;
+    return;
+  }
+
+  const now = Date.now();
+  let html = '<div class="space-y-2">';
+
+  for (const dep of deposits) {
+    const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
+    const isTerm = dep.termDays > 0;
+    const isMatured = isTerm && now >= dep.maturityAt;
+    const daysLeft = isTerm ? Math.max(0, Math.ceil((dep.maturityAt - now) / (24 * 60 * 60 * 1000))) : 0;
+
+    let statusBadge = '';
+    if (!isTerm) {
+      statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/30">🍃 Linh Hoạt</span>';
+    } else if (isMatured) {
+      statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 animate-pulse">🎉 Đã Đáo Hạn</span>';
+    } else {
+      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">⏳ Còn ${daysLeft} ngày</span>`;
+    }
+
+    const actionBtnText = (!isTerm || isMatured) ? 'Tất Toán 📤' : 'Rút Sớm ⚠️';
+    const actionBtnClass = (!isTerm || isMatured)
+      ? 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer shadow-xs active:scale-95'
+      : 'px-2 py-1 rounded-lg text-[10px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition cursor-pointer';
+
+    html += `
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2.5 hover:border-emerald-500/40 transition">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="text-xl shrink-0 p-1.5 rounded-lg bg-emerald-500/10">${termConfig.icon}</span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-xs text-slate-800 dark:text-slate-200">${termConfig.label}</span>
+              ${statusBadge}
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>Gốc: <strong class="text-slate-700 dark:text-slate-300 font-mono">${(dep.amount || 0).toLocaleString('vi-VN')}</strong></span>
+              <span>Lãi: <strong class="text-emerald-600 dark:text-emerald-400 font-mono">+${(dep.interest || 0).toLocaleString('vi-VN')}</strong></span>
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="withdrawSingleDeposit('${dep.id}')" class="${actionBtnClass} shrink-0">
+          ${actionBtnText}
+        </button>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+window.renderBankDepositsList = renderBankDepositsList;
+
+async function withdrawSingleDeposit(depositId) {
+  if (isBankActionPending) return;
+  ensureUserBankProfile();
+  const bank = appState.profile.bank || {};
+  normalizeBankDeposits(bank);
+  const deposits = bank.deposits || [];
+  const dep = deposits.find(d => d.id === depositId);
+  if (!dep) {
+    showToast('Không tìm thấy sổ tiết kiệm này!', 'error');
+    return;
+  }
+
+  const now = Date.now();
+  const isEarly = dep.termDays > 0 && now < dep.maturityAt;
+  const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
+
+  if (isEarly) {
+    const daysLeft = Math.ceil((dep.maturityAt - now) / (24 * 60 * 60 * 1000));
+    const ok = await confirmAction({
+      title: '⚠️ Rút Sổ Tiết Kiệm Trước Hạn?',
+      message: `Sổ kỳ hạn ${dep.termDays} ngày (${termConfig.label}) này chưa đến ngày đáo hạn! Còn lại ${daysLeft} ngày.`,
+      detail: `❌ Phạt rút non: HỦY TOÀN BỘ +${dep.interest} Vàng tiền lãi tích lũy!\n💰 Vốn gốc nhận về ví: +${dep.amount} Vàng.\n\n💡 Bạn có chắc chắn muốn rút ngay bây giờ không?`,
+      confirmText: 'Chấp Nhận Phạt & Rút Sớm ⚠️',
+      cancelText: 'Giữ Lại Đợi Đáo Hạn',
+      icon: '⚠️',
+      btnColor: 'rose'
+    });
+    if (!ok) return;
+    await executeBankWithdraw(dep.amount, dep.id, true, true);
+  } else {
+    const totalGet = dep.amount + dep.interest;
+    const ok = await confirmAction({
+      title: 'Tất Toán Sổ Tiết Kiệm?',
+      message: `Tất toán sổ ${termConfig.label} để nhận trọn vẹn cả gốc và lãi về ví?`,
+      detail: `💰 Nhận về ví: +${totalGet} Vàng (${dep.amount} Vàng gốc + ${dep.interest} Vàng lãi).\n🛡️ Vốn và lãi đã hoàn thành kỳ hạn an toàn 100%!`,
+      confirmText: 'Tất Toán Về Ví 📤',
+      cancelText: 'Đóng',
+      icon: termConfig.icon,
+      btnColor: 'emerald'
+    });
+    if (!ok) return;
+    await executeBankWithdraw(totalGet, dep.id, false, true);
+  }
+}
+window.withdrawSingleDeposit = withdrawSingleDeposit;
+
 async function executeBankWithdraw() {
   if (isBankActionPending) return;
   isBankActionPending = true;
   try {
     const reqAmt = arguments[0] !== undefined ? arguments[0] : 'all';
+    const depositId = arguments[1] || null;
+    const confirmEarly = Boolean(arguments[2]);
+    const skipConfirm = Boolean(arguments[3]);
+
     ensureUserBankProfile();
     const bank = appState.profile.bank || {};
-    const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-    const interest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-    const totalAvailable = deposited + interest;
+    normalizeBankDeposits(bank);
+    const deposits = bank.deposits || [];
 
-    if (totalAvailable <= 0) {
-      showToast('Bạn không có Vàng gửi hoặc tiền lãi để rút!', 'info');
-      return;
-    }
-
-    const withdrawAmt = (reqAmt === 'all' || !reqAmt)
-      ? totalAvailable
-      : Math.min(totalAvailable, Math.max(1, parseInt(reqAmt, 10) || totalAvailable));
-
-    let interestWithdrawn = 0;
+    let withdrawAmt = 0;
     let principalWithdrawn = 0;
-    if (withdrawAmt >= totalAvailable) {
-      interestWithdrawn = interest;
-      principalWithdrawn = deposited;
-    } else if (withdrawAmt <= interest) {
-      interestWithdrawn = withdrawAmt;
-      principalWithdrawn = 0;
+    let interestWithdrawn = 0;
+    let penaltyNotice = '';
+
+    if (depositId) {
+      const dep = deposits.find(d => d.id === depositId);
+      if (!dep) {
+        showToast('Không tìm thấy sổ tiết kiệm này!', 'error');
+        return;
+      }
+      const now = Date.now();
+      const isEarly = dep.termDays > 0 && now < dep.maturityAt;
+
+      if (isEarly) {
+        principalWithdrawn = dep.amount;
+        interestWithdrawn = 0;
+        withdrawAmt = principalWithdrawn;
+        penaltyNotice = ` (Phạt tất toán sớm gói ${dep.termDays} ngày: Hủy ${dep.interest} Vàng lãi)`;
+      } else {
+        principalWithdrawn = dep.amount;
+        interestWithdrawn = dep.interest;
+        withdrawAmt = principalWithdrawn + interestWithdrawn;
+      }
     } else {
-      interestWithdrawn = interest;
-      principalWithdrawn = withdrawAmt - interest;
+      // Rút nhanh từ các sổ an toàn (Linh hoạt & Đã đáo hạn)
+      const now = Date.now();
+      const safeDeposits = deposits.filter(d => d.termDays === 0 || now >= d.maturityAt);
+      const safeTotalAvailable = safeDeposits.reduce((sum, d) => sum + (d.amount || 0) + (d.interest || 0), 0);
+
+      if (safeTotalAvailable <= 0) {
+        if (deposits.some(d => d.termDays > 0 && now < d.maturityAt)) {
+          showToast('Bạn chỉ có sổ kỳ hạn chưa đáo hạn. Vui lòng bấm "Rút Sớm" trên từng sổ nếu muốn tất toán trước hạn!', 'warning');
+        } else {
+          showToast('Bạn không có Vàng gửi hoặc tiền lãi khả dụng để rút!', 'info');
+        }
+        return;
+      }
+
+      withdrawAmt = (reqAmt === 'all' || !reqAmt)
+        ? safeTotalAvailable
+        : Math.min(safeTotalAvailable, Math.max(1, parseInt(reqAmt, 10) || safeTotalAvailable));
+
+      let remaining = withdrawAmt;
+      for (const dep of safeDeposits) {
+        if (remaining <= 0) break;
+        if (dep.interest > 0) {
+          const draw = Math.min(dep.interest, remaining);
+          interestWithdrawn += draw;
+          remaining -= draw;
+        }
+      }
+      for (const dep of safeDeposits) {
+        if (remaining <= 0) break;
+        if (dep.amount > 0) {
+          const draw = Math.min(dep.amount, remaining);
+          principalWithdrawn += draw;
+          remaining -= draw;
+        }
+      }
+
+      if (!skipConfirm) {
+        const isFull = withdrawAmt >= safeTotalAvailable;
+        const ok = await confirmAction({
+          title: isFull ? 'Rút Toàn Bộ Tiết Kiệm Khả Dụng?' : 'Rút Một Phần Tiết Kiệm?',
+          message: isFull
+            ? `Rút toàn bộ ${safeTotalAvailable} Vàng (${principalWithdrawn} Vàng gốc + ${interestWithdrawn} Vàng lãi) về ví?`
+            : `Rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) về ví?`,
+          detail: `💰 Số dư ví: ${appState.profile.coins} ➔ ${appState.profile.coins + withdrawAmt} Vàng.\n🛡️ Các sổ kỳ hạn chưa đáo hạn (nếu có) vẫn được bảo toàn tiếp tục sinh lời.`,
+          confirmText: isFull ? 'Rút Toàn Bộ 📤' : 'Rút Về Ví 📤',
+          cancelText: 'Giữ Lại Sinh Lời',
+          icon: '📤',
+          btnColor: 'emerald'
+        });
+        if (!ok) return;
+      }
     }
-
-    const isFull = withdrawAmt >= totalAvailable;
-    const remainingPrincipal = Math.max(0, deposited - principalWithdrawn);
-
-    const ok = await confirmAction({
-      title: isFull ? 'Rút Toàn Bộ Tiết Kiệm?' : 'Rút Một Phần Tiết Kiệm?',
-      message: isFull
-        ? `Rút toàn bộ ${totalAvailable} Vàng (${deposited} Vàng gốc + ${interest} Vàng lãi) về ví?`
-        : `Rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) về ví?`,
-      detail: `💰 Số dư ví: ${appState.profile.coins} ➔ ${appState.profile.coins + withdrawAmt} Vàng.\n${remainingPrincipal > 0 ? `🌱 Vốn gốc còn lại: ${remainingPrincipal} Vàng vẫn tiếp tục sinh lãi thụ động!` : 'Đã tất toán toàn bộ sổ tiết kiệm.'}`,
-      confirmText: isFull ? 'Rút Toàn Bộ 📤' : 'Rút Về Ví 📤',
-      cancelText: 'Giữ Lại Sinh Lời',
-      icon: '📤',
-      btnColor: 'emerald'
-    });
-    if (!ok) return;
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
@@ -793,7 +1277,7 @@ async function executeBankWithdraw() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ amount: withdrawAmt })
+          body: JSON.stringify(depositId ? { depositId, confirmEarly } : { amount: withdrawAmt })
         });
         if (res.ok) {
           const data = await res.json();
@@ -830,11 +1314,31 @@ async function executeBankWithdraw() {
       currentBankPool.poolGold = Math.max(0, currentBankPool.poolGold - withdrawAmt);
       currentBankPool.totalDeposited = Math.max(0, (currentBankPool.totalDeposited || 0) - principalWithdrawn);
 
+      if (depositId) {
+        const depIdx = bank.deposits.findIndex(d => d.id === depositId);
+        if (depIdx !== -1) bank.deposits.splice(depIdx, 1);
+      } else {
+        const now = Date.now();
+        const safeDeposits = bank.deposits.filter(d => d.termDays === 0 || now >= d.maturityAt);
+        let rem = withdrawAmt;
+        for (const dep of safeDeposits) {
+          if (rem <= 0) break;
+          const drawInt = Math.min(dep.interest, rem);
+          dep.interest -= drawInt;
+          rem -= drawInt;
+        }
+        for (const dep of safeDeposits) {
+          if (rem <= 0) break;
+          const drawAmt = Math.min(dep.amount, rem);
+          dep.amount -= drawAmt;
+          rem -= drawAmt;
+        }
+        bank.deposits = bank.deposits.filter(d => d.amount > 0 || d.interest > 0);
+      }
+
+      normalizeBankDeposits(bank);
       appState.profile.coins += withdrawAmt;
       appState.profile.totalCoinsEarned += interestWithdrawn;
-      bank.deposited = Math.max(0, deposited - principalWithdrawn);
-      bank.depositInterest = Math.max(0, interest - interestWithdrawn);
-      bank.lastDepositAt = Date.now();
 
       const bailoutNotice = bailoutInjected > 0 ? ` (Bảo lãnh 100% từ Kho Bạc Hệ Thống: Cứu trợ ${bailoutInjected} Vàng)` : '';
       addLedgerEntry({
@@ -843,7 +1347,7 @@ async function executeBankWithdraw() {
         category: 'bank_withdraw',
         amount: withdrawAmt,
         title: 'Rút tiền gửi Ngân Hàng',
-        description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${bailoutNotice}`,
+        description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${penaltyNotice}${bailoutNotice}`,
         timestamp: Date.now()
       });
       showToast(`Đã rút thành công ${withdrawAmt} Vàng!${bailoutInjected > 0 ? ' Kho Bạc đã bảo lãnh 100% thanh khoản!' : ''}`, 'gold');
@@ -910,6 +1414,27 @@ function openCreditLimitModal() {
 }
 window.openCreditLimitModal = openCreditLimitModal;
 
+function openBankRulesModal(targetSectionId) {
+  if (typeof sfx !== 'undefined' && sfx.playClick) {
+    sfx.playClick();
+  }
+  const modal = document.getElementById('modal-bank-rules-info');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if (targetSectionId) {
+      setTimeout(() => {
+        const sec = document.getElementById(targetSectionId);
+        if (sec) {
+          sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          sec.classList.add('ring-2', 'ring-emerald-500/60');
+          setTimeout(() => sec.classList.remove('ring-2', 'ring-emerald-500/60'), 1500);
+        }
+      }, 50);
+    }
+  }
+}
+window.openBankRulesModal = openBankRulesModal;
+
 function onDeductPercentChange(val) {
   const numVal = parseInt(val, 10) || 50;
   const label = document.getElementById('deduct-percent-label');
@@ -926,20 +1451,22 @@ function onDeductPercentChange(val) {
     if (isNegotiated) {
       badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
     } else {
-      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="opacity-70 text-[11px] ml-0.5">ℹ️</span>`;
+      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML}`;
     }
   }
 
-  const appraisal = document.getElementById('bank-appraisal-box');
-  if (appraisal) {
+  const appraisalText = document.getElementById('bank-appraisal-text');
+  if (appraisalText) {
     if (numVal >= 70) {
-      appraisal.innerHTML = `🔥 <strong>Tuyệt vời!</strong> Bạn cam kết trích ${numVal}% tiền thưởng nhiệm vụ để trả hết nợ nhanh. AI cấp cho bạn hạn mức cao nhất (${finalLimit} Vàng)!`;
+      appraisalText.innerHTML = `🔥 <strong>Trích ${numVal}%:</strong> Hạn mức tối đa (${finalLimit} Vàng)`;
     } else if (numVal <= 40) {
-      appraisal.innerHTML = `🌿 Trích nhẹ nhàng ${numVal}% tiền thưởng giúp bạn thong thả làm việc. Hạn mức khả dụng là ${finalLimit} Vàng.`;
+      appraisalText.innerHTML = `🌿 <strong>Trích ${numVal}%:</strong> Trả thong thả (${finalLimit} Vàng)`;
     } else {
-      appraisal.innerHTML = `💡 <em>Tỷ lệ ${numVal}% cân bằng lý tưởng giữa việc trả nợ và giữ lại Vàng tiêu xài cho các nhiệm vụ tiếp theo! Hạn mức: ${finalLimit} ${COIN_ICON_HTML}</em>`;
+      appraisalText.innerHTML = `💡 <strong>Trích ${numVal}%:</strong> Cân bằng lý tưởng (${finalLimit} Vàng)`;
     }
   }
+
+  updateBorrowCalculator();
 }
 
 // ==========================================
@@ -1496,14 +2023,24 @@ async function executeBankBorrow() {
       return;
     }
 
+    const termDays = [3, 7, 14, 30].includes(Number(selectedBorrowTerm)) ? Number(selectedBorrowTerm) : 7;
+    const termConfig = LOAN_TERMS[termDays] || LOAN_TERMS[7];
+    const rates = currentBankPool?.borrowRate !== undefined ? currentBankPool : calculateLocalBankRates(currentBankPool);
+    const baseBorrowRate = bankNegotiatedTerms?.borrowRate ?? (rates.borrowRate || 0.05);
+    const borrowRate = Number((baseBorrowRate * termConfig.rateMultiplier).toFixed(4));
+    const dailyInterestEst = Math.ceil(borrowAmt * borrowRate);
+    let simDebt = borrowAmt;
+    for (let d = 0; d < termDays; d++) {
+      simDebt += Math.ceil(simDebt * borrowRate);
+    }
     const negotiatedRateText = bankNegotiatedTerms?.borrowRate
-      ? `\n📉 Lãi suất ưu đãi đã chốt: ${(bankNegotiatedTerms.borrowRate * 100).toFixed(1)}%/ngày`
+      ? ` (Ưu đãi thương lượng AI)`
       : '';
 
     const ok = await confirmAction({
       title: 'Xác Nhận Vay Vàng Tức Thời?',
       message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
-      detail: `⚡ Nhận ngay: +${borrowAmt} Vàng vào ví\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ${negotiatedRateText}\n⏱️ Thời hạn: 7 ngày (sau 7 ngày sẽ tạm khóa Cửa Hàng để thu hồi nợ)\n💡 Phí phạt tất toán sớm: 5% nếu tự trả nợ bằng ví Vàng trước hạn (làm việc trả dần được miễn 100% phí phạt).`,
+      detail: `⚡ Nhận ngay vào ví: +${borrowAmt} Vàng\n⏱️ Kỳ hạn vay: ${termConfig.label} (${termDays} ngày)\n📈 Lãi suất vay: ${(borrowRate * 100).toFixed(1)}%/ngày${negotiatedRateText} (~+${dailyInterestEst} Vàng/ngày)\n🧮 Tổng hoàn trả sau ${termDays} ngày: ~${simDebt} Vàng (nếu không làm nhiệm vụ trả sớm)\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ (miễn 100% phí phạt)\n⚠️ Sau ${termDays} ngày chưa tất toán: Tạm đóng băng Cửa Hàng để thu hồi nợ.\n💡 Phí phạt tất toán sớm: 5% nếu tự trả nợ bằng ví Vàng trước hạn (làm việc trả dần được miễn 100% phí phạt).`,
       confirmText: 'Vay Ngay ⚡',
       cancelText: 'Hủy',
       icon: '⚡',
@@ -1528,9 +2065,10 @@ async function executeBankBorrow() {
           },
           body: JSON.stringify({
             amount: borrowAmt,
+            termDays: termDays,
             autoDeductPercent: autoDeduct,
             loanSignature: bankNegotiatedTerms?.signature,
-            borrowRate: bankNegotiatedTerms?.borrowRate,
+            borrowRate: borrowRate,
             negotiatedRate: bankNegotiatedTerms?.borrowRate,
             creditLimit: bankNegotiatedTerms?.creditLimit,
             negotiatedLimit: bankNegotiatedTerms?.creditLimit
@@ -1559,7 +2097,7 @@ async function executeBankBorrow() {
 
     if (!serverSuccess) {
       const rates = calculateLocalBankRates(currentBankPool);
-      const finalRate = bankNegotiatedTerms?.borrowRate ?? rates.borrowRate;
+      const finalRate = borrowRate;
       let bailoutInjected = 0;
       if (currentBankPool.poolGold < borrowAmt) {
         bailoutInjected = borrowAmt - currentBankPool.poolGold;
@@ -1573,6 +2111,7 @@ async function executeBankBorrow() {
       appState.profile.bank.loan = {
         principal: borrowAmt,
         debt: borrowAmt,
+        termDays: termDays,
         borrowRate: finalRate,
         autoDeductPercent: autoDeduct,
         borrowedAt: Date.now(),
@@ -1587,7 +2126,7 @@ async function executeBankBorrow() {
         category: 'bank_borrow',
         amount: borrowAmt,
         title: 'Vay Vàng Ngân Hàng',
-        description: `🏦 Đã vay ${borrowAmt} Vàng (Lãi suất: ${(finalRate * 100).toFixed(1)}%/ngày, trích nợ: ${deductPct}% mỗi nhiệm vụ).`,
+        description: `🏦 Đã vay ${borrowAmt} Vàng (Kỳ hạn: ${termConfig.label}, Lãi suất: ${(finalRate * 100).toFixed(1)}%/ngày, trích nợ: ${deductPct}% mỗi nhiệm vụ).`,
         timestamp: Date.now()
       });
       showToast(`Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
@@ -1780,4 +2319,9 @@ window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw;
 window.onDeductPercentChange = onDeductPercentChange;
 window.executeBankBorrow = executeBankBorrow;
 window.executeBankRepay = executeBankRepay;
+window.selectBorrowTerm = selectBorrowTerm;
+window.updateBorrowTermButtons = updateBorrowTermButtons;
+window.updateBorrowCalculator = updateBorrowCalculator;
+window.setBorrowAmount = setBorrowAmount;
+window.setBorrowMax = setBorrowMax;
 

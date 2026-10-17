@@ -87,6 +87,9 @@ export const BankActionSchema = v.looseObject({
   rate: v.optional(v.number()),
   autoDeductPercent: v.optional(v.number()),
   creditLimit: v.optional(v.number()),
+  termDays: v.optional(v.number()),
+  depositId: v.optional(v.string()),
+  confirmEarly: v.optional(v.boolean()),
   signature: v.optional(v.string())
 });
 
@@ -172,6 +175,10 @@ export function validateBankAction(raw) {
   if (typeof prepared.creditLimit === 'string') {
     const parsed = parseInt(prepared.creditLimit, 10);
     prepared.creditLimit = isNaN(parsed) ? prepared.creditLimit : parsed;
+  }
+  if (typeof prepared.termDays === 'string') {
+    const parsed = parseInt(prepared.termDays, 10);
+    prepared.termDays = isNaN(parsed) ? prepared.termDays : parsed;
   }
 
   // Specific domain validations

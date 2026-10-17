@@ -66,7 +66,6 @@ function toggleTheme() {
   applyTheme(newTheme, true);
   sfx.playClick();
   triggerSave(true, true);
-  showToast(newTheme === 'dark' ? 'Chế độ Tối (Dark Mode)' : 'Chế độ Sáng (Light Mode)', 'info');
 }
 
 const PALETTES = [

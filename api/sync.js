@@ -139,12 +139,72 @@ export function signLoanOffer(userId, amount, borrowRate, autoDeductPercent, cre
 
 export function verifyLoanSignature(candidates, amount, rate, autoDeduct, limit, sig) { return true; }
 
+export const BANK_TERMS = {
+  0: { id: 'flex', days: 0, label: 'Linh Hoạt', desc: 'Rút bất cứ lúc nào, an toàn tuyệt đối', rateMultiplier: 1.0, icon: '🍃' },
+  7: { id: 'week', days: 7, label: '7 Ngày', desc: 'Tuần tích lũy, tăng trưởng đều đặn', rateMultiplier: 1.3, icon: '⚡' },
+  14: { id: 'two_weeks', days: 14, label: '14 Ngày', desc: 'Thử thách 2 tuần kiên định', rateMultiplier: 1.6, icon: '🛡️' },
+  30: { id: 'month', days: 30, label: '30 Ngày', desc: 'Chiến binh cam kết, lãi suất tối đa', rateMultiplier: 2.0, icon: '👑' }
+};
+
+export const LOAN_TERMS = {
+  3: { id: 'term_3', days: 3, label: '3 Ngày', desc: 'Vay cấp tốc, hoàn nợ trong 3 ngày', rateMultiplier: 0.90, icon: '⚡' },
+  7: { id: 'term_7', days: 7, label: '7 Ngày', desc: 'Gói chuẩn 1 tuần làm nhiệm vụ', rateMultiplier: 1.00, icon: '🛡️' },
+  14: { id: 'term_14', days: 14, label: '14 Ngày', desc: 'Thong thả 2 tuần làm việc', rateMultiplier: 1.10, icon: '⏳' },
+  30: { id: 'term_30', days: 30, label: '30 Ngày', desc: 'Dài hạn 1 tháng, thảnh thơi trả dần', rateMultiplier: 1.20, icon: '👑' }
+};
+
+export const DAILY_DEPOSIT_INTEREST_CAP = 8; // Trần tối đa 8 Vàng lãi / ngày
+
+export function calculateEffectiveDepositBase(amount) {
+  const a = Math.max(0, parseInt(amount, 10) || 0);
+  if (a <= 100) return a;
+  if (a <= 500) return 100 + (a - 100) * 0.70;
+  if (a <= 2000) return 380 + (a - 500) * 0.40;
+  return 980 + (a - 2000) * 0.10;
+}
+
+export function calculateDisciplineMultiplier(profile = {}) {
+  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
+  if (streak >= 7) return { multiplier: 1.5, label: 'Chiến Binh Kỷ Luật (Streak ≥ 7)', icon: '🔥', bonusPct: 50 };
+  if (streak >= 3) return { multiplier: 1.3, label: 'Duy Trì Thói Quen (Streak ≥ 3)', icon: '⚡', bonusPct: 30 };
+  if (streak >= 1) return { multiplier: 1.15, label: 'Khởi Động Ngày Mới (Streak ≥ 1)', icon: '🌱', bonusPct: 15 };
+  return { multiplier: 0.8, label: 'Chưa Có Chuỗi Kỷ Luật (Streak 0)', icon: '⚠️', bonusPct: -20 };
+}
+
+export function normalizeBankDeposits(bank, now = Date.now()) {
+  if (!bank || typeof bank !== 'object') return bank;
+
+  if (!Array.isArray(bank.deposits) || bank.deposits.length === 0) {
+    const dep = Math.max(0, parseInt(bank.deposited, 10) || 0);
+    const int = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
+    if (dep > 0 || int > 0) {
+      bank.deposits = [{
+        id: `dep_legacy_${bank.lastDepositAt || now}`,
+        amount: dep,
+        termDays: 0,
+        interest: int,
+        createdAt: parseInt(bank.lastDepositAt, 10) || now,
+        lastAccruedAt: parseInt(bank.lastDepositAt, 10) || now,
+        maturityAt: 0,
+        status: 'active'
+      }];
+    } else {
+      bank.deposits = [];
+    }
+  }
+
+  bank.deposits = bank.deposits.filter(d => d && (d.status === 'active' || d.status === 'matured'));
+  bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
+  bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
+  return bank;
+}
+
 /**
  * Dynamic Interest Rate AMM for LevelUp 3-Party Finance
  * U = Total Borrowed / (Pool Gold + Total Borrowed)
- * Deposit rate: 1% to 8% daily (clamp)
+ * Base Deposit rate: 0.12% to 0.25% daily (balanced for RPG economy)
  * Borrow rate: 4% to 18% daily (clamp)
- * Spread: Borrow rate - Deposit rate >= 3%
+ * Spread: Borrow rate - Deposit rate
  */
 export function calculateBankRates(poolState = {}) {
   const p = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
@@ -154,7 +214,7 @@ export function calculateBankRates(poolState = {}) {
   const clampedU = Math.min(1, Math.max(0, u));
 
   // Dynamic rates (per 24h)
-  const depositRate = Number((Math.min(0.08, Math.max(0.01, 0.02 + 0.04 * clampedU))).toFixed(4));
+  const depositRate = Number((Math.min(0.0025, Math.max(0.0010, 0.0012 + 0.0013 * clampedU))).toFixed(4));
   const borrowRate = Number((Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * clampedU))).toFixed(4));
   const spread = Number((borrowRate - depositRate).toFixed(4));
 
@@ -196,14 +256,16 @@ export function calculateNetWorth(profile = {}) {
 
 /**
  * Accrue user bank interest (deposit yield & loan debt interest)
+ * Hỗ trợ A (Lãi suất cân bằng, không floor ảo), B (Bậc thang, trần ngày), C (Kỷ luật streak), D (Đa kỳ hạn)
  * Enforce 7-day overdue freeze rule
  */
-export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
+export function accrueUserBank(bankData, rates = {}, now = Date.now(), profile = {}) {
   if (!bankData || typeof bankData !== 'object') {
     return {
       deposited: 0,
       depositInterest: 0,
       lastDepositAt: now,
+      deposits: [],
       loan: null,
       isFrozen: false
     };
@@ -216,37 +278,62 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
     isFrozen: Boolean(bankData.isFrozen)
   };
 
-  // 1. Accrue deposit interest
-  if (copy.deposited > 0) {
-    const lastDep = parseInt(copy.lastDepositAt, 10) || now;
-    const elapsedDays = Math.max(0, (now - lastDep) / (24 * 60 * 60 * 1000));
-    if (elapsedDays > 0) {
-      const depRate = Number(rates?.depositRate) || 0.02;
-      const standardEarned = Math.floor(copy.deposited * depRate * elapsedDays);
-      // Floor rule: nếu gửi >= 10 Vàng và đã qua >= 24h thì tối thiểu 1 Vàng/ngày
-      const minFloorEarned = (copy.deposited >= 10 && elapsedDays >= 1) ? Math.floor(elapsedDays) : 0;
-      const interestEarned = Math.max(standardEarned, minFloorEarned);
-      if (interestEarned > 0) {
-        copy.depositInterest += interestEarned;
-        // Bảo toàn thời gian lẻ: Chỉ tịnh tiến lastDepositAt bằng thời gian thực tế đã quy đổi thành lãi
-        const effectiveDailyRate = Math.max(copy.deposited * depRate, copy.deposited >= 10 ? 1 : 0);
-        const daysConsumed = effectiveDailyRate > 0
-          ? Math.min(elapsedDays, interestEarned / effectiveDailyRate)
-          : Math.floor(elapsedDays);
-        const timeConsumedMs = Math.round(daysConsumed * 24 * 60 * 60 * 1000);
-        copy.lastDepositAt = Math.min(now, lastDep + timeConsumedMs);
+  normalizeBankDeposits(copy, now);
+
+  const baseRate = Math.min(0.0025, Math.max(0.0010, Number(rates?.depositRate) || 0.0015));
+  const { multiplier: disciplineMult } = calculateDisciplineMultiplier(profile);
+
+  // 1. Accrue deposit interest cho từng sổ
+  if (Array.isArray(copy.deposits) && copy.deposits.length > 0) {
+    for (const dep of copy.deposits) {
+      const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
+      if (amount <= 0) continue;
+
+      const termDays = parseInt(dep.termDays, 10) || 0;
+      const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+      const termMult = termConfig.rateMultiplier || 1.0;
+
+      const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
+      let targetNow = now;
+
+      // Nếu có kỳ hạn, chỉ tính lãi đến lúc đáo hạn
+      if (termDays > 0 && dep.maturityAt) {
+        if (now >= dep.maturityAt) {
+          dep.status = 'matured';
+          targetNow = Math.min(now, dep.maturityAt);
+        }
+      }
+
+      const elapsedDays = Math.max(0, (targetNow - lastAcc) / (24 * 60 * 60 * 1000));
+      if (elapsedDays > 0) {
+        const effectiveBase = calculateEffectiveDepositBase(amount);
+        const dailyRate = baseRate * termMult * disciplineMult;
+        
+        // Giới hạn trần lãi ngày (DAILY_DEPOSIT_INTEREST_CAP = 8 Vàng/ngày)
+        const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
+        const earned = Math.floor(cappedDailyInterest * elapsedDays);
+
+        if (earned > 0) {
+          dep.interest = (parseInt(dep.interest, 10) || 0) + earned;
+          const daysConsumed = cappedDailyInterest > 0 ? (earned / cappedDailyInterest) : elapsedDays;
+          dep.lastAccruedAt = Math.min(targetNow, lastAcc + Math.round(daysConsumed * 24 * 60 * 60 * 1000));
+        }
       }
     }
-  } else {
+
+    copy.deposited = copy.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
+    copy.depositInterest = copy.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
     copy.lastDepositAt = now;
   }
 
   // 2. Accrue loan debt interest & check overdue
   if (copy.loan && parseInt(copy.loan.debt, 10) > 0) {
+    const loanTermDays = Math.max(1, parseInt(copy.loan.termDays, 10) || 7);
     const loan = {
       ...copy.loan,
       principal: Math.max(0, parseInt(copy.loan.principal, 10) || 0),
       debt: Math.max(0, parseInt(copy.loan.debt, 10) || 0),
+      termDays: loanTermDays,
       borrowRate: Number(copy.loan.borrowRate) || rates?.borrowRate || 0.06,
       autoDeductPercent: Math.min(0.80, Math.max(0.20, Number(copy.loan.autoDeductPercent) || 0.50)),
       isOverdue: Boolean(copy.loan.isOverdue)
@@ -256,8 +343,8 @@ export function accrueUserBank(bankData, rates = {}, now = Date.now()) {
     const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
     const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
 
-    // Check overdue (> 7 days since loan creation without full repayment)
-    if ((now - borrowedAt) >= 7 * 24 * 60 * 60 * 1000) {
+    // Check overdue (past loan.termDays since loan creation without full repayment)
+    if ((now - borrowedAt) >= loanTermDays * 24 * 60 * 60 * 1000) {
       loan.isOverdue = true;
       copy.isFrozen = true;
     }
@@ -1766,32 +1853,43 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: `Số dư Vàng không đủ (hiện có: ${userCoins} Vàng).` });
           }
 
-          const oldDeposited = Math.max(0, parseInt(uState.profile.bank.deposited, 10) || 0);
-          const oldLastDep = parseInt(uState.profile.bank.lastDepositAt, 10) || serverTimestamp;
-          const newDeposited = oldDeposited + depositAmt;
+          const rawTerm = parseInt(req.body?.termDays, 10);
+          const termDays = [0, 7, 14, 30].includes(rawTerm) ? rawTerm : 0;
+          const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+          const maturityAt = termDays > 0 ? (serverTimestamp + termDays * 24 * 60 * 60 * 1000) : 0;
 
-          // Bảo toàn thời gian tích lũy dở dang theo trọng số vốn cũ:
-          let newLastDep = serverTimestamp;
-          if (oldDeposited > 0 && newDeposited > 0 && serverTimestamp > oldLastDep) {
-            const elapsedMs = serverTimestamp - oldLastDep;
-            const equivElapsedMs = Math.round(elapsedMs * (oldDeposited / newDeposited));
-            newLastDep = serverTimestamp - equivElapsedMs;
+          normalizeBankDeposits(uState.profile.bank, serverTimestamp);
+
+          const newDeposit = {
+            id: `dep_${serverTimestamp}_${Math.random().toString(36).substring(2, 7)}`,
+            amount: depositAmt,
+            termDays,
+            interest: 0,
+            createdAt: serverTimestamp,
+            lastAccruedAt: serverTimestamp,
+            maturityAt,
+            status: 'active'
+          };
+
+          if (!Array.isArray(uState.profile.bank.deposits)) {
+            uState.profile.bank.deposits = [];
           }
+          uState.profile.bank.deposits.push(newDeposit);
+          normalizeBankDeposits(uState.profile.bank, serverTimestamp);
 
           uState.profile.coins = userCoins - depositAmt;
-          uState.profile.bank.deposited = newDeposited;
-          uState.profile.bank.lastDepositAt = newLastDep;
 
           poolState.poolGold += depositAmt;
           poolState.totalDeposited = (poolState.totalDeposited || 0) + depositAmt;
 
+          const termTitle = termDays > 0 ? `gói ${termDays} ngày (${termConfig.label})` : 'gói Linh Hoạt';
           uState.ledger.unshift({
             id: `bank_dep_${serverTimestamp}`,
             type: 'spend',
             category: 'bank_deposit',
             amount: depositAmt,
-            title: 'Gửi tiết kiệm Ngân Hàng',
-            description: `🏦 Đã gửi ${depositAmt} Vàng vào Bể thanh khoản. Lãi suất hiện tại: ${(rates.depositRate * 100).toFixed(1)}%/ngày.`,
+            title: `Gửi tiết kiệm ${termConfig.label}`,
+            description: `🏦 Đã gửi ${depositAmt} Vàng vào Sổ tiết kiệm ${termTitle}.`,
             timestamp: serverTimestamp
           });
           if (uState.ledger.length > 100) uState.ledger.splice(100);
@@ -1802,7 +1900,7 @@ export default async function handler(req, res) {
           const updatedRates = calculateBankRates(poolState);
           return res.status(200).json({
             success: true,
-            message: `Gửi tiết kiệm thành công ${depositAmt} Vàng!`,
+            message: `Gửi tiết kiệm thành công ${depositAmt} Vàng (${termConfig.label})!`,
             userBank: uState.profile.bank,
             coins: uState.profile.coins,
             ledger: uState.ledger,
@@ -1812,28 +1910,95 @@ export default async function handler(req, res) {
 
         // --- ACTION 2: RÚT TIẾT KIỆM (bank_withdraw) ---
         if (action === 'bank_withdraw') {
-          const deposited = Math.max(0, parseInt(uState.profile.bank.deposited, 10) || 0);
-          const interest = Math.max(0, parseInt(uState.profile.bank.depositInterest, 10) || 0);
-          const totalAvailable = deposited + interest;
+          normalizeBankDeposits(uState.profile.bank, serverTimestamp);
+          const deposits = uState.profile.bank.deposits || [];
 
-          if (totalAvailable <= 0) {
-            return res.status(400).json({ error: 'Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi để rút.' });
-          }
-
-          const reqAmt = req.body?.amount === 'all' || !req.body?.amount ? totalAvailable : Math.max(1, parseInt(req.body.amount, 10) || totalAvailable);
-          const withdrawAmt = Math.min(totalAvailable, reqAmt);
-
-          // Tách phần gốc và lãi rút ra
           let interestWithdrawn = 0;
           let principalWithdrawn = 0;
-          if (withdrawAmt >= totalAvailable) {
-            interestWithdrawn = interest;
-            principalWithdrawn = deposited;
-          } else if (withdrawAmt <= interest) {
-            interestWithdrawn = withdrawAmt;
+          let withdrawAmt = 0;
+          let penaltyNotice = '';
+
+          // Nhánh 1: Rút theo ID của một sổ tiết kiệm cụ thể
+          if (req.body?.depositId) {
+            const depIndex = deposits.findIndex(d => d.id === req.body.depositId && (d.status === 'active' || d.status === 'matured'));
+            if (depIndex === -1) {
+              return res.status(400).json({ error: 'Không tìm thấy sổ tiết kiệm này hoặc sổ đã tất toán.' });
+            }
+            const dep = deposits[depIndex];
+            const isEarly = dep.termDays > 0 && serverTimestamp < dep.maturityAt;
+
+            if (isEarly) {
+              if (!req.body.confirmEarly) {
+                const daysLeft = Math.ceil((dep.maturityAt - serverTimestamp) / (24 * 60 * 60 * 1000));
+                return res.status(400).json({
+                  error: 'EARLY_WITHDRAW_CONFIRM_NEEDED',
+                  message: `Sổ này chưa đến ngày đáo hạn (còn lại ${daysLeft} ngày). Rút trước hạn sẽ mất toàn bộ ${dep.interest} Vàng tiền lãi tích lũy và chỉ nhận lại ${dep.amount} Vàng gốc.`,
+                  daysLeft,
+                  principal: dep.amount,
+                  lostInterest: dep.interest
+                });
+              }
+              // Xác nhận rút trước hạn: Phạt mất toàn bộ lãi, chỉ trả gốc
+              principalWithdrawn = dep.amount;
+              interestWithdrawn = 0;
+              withdrawAmt = principalWithdrawn;
+              penaltyNotice = ` (Phạt tất toán sớm gói ${dep.termDays} ngày: Hủy ${dep.interest} Vàng lãi tích lũy)`;
+            } else {
+              // Đã đáo hạn hoặc là sổ linh hoạt: nhận đủ cả gốc và lãi
+              principalWithdrawn = dep.amount;
+              interestWithdrawn = dep.interest;
+              withdrawAmt = principalWithdrawn + interestWithdrawn;
+            }
+
+            // Xóa sổ này khỏi danh sách
+            deposits.splice(depIndex, 1);
           } else {
-            interestWithdrawn = interest;
-            principalWithdrawn = withdrawAmt - interest;
+            // Nhánh 2: Rút nhanh số tiền (hoặc 'all') - Chỉ rút từ các sổ an toàn (Linh hoạt & Đã đáo hạn)
+            const safeDeposits = deposits.filter(d => d.termDays === 0 || serverTimestamp >= d.maturityAt);
+            const safeTotalAvailable = safeDeposits.reduce((sum, d) => sum + (d.amount || 0) + (d.interest || 0), 0);
+
+            if (safeTotalAvailable <= 0) {
+              if (deposits.some(d => d.termDays > 0 && serverTimestamp < d.maturityAt)) {
+                return res.status(400).json({
+                  error: 'Bạn chỉ có sổ tiết kiệm có kỳ hạn chưa đáo hạn. Để bảo vệ tiền lãi, vui lòng chọn rút riêng từng sổ từ danh sách.'
+                });
+              }
+              return res.status(400).json({ error: 'Bạn không có Vàng gửi tiết kiệm hoặc tiền lãi khả dụng để rút.' });
+            }
+
+            const reqAmt = req.body?.amount === 'all' || !req.body?.amount ? safeTotalAvailable : Math.max(1, parseInt(req.body.amount, 10) || safeTotalAvailable);
+            withdrawAmt = Math.min(safeTotalAvailable, reqAmt);
+            let remainingToWithdraw = withdrawAmt;
+
+            // Ưu tiên 1: Rút lãi từ các sổ an toàn
+            for (const dep of safeDeposits) {
+              if (remainingToWithdraw <= 0) break;
+              if (dep.interest > 0) {
+                const intDraw = Math.min(dep.interest, remainingToWithdraw);
+                dep.interest -= intDraw;
+                interestWithdrawn += intDraw;
+                remainingToWithdraw -= intDraw;
+              }
+            }
+
+            // Ưu tiên 2: Rút gốc từ các sổ an toàn (ưu tiên sổ linh hoạt termDays === 0 trước, rồi đến sổ đã đáo hạn)
+            const sortedSafe = [...safeDeposits].sort((a, b) => a.termDays - b.termDays);
+            for (const dep of sortedSafe) {
+              if (remainingToWithdraw <= 0) break;
+              if (dep.amount > 0) {
+                const amtDraw = Math.min(dep.amount, remainingToWithdraw);
+                dep.amount -= amtDraw;
+                principalWithdrawn += amtDraw;
+                remainingToWithdraw -= amtDraw;
+              }
+            }
+
+            // Dọn dẹp các sổ đã rút hết sạch cả gốc lẫn lãi
+            uState.profile.bank.deposits = deposits.filter(d => (d.amount > 0 || d.interest > 0));
+          }
+
+          if (withdrawAmt <= 0) {
+            return res.status(400).json({ error: 'Số tiền rút không hợp lệ.' });
           }
 
           // PROTOCOL BẢO LÃNH CỨU TRỢ KHO BẠC 100% (REVERSIBLE BAILOUT)
@@ -1847,14 +2012,7 @@ export default async function handler(req, res) {
           poolState.poolGold = Math.max(0, poolState.poolGold - withdrawAmt);
           poolState.totalDeposited = Math.max(0, (poolState.totalDeposited || 0) - principalWithdrawn);
 
-          uState.profile.bank.deposited = Math.max(0, deposited - principalWithdrawn);
-          uState.profile.bank.depositInterest = Math.max(0, interest - interestWithdrawn);
-          if (uState.profile.bank.deposited <= 0) {
-            uState.profile.bank.lastDepositAt = serverTimestamp;
-          } else if (principalWithdrawn > 0) {
-            uState.profile.bank.lastDepositAt = serverTimestamp;
-          }
-          // Khi principalWithdrawn === 0 (chỉ rút lãi), giữ nguyên lastDepositAt để không làm mất thời gian tích lũy của gốc
+          normalizeBankDeposits(uState.profile.bank, serverTimestamp);
 
           uState.profile.coins = (parseInt(uState.profile.coins, 10) || 0) + withdrawAmt;
           uState.profile.totalCoinsEarned = (parseInt(uState.profile.totalCoinsEarned, 10) || 0) + interestWithdrawn;
@@ -1867,7 +2025,7 @@ export default async function handler(req, res) {
             amount: withdrawAmt,
             interestWithdrawn: interestWithdrawn,
             title: 'Rút tiền gửi Ngân Hàng',
-            description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${bailoutNotice}`,
+            description: `🏦 Đã rút ${withdrawAmt} Vàng (${principalWithdrawn} gốc + ${interestWithdrawn} lãi) từ Ngân Hàng.${penaltyNotice}${bailoutNotice}`,
             timestamp: serverTimestamp
           });
           if (uState.ledger.length > 100) uState.ledger.splice(100);
@@ -1878,7 +2036,7 @@ export default async function handler(req, res) {
           const updatedRates = calculateBankRates(poolState);
           return res.status(200).json({
             success: true,
-            message: `Rút tiền thành công ${withdrawAmt} Vàng!${bailoutInjected > 0 ? ' Kho Bạc Hệ Thống đã bảo lãnh thanh khoản 100%.' : ''}`,
+            message: `Rút tiền thành công ${withdrawAmt} Vàng!${penaltyNotice}${bailoutInjected > 0 ? ' Kho Bạc Hệ Thống đã bảo lãnh thanh khoản 100%.' : ''}`,
             withdrawn: withdrawAmt,
             bailoutInjected,
             userBank: uState.profile.bank,
@@ -1903,7 +2061,12 @@ export default async function handler(req, res) {
           const autoDeduct = Math.min(0.80, Math.max(0.20, Number(req.body?.autoDeductPercent) || 0.50));
           const standardLimit = calculateCreditLimit(uState.profile, autoDeduct);
           let effectiveLimit = standardLimit;
-          let effectiveBorrowRate = rates.borrowRate;
+
+          const rawTerm = parseInt(req.body?.termDays, 10);
+          const termDays = [3, 7, 14, 30].includes(rawTerm) ? rawTerm : 7;
+          const termConfig = LOAN_TERMS[termDays] || LOAN_TERMS[7];
+          const termMult = termConfig.rateMultiplier || 1.0;
+          let effectiveBorrowRate = Number((rates.borrowRate * termMult).toFixed(4));
 
           // Check if user has a verified AI-negotiated loan offer
           const loanSig = typeof req.body?.loanSignature === 'string' ? req.body.loanSignature.trim() : '';
@@ -1915,7 +2078,7 @@ export default async function handler(req, res) {
             const userCandidates = [caller?.sub, uState.profile?.googleId, uState.profile?.nickname, 'guest'].filter(Boolean);
             if (verifyLoanSignature(userCandidates, borrowAmt, negotiatedRate, autoDeduct, negotiatedLimit, loanSig)) {
               // Valid signature: accept negotiated rate and negotiated limit (clamped within economic guardrails)
-              effectiveBorrowRate = Math.min(rates.borrowRate, Math.max(0.01, Number(negotiatedRate.toFixed(4))));
+              effectiveBorrowRate = Math.min(Number((rates.borrowRate * termMult).toFixed(4)), Math.max(0.01, Number((negotiatedRate * termMult).toFixed(4))));
               effectiveLimit = Math.max(standardLimit, Math.min(1000, negotiatedLimit));
               isNegotiatedLoan = true;
             }
@@ -1940,6 +2103,7 @@ export default async function handler(req, res) {
           uState.profile.bank.loan = {
             principal: borrowAmt,
             debt: borrowAmt,
+            termDays: termDays,
             borrowRate: effectiveBorrowRate,
             autoDeductPercent: autoDeduct,
             borrowedAt: serverTimestamp,
@@ -1956,7 +2120,7 @@ export default async function handler(req, res) {
             category: 'bank_borrow',
             amount: borrowAmt,
             title: 'Vay Vàng Ngân Hàng',
-            description: `🏦 Đã vay ${borrowAmt} Vàng${noteNegotiated}. Lãi suất: ${(effectiveBorrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${(autoDeduct * 100).toFixed(0)}% mỗi nhiệm vụ.`,
+            description: `🏦 Đã vay ${borrowAmt} Vàng${noteNegotiated}. Kỳ hạn: ${termConfig.label}, Lãi suất: ${(effectiveBorrowRate * 100).toFixed(1)}%/ngày, trích nợ: ${(autoDeduct * 100).toFixed(0)}% mỗi nhiệm vụ.`,
             timestamp: serverTimestamp
           });
           if (uState.ledger.length > 100) uState.ledger.splice(100);
