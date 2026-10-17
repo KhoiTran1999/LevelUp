@@ -2679,9 +2679,23 @@ html.dark button.bg-amber-600 {
 
 /* Accessible Touch Targets (M3 48x48dp Specification) */
 .modal-close {
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 32px;
+  min-height: 32px;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.modal-close:not(.absolute) {
   position: relative;
+}
+.modal-close.absolute {
+  position: absolute !important;
+}
+.modal-close:focus {
+  outline: none !important;
+}
+.modal-close:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary, #4f46e5) !important;
+  outline-offset: 2px !important;
 }
 #toggle-palette-btn,
 #toggle-theme-btn,
@@ -2710,6 +2724,7 @@ html.dark button.bg-amber-600 {
   min-width: var(--md-touch-target-min);
   min-height: var(--md-touch-target-min);
   pointer-events: none;
+  border-radius: 9999px;
 }
 
 /* 7. Material 3 Top App Bar Scroll Elevation */

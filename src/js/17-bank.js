@@ -290,9 +290,13 @@ function renderBankUI(pool, userBank, creditLimit) {
   }
 
   const overdueBanner = document.getElementById('bank-overdue-banner');
+  const overdueTitle = document.getElementById('bank-overdue-title');
   if (overdueBanner) {
     if (userBank?.isFrozen || isOverdue) {
       overdueBanner.classList.remove('hidden');
+      if (overdueTitle) {
+        overdueTitle.textContent = `CẢNH BÁO: KHOẢN VAY ĐÃ QUÁ HẠN ${loanTermDays} NGÀY!`;
+      }
     } else {
       overdueBanner.classList.add('hidden');
     }
@@ -375,7 +379,7 @@ function renderBankUI(pool, userBank, creditLimit) {
   const elBadge = document.getElementById('bank-credit-limit-badge');
   if (elBadge) {
     if (isNegotiated) {
-      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
+      elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold ml-1">Ưu đãi</span>`;
     } else {
       elBadge.innerHTML = `<span>Hạn mức: ${effectiveLimit}</span> ${COIN_ICON_HTML}`;
     }
@@ -1541,7 +1545,7 @@ function onDeductPercentChange(val) {
   const badge = document.getElementById('bank-credit-limit-badge');
   if (badge) {
     if (isNegotiated) {
-      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold ml-1">Ưu đãi</span>`;
+      badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML} <span class="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold ml-1">Ưu đãi</span>`;
     } else {
       badge.innerHTML = `<span>Hạn mức: ${finalLimit}</span> ${COIN_ICON_HTML}`;
     }

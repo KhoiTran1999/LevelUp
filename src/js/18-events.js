@@ -1322,7 +1322,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Global Close Modal on close button (chỉ tắt khi nhấn dấu x)
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const modal = e.target.closest('.fixed');
+      e.stopPropagation();
+      try { btn.blur(); } catch (_) {}
+      const modal = e.target.closest('.fixed') || btn.closest('.fixed');
       if (modal) {
         if (modal.id === 'modal-confirm') {
           closeConfirmDialog(false);
