@@ -755,7 +755,7 @@ function renderAssistantActionCards(suggestedActions) {
             <div class="flex items-center gap-1.5">
               <span class="text-base">${escapeHtml(r.icon || '🎁')}</span>
               <span class="font-bold text-xs text-purple-800 dark:text-purple-200 truncate">${escapeHtml(r.name)}</span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono bg-purple-500/20 text-purple-800 dark:text-purple-300">${r.tier}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-purple-500/20 text-purple-800 dark:text-purple-300">${r.tier}</span>
             </div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               🪙 Giá: ${r.price} Vàng ${r.targetMinutes > 0 ? `• ⏱️ ${r.targetMinutes} phút` : ''}

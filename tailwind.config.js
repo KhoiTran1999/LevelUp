@@ -29,7 +29,21 @@ export default {
           'outline-variant': '#cbd5e1'
         }
       },
+      screens: {
+        xs: '380px',
+      },
+      spacing: {
+        '0.2': '1px',
+      },
+      scale: {
+        '98': '0.98',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
       boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'md-1': '0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
         'md-2': '0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
         'md-3': '0px 1px 3px 0px rgba(0, 0, 0, 0.30), 0px 4px 8px 3px rgba(0, 0, 0, 0.15)',
@@ -37,6 +51,7 @@ export default {
         'md-5': '0px 4px 4px 0px rgba(0, 0, 0, 0.30), 0px 8px 12px 6px rgba(0, 0, 0, 0.15)',
       },
       borderRadius: {
+        'xs': '4px',
         'md-xs': '4px',
         'md-sm': '8px',
         'md-md': '12px',

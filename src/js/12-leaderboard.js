@@ -87,8 +87,8 @@ function renderLeaderboardPodium(list) {
   if (top1) {
     html += `
       <div class="order-2 flex flex-col items-center text-center p-2.5 sm:p-5 rounded-2xl rpg-panel leaderboard-podium-card podium-rank-1 relative -mt-2 sm:-mt-4">
-        <div class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-yellow-300 flex items-center gap-1 whitespace-nowrap">
-          <span class="crown-float text-xs sm:text-sm">👑</span><span>#1 QUÁN QUÂN</span>
+        <div class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-2 xs:px-2.5 py-0.5 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-black bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-yellow-300 flex items-center gap-0.5 xs:gap-1 whitespace-nowrap">
+          <span class="crown-float text-[11px] xs:text-xs sm:text-sm">👑</span><span>#1 QUÁN QUÂN</span>
         </div>
         <div class="mt-2.5 sm:mt-3 mb-1 sm:mb-1.5">
           ${getPodiumAvatar(top1, 'w-11 h-11 sm:w-15 sm:h-15', 'ring-2 sm:ring-4 ring-yellow-400/80 shadow-md')}

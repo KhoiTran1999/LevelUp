@@ -1045,14 +1045,31 @@ html.dark .quest-dropdown-menu {
   50% { transform: scale(1.08); filter: drop-shadow(0 0 8px #fbbf24); }
 }
 
-/* Modal animation - Material Design 3 Emphasized Decelerate Curve */
+/* Modal animation - Apple Fluid Sheet Presentation Curve */
 .modal-fade {
-  animation: modalFadeIn 0.28s cubic-bezier(0.05, 0.7, 0.1, 1.0) forwards;
+  animation: modalFadeIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
   will-change: transform, opacity;
 }
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.92) translateY(14px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.94) translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: scale(1) translate3d(0, 0, 0); }
+}
+
+/* Modal backdrop fade-in for smooth overlay appearance */
+.fixed[id^="modal-"]:not(.hidden):not(#modal-ai-assistant) {
+  animation: iosBackdropFadeIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+@keyframes iosBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
 }
 
 /* Chat Message Entrance */
@@ -1257,54 +1274,52 @@ html.dark .tour-arrow-indicator {
   }
 }
 
-/* Smooth Tab Pane Scene Transition (Fluid, high-definition & refined depth) */
+/* Smooth Tab Pane Scene Transition (Apple Fluid Deceleration - No GPU Raster Blur) */
 .tab-pane:not(.hidden) {
-  animation: tabPaneFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: opacity, transform, filter;
+  animation: tabPaneFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: opacity, transform;
 }
 
 #subtab-pane-shop:not(.hidden) {
-  animation: subtabSlideLeft 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: subtabSlideLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform;
 }
 
 #subtab-pane-inventory:not(.hidden) {
-  animation: subtabSlideRight 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: subtabSlideRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes tabPaneFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.992);
-    filter: blur(1.5px);
+    transform: translate3d(0, 6px, 0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes subtabSlideLeft {
   0% {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translate3d(-8px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes subtabSlideRight {
   0% {
     opacity: 0;
-    transform: translateX(10px);
+    transform: translate3d(8px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -2808,29 +2823,33 @@ html.dark #toast-container > div {
   height: 18px;
 }
 
+#toast-container > div {
+  animation: m3ToastEnter 0.32s cubic-bezier(0.34, 1.35, 0.64, 1) forwards !important;
+}
+
 #toast-container > div.toast-exit {
-  animation: m3ToastExit 0.25s cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+  animation: m3ToastExit 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
 }
 
 @keyframes m3ToastEnter {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
+    transform: translate3d(0, -24px, 0) scale(0.92);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes m3ToastExit {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateY(-16px) scale(0.96);
+    transform: translate3d(0, -16px, 0) scale(0.95);
   }
 }
 
@@ -2852,8 +2871,8 @@ html.dark #active-focus-banner {
   border: none !important;
   border-radius: var(--md-shape-lg) !important;
   box-shadow: var(--md-elevation-1) !important;
-  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1),
-              box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+  transition: transform 0.24s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.24s cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
 .proof-photo-card:hover {
   transform: translateY(-2px);
@@ -2861,7 +2880,7 @@ html.dark #active-focus-banner {
   border: none !important;
 }
 
-/* 12. Material 3 Interactive Tactile Feedback & Card Ripples */
+/* 12. Apple-Style Fluid Tactile Feedback & Card Springs */
 .rpg-card .md-ripple,
 .quest-card-compact .md-ripple,
 .proof-photo-card .md-ripple {
@@ -2869,10 +2888,28 @@ html.dark #active-focus-banner {
   opacity: 0.12;
 }
 
+.quest-card-compact,
+.proof-photo-card,
+.rpg-card {
+  transition: transform 0.24s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.24s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  will-change: transform;
+}
+
 .quest-card-compact:active,
-.proof-photo-card:active {
-  transform: scale(0.985) translateY(0) !important;
-  transition-duration: 0.1s !important;
+.proof-photo-card:active,
+.rpg-card:active {
+  transform: scale(0.975) translate3d(0, 0, 0) !important;
+  transition-duration: 0.12s !important;
+}
+
+.nav-tab:active,
+.mobile-nav-btn:active,
+.nav-more-toggle:active,
+.mobile-more-btn:active,
+.reward-subtab:active {
+  transform: scale(0.955) translate3d(0, 0, 0) !important;
+  transition-duration: 0.12s !important;
 }
 
 /* 13. Material 3 Icon Bounce Micro-animation */
@@ -2964,8 +3001,142 @@ html.dark #active-focus-banner {
   font-variant-numeric: tabular-nums !important;
 }
 
+/* 18. AI Assistant Typographic & Input Layout Polish */
+.assistant-input-area {
+  padding-bottom: max(1.75rem, calc(env(safe-area-inset-bottom) + 1rem));
+}
 
+.assistant-markdown p {
+  margin-bottom: 0.5rem;
+}
+.assistant-markdown p:last-child {
+  margin-bottom: 0;
+}
+.assistant-markdown strong {
+  font-weight: 700;
+  color: inherit;
+}
+.assistant-markdown ul,
+.assistant-markdown ol {
+  margin: 0.35rem 0;
+  padding-left: 0.25rem;
+}
+.assistant-markdown blockquote {
+  border-left: 3px solid var(--md-sys-color-primary, #4f46e5);
+  padding-left: 0.75rem;
+  font-style: italic;
+  opacity: 0.9;
+}
 
+/* 19. Custom Slim Scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent !important;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+  display: block !important;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4) !important;
+  border-radius: 9999px !important;
+}
 
+/* 20. iOS Celebration Spring Pop Micro-Animation */
+.ios-celebrate-pop {
+  animation: iosCelebrationPop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
 
+@keyframes iosCelebrationPop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 
+/* 21. Mobile & iPad Safe Area & Responsive Layout Safeguards */
+@media (max-width: 767px) {
+  /* Prevent page content from being clipped by the mobile bottom nav on iPhones with home indicator */
+  body {
+    padding-bottom: max(6.5rem, calc(5.5rem + env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  /* Ensure Wizard AI FAB floats above the mobile nav bar on all notch/home-indicator iPhones */
+  aside[aria-label="Phù Thủy AI LevelUp"] {
+    bottom: max(5.25rem, calc(4.75rem + env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  /* Prevent iOS Safari from automatically zooming into inputs on focus */
+  .rpg-input,
+  input.rpg-input,
+  textarea.rpg-input,
+  select.rpg-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="search"] {
+    font-size: 16px !important;
+  }
+}
+
+/* Eliminate 300ms tap delay on mobile and touch devices */
+button,
+a,
+.rpg-card,
+.quest-card-compact,
+.proof-photo-card,
+.nav-tab,
+.mobile-nav-btn {
+  touch-action: manipulation;
+}
+
+/* Dynamic Viewport Height (dvh) for modal dialogs on iOS & iPadOS */
+@supports (height: 100dvh) {
+  .modal-fade {
+    max-height: 92dvh !important;
+  }
+}
+
+/* Extra-small screens (< 360px: iPhone SE 1st gen, narrow viewports) */
+@media (max-width: 359px) {
+  .week-day-circle {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+    font-size: 0.75rem !important;
+  }
+  .week-calendar-strip {
+    padding: 0.5rem 0.25rem !important;
+    gap: 0.125rem !important;
+  }
+}
+
+/* 22. Reduce Motion Accessibility Support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .modal-fade,
+  .tab-pane:not(.hidden),
+  #toast-container > div,
+  .ios-celebrate-pop {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

@@ -7096,8 +7096,8 @@ function renderLeaderboardPodium(list) {
   if (top1) {
     html += `
       <div class="order-2 flex flex-col items-center text-center p-2.5 sm:p-5 rounded-2xl rpg-panel leaderboard-podium-card podium-rank-1 relative -mt-2 sm:-mt-4">
-        <div class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-yellow-300 flex items-center gap-1 whitespace-nowrap">
-          <span class="crown-float text-xs sm:text-sm">👑</span><span>#1 QUÁN QUÂN</span>
+        <div class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-2 xs:px-2.5 py-0.5 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-black bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-yellow-300 flex items-center gap-0.5 xs:gap-1 whitespace-nowrap">
+          <span class="crown-float text-[11px] xs:text-xs sm:text-sm">👑</span><span>#1 QUÁN QUÂN</span>
         </div>
         <div class="mt-2.5 sm:mt-3 mb-1 sm:mb-1.5">
           ${getPodiumAvatar(top1, 'w-11 h-11 sm:w-15 sm:h-15', 'ring-2 sm:ring-4 ring-yellow-400/80 shadow-md')}
@@ -9976,7 +9976,7 @@ function renderProofPhotos() {
             </svg>
           </div>
           <img src="${safeUrl}" alt="${safeTitle}" class="proof-img-loading w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onload="this.classList.remove('proof-img-loading'); this.classList.add('proof-img-loaded'); const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) { sk.style.opacity = '0'; setTimeout(() => { sk.style.display = 'none'; }, 300); }" onerror="const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) sk.style.display = 'none'; this.classList.remove('proof-img-loading');">
-          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1 z-20">
+          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-sm flex items-center gap-1 z-20">
             <span>+${item.rewardCoins || 10}</span> ${COIN_ICON_HTML}
           </div>
           <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px] z-20">
@@ -16716,7 +16716,7 @@ function renderAssistantActionCards(suggestedActions) {
             <div class="flex items-center gap-1.5">
               <span class="text-base">${escapeHtml(r.icon || '🎁')}</span>
               <span class="font-bold text-xs text-purple-800 dark:text-purple-200 truncate">${escapeHtml(r.name)}</span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono bg-purple-500/20 text-purple-800 dark:text-purple-300">${r.tier}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-purple-500/20 text-purple-800 dark:text-purple-300">${r.tier}</span>
             </div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               🪙 Giá: ${r.price} Vàng ${r.targetMinutes > 0 ? `• ⏱️ ${r.targetMinutes} phút` : ''}

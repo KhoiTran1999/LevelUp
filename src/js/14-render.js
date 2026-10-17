@@ -1677,7 +1677,7 @@ function renderProofPhotos() {
             </svg>
           </div>
           <img src="${safeUrl}" alt="${safeTitle}" class="proof-img-loading w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onload="this.classList.remove('proof-img-loading'); this.classList.add('proof-img-loaded'); const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) { sk.style.opacity = '0'; setTimeout(() => { sk.style.display = 'none'; }, 300); }" onerror="const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) sk.style.display = 'none'; this.classList.remove('proof-img-loading');">
-          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1 z-20">
+          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-sm flex items-center gap-1 z-20">
             <span>+${item.rewardCoins || 10}</span> ${COIN_ICON_HTML}
           </div>
           <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px] z-20">
