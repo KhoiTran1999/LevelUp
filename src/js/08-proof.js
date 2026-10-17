@@ -329,6 +329,7 @@ function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback
   if (!modal) return;
 
   const imgEl = document.getElementById('proof-viewer-img');
+  const skeletonEl = document.getElementById('proof-viewer-skeleton');
   const titleEl = document.getElementById('proof-viewer-title');
   const subtitleEl = document.getElementById('proof-viewer-subtitle');
   const downloadLink = document.getElementById('proof-viewer-download');
@@ -339,6 +340,28 @@ function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback
   const feedbackText = document.getElementById('proof-viewer-feedback-text');
 
   if (imgEl) {
+    if (skeletonEl) {
+      skeletonEl.style.display = 'flex';
+      skeletonEl.style.opacity = '1';
+    }
+    imgEl.classList.remove('proof-img-loaded');
+    imgEl.classList.add('proof-img-loading');
+
+    imgEl.onload = () => {
+      imgEl.classList.remove('proof-img-loading');
+      imgEl.classList.add('proof-img-loaded');
+      if (skeletonEl) {
+        skeletonEl.style.opacity = '0';
+        setTimeout(() => {
+          skeletonEl.style.display = 'none';
+        }, 300);
+      }
+    };
+    imgEl.onerror = () => {
+      if (skeletonEl) skeletonEl.style.display = 'none';
+      imgEl.classList.remove('proof-img-loading');
+      imgEl.classList.add('proof-img-loaded');
+    };
     imgEl.src = imageUrl;
   }
   if (titleEl) {

@@ -1,6 +1,18 @@
 // =============================================================================
 // 2. DEFAULT STATE & SEED DATA
 // =============================================================================
+function getSystemTheme() {
+  if (typeof window !== 'undefined' && window.matchMedia && typeof window.matchMedia === 'function') {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (e) {}
+  }
+  return 'light';
+}
+if (typeof window !== 'undefined') {
+  window.getSystemTheme = getSystemTheme;
+}
+
 const DEFAULT_STATE = {
   profile: {
     nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
@@ -16,7 +28,9 @@ const DEFAULT_STATE = {
     lastStreakDate: '',
     streakHistory: [],
     soundEnabled: true,
-    theme: 'dark',
+    theme: (typeof localStorage !== 'undefined' && localStorage.getItem('levelup_theme'))
+      ? localStorage.getItem('levelup_theme')
+      : getSystemTheme(),
     role: 'adventurer',
     token: '',
     googleId: '',

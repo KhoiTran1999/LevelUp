@@ -391,6 +391,11 @@ async function initStartupFlow() {
   clearLegacyLocalStorage();
   clearLocalCache();
 
+  try {
+    const savedPalette = localStorage.getItem('levelup_theme_palette') || 'm3-baseline';
+    if (typeof applyPalette === 'function') applyPalette(savedPalette);
+  } catch (e) {}
+
   // ponytail: Sử dụng skeleton loading khi chờ dữ liệu từ Redis thay vì load default data gây chớp nháy (Anti-FOUC)
   renderSkeletons();
 
@@ -421,7 +426,12 @@ async function initStartupFlow() {
         const balance = deriveLegitimateBalance(appState);
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
-        applyTheme(appState.profile.theme || 'dark');
+        const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+        if (savedTheme) {
+          appState.profile.theme = savedTheme;
+        }
+        const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+        applyTheme(resolvedTheme, false);
         saveLocalCache();
         closeModal('modal-welcome');
         renderAll();
@@ -439,7 +449,9 @@ async function initStartupFlow() {
     } else if (res.status === 401) {
       clearLocalCache();
       appState = { ...DEFAULT_STATE };
-      applyTheme(appState.profile.theme || 'dark');
+      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+      applyTheme(resolvedTheme, false);
       renderAll();
       openModal('modal-welcome');
       renderGoogleSignInButton();
@@ -449,7 +461,9 @@ async function initStartupFlow() {
     console.warn('Startup sync check failed:', err.message);
   }
 
-  applyTheme(appState.profile.theme || 'dark');
+  const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+  const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+  applyTheme(resolvedTheme, false);
   renderAll();
   openModal('modal-welcome');
   renderGoogleSignInButton();

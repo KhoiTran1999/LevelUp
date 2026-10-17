@@ -107,50 +107,70 @@ function showToast(message, type = 'info', action = null) {
 
   const toast = document.createElement('div');
   const colors = {
-    success: 'bg-emerald-900/90 text-emerald-100 border-emerald-500/50 dark:bg-emerald-950/90 dark:text-emerald-200',
-    gold: 'bg-amber-900/90 text-amber-100 border-amber-500/60 dark:bg-amber-950/90 dark:text-amber-200',
-    error: 'bg-rose-900/90 text-rose-100 border-rose-500/50 dark:bg-rose-950/90 dark:text-rose-200',
-    info: 'bg-slate-900/95 text-slate-100 border-slate-700 dark:bg-slate-900/95 dark:text-slate-200'
+    success: 'bg-white/95 text-slate-800 border-emerald-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-emerald-500/40',
+    gold: 'bg-white/95 text-slate-800 border-amber-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-amber-500/40',
+    error: 'bg-white/95 text-slate-800 border-rose-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-rose-500/40',
+    info: 'bg-white/95 text-slate-800 border-slate-200/90 dark:bg-slate-900/95 dark:text-slate-100 dark:border-slate-700/60'
   };
 
   const icons = {
-    success: '✅',
-    gold: COIN_ICON_HTML,
-    error: '❌',
-    info: '📜'
+    success: '<div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">check_circle</span></div>',
+    gold: `<div class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-sm text-base leading-none">${COIN_ICON_HTML}</div>`,
+    error: '<div class="w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">error</span></div>',
+    info: '<div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">notifications</span></div>'
   };
 
-  toast.className = `p-3 rounded-xl border shadow-xl flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+  toast.className = `p-3 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs backdrop-blur-md pointer-events-auto transition-all duration-300 transform -translate-y-2 opacity-0 border ${colors[type] || colors.info}`;
+
+  let isDismissed = false;
+  const dismiss = () => {
+    if (isDismissed) return;
+    isDismissed = true;
+    toast.classList.add('toast-exit', 'opacity-0', '-translate-y-2');
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+    }, 280);
+  };
 
   const content = document.createElement('div');
-  content.className = 'flex items-center gap-2.5 min-w-0';
-  content.innerHTML = `<span>${icons[type] || '📜'}</span><span class="break-words">${escapeHtml(message)}</span>`;
+  content.className = 'flex items-center gap-2.5 min-w-0 flex-1';
+  content.innerHTML = `${icons[type] || icons.info}<span class="break-words font-medium text-xs sm:text-[13px] leading-snug">${escapeHtml(message)}</span>`;
   toast.appendChild(content);
 
   if (action && typeof action.onClick === 'function') {
     const actionBtn = document.createElement('button');
     actionBtn.type = 'button';
-    actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95 flex items-center gap-1';
-    actionBtn.innerHTML = `<span>↩️</span><span>${escapeHtml(action.label || 'Hoàn tác')}</span>`;
+    actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer';
+    actionBtn.innerHTML = `<span class="material-symbols-outlined text-[15px] leading-none">undo</span><span>${escapeHtml(action.label || 'Hoàn tác')}</span>`;
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      toast.remove();
+      dismiss();
       action.onClick();
     });
     toast.appendChild(actionBtn);
   }
 
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'shrink-0 w-7 h-7 -mr-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition flex items-center justify-center cursor-pointer';
+  closeBtn.setAttribute('aria-label', 'Đóng thông báo');
+  closeBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] leading-none">close</span>';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dismiss();
+  });
+  toast.appendChild(closeBtn);
+
   container.appendChild(toast);
 
   // Trigger anim
   setTimeout(() => {
-    toast.classList.remove('translate-y-2', 'opacity-0');
+    toast.classList.remove('-translate-y-2', 'opacity-0');
   }, 10);
 
   const duration = action ? 6500 : 3500;
   setTimeout(() => {
-    toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.remove(), 300);
+    dismiss();
   }, duration);
 }
 

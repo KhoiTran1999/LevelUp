@@ -1,136 +1,533 @@
 :root {
-  /* Material Design 3 Typography */
+  /* Material Design 3 Typography System */
   --font-main: 'Roboto Flex', 'Roboto', 'Google Sans', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --md-sys-typescale-font-brand: 'Google Sans', 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --md-sys-typescale-font-plain: 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 
-  /* Material Design 3 Palette: Light Mode */
-  --md-sys-color-primary: #d97706; /* RPG Gold / Amber Primary */
+  /* Display (Large screens, Hero numerals & stats) */
+  --md-sys-typescale-display-large-size: 3.5625rem;   /* 57px */
+  --md-sys-typescale-display-large-line-height: 4rem; /* 64px */
+  --md-sys-typescale-display-large-tracking: -0.015em;
+  --md-sys-typescale-display-large-weight: 700;
+
+  --md-sys-typescale-display-medium-size: 2.8125rem;  /* 45px */
+  --md-sys-typescale-display-medium-line-height: 3.25rem; /* 52px */
+  --md-sys-typescale-display-medium-tracking: 0em;
+  --md-sys-typescale-display-medium-weight: 700;
+
+  --md-sys-typescale-display-small-size: 2.25rem;     /* 36px */
+  --md-sys-typescale-display-small-line-height: 2.75rem; /* 44px */
+  --md-sys-typescale-display-small-tracking: 0em;
+  --md-sys-typescale-display-small-weight: 700;
+
+  /* Headline (High-emphasis text & section titles) */
+  --md-sys-typescale-headline-large-size: 2rem;       /* 32px */
+  --md-sys-typescale-headline-large-line-height: 2.5rem; /* 40px */
+  --md-sys-typescale-headline-large-tracking: 0em;
+  --md-sys-typescale-headline-large-weight: 600;
+
+  --md-sys-typescale-headline-medium-size: 1.75rem;   /* 28px */
+  --md-sys-typescale-headline-medium-line-height: 2.25rem; /* 36px */
+  --md-sys-typescale-headline-medium-tracking: 0em;
+  --md-sys-typescale-headline-medium-weight: 600;
+
+  --md-sys-typescale-headline-small-size: 1.5rem;     /* 24px */
+  --md-sys-typescale-headline-small-line-height: 2rem; /* 32px */
+  --md-sys-typescale-headline-small-tracking: 0em;
+  --md-sys-typescale-headline-small-weight: 600;
+
+  /* Title (Dialog titles, Card titles, Medium-emphasis headers) */
+  --md-sys-typescale-title-large-size: 1.375rem;      /* 22px */
+  --md-sys-typescale-title-large-line-height: 1.75rem; /* 28px */
+  --md-sys-typescale-title-large-tracking: 0em;
+  --md-sys-typescale-title-large-weight: 600;
+
+  --md-sys-typescale-title-medium-size: 1rem;         /* 16px */
+  --md-sys-typescale-title-medium-line-height: 1.5rem; /* 24px */
+  --md-sys-typescale-title-medium-tracking: 0.01em;
+  --md-sys-typescale-title-medium-weight: 600;
+
+  --md-sys-typescale-title-small-size: 0.875rem;      /* 14px */
+  --md-sys-typescale-title-small-line-height: 1.25rem; /* 20px */
+  --md-sys-typescale-title-small-tracking: 0.007em;
+  --md-sys-typescale-title-small-weight: 600;
+
+  /* Body (Long passages, descriptions, messages) */
+  --md-sys-typescale-body-large-size: 1rem;           /* 16px */
+  --md-sys-typescale-body-large-line-height: 1.5rem;  /* 24px */
+  --md-sys-typescale-body-large-tracking: 0.03em;
+  --md-sys-typescale-body-large-weight: 400;
+
+  --md-sys-typescale-body-medium-size: 0.875rem;      /* 14px */
+  --md-sys-typescale-body-medium-line-height: 1.25rem; /* 20px */
+  --md-sys-typescale-body-medium-tracking: 0.015em;
+  --md-sys-typescale-body-medium-weight: 400;
+
+  --md-sys-typescale-body-small-size: 0.75rem;        /* 12px */
+  --md-sys-typescale-body-small-line-height: 1rem;    /* 16px */
+  --md-sys-typescale-body-small-tracking: 0.025em;
+  --md-sys-typescale-body-small-weight: 400;
+
+  /* Label (Buttons, Navigation items, Chips, Badges) */
+  --md-sys-typescale-label-large-size: 0.875rem;      /* 14px */
+  --md-sys-typescale-label-large-line-height: 1.25rem; /* 20px */
+  --md-sys-typescale-label-large-tracking: 0.01em;
+  --md-sys-typescale-label-large-weight: 600;
+
+  --md-sys-typescale-label-medium-size: 0.75rem;      /* 12px */
+  --md-sys-typescale-label-medium-line-height: 1rem;  /* 16px */
+  --md-sys-typescale-label-medium-tracking: 0.03em;
+  --md-sys-typescale-label-medium-weight: 600;
+
+  --md-sys-typescale-label-small-size: 0.6875rem;     /* 11px */
+  --md-sys-typescale-label-small-line-height: 1rem;   /* 16px */
+  --md-sys-typescale-label-small-tracking: 0.03em;
+  --md-sys-typescale-label-small-weight: 500;
+
+  /* Revolutionized Modern Palette: Luminous Light Mode */
+  --md-sys-color-primary: #4f46e5;          /* Modern Electric Indigo */
   --md-sys-color-on-primary: #ffffff;
-  --md-sys-color-primary-container: #fef3c7;
-  --md-sys-color-on-primary-container: #78350f;
+  --md-sys-color-primary-container: #eef2ff;/* Soft Airy Indigo Tint */
+  --md-sys-color-on-primary-container: #312e81;
 
-  --md-sys-color-secondary: #475569;
+  --md-sys-color-secondary: #0284c7;        /* Clean Sky Blue Accent */
   --md-sys-color-on-secondary: #ffffff;
-  --md-sys-color-secondary-container: #e2e8f0;
-  --md-sys-color-on-secondary-container: #1e293b;
+  --md-sys-color-secondary-container: #e0f2fe;
+  --md-sys-color-on-secondary-container: #0369a1;
 
-  --md-sys-color-tertiary: #7e22ce; /* Royal Purple for Rewards */
+  --md-sys-color-tertiary: #9333ea;         /* Radiant Violet for Rewards */
   --md-sys-color-on-tertiary: #ffffff;
   --md-sys-color-tertiary-container: #f3e8ff;
   --md-sys-color-on-tertiary-container: #581c87;
 
-  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-error: #ef4444;            /* Modern Bright Crimson */
   --md-sys-color-on-error: #ffffff;
-  --md-sys-color-error-container: #ffdad6;
-  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-error-container: #fee2e2;
+  --md-sys-color-on-error-container: #991b1b;
 
-  /* Material 3 Surface Containers (Light Mode) */
-  --md-sys-color-surface: #f8fafc;
-  --md-sys-color-surface-dim: #edeef2;
+  /* Material 3 Surface Containers (Bright, Luminous Canvas) */
+  --md-sys-color-surface: #f8fafc;          /* High-clarity Slate 50 background */
+  --md-sys-color-surface-dim: #f1f5f9;
   --md-sys-color-surface-bright: #ffffff;
   --md-sys-color-surface-container-lowest: #ffffff;
-  --md-sys-color-surface-container-low: #f1f5f9;
-  --md-sys-color-surface-container: #e8edf3;
-  --md-sys-color-surface-container-high: #e2e8f0;
-  --md-sys-color-surface-container-highest: #cbd5e1;
+  --md-sys-color-surface-container-low: #ffffff;
+  --md-sys-color-surface-container: #f8fafc;
+  --md-sys-color-surface-container-high: #f1f5f9;
+  --md-sys-color-surface-container-highest: #e2e8f0;
 
-  --md-sys-color-on-surface: #0f172a;
+  --md-sys-color-on-surface: #0f172a;        /* Deep crisp slate text */
   --md-sys-color-on-surface-variant: #475569;
-  --md-sys-color-outline: #94a3b8;
-  --md-sys-color-outline-variant: #cbd5e1;
+  --md-sys-color-outline: #cbd5e1;
+  --md-sys-color-outline-variant: #e2e8f0;
 
-  --md-sys-color-inverse-surface: #1e293b;
+  --md-sys-color-inverse-surface: #0f172a;
   --md-sys-color-inverse-on-surface: #f8fafc;
-  --md-sys-color-inverse-primary: #f59e0b;
+  --md-sys-color-inverse-primary: #818cf8;
 
-  /* Material 3 Elevation Shadows */
+  /* Material Design 3 Elevation Tokens (Levels 0 - 5) */
   --md-elevation-0: none;
-  --md-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.14);
-  --md-elevation-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.14);
-  --md-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.09), 0px 1px 3px 0px rgba(0, 0, 0, 0.18);
-  --md-elevation-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.09), 0px 2px 3px 0px rgba(0, 0, 0, 0.18);
-  --md-elevation-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.09), 0px 4px 4px 0px rgba(0, 0, 0, 0.18);
+  --md-elevation-1: 0 1px 3px 1px rgba(15, 23, 42, 0.07), 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --md-elevation-2: 0 2px 6px 2px rgba(15, 23, 42, 0.08), 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --md-elevation-3: 0 4px 12px 3px rgba(15, 23, 42, 0.10), 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+  --md-elevation-4: 0 6px 16px 4px rgba(15, 23, 42, 0.12), 0 2px 4px 0 rgba(15, 23, 42, 0.07);
+  --md-elevation-5: 0 8px 24px 6px rgba(15, 23, 42, 0.14), 0 4px 8px 0 rgba(15, 23, 42, 0.08);
 
-  /* Material 3 Corner Shapes */
-  --md-shape-xs: 4px;
-  --md-shape-sm: 8px;
-  --md-shape-md: 12px;
-  --md-shape-lg: 16px;
-  --md-shape-xl: 28px;
-  --md-shape-full: 9999px;
+  /* Material Design 3 Shape System Tokens (Official Corner Scale) */
+  --md-shape-corner-none: 0px;
+  --md-shape-corner-extra-small: 4px;
+  --md-shape-corner-small: 8px;
+  --md-shape-corner-medium: 12px;
+  --md-shape-corner-large: 16px;
+  --md-shape-corner-extra-large: 28px;
+  --md-shape-corner-full: 9999px;
 
-  /* Legacy & RPG Bridge Tokens */
+  /* Material 3 Corner Shapes (Aliases & Shorthand) */
+  --md-shape-none: var(--md-shape-corner-none);
+  --md-shape-xs: var(--md-shape-corner-extra-small);
+  --md-shape-sm: var(--md-shape-corner-small);
+  --md-shape-md: var(--md-shape-corner-medium);
+  --md-shape-lg: var(--md-shape-corner-large);
+  --md-shape-xl: var(--md-shape-corner-extra-large);
+  --md-shape-full: var(--md-shape-corner-full);
+
+  /* Component Semantic Shape Tokens */
+  --md-shape-dialog: var(--md-shape-corner-extra-large);
+  --md-shape-modal: var(--md-shape-corner-extra-large);
+  --md-shape-card: var(--md-shape-corner-large);
+  --md-shape-button: var(--md-shape-corner-full);
+  --md-shape-input: var(--md-shape-corner-medium);
+  --md-shape-chip: var(--md-shape-corner-small);
+  --md-shape-badge: var(--md-shape-corner-small);
+  --md-shape-snackbar: var(--md-shape-corner-large);
+  --md-shape-menu: var(--md-shape-corner-large);
+  --md-shape-fab: var(--md-shape-corner-large);
+
+  /* ==========================================================================
+     Material Design 3 Spacing System Tokens (8dp Grid with 4dp Half-Steps)
+     ========================================================================== */
+  --md-spacing-0: 0px;
+  --md-spacing-1: 4px;   /* 4dp  - Micro spacing / tight icon margins */
+  --md-spacing-2: 8px;   /* 8dp  - Small spacing / chips & badge gaps */
+  --md-spacing-3: 12px;  /* 12dp - Medium-small / input padding Y */
+  --md-spacing-4: 16px;  /* 16dp - Standard card padding / mobile margins */
+  --md-spacing-5: 20px;  /* 20dp - Intermediate spacing */
+  --md-spacing-6: 24px;  /* 24dp - Dialog padding / desktop screen margins */
+  --md-spacing-7: 28px;  /* 28dp - Large gap */
+  --md-spacing-8: 32px;  /* 32dp - Section padding / large gutter */
+  --md-spacing-10: 40px; /* 40dp - Extra large spacing */
+  --md-spacing-12: 48px; /* 48dp - Minimum accessible touch target */
+  --md-spacing-16: 64px; /* 64dp - Major block spacing */
+  --md-spacing-20: 80px; /* 80dp - Navigation clearance */
+  --md-spacing-24: 96px; /* 96dp - Page bottom clearance for mobile nav */
+
+  /* M3 Spacing Scale Aliases */
+  --md-spacing-none: var(--md-spacing-0);
+  --md-spacing-xs: var(--md-spacing-1);  /* 4px */
+  --md-spacing-sm: var(--md-spacing-2);  /* 8px */
+  --md-spacing-md: var(--md-spacing-4);  /* 16px */
+  --md-spacing-lg: var(--md-spacing-6);  /* 24px */
+  --md-spacing-xl: var(--md-spacing-8);  /* 32px */
+  --md-spacing-2xl: var(--md-spacing-10); /* 40px */
+  --md-spacing-3xl: var(--md-spacing-12); /* 48px */
+  --md-spacing-4xl: var(--md-spacing-16); /* 64px */
+
+  /* Component Semantic Spacing Tokens */
+  --md-spacing-dialog-p: var(--md-spacing-6);          /* 24px dialog inner padding */
+  --md-spacing-dialog-p-sm: var(--md-spacing-4);       /* 16px mobile dialog padding */
+  --md-spacing-dialog-gap: var(--md-spacing-3);        /* 12px modal elements gap */
+  --md-spacing-card-p: var(--md-spacing-4);            /* 16px card standard padding */
+  --md-spacing-card-p-sm: var(--md-spacing-3);         /* 12px compact card padding */
+  --md-spacing-card-gap: var(--md-spacing-4);          /* 16px gap in lists/grids */
+  --md-spacing-input-px: 0.875rem;                     /* 14px input horizontal padding */
+  --md-spacing-input-py: 0.625rem;                     /* 10px input vertical padding */
+  --md-spacing-button-px: var(--md-spacing-6);         /* 24px filled button horizontal padding */
+  --md-spacing-button-py: 10px;                        /* 10px button vertical padding */
+  --md-spacing-button-gap: var(--md-spacing-2);        /* 8px gap between icon & text */
+  --md-spacing-chip-px: var(--md-spacing-3);           /* 12px filter chip horizontal padding */
+  --md-spacing-chip-py: 6px;                           /* 6px filter chip vertical padding */
+  --md-spacing-chip-gap: var(--md-spacing-2);          /* 8px gap between chips */
+  --md-spacing-menu-py: var(--md-spacing-2);           /* 8px dropdown vertical padding */
+  --md-spacing-menu-item-px: var(--md-spacing-4);      /* 16px menu item horizontal padding */
+  --md-spacing-menu-item-py: var(--md-spacing-2);      /* 8px menu item vertical padding */
+  --md-spacing-menu-item-gap: var(--md-spacing-3);     /* 12px menu item icon-label gap */
+  --md-spacing-toast-px: var(--md-spacing-4);          /* 16px toast horizontal padding */
+  --md-spacing-toast-py: var(--md-spacing-3);          /* 12px toast vertical padding */
+  --md-spacing-screen-compact: var(--md-spacing-4);    /* 16px compact mobile screen margin */
+  --md-spacing-screen-expanded: var(--md-spacing-6);   /* 24px expanded desktop screen margin */
+  --md-touch-target-min: var(--md-spacing-12);         /* 48px minimum touch target size */
+
+  /* Material Design 3 Motion Tokens (Standard Easing & Durations) */
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0.0, 0.8, 0.15);
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0.0, 1.0, 1.0);
+
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
+
+  /* Legacy & Bridge Tokens */
   --bg-app: var(--md-sys-color-surface);
   --text-main: var(--md-sys-color-on-surface);
   --text-muted: var(--md-sys-color-on-surface-variant);
-  --panel-bg: rgba(255, 255, 255, 0.95);
+  --panel-bg: rgba(255, 255, 255, 0.98);
   --panel-border: var(--md-sys-color-outline-variant);
   --panel-shadow: var(--md-elevation-1);
   --card-hover-shadow: var(--md-elevation-2);
-  --subpanel-bg: var(--md-sys-color-surface-container-low);
-  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --subpanel-bg: #ffffff;
+  --input-bg: #ffffff;
   --input-border: var(--md-sys-color-outline-variant);
 }
 
 html.dark {
-  /* Material Design 3 Palette: Dark Mode */
-  --md-sys-color-primary: #fbbf24;
-  --md-sys-color-on-primary: #451a03;
-  --md-sys-color-primary-container: #78350f;
-  --md-sys-color-on-primary-container: #fef3c7;
+  /* Revolutionized Modern Palette: High-Contrast Dark Mode */
+  --md-sys-color-primary: #818cf8;          /* Radiant Indigo */
+  --md-sys-color-on-primary: #1e1b4b;
+  --md-sys-color-primary-container: #312e81;
+  --md-sys-color-on-primary-container: #e0e7ff;
 
-  --md-sys-color-secondary: #94a3b8;
-  --md-sys-color-on-secondary: #0f172a;
-  --md-sys-color-secondary-container: #1e293b;
-  --md-sys-color-on-secondary-container: #e2e8f0;
+  --md-sys-color-secondary: #38bdf8;        /* Sky Blue */
+  --md-sys-color-on-secondary: #082f49;
+  --md-sys-color-secondary-container: #0369a1;
+  --md-sys-color-on-secondary-container: #e0f2fe;
 
-  --md-sys-color-tertiary: #c084fc;
+  --md-sys-color-tertiary: #c084fc;         /* Royal Purple */
   --md-sys-color-on-tertiary: #3b0764;
-  --md-sys-color-tertiary-container: #581c87;
+  --md-sys-color-tertiary-container: #6b21a8;
   --md-sys-color-on-tertiary-container: #f3e8ff;
 
-  --md-sys-color-error: #ffb4ab;
-  --md-sys-color-on-error: #690005;
-  --md-sys-color-error-container: #93000a;
-  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-error: #f87171;
+  --md-sys-color-on-error: #450a0a;
+  --md-sys-color-error-container: #991b1b;
+  --md-sys-color-on-error-container: #fee2e2;
 
-  /* Material 3 Surface Containers (Dark Mode) */
+  /* Material 3 Surface Containers (Dark Mode: Deep Navy Obsidian) */
   --md-sys-color-surface: #0b0f19;
-  --md-sys-color-surface-dim: #070a11;
+  --md-sys-color-surface-dim: #070a12;
   --md-sys-color-surface-bright: #1e293b;
-  --md-sys-color-surface-container-lowest: #05080e;
+  --md-sys-color-surface-container-lowest: #060910;
   --md-sys-color-surface-container-low: #0f172a;
-  --md-sys-color-surface-container: #151f33;
-  --md-sys-color-surface-container-high: #1c2942;
-  --md-sys-color-surface-container-highest: #243452;
+  --md-sys-color-surface-container: #131c31;
+  --md-sys-color-surface-container-high: #1c2742;
+  --md-sys-color-surface-container-highest: #263558;
 
-  --md-sys-color-on-surface: #f1f5f9;
+  --md-sys-color-on-surface: #f8fafc;
   --md-sys-color-on-surface-variant: #94a3b8;
-  --md-sys-color-outline: #64748b;
-  --md-sys-color-outline-variant: #334155;
+  --md-sys-color-outline: #475569;
+  --md-sys-color-outline-variant: #1e293b;
 
-  --md-sys-color-inverse-surface: #f1f5f9;
+  --md-sys-color-inverse-surface: #f8fafc;
   --md-sys-color-inverse-on-surface: #0f172a;
-  --md-sys-color-inverse-primary: #d97706;
+  --md-sys-color-inverse-primary: #4f46e5;
 
-  /* Material 3 Elevation Shadows (Dark Mode with refined contrast) */
+  /* Material Design 3 Elevation Tokens (Dark Mode) - Dual ambient + key drop shadow */
   --md-elevation-0: none;
-  --md-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.4), 0px 1px 2px 0px rgba(0, 0, 0, 0.6);
-  --md-elevation-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.4), 0px 1px 2px 0px rgba(0, 0, 0, 0.6);
-  --md-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.45), 0px 1px 3px 0px rgba(0, 0, 0, 0.7);
-  --md-elevation-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.5), 0px 2px 3px 0px rgba(0, 0, 0, 0.75);
-  --md-elevation-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.55), 0px 4px 4px 0px rgba(0, 0, 0, 0.8);
+  --md-elevation-1: 0 1px 3px 1px rgba(0, 0, 0, 0.45), 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --md-elevation-2: 0 2px 6px 2px rgba(0, 0, 0, 0.55), 0 1px 2px 0 rgba(0, 0, 0, 0.40);
+  --md-elevation-3: 0 4px 14px 3px rgba(0, 0, 0, 0.65), 0 1px 3px 0 rgba(0, 0, 0, 0.45);
+  --md-elevation-4: 0 6px 18px 4px rgba(0, 0, 0, 0.75), 0 2px 4px 0 rgba(0, 0, 0, 0.50);
+  --md-elevation-5: 0 8px 28px 6px rgba(0, 0, 0, 0.85), 0 4px 8px 0 rgba(0, 0, 0, 0.60);
 
-  /* Legacy & RPG Bridge Tokens */
   --bg-app: var(--md-sys-color-surface);
   --text-main: var(--md-sys-color-on-surface);
   --text-muted: var(--md-sys-color-on-surface-variant);
-  --panel-bg: rgba(15, 23, 42, 0.92);
+  --panel-bg: rgba(15, 23, 42, 0.95);
   --panel-border: var(--md-sys-color-outline-variant);
   --panel-shadow: var(--md-elevation-1);
   --card-hover-shadow: var(--md-elevation-2);
   --subpanel-bg: var(--md-sys-color-surface-container-low);
   --input-bg: var(--md-sys-color-surface-container-low);
   --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* =============================================================================
+   MATERIAL DESIGN 3 ELEVATION UTILITY CLASSES
+   ============================================================================= */
+.elevation-0, .md-elevation-0 { box-shadow: var(--md-elevation-0) !important; }
+.elevation-1, .md-elevation-1 { box-shadow: var(--md-elevation-1) !important; }
+.elevation-2, .md-elevation-2 { box-shadow: var(--md-elevation-2) !important; }
+.elevation-3, .md-elevation-3 { box-shadow: var(--md-elevation-3) !important; }
+.elevation-4, .md-elevation-4 { box-shadow: var(--md-elevation-4) !important; }
+.elevation-5, .md-elevation-5 { box-shadow: var(--md-elevation-5) !important; }
+
+/* =============================================================================
+   MATERIAL DESIGN 3 ALTERNATIVE COLOR PALETTES (TESTING & PREVIEWS)
+   ============================================================================= */
+
+/* Palette 1: Google Material Design 3 Baseline (Official Purple Dynamic Tone) */
+html[data-palette="m3-baseline"] {
+  --md-sys-color-primary: #6750a4;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #eaddff;
+  --md-sys-color-on-primary-container: #21005d;
+
+  --md-sys-color-secondary: #625b71;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e8def8;
+  --md-sys-color-on-secondary-container: #1d192b;
+
+  --md-sys-color-tertiary: #7d5260;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd8e4;
+  --md-sys-color-on-tertiary-container: #31111d;
+
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+
+  --md-sys-color-surface: #fef7ff;
+  --md-sys-color-surface-dim: #ded8e1;
+  --md-sys-color-surface-bright: #fef7ff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f7f2fa;
+  --md-sys-color-surface-container: #f3edf7;
+  --md-sys-color-surface-container-high: #ece6f0;
+  --md-sys-color-surface-container-highest: #e6e0e9;
+
+  --md-sys-color-on-surface: #1d1b20;
+  --md-sys-color-on-surface-variant: #49454f;
+  --md-sys-color-outline: #79747e;
+  --md-sys-color-outline-variant: #cac4d0;
+
+  --panel-bg: rgba(254, 247, 255, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="m3-baseline"] {
+  --md-sys-color-primary: #d0bcff;
+  --md-sys-color-on-primary: #381e72;
+  --md-sys-color-primary-container: #4f378b;
+  --md-sys-color-on-primary-container: #eaddff;
+
+  --md-sys-color-secondary: #ccc2dc;
+  --md-sys-color-on-secondary: #332d41;
+  --md-sys-color-secondary-container: #4a4458;
+  --md-sys-color-on-secondary-container: #e8def8;
+
+  --md-sys-color-tertiary: #efb8c8;
+  --md-sys-color-on-tertiary: #492532;
+  --md-sys-color-tertiary-container: #633b48;
+  --md-sys-color-on-tertiary-container: #ffd8e4;
+
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+
+  --md-sys-color-surface: #141218;
+  --md-sys-color-surface-dim: #141218;
+  --md-sys-color-surface-bright: #3b383e;
+  --md-sys-color-surface-container-lowest: #0f0d13;
+  --md-sys-color-surface-container-low: #1d1b20;
+  --md-sys-color-surface-container: #211f26;
+  --md-sys-color-surface-container-high: #2b2930;
+  --md-sys-color-surface-container-highest: #36343b;
+
+  --md-sys-color-on-surface: #e6e0e9;
+  --md-sys-color-on-surface-variant: #cac4d0;
+  --md-sys-color-outline: #938f99;
+  --md-sys-color-outline-variant: #49454f;
+
+  --panel-bg: rgba(27, 25, 32, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Palette 2: Google Material Design 3 Ocean Blue (Workspace / Pixel Blue) */
+html[data-palette="m3-ocean"] {
+  --md-sys-color-primary: #006399;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #c2e7ff;
+  --md-sys-color-on-primary-container: #001d33;
+
+  --md-sys-color-secondary: #51606f;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #d5e4f7;
+  --md-sys-color-on-secondary-container: #0e1d2a;
+
+  --md-sys-color-tertiary: #6b5778;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #f2daff;
+  --md-sys-color-on-tertiary-container: #251432;
+
+  --md-sys-color-surface: #fdfbff;
+  --md-sys-color-surface-dim: #d9dade;
+  --md-sys-color-surface-bright: #fdfbff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f2f5f9;
+  --md-sys-color-surface-container: #eaf1fb;
+  --md-sys-color-surface-container-high: #e2e8f2;
+  --md-sys-color-surface-container-highest: #d9dfe8;
+
+  --md-sys-color-on-surface: #191c1e;
+  --md-sys-color-on-surface-variant: #41484d;
+  --md-sys-color-outline: #71787e;
+  --md-sys-color-outline-variant: #c1c7ce;
+
+  --panel-bg: rgba(253, 251, 255, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="m3-ocean"] {
+  --md-sys-color-primary: #7fcfff;
+  --md-sys-color-on-primary: #003453;
+  --md-sys-color-primary-container: #004b73;
+  --md-sys-color-on-primary-container: #c2e7ff;
+
+  --md-sys-color-secondary: #b8c8da;
+  --md-sys-color-on-secondary: #223240;
+  --md-sys-color-secondary-container: #384857;
+  --md-sys-color-on-secondary-container: #d4e4f7;
+
+  --md-sys-color-tertiary: #d6bee5;
+  --md-sys-color-on-tertiary: #3b2948;
+  --md-sys-color-tertiary-container: #523f5f;
+  --md-sys-color-on-tertiary-container: #f2daff;
+
+  --md-sys-color-surface: #0f1417;
+  --md-sys-color-surface-dim: #0f1417;
+  --md-sys-color-surface-bright: #353a3d;
+  --md-sys-color-surface-container-lowest: #0a0f12;
+  --md-sys-color-surface-container-low: #171d20;
+  --md-sys-color-surface-container: #1b2125;
+  --md-sys-color-surface-container-high: #262c30;
+  --md-sys-color-surface-container-highest: #31373b;
+
+  --md-sys-color-on-surface: #e1e3e5;
+  --md-sys-color-on-surface-variant: #c1c7ce;
+  --md-sys-color-outline: #8b9297;
+  --md-sys-color-outline-variant: #41484d;
+
+  --panel-bg: rgba(23, 29, 32, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Material Design 3 Palette Comprehensive Overrides */
+html[data-palette^="m3-"] .btn-action-quest,
+html[data-palette^="m3-"] .btn-primary,
+html[data-palette^="m3-"] button.bg-amber-500,
+html[data-palette^="m3-"] button.bg-amber-600 {
+  background-color: var(--md-sys-color-primary) !important;
+  color: var(--md-sys-color-on-primary) !important;
+  box-shadow: var(--md-elevation-2) !important;
+}
+
+html[data-palette^="m3-"] .quest-filter.active,
+html[data-palette^="m3-"] .nav-tab.active {
+  background-color: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
+}
+
+html[data-palette^="m3-"] #hero-level-badge,
+html[data-palette^="m3-"] #hero-title,
+html[data-palette^="m3-"] .text-amber-600,
+html[data-palette^="m3-"] .text-amber-500 {
+  color: var(--md-sys-color-primary) !important;
+}
+
+html[data-palette^="m3-"] .border-amber-500,
+html[data-palette^="m3-"] .border-amber-500\/40,
+html[data-palette^="m3-"] .border-amber-500\/50 {
+  border-color: var(--md-sys-color-outline-variant) !important;
+}
+
+html[data-palette^="m3-"] header.sticky.md-scrolled {
+  background-color: var(--md-sys-color-surface) !important;
+}
+
+html[data-palette^="m3-"] #active-focus-banner {
+  background: var(--md-sys-color-surface-container) !important;
+  border-color: var(--md-sys-color-outline-variant) !important;
+}
+
+html[data-palette^="m3-"] .rpg-card:hover {
+  border-color: var(--md-sys-color-primary) !important;
+}
+
+html[data-palette^="m3-"] ::selection {
+  background-color: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
 }
 
 html, body {
@@ -171,80 +568,80 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Glowing Rank Badges (Monochromatic Warm Amber/Gold Gradient) */
+/* Modern High-Clarity Classification Badges */
 .rank-badge-E {
-  background: rgba(245, 158, 11, 0.06);
-  color: #92400e;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  border: 1px solid rgba(148, 163, 184, 0.3);
 }
 html.dark .rank-badge-E {
-  background: rgba(245, 158, 11, 0.08);
-  color: #fde68a;
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .rank-badge-D {
-  background: rgba(245, 158, 11, 0.1);
-  color: #92400e;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 html.dark .rank-badge-D {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fde047;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .rank-badge-C {
-  background: rgba(245, 158, 11, 0.14);
-  color: #92400e;
-  border: 1px solid rgba(245, 158, 11, 0.38);
+  background: rgba(2, 132, 199, 0.12);
+  color: #0369a1;
+  border: 1px solid rgba(2, 132, 199, 0.3);
 }
 html.dark .rank-badge-C {
-  background: rgba(245, 158, 11, 0.16);
-  color: #facc15;
-  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(2, 132, 199, 0.16);
+  color: #7dd3fc;
+  border: 1px solid rgba(2, 132, 199, 0.4);
 }
 
 .rank-badge-B {
-  background: rgba(245, 158, 11, 0.18);
-  color: #854d0e;
-  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(79, 70, 229, 0.12);
+  color: #4338ca;
+  border: 1px solid rgba(79, 70, 229, 0.3);
 }
 html.dark .rank-badge-B {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-  border: 1px solid #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border: 1px solid #6366f1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
 }
 
 .rank-badge-A {
-  background: rgba(245, 158, 11, 0.24);
-  color: #78350f;
-  border: 1px solid #d97706;
+  background: rgba(147, 51, 234, 0.14);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.35);
 }
 html.dark .rank-badge-A {
-  background: rgba(245, 158, 11, 0.26);
-  color: #f59e0b;
-  border: 1px solid #f59e0b;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+  background: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+  border: 1px solid #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
 }
 
 .rank-badge-S {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.35));
-  color: #78350f;
-  border: 1px solid #b45309;
-  box-shadow: 0 0 14px rgba(217, 119, 6, 0.35);
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(99, 102, 241, 0.18));
+  color: #be185d;
+  border: 1px solid #ec4899;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.25);
 }
 html.dark .rank-badge-S {
-  color: #fef08a;
-  border: 1px solid #facc15;
-  box-shadow: 0 0 16px rgba(234, 179, 8, 0.5);
-  animation: pulseGold 2s infinite ease-in-out;
+  color: #fbcfe8;
+  border: 1px solid #f472b6;
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
+  animation: pulseModern 2s infinite ease-in-out;
 }
 
-@keyframes pulseGold {
-  0%, 100% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.6); }
+@keyframes pulseModern {
+  0%, 100% { box-shadow: 0 0 10px rgba(236, 72, 153, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.6); }
 }
 
 /* Responsive Glass Panel */
@@ -258,21 +655,22 @@ html.dark .rank-badge-S {
 }
 
 .rpg-panel-gold {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--panel-bg) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.12);
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.05) 0%, var(--panel-bg) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.08);
 }
 
 /* Card hover & stacking context */
 .rpg-card {
   position: relative;
   z-index: 1;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  border: none !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 .rpg-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--card-hover-shadow);
-  border-color: rgba(245, 158, 11, 0.5);
+  border: none !important;
 }
 
 /* Nâng tầng hiển thị thẻ khi mở menu thao tác để không bị các thẻ kế tiếp đè lên */
@@ -282,173 +680,186 @@ html.dark .rank-badge-S {
 }
 
 /* ==========================================================================
-   RPG Card Classification Tiers (Quests & Rewards - Distinct Dual Identities)
-   Monochromatic Warm Amber for Quests, Monochromatic Royal Purple for Rewards
+   Modern Card Classification Tiers (Quests & Rewards - Minimalist & Refined)
    ========================================================================== */
 
-/* --- A. QUEST CARDS (Minimalist Clean Surface - No Muddy Gradients) --- */
+/* --- A. QUEST CARDS (Minimalist Clean Surface - No Cluttered Top Borders) --- */
 
 /* 1. Common / Rank E */
 .quest-card-rank-E {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #fef3c7;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-E {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid rgba(254, 243, 199, 0.35);
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-E:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 2. Rank D */
 .quest-card-rank-D {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #fde68a;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-D {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #fde68a;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-D:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 3. Rank C */
 .quest-card-rank-C {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #fcd34d;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-C {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #fcd34d;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-C:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 4. Rank B */
 .quest-card-rank-B {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #fbbf24;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-B {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #fbbf24;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-B:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 5. Rank A */
 .quest-card-rank-A {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #f59e0b;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-A {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #f59e0b;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-A:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 6. Rank S */
 .quest-card-rank-S {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #d97706;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .quest-card-rank-S {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #f59e0b;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .quest-card-rank-S:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
-/* --- B. REWARD CARDS (Minimalist Clean Surface - No Muddy Purple Gradients) --- */
+/* Palette Override for Quests: RPG Legacy (Hoài niệm) */
+html[data-palette="guild"] .quest-card-rank-E { border-top: 2px solid #fef3c7; }
+html[data-palette="guild"] .quest-card-rank-D { border-top: 2px solid #fde68a; }
+html[data-palette="guild"] .quest-card-rank-C { border-top: 2px solid #fcd34d; }
+html[data-palette="guild"] .quest-card-rank-B { border-top: 2px solid #fbbf24; }
+html[data-palette="guild"] .quest-card-rank-A { border-top: 2px solid #f59e0b; }
+html[data-palette="guild"] .quest-card-rank-S { border-top: 2px solid #d97706; }
+
+/* --- B. REWARD CARDS (Minimalist Clean Surface - No Cluttered Top Borders) --- */
 
 /* 1. Common / Phổ thông */
 .reward-card-tier-common {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #e9d5ff;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .reward-card-tier-common {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid rgba(233, 213, 255, 0.35);
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .reward-card-tier-common:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 2. Rare / Cao cấp */
 .reward-card-tier-rare {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #c084fc;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .reward-card-tier-rare {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #c084fc;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .reward-card-tier-rare:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 3. Epic / Quý giá */
 .reward-card-tier-epic {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #9333ea;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .reward-card-tier-epic {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #a855f7;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .reward-card-tier-epic:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.05);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 /* 4. Legendary / Cực phẩm */
 .reward-card-tier-legendary {
-  border: 1px solid #e2e8f0;
-  border-top: 2px solid #7e22ce;
+  border: none !important;
   background: #ffffff;
+  box-shadow: var(--md-elevation-1);
 }
 html.dark .reward-card-tier-legendary {
-  border: 1px solid rgba(51, 65, 85, 0.45);
-  border-top: 2px solid #9333ea;
+  border: none !important;
   background: #0f172a;
+  box-shadow: var(--md-elevation-1);
 }
 .reward-card-tier-legendary:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+  border: none !important;
+  box-shadow: var(--md-elevation-2);
 }
+
+/* Palette Override for Rewards: RPG Legacy (Hoài niệm) */
+html[data-palette="guild"] .reward-card-tier-common { border-top: 2px solid #e9d5ff; }
+html[data-palette="guild"] .reward-card-tier-rare { border-top: 2px solid #c084fc; }
+html[data-palette="guild"] .reward-card-tier-epic { border-top: 2px solid #9333ea; }
+html[data-palette="guild"] .reward-card-tier-legendary { border-top: 2px solid #7e22ce; }
 
 /* --- Card Action Dropdown & Inline Expand Controls --- */
 .quest-dropdown-menu {
@@ -467,7 +878,7 @@ html.dark .reward-card-tier-legendary {
   padding: 6px;
   z-index: 50;
   transform-origin: top right;
-  animation: questDropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: questDropdownIn 0.22s cubic-bezier(0.05, 0.7, 0.1, 1.0);
 }
 
 html.dark .quest-dropdown-menu {
@@ -478,7 +889,7 @@ html.dark .quest-dropdown-menu {
 @keyframes questDropdownIn {
   from {
     opacity: 0;
-    transform: scale(0.92) translateY(-4px);
+    transform: scale(0.88) translateY(-6px);
   }
   to {
     opacity: 1;
@@ -634,12 +1045,13 @@ html.dark .quest-dropdown-menu {
   50% { transform: scale(1.08); filter: drop-shadow(0 0 8px #fbbf24); }
 }
 
-/* Modal animation */
+/* Modal animation - Material Design 3 Emphasized Decelerate Curve */
 .modal-fade {
-  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: modalFadeIn 0.28s cubic-bezier(0.05, 0.7, 0.1, 1.0) forwards;
+  will-change: transform, opacity;
 }
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  from { opacity: 0; transform: scale(0.92) translateY(14px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -1506,6 +1918,31 @@ html.dark .assistant-watermark-wizard {
 }
 
 /* ==========================================================================
+   Proof Photo Skeleton Loading
+   ========================================================================== */
+
+.proof-skeleton {
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.6) 25%, rgba(241, 245, 249, 0.95) 50%, rgba(226, 232, 240, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
+html.dark .proof-skeleton,
+.dark .proof-skeleton {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.7) 25%, rgba(51, 65, 85, 0.95) 50%, rgba(30, 41, 59, 0.7) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
+
+.proof-img-loading {
+  opacity: 0;
+  transition: opacity 0.35s ease-in-out;
+}
+
+.proof-img-loaded {
+  opacity: 1 !important;
+}
+
+/* ==========================================================================
    Streamlined Habit & Quest Cards (Preserving LevelUp RPG Original Colors)
    ========================================================================== */
 
@@ -1780,31 +2217,125 @@ html.dark .week-day-circle {
    MATERIAL DESIGN 3 (M3) COMPLETE SYSTEM IMPLEMENTATION
    ============================================================================= */
 
-/* 1. Material Typography & Symbol Utilities */
-.font-md-display {
-  font-family: var(--font-main);
-  font-weight: 700;
-  letter-spacing: -0.025em;
+/* 1. Material Typography (Official M3 15-Typescale Styles & Symbol Utilities) */
+/* Display Styles */
+.md-typescale-display-large, .font-md-display-lg {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-display-large-size);
+  line-height: var(--md-sys-typescale-display-large-line-height);
+  letter-spacing: var(--md-sys-typescale-display-large-tracking);
+  font-weight: var(--md-sys-typescale-display-large-weight);
 }
-.font-md-headline {
-  font-family: var(--font-main);
-  font-weight: 600;
-  letter-spacing: -0.015em;
+.md-typescale-display-medium, .font-md-display-md {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-display-medium-size);
+  line-height: var(--md-sys-typescale-display-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-display-medium-tracking);
+  font-weight: var(--md-sys-typescale-display-medium-weight);
 }
-.font-md-title {
-  font-family: var(--font-main);
-  font-weight: 600;
-  letter-spacing: 0em;
+.md-typescale-display-small, .font-md-display-sm, .font-md-display {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+  font-weight: var(--md-sys-typescale-display-small-weight);
 }
-.font-md-label {
-  font-family: var(--font-main);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+
+/* Headline Styles */
+.md-typescale-headline-large, .font-md-headline-lg {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-headline-large-size);
+  line-height: var(--md-sys-typescale-headline-large-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+  font-weight: var(--md-sys-typescale-headline-large-weight);
 }
-.font-md-body {
-  font-family: var(--font-main);
-  font-weight: 400;
-  letter-spacing: 0.015em;
+.md-typescale-headline-medium, .font-md-headline-md {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+}
+.md-typescale-headline-small, .font-md-headline-sm, .font-md-headline {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+}
+
+/* Title Styles */
+.md-typescale-title-large, .font-md-title-lg {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+}
+.md-typescale-title-medium, .font-md-title-md, .font-md-title {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+}
+.md-typescale-title-small, .font-md-title-sm {
+  font-family: var(--md-sys-typescale-font-brand);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+}
+
+/* Body Styles */
+.md-typescale-body-large, .font-md-body-lg {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-weight: var(--md-sys-typescale-body-large-weight);
+}
+.md-typescale-body-medium, .font-md-body-md, .font-md-body {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-weight: var(--md-sys-typescale-body-medium-weight);
+}
+.md-typescale-body-small, .font-md-body-sm {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-weight: var(--md-sys-typescale-body-small-weight);
+}
+
+/* Label Styles */
+.md-typescale-label-large, .font-md-label-lg {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+}
+.md-typescale-label-medium, .font-md-label-md, .font-md-label {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+}
+.md-typescale-label-small, .font-md-label-sm {
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-weight: var(--md-sys-typescale-label-small-weight);
+}
+
+/* Numerals & High Precision Alignment */
+.md-typescale-tabular, .font-tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 .material-symbols-outlined {
@@ -1815,13 +2346,31 @@ html.dark .week-day-circle {
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
 }
+
+.material-symbols-outlined.fill,
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Material Design Icon Sizing Helpers */
+.md-icon-16 { font-size: 16px !important; width: 16px; height: 16px; }
+.md-icon-18 { font-size: 18px !important; width: 18px; height: 18px; }
+.md-icon-20 { font-size: 20px !important; width: 20px; height: 20px; }
+.md-icon-24 { font-size: 24px !important; width: 24px; height: 24px; }
+.md-icon-28 { font-size: 28px !important; width: 28px; height: 28px; }
+.md-icon-32 { font-size: 32px !important; width: 32px; height: 32px; }
 
 /* 2. Material Ripple & Tactile State Layers */
 .md-ripple-target {
@@ -1848,17 +2397,106 @@ html.dark .week-day-circle {
   }
 }
 
-/* 3. Material 3 Cards & Surface Elevation Upgrades */
-.rpg-card {
+/* ==========================================================================
+   Material Design 3 Shape Utility Classes (Corner Radii Scale)
+   ========================================================================== */
+.shape-none, .md-shape-none { border-radius: var(--md-shape-corner-none) !important; }
+.shape-xs, .md-shape-xs, .shape-extra-small { border-radius: var(--md-shape-corner-extra-small) !important; }
+.shape-sm, .md-shape-sm, .shape-small { border-radius: var(--md-shape-corner-small) !important; }
+.shape-md, .md-shape-md, .shape-medium { border-radius: var(--md-shape-corner-medium) !important; }
+.shape-lg, .md-shape-lg, .shape-large { border-radius: var(--md-shape-corner-large) !important; }
+.shape-xl, .md-shape-xl, .shape-extra-large { border-radius: var(--md-shape-corner-extra-large) !important; }
+.shape-full, .md-shape-full, .shape-pill { border-radius: var(--md-shape-corner-full) !important; }
+
+/* Asymmetric corner shape utilities */
+.shape-top-xl {
+  border-top-left-radius: var(--md-shape-corner-extra-large) !important;
+  border-top-right-radius: var(--md-shape-corner-extra-large) !important;
+}
+.shape-bottom-xl {
+  border-bottom-left-radius: var(--md-shape-corner-extra-large) !important;
+  border-bottom-right-radius: var(--md-shape-corner-extra-large) !important;
+}
+.shape-top-lg {
+  border-top-left-radius: var(--md-shape-corner-large) !important;
+  border-top-right-radius: var(--md-shape-corner-large) !important;
+}
+.shape-bottom-lg {
+  border-bottom-left-radius: var(--md-shape-corner-large) !important;
+  border-bottom-right-radius: var(--md-shape-corner-large) !important;
+}
+
+/* ==========================================================================
+   Material Design 3 Spacing Utility Classes (8dp / 4dp System)
+   ========================================================================== */
+/* Padding Utilities */
+.p-m3-none { padding: var(--md-spacing-0) !important; }
+.p-m3-xs   { padding: var(--md-spacing-1) !important; } /* 4px */
+.p-m3-sm   { padding: var(--md-spacing-2) !important; } /* 8px */
+.p-m3-md   { padding: var(--md-spacing-4) !important; } /* 16px */
+.p-m3-lg   { padding: var(--md-spacing-6) !important; } /* 24px */
+.p-m3-xl   { padding: var(--md-spacing-8) !important; } /* 32px */
+
+.px-m3-none { padding-left: var(--md-spacing-0) !important; padding-right: var(--md-spacing-0) !important; }
+.px-m3-xs   { padding-left: var(--md-spacing-1) !important; padding-right: var(--md-spacing-1) !important; }
+.px-m3-sm   { padding-left: var(--md-spacing-2) !important; padding-right: var(--md-spacing-2) !important; }
+.px-m3-md   { padding-left: var(--md-spacing-4) !important; padding-right: var(--md-spacing-4) !important; }
+.px-m3-lg   { padding-left: var(--md-spacing-6) !important; padding-right: var(--md-spacing-6) !important; }
+.px-m3-xl   { padding-left: var(--md-spacing-8) !important; padding-right: var(--md-spacing-8) !important; }
+
+.py-m3-none { padding-top: var(--md-spacing-0) !important; padding-bottom: var(--md-spacing-0) !important; }
+.py-m3-xs   { padding-top: var(--md-spacing-1) !important; padding-bottom: var(--md-spacing-1) !important; }
+.py-m3-sm   { padding-top: var(--md-spacing-2) !important; padding-bottom: var(--md-spacing-2) !important; }
+.py-m3-md   { padding-top: var(--md-spacing-4) !important; padding-bottom: var(--md-spacing-4) !important; }
+.py-m3-lg   { padding-top: var(--md-spacing-6) !important; padding-bottom: var(--md-spacing-6) !important; }
+.py-m3-xl   { padding-top: var(--md-spacing-8) !important; padding-bottom: var(--md-spacing-8) !important; }
+
+/* Gap Utilities */
+.gap-m3-none { gap: var(--md-spacing-0) !important; }
+.gap-m3-xs   { gap: var(--md-spacing-1) !important; } /* 4px */
+.gap-m3-sm   { gap: var(--md-spacing-2) !important; } /* 8px */
+.gap-m3-md   { gap: var(--md-spacing-4) !important; } /* 16px */
+.gap-m3-lg   { gap: var(--md-spacing-6) !important; } /* 24px */
+.gap-m3-xl   { gap: var(--md-spacing-8) !important; } /* 32px */
+
+/* Margin Utilities */
+.m-m3-none { margin: var(--md-spacing-0) !important; }
+.m-m3-xs   { margin: var(--md-spacing-1) !important; }
+.m-m3-sm   { margin: var(--md-spacing-2) !important; }
+.m-m3-md   { margin: var(--md-spacing-4) !important; }
+.m-m3-lg   { margin: var(--md-spacing-6) !important; }
+.m-m3-xl   { margin: var(--md-spacing-8) !important; }
+
+.mb-m3-xs { margin-bottom: var(--md-spacing-1) !important; }
+.mb-m3-sm { margin-bottom: var(--md-spacing-2) !important; }
+.mb-m3-md { margin-bottom: var(--md-spacing-4) !important; }
+.mb-m3-lg { margin-bottom: var(--md-spacing-6) !important; }
+.mb-m3-xl { margin-bottom: var(--md-spacing-8) !important; }
+
+/* Minimum Touch Target (M3 Accessibility Standard: 48x48dp) */
+.touch-target,
+.min-touch-target {
+  min-width: var(--md-touch-target-min);
+  min-height: var(--md-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 3. Material 3 Cards & Surface Elevation Upgrades (Border-free Elevated Cards) */
+.rpg-card,
+.quest-card-compact {
+  border: none !important;
   border-radius: var(--md-shape-lg) !important;
   box-shadow: var(--md-elevation-1);
   transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1),
-              box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1),
-              border-color 0.2s ease !important;
+              box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
-.rpg-card:hover {
+.rpg-card:hover,
+.quest-card-compact:hover {
   transform: translateY(-2px);
   box-shadow: var(--md-elevation-2);
+  border: none !important;
 }
 
 .rpg-panel {
@@ -1881,12 +2519,29 @@ html.dark .week-day-circle {
   border-top-right-radius: var(--md-shape-xl);
 }
 
+.fixed[id^="modal-"] .rpg-panel > div:last-child {
+  border-bottom-left-radius: var(--md-shape-xl);
+  border-bottom-right-radius: var(--md-shape-xl);
+}
+
+@media (min-width: 640px) {
+  #assistant-panel {
+    border-radius: var(--md-shape-xl) !important;
+  }
+}
+
 /* 4. Material 3 Outlined Input Fields */
-.rpg-input {
+.rpg-input,
+input.rpg-input,
+textarea.rpg-input,
+select.rpg-input {
   border-radius: var(--md-shape-md) !important;
   border: 1px solid var(--md-sys-color-outline-variant) !important;
   background-color: var(--md-sys-color-surface-container-lowest) !important;
   color: var(--md-sys-color-on-surface) !important;
+  font-family: var(--md-sys-typescale-font-plain);
+  font-size: var(--md-sys-typescale-body-medium-size, 0.875rem);
+  padding: var(--md-spacing-input-py) var(--md-spacing-input-px) !important;
   transition: border-color 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
               background-color 0.2s ease !important;
@@ -1898,55 +2553,159 @@ html.dark .rpg-input {
   outline: none !important;
   border-color: var(--md-sys-color-primary) !important;
   border-width: 2px !important;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
+}
+
+/* Material 3 Placeholder Guidance Typography (Delicate & Compact) */
+.rpg-input::placeholder,
+input.rpg-input::placeholder,
+textarea.rpg-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  font-size: 0.75rem !important; /* 12px (text-xs) */
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  color: #94a3b8 !important;
+  opacity: 0.85 !important;
+}
+
+@media (min-width: 640px) {
+  .rpg-input::placeholder,
+  input.rpg-input::placeholder,
+  textarea.rpg-input::placeholder,
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 0.8125rem !important; /* 13px */
+  }
+}
+
+html.dark .rpg-input::placeholder,
+html.dark input.rpg-input::placeholder,
+html.dark textarea.rpg-input::placeholder,
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+  opacity: 0.85 !important;
 }
 
 /* 5. Material 3 Filter Chips */
 .quest-filter {
+  font-family: var(--md-sys-typescale-font-plain);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   border-radius: var(--md-shape-sm) !important;
   transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
               color 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 .quest-filter:not(.active):hover {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: rgba(79, 70, 229, 0.05);
 }
 html.dark .quest-filter:not(.active):hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
 .quest-filter.active {
+  background-color: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
+  font-weight: 700 !important;
   box-shadow: var(--md-elevation-1);
 }
 
 /* 6. Material 3 Floating Action Button (FAB) & Extended FAB */
-.btn-action-quest {
+.btn-action-quest,
+.btn-action-reward,
+.btn-primary,
+button.bg-amber-500,
+button.bg-amber-600 {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  color: #ffffff !important;
+  font-family: var(--md-sys-typescale-font-plain);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   border-radius: var(--md-shape-full) !important;
-  box-shadow: var(--md-elevation-2) !important;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28) !important;
+  border: none !important;
+  gap: var(--md-spacing-button-gap);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
               filter 0.2s ease !important;
 }
-.btn-action-quest:hover {
+.btn-action-quest:hover,
+.btn-action-reward:hover,
+.btn-primary:hover,
+button.bg-amber-500:hover,
+button.bg-amber-600:hover {
   transform: translateY(-2px);
-  box-shadow: var(--md-elevation-3) !important;
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%) !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.38) !important;
 }
-.btn-action-quest:active {
+.btn-action-quest:active,
+.btn-action-reward:active,
+.btn-primary:active,
+button.bg-amber-500:active,
+button.bg-amber-600:active {
   transform: scale(0.96);
 }
 
+html.dark .btn-action-quest,
+html.dark .btn-action-reward,
+html.dark .btn-primary,
+html.dark button.bg-amber-500,
+html.dark button.bg-amber-600 {
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%) !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35) !important;
+}
+
 /* Wizard Assistant FAB */
-#btn-open-ai-assistant {
+#btn-open-ai-assistant,
+#btn-floating-assistant {
   border-radius: var(--md-shape-lg) !important;
   box-shadow: var(--md-elevation-3) !important;
   transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
-#btn-open-ai-assistant:hover {
+#btn-open-ai-assistant:hover,
+#btn-floating-assistant:hover {
   transform: scale(1.06);
   box-shadow: var(--md-elevation-4) !important;
 }
-#btn-open-ai-assistant:active {
+#btn-open-ai-assistant:active,
+#btn-floating-assistant:active {
   transform: scale(0.95);
+}
+
+/* Accessible Touch Targets (M3 48x48dp Specification) */
+.modal-close {
+  min-width: 36px;
+  min-height: 36px;
+  position: relative;
+}
+#toggle-palette-btn,
+#toggle-theme-btn,
+#toggle-sound-btn {
+  min-width: 30px;
+  min-height: 30px;
+  position: relative;
+}
+@media (min-width: 640px) {
+  #toggle-palette-btn,
+  #toggle-theme-btn,
+  #toggle-sound-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+.modal-close::before,
+#toggle-palette-btn::before,
+#toggle-theme-btn::before,
+#toggle-sound-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: var(--md-touch-target-min);
+  min-height: var(--md-touch-target-min);
+  pointer-events: none;
 }
 
 /* 7. Material 3 Top App Bar Scroll Elevation */
@@ -1958,23 +2717,23 @@ header.sticky {
 header.sticky.md-scrolled {
   box-shadow: var(--md-elevation-2) !important;
   border-color: var(--md-sys-color-outline-variant) !important;
-  background-color: rgba(255, 255, 255, 0.96) !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
 }
 html.dark header.sticky.md-scrolled {
-  background-color: rgba(15, 23, 42, 0.96) !important;
+  background-color: rgba(11, 15, 25, 0.98) !important;
 }
 
 /* 8. Material 3 Navigation Bar (Desktop & Mobile) */
-.nav-tab {
-  border-radius: var(--md-shape-full) !important;
-  transition: all 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
-}
-.mobile-nav-btn {
+.nav-tab,
+.mobile-nav-btn,
+.nav-more-toggle,
+.mobile-more-btn,
+.reward-subtab {
   border-radius: var(--md-shape-full) !important;
   transition: all 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
-/* 9. Material 3 Dropdown Menus */
+/* 9. Material 3 Dropdown Menus (Elevation Level 2) */
 .quest-dropdown-menu,
 #nav-more-menu,
 #mobile-more-menu {
@@ -1982,25 +2741,212 @@ html.dark header.sticky.md-scrolled {
   box-shadow: var(--md-elevation-2) !important;
   background-color: var(--md-sys-color-surface-container-high) !important;
   border: 1px solid var(--md-sys-color-outline-variant) !important;
+  padding-top: var(--md-spacing-menu-py) !important;
+  padding-bottom: var(--md-spacing-menu-py) !important;
 }
 .quest-dropdown-item,
 .nav-more-item,
 .mobile-more-item {
   border-radius: var(--md-shape-sm) !important;
+  padding: var(--md-spacing-menu-item-py) var(--md-spacing-menu-item-px) !important;
+  gap: var(--md-spacing-menu-item-gap) !important;
   transition: background-color 0.18s ease, color 0.18s ease !important;
 }
 
-/* 10. Material 3 Snackbars (Toast Notifications) */
-#toast-container > div {
-  border-radius: var(--md-shape-md) !important;
-  box-shadow: var(--md-elevation-3) !important;
+/* 10. Material 3 Snackbars (Toast Notifications - Elevation Level 3) */
+#toast-container {
+  top: max(1rem, env(safe-area-inset-top, 1rem));
+}
+@media (min-width: 640px) {
+  #toast-container {
+    top: max(1.25rem, env(safe-area-inset-top, 1.25rem));
+  }
 }
 
-/* 11. Material 3 Active Focus Station Hero Panel */
-#active-focus-banner {
-  border-radius: 24px !important;
-  box-shadow: var(--md-elevation-2) !important;
+#toast-container > div {
+  border-radius: var(--md-shape-lg) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  padding: 10px 14px !important;
+  gap: 12px !important;
+  min-height: var(--md-touch-target-min);
+  display: flex;
+  align-items: center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: m3ToastEnter 0.28s cubic-bezier(0.05, 0.7, 0.1, 1.0) forwards;
+  will-change: transform, opacity;
 }
+
+html.dark #toast-container > div {
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.55), 0 8px 10px -6px rgba(0, 0, 0, 0.3) !important;
+}
+
+#toast-container .coin-icon {
+  vertical-align: middle;
+  width: 18px;
+  height: 18px;
+}
+
+#toast-container > div.toast-exit {
+  animation: m3ToastExit 0.25s cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+}
+
+@keyframes m3ToastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m3ToastExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+}
+
+/* 11. Material 3 Active Focus Station Hero Panel (Elevation Level 2 - Borderless) */
+#active-focus-banner {
+  border-radius: var(--md-shape-xl) !important;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, rgba(2, 132, 199, 0.03) 100%), #ffffff !important;
+  border: none !important;
+  box-shadow: var(--md-elevation-2) !important;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+html.dark #active-focus-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(56, 189, 248, 0.08) 100%), var(--md-sys-color-surface-container) !important;
+  border: none !important;
+}
+
+/* Photo Album Proof Cards Elevation & Shape (Borderless) */
+.proof-photo-card {
+  border: none !important;
+  border-radius: var(--md-shape-lg) !important;
+  box-shadow: var(--md-elevation-1) !important;
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+.proof-photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--md-elevation-2) !important;
+  border: none !important;
+}
+
+/* 12. Material 3 Interactive Tactile Feedback & Card Ripples */
+.rpg-card .md-ripple,
+.quest-card-compact .md-ripple,
+.proof-photo-card .md-ripple {
+  background-color: var(--md-sys-color-primary, #4f46e5);
+  opacity: 0.12;
+}
+
+.quest-card-compact:active,
+.proof-photo-card:active {
+  transform: scale(0.985) translateY(0) !important;
+  transition-duration: 0.1s !important;
+}
+
+/* 13. Material 3 Icon Bounce Micro-animation */
+.btn-icon-bounce {
+  animation: m3IconBounce 0.38s cubic-bezier(0.2, 0, 0, 1.25);
+}
+@keyframes m3IconBounce {
+  0% { transform: scale(1) rotate(0deg); }
+  40% { transform: scale(0.82) rotate(-16deg); }
+  75% { transform: scale(1.14) rotate(8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* 14. Material 3 Staggered List Entrance for Cards */
+.quest-card-compact,
+.proof-photo-card {
+  animation: m3CardEntrance 0.26s cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
+}
+
+@keyframes m3CardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 15. Material 3 Linear Progress & Badges */
+.rpg-progress-track,
+.progress-bar-track {
+  border-radius: var(--md-shape-full) !important;
+  overflow: hidden;
+}
+.rpg-progress-fill,
+.progress-bar-fill {
+  border-radius: var(--md-shape-full) !important;
+}
+
+/* Material 3 Badge and Tag Shapes */
+.rpg-badge,
+.quest-badge {
+  border-radius: var(--md-shape-sm) !important;
+}
+
+/* 16. Material 3 Grid & List Spacing (8dp Rhythm) */
+#quests-grid,
+#rewards-grid {
+  gap: var(--md-spacing-card-gap);
+}
+
+/* Material 3 Filter Ribbon Spacing */
+.quest-filter-container,
+#quest-filter-bar {
+  gap: var(--md-spacing-chip-gap);
+}
+
+/* Material 3 Content Gutter for Modals & Dialogs */
+.modal-fade .space-y-4 > :not([hidden]) ~ :not([hidden]),
+.rpg-panel .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(var(--md-spacing-4) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(var(--md-spacing-4) * var(--tw-space-y-reverse));
+}
+
+/* 17. Material 3 Typography Component Harmonization */
+.modal-fade h3,
+.fixed[id^="modal-"] h3 {
+  font-family: var(--md-sys-typescale-font-brand) !important;
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+}
+
+.rpg-card h3,
+.quest-card-compact h3,
+.proof-photo-card h3 {
+  font-family: var(--md-sys-typescale-font-brand);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+}
+
+/* Numerals & Counters - Tabular Alignment for Zero Jitter */
+#hero-coins,
+#hero-streak-count,
+#zen-time-display,
+#focus-active-timer-display,
+.coin-amount,
+.timer-display {
+  font-variant-numeric: tabular-nums !important;
+}
+
+
+
 
 
 

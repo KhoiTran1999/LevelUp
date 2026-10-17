@@ -123,6 +123,18 @@ const REWARD_TIER_LABELS = {
 // =============================================================================
 // 2. DEFAULT STATE & SEED DATA
 // =============================================================================
+function getSystemTheme() {
+  if (typeof window !== 'undefined' && window.matchMedia && typeof window.matchMedia === 'function') {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (e) {}
+  }
+  return 'light';
+}
+if (typeof window !== 'undefined') {
+  window.getSystemTheme = getSystemTheme;
+}
+
 const DEFAULT_STATE = {
   profile: {
     nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
@@ -138,7 +150,9 @@ const DEFAULT_STATE = {
     lastStreakDate: '',
     streakHistory: [],
     soundEnabled: true,
-    theme: 'dark',
+    theme: (typeof localStorage !== 'undefined' && localStorage.getItem('levelup_theme'))
+      ? localStorage.getItem('levelup_theme')
+      : getSystemTheme(),
     role: 'adventurer',
     token: '',
     googleId: '',
@@ -277,26 +291,89 @@ function clearLocalCache() {
   } catch (e) {}
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, isManual = false) {
   const root = document.documentElement;
   const themeBtn = document.getElementById('toggle-theme-btn');
-  if (theme === 'light') {
+  
+  let targetTheme = theme;
+  if (!targetTheme) {
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+    targetTheme = savedTheme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+  }
+
+  if (targetTheme === 'light') {
     root.classList.remove('dark');
-    if (themeBtn) themeBtn.textContent = '☀️';
+    if (themeBtn) themeBtn.innerHTML = '<span class="material-symbols-outlined text-lg leading-none">dark_mode</span>';
   } else {
     root.classList.add('dark');
-    if (themeBtn) themeBtn.textContent = '🌙';
+    if (themeBtn) themeBtn.innerHTML = '<span class="material-symbols-outlined text-lg leading-none">light_mode</span>';
   }
-  appState.profile.theme = theme;
+  
+  if (typeof appState !== 'undefined' && appState.profile) {
+    appState.profile.theme = targetTheme;
+  }
+  
+  if (isManual) {
+    try {
+      localStorage.setItem('levelup_theme_manual', 'true');
+      localStorage.setItem('levelup_theme', targetTheme);
+    } catch (e) {}
+  }
 }
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.contains('dark');
   const newTheme = isDark ? 'light' : 'dark';
-  applyTheme(newTheme);
+  applyTheme(newTheme, true);
   sfx.playClick();
-  triggerSave(false);
+  triggerSave(true, true);
   showToast(newTheme === 'dark' ? 'Chế độ Tối (Dark Mode)' : 'Chế độ Sáng (Light Mode)', 'info');
+}
+
+const PALETTES = [
+  { id: 'modern-indigo', name: 'Electric Modern (Sáng sủa / Indigo)', icon: '⚡' },
+  { id: 'm3-ocean', name: 'Material Ocean (Google Blue)', icon: '🔵' },
+  { id: 'm3-baseline', name: 'Material Purple (Google M3)', icon: '🟣' },
+  { id: 'guild', name: 'RPG Legacy (Hoài niệm)', icon: '🗡️' }
+];
+
+function applyPalette(palette) {
+  const root = document.documentElement;
+  if (!palette || palette === 'modern-indigo') {
+    delete root.dataset.palette;
+    palette = 'modern-indigo';
+  } else {
+    root.dataset.palette = palette;
+  }
+  const btn = document.getElementById('toggle-palette-btn');
+  if (btn) {
+    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+    btn.textContent = cur.icon;
+    btn.title = `Bảng màu: ${cur.name} (Bấm để đổi)`;
+  }
+  const modalPaletteIcon = document.getElementById('modal-palette-icon');
+  const modalPaletteText = document.getElementById('modal-palette-text');
+  if (modalPaletteIcon && modalPaletteText) {
+    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+    modalPaletteIcon.textContent = cur.icon;
+    modalPaletteText.textContent = cur.name.split(' (')[0];
+  }
+  try {
+    localStorage.setItem('levelup_theme_palette', palette);
+  } catch (e) {}
+}
+
+function cyclePalette() {
+  const root = document.documentElement;
+  const current = root.dataset.palette || 'modern-indigo';
+  const currentIndex = PALETTES.findIndex(p => p.id === current);
+  const nextIndex = (currentIndex + 1) % PALETTES.length;
+  const next = PALETTES[nextIndex];
+  applyPalette(next.id);
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast(`🎨 Bảng màu: ${next.name}`, 'info');
+  }
 }
 
 function getOrCreateUserToken() {
@@ -769,7 +846,9 @@ async function hydrateFromCloud(isManual = false) {
       appState.profile.coins = checked.coins;
       appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
 
-      applyTheme(appState.profile.theme || 'dark');
+      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+      applyTheme(resolvedTheme, false);
       saveLocalCache();
       renderAll();
 
@@ -1042,50 +1121,70 @@ function showToast(message, type = 'info', action = null) {
 
   const toast = document.createElement('div');
   const colors = {
-    success: 'bg-emerald-900/90 text-emerald-100 border-emerald-500/50 dark:bg-emerald-950/90 dark:text-emerald-200',
-    gold: 'bg-amber-900/90 text-amber-100 border-amber-500/60 dark:bg-amber-950/90 dark:text-amber-200',
-    error: 'bg-rose-900/90 text-rose-100 border-rose-500/50 dark:bg-rose-950/90 dark:text-rose-200',
-    info: 'bg-slate-900/95 text-slate-100 border-slate-700 dark:bg-slate-900/95 dark:text-slate-200'
+    success: 'bg-white/95 text-slate-800 border-emerald-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-emerald-500/40',
+    gold: 'bg-white/95 text-slate-800 border-amber-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-amber-500/40',
+    error: 'bg-white/95 text-slate-800 border-rose-300/80 dark:bg-slate-900/95 dark:text-slate-100 dark:border-rose-500/40',
+    info: 'bg-white/95 text-slate-800 border-slate-200/90 dark:bg-slate-900/95 dark:text-slate-100 dark:border-slate-700/60'
   };
 
   const icons = {
-    success: '✅',
-    gold: COIN_ICON_HTML,
-    error: '❌',
-    info: '📜'
+    success: '<div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">check_circle</span></div>',
+    gold: `<div class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-sm text-base leading-none">${COIN_ICON_HTML}</div>`,
+    error: '<div class="w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">error</span></div>',
+    info: '<div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm"><span class="material-symbols-outlined text-[18px] leading-none">notifications</span></div>'
   };
 
-  toast.className = `p-3 rounded-xl border shadow-xl flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+  toast.className = `p-3 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs backdrop-blur-md pointer-events-auto transition-all duration-300 transform -translate-y-2 opacity-0 border ${colors[type] || colors.info}`;
+
+  let isDismissed = false;
+  const dismiss = () => {
+    if (isDismissed) return;
+    isDismissed = true;
+    toast.classList.add('toast-exit', 'opacity-0', '-translate-y-2');
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+    }, 280);
+  };
 
   const content = document.createElement('div');
-  content.className = 'flex items-center gap-2.5 min-w-0';
-  content.innerHTML = `<span>${icons[type] || '📜'}</span><span class="break-words">${escapeHtml(message)}</span>`;
+  content.className = 'flex items-center gap-2.5 min-w-0 flex-1';
+  content.innerHTML = `${icons[type] || icons.info}<span class="break-words font-medium text-xs sm:text-[13px] leading-snug">${escapeHtml(message)}</span>`;
   toast.appendChild(content);
 
   if (action && typeof action.onClick === 'function') {
     const actionBtn = document.createElement('button');
     actionBtn.type = 'button';
-    actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95 flex items-center gap-1';
-    actionBtn.innerHTML = `<span>↩️</span><span>${escapeHtml(action.label || 'Hoàn tác')}</span>`;
+    actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer';
+    actionBtn.innerHTML = `<span class="material-symbols-outlined text-[15px] leading-none">undo</span><span>${escapeHtml(action.label || 'Hoàn tác')}</span>`;
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      toast.remove();
+      dismiss();
       action.onClick();
     });
     toast.appendChild(actionBtn);
   }
 
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'shrink-0 w-7 h-7 -mr-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition flex items-center justify-center cursor-pointer';
+  closeBtn.setAttribute('aria-label', 'Đóng thông báo');
+  closeBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] leading-none">close</span>';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dismiss();
+  });
+  toast.appendChild(closeBtn);
+
   container.appendChild(toast);
 
   // Trigger anim
   setTimeout(() => {
-    toast.classList.remove('translate-y-2', 'opacity-0');
+    toast.classList.remove('-translate-y-2', 'opacity-0');
   }, 10);
 
   const duration = action ? 6500 : 3500;
   setTimeout(() => {
-    toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.remove(), 300);
+    dismiss();
   }, duration);
 }
 
@@ -4100,6 +4199,7 @@ function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback
   if (!modal) return;
 
   const imgEl = document.getElementById('proof-viewer-img');
+  const skeletonEl = document.getElementById('proof-viewer-skeleton');
   const titleEl = document.getElementById('proof-viewer-title');
   const subtitleEl = document.getElementById('proof-viewer-subtitle');
   const downloadLink = document.getElementById('proof-viewer-download');
@@ -4110,6 +4210,28 @@ function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback
   const feedbackText = document.getElementById('proof-viewer-feedback-text');
 
   if (imgEl) {
+    if (skeletonEl) {
+      skeletonEl.style.display = 'flex';
+      skeletonEl.style.opacity = '1';
+    }
+    imgEl.classList.remove('proof-img-loaded');
+    imgEl.classList.add('proof-img-loading');
+
+    imgEl.onload = () => {
+      imgEl.classList.remove('proof-img-loading');
+      imgEl.classList.add('proof-img-loaded');
+      if (skeletonEl) {
+        skeletonEl.style.opacity = '0';
+        setTimeout(() => {
+          skeletonEl.style.display = 'none';
+        }, 300);
+      }
+    };
+    imgEl.onerror = () => {
+      if (skeletonEl) skeletonEl.style.display = 'none';
+      imgEl.classList.remove('proof-img-loading');
+      imgEl.classList.add('proof-img-loaded');
+    };
     imgEl.src = imageUrl;
   }
   if (titleEl) {
@@ -8200,17 +8322,41 @@ function renderHeader() {
   document.getElementById('hero-exp-bar').style.width = `${pct}%`;
 
   const soundBtn = document.getElementById('toggle-sound-btn');
-  if (soundBtn) soundBtn.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (soundBtn) {
+    soundBtn.innerHTML = p.soundEnabled
+      ? '<span class="material-symbols-outlined text-lg leading-none">volume_up</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none text-slate-400">volume_off</span>';
+  }
   sfx.enabled = p.soundEnabled;
 
   const modalSoundIcon = document.getElementById('modal-sound-icon');
   const modalSoundText = document.getElementById('modal-sound-text');
-  if (modalSoundIcon) modalSoundIcon.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (modalSoundIcon) {
+    modalSoundIcon.innerHTML = p.soundEnabled
+      ? '<span class="material-symbols-outlined text-lg leading-none text-emerald-500">volume_up</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none text-slate-400">volume_off</span>';
+  }
   if (modalSoundText) modalSoundText.textContent = p.soundEnabled ? 'Đang bật' : 'Đang tắt';
 
   const themeBtn = document.getElementById('toggle-theme-btn');
   if (themeBtn) {
-    themeBtn.textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
+    themeBtn.innerHTML = document.documentElement.classList.contains('dark')
+      ? '<span class="material-symbols-outlined text-lg leading-none">light_mode</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none">dark_mode</span>';
+  }
+
+  const paletteBtn = document.getElementById('toggle-palette-btn');
+  if (paletteBtn && typeof PALETTES !== 'undefined') {
+    const curPal = document.documentElement.dataset.palette || 'modern-indigo';
+    const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
+    paletteBtn.textContent = found.icon;
+    paletteBtn.title = `Bảng màu: ${found.name} (Bấm để đổi)`;
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      modalPaletteIcon.textContent = found.icon;
+      modalPaletteText.textContent = found.name.split(' (')[0];
+    }
   }
 
   const syncTime = document.getElementById('modal-sync-time');
@@ -9821,13 +9967,18 @@ function renderProofPhotos() {
     const safeFeedback = item.feedback ? escapeHtml(item.feedback) : '';
 
     return `
-      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" data-proof-id="${escapeHtml(item.id)}" title="Nhấn để xem chi tiết ảnh và ghi chú">
+      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" data-proof-id="${escapeHtml(item.id)}" title="Nhấn để xem chi tiết ảnh và ghi chú">
         <div class="relative aspect-square w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <img src="${safeUrl}" alt="${safeTitle}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy">
-          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1">
+          <div class="proof-skeleton absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-300 pointer-events-none">
+            <svg class="w-7 h-7 text-slate-300 dark:text-slate-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <img src="${safeUrl}" alt="${safeTitle}" class="proof-img-loading w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onload="this.classList.remove('proof-img-loading'); this.classList.add('proof-img-loaded'); const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) { sk.style.opacity = '0'; setTimeout(() => { sk.style.display = 'none'; }, 300); }" onerror="const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) sk.style.display = 'none'; this.classList.remove('proof-img-loading');">
+          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1 z-20">
             <span>+${item.rewardCoins || 10}</span> ${COIN_ICON_HTML}
           </div>
-          <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px]">
+          <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px] z-20">
             <span class="btn-view-proof-img px-2.5 py-1 rounded-lg bg-sky-500/90 hover:bg-sky-400 text-white flex items-center gap-1 shadow-xs cursor-pointer" data-proof-url="${safeUrl}" data-quest-title="${safeTitle}">
               <span>🔍 Phóng to</span>
             </span>
@@ -10388,7 +10539,7 @@ function renderTrackerItemCard(item, period, isQuest) {
   const coins = isQuest ? (item.rewardCoins || 0) : (item.price || 0);
 
   return `
-    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800/80 transition-all hover:shadow-md">
+    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 transition-all hover:shadow-md">
       <!-- Header: Title, Category, Gold Value, Percentage & Days -->
       <div class="flex flex-wrap items-center justify-between gap-2.5 mb-3">
         <div class="flex items-center gap-2.5 min-w-0">
@@ -11291,7 +11442,9 @@ async function handleGoogleCredentialResponse(response) {
 
     clearLegacyLocalStorage();
     saveLocalCache();
-    applyTheme(appState.profile.theme || 'dark');
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+    const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+    applyTheme(resolvedTheme, false);
     renderAll();
     closeModal('modal-welcome');
     fetchLeaderboard();
@@ -11825,6 +11978,11 @@ async function initStartupFlow() {
   clearLegacyLocalStorage();
   clearLocalCache();
 
+  try {
+    const savedPalette = localStorage.getItem('levelup_theme_palette') || 'm3-baseline';
+    if (typeof applyPalette === 'function') applyPalette(savedPalette);
+  } catch (e) {}
+
   // ponytail: Sử dụng skeleton loading khi chờ dữ liệu từ Redis thay vì load default data gây chớp nháy (Anti-FOUC)
   renderSkeletons();
 
@@ -11855,7 +12013,12 @@ async function initStartupFlow() {
         const balance = deriveLegitimateBalance(appState);
         appState.profile.coins = balance.coins;
         appState.profile.totalCoinsEarned = balance.totalCoinsEarned;
-        applyTheme(appState.profile.theme || 'dark');
+        const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+        if (savedTheme) {
+          appState.profile.theme = savedTheme;
+        }
+        const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+        applyTheme(resolvedTheme, false);
         saveLocalCache();
         closeModal('modal-welcome');
         renderAll();
@@ -11873,7 +12036,9 @@ async function initStartupFlow() {
     } else if (res.status === 401) {
       clearLocalCache();
       appState = { ...DEFAULT_STATE };
-      applyTheme(appState.profile.theme || 'dark');
+      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+      applyTheme(resolvedTheme, false);
       renderAll();
       openModal('modal-welcome');
       renderGoogleSignInButton();
@@ -11883,7 +12048,9 @@ async function initStartupFlow() {
     console.warn('Startup sync check failed:', err.message);
   }
 
-  applyTheme(appState.profile.theme || 'dark');
+  const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+  const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+  applyTheme(resolvedTheme, false);
   renderAll();
   openModal('modal-welcome');
   renderGoogleSignInButton();
@@ -14110,6 +14277,30 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', toggleTheme);
   }
 
+  // Lắng nghe thay đổi theme từ hệ điều hành (nếu người dùng chưa gán theme thủ công)
+  if (typeof window !== 'undefined' && window.matchMedia && typeof window.matchMedia === 'function') {
+    try {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemThemeChange = (e) => {
+        const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+        if (!savedTheme) {
+          applyTheme(e.matches ? 'dark' : 'light', false);
+        }
+      };
+      if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+      } else if (typeof mediaQuery.addListener === 'function') {
+        mediaQuery.addListener(handleSystemThemeChange);
+      }
+    } catch (e) {}
+  }
+
+  // Palette Toggle Button (Material Design 3 vs RPG Guild)
+  const paletteToggle = document.getElementById('toggle-palette-btn');
+  if (paletteToggle) {
+    paletteToggle.addEventListener('click', cyclePalette);
+  }
+
   // Sound FX Toggle Buttons (Header + Profile Modal)
   function toggleSound() {
     appState.profile.soundEnabled = !appState.profile.soundEnabled;
@@ -15057,10 +15248,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Material Design 3 Interactions: Universal Ripple & Top App Bar Scroll Elevation
   function initMaterialDesignInteractions() {
-    // 1. Universal Material Ripple
+    // 1. Universal Material 3 Ripple (Buttons, Cards, Chips, Tabs, List Items)
     document.addEventListener('pointerdown', (e) => {
       const target = e.target.closest(
-        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
+        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
       );
       if (!target || target.disabled || target.classList.contains('no-ripple')) return;
 
@@ -15091,10 +15282,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ripple.parentElement) {
           ripple.remove();
         }
-      }, 600);
+      }, 550);
     }, { passive: true });
 
-    // 2. Material Top App Bar Scroll Elevation
+    // 2. Material Design 3 Control Icon Micro-animations
+    ['toggle-theme-btn', 'toggle-palette-btn', 'toggle-sound-btn'].forEach(btnId => {
+      const el = document.getElementById(btnId);
+      if (el) {
+        el.addEventListener('click', () => {
+          el.classList.remove('btn-icon-bounce');
+          void el.offsetWidth;
+          el.classList.add('btn-icon-bounce');
+          setTimeout(() => el.classList.remove('btn-icon-bounce'), 380);
+        });
+      }
+    });
+
+    // 3. Material Top App Bar Scroll Elevation
     const header = document.querySelector('header');
     if (header) {
       const handleScroll = () => {

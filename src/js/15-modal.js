@@ -622,7 +622,9 @@ async function handleGoogleCredentialResponse(response) {
 
     clearLegacyLocalStorage();
     saveLocalCache();
-    applyTheme(appState.profile.theme || 'dark');
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+    const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+    applyTheme(resolvedTheme, false);
     renderAll();
     closeModal('modal-welcome');
     fetchLeaderboard();

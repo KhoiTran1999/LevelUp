@@ -436,6 +436,30 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', toggleTheme);
   }
 
+  // Lắng nghe thay đổi theme từ hệ điều hành (nếu người dùng chưa gán theme thủ công)
+  if (typeof window !== 'undefined' && window.matchMedia && typeof window.matchMedia === 'function') {
+    try {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemThemeChange = (e) => {
+        const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+        if (!savedTheme) {
+          applyTheme(e.matches ? 'dark' : 'light', false);
+        }
+      };
+      if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+      } else if (typeof mediaQuery.addListener === 'function') {
+        mediaQuery.addListener(handleSystemThemeChange);
+      }
+    } catch (e) {}
+  }
+
+  // Palette Toggle Button (Material Design 3 vs RPG Guild)
+  const paletteToggle = document.getElementById('toggle-palette-btn');
+  if (paletteToggle) {
+    paletteToggle.addEventListener('click', cyclePalette);
+  }
+
   // Sound FX Toggle Buttons (Header + Profile Modal)
   function toggleSound() {
     appState.profile.soundEnabled = !appState.profile.soundEnabled;
@@ -1383,10 +1407,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Material Design 3 Interactions: Universal Ripple & Top App Bar Scroll Elevation
   function initMaterialDesignInteractions() {
-    // 1. Universal Material Ripple
+    // 1. Universal Material 3 Ripple (Buttons, Cards, Chips, Tabs, List Items)
     document.addEventListener('pointerdown', (e) => {
       const target = e.target.closest(
-        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
+        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
       );
       if (!target || target.disabled || target.classList.contains('no-ripple')) return;
 
@@ -1417,10 +1441,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ripple.parentElement) {
           ripple.remove();
         }
-      }, 600);
+      }, 550);
     }, { passive: true });
 
-    // 2. Material Top App Bar Scroll Elevation
+    // 2. Material Design 3 Control Icon Micro-animations
+    ['toggle-theme-btn', 'toggle-palette-btn', 'toggle-sound-btn'].forEach(btnId => {
+      const el = document.getElementById(btnId);
+      if (el) {
+        el.addEventListener('click', () => {
+          el.classList.remove('btn-icon-bounce');
+          void el.offsetWidth;
+          el.classList.add('btn-icon-bounce');
+          setTimeout(() => el.classList.remove('btn-icon-bounce'), 380);
+        });
+      }
+    });
+
+    // 3. Material Top App Bar Scroll Elevation
     const header = document.querySelector('header');
     if (header) {
       const handleScroll = () => {

@@ -30,26 +30,89 @@ function clearLocalCache() {
   } catch (e) {}
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, isManual = false) {
   const root = document.documentElement;
   const themeBtn = document.getElementById('toggle-theme-btn');
-  if (theme === 'light') {
+  
+  let targetTheme = theme;
+  if (!targetTheme) {
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+    targetTheme = savedTheme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+  }
+
+  if (targetTheme === 'light') {
     root.classList.remove('dark');
-    if (themeBtn) themeBtn.textContent = '☀️';
+    if (themeBtn) themeBtn.innerHTML = '<span class="material-symbols-outlined text-lg leading-none">dark_mode</span>';
   } else {
     root.classList.add('dark');
-    if (themeBtn) themeBtn.textContent = '🌙';
+    if (themeBtn) themeBtn.innerHTML = '<span class="material-symbols-outlined text-lg leading-none">light_mode</span>';
   }
-  appState.profile.theme = theme;
+  
+  if (typeof appState !== 'undefined' && appState.profile) {
+    appState.profile.theme = targetTheme;
+  }
+  
+  if (isManual) {
+    try {
+      localStorage.setItem('levelup_theme_manual', 'true');
+      localStorage.setItem('levelup_theme', targetTheme);
+    } catch (e) {}
+  }
 }
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.contains('dark');
   const newTheme = isDark ? 'light' : 'dark';
-  applyTheme(newTheme);
+  applyTheme(newTheme, true);
   sfx.playClick();
-  triggerSave(false);
+  triggerSave(true, true);
   showToast(newTheme === 'dark' ? 'Chế độ Tối (Dark Mode)' : 'Chế độ Sáng (Light Mode)', 'info');
+}
+
+const PALETTES = [
+  { id: 'modern-indigo', name: 'Electric Modern (Sáng sủa / Indigo)', icon: '⚡' },
+  { id: 'm3-ocean', name: 'Material Ocean (Google Blue)', icon: '🔵' },
+  { id: 'm3-baseline', name: 'Material Purple (Google M3)', icon: '🟣' },
+  { id: 'guild', name: 'RPG Legacy (Hoài niệm)', icon: '🗡️' }
+];
+
+function applyPalette(palette) {
+  const root = document.documentElement;
+  if (!palette || palette === 'modern-indigo') {
+    delete root.dataset.palette;
+    palette = 'modern-indigo';
+  } else {
+    root.dataset.palette = palette;
+  }
+  const btn = document.getElementById('toggle-palette-btn');
+  if (btn) {
+    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+    btn.textContent = cur.icon;
+    btn.title = `Bảng màu: ${cur.name} (Bấm để đổi)`;
+  }
+  const modalPaletteIcon = document.getElementById('modal-palette-icon');
+  const modalPaletteText = document.getElementById('modal-palette-text');
+  if (modalPaletteIcon && modalPaletteText) {
+    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+    modalPaletteIcon.textContent = cur.icon;
+    modalPaletteText.textContent = cur.name.split(' (')[0];
+  }
+  try {
+    localStorage.setItem('levelup_theme_palette', palette);
+  } catch (e) {}
+}
+
+function cyclePalette() {
+  const root = document.documentElement;
+  const current = root.dataset.palette || 'modern-indigo';
+  const currentIndex = PALETTES.findIndex(p => p.id === current);
+  const nextIndex = (currentIndex + 1) % PALETTES.length;
+  const next = PALETTES[nextIndex];
+  applyPalette(next.id);
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast(`🎨 Bảng màu: ${next.name}`, 'info');
+  }
 }
 
 function getOrCreateUserToken() {
@@ -522,7 +585,9 @@ async function hydrateFromCloud(isManual = false) {
       appState.profile.coins = checked.coins;
       appState.profile.totalCoinsEarned = checked.totalCoinsEarned;
 
-      applyTheme(appState.profile.theme || 'dark');
+      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
+      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
+      applyTheme(resolvedTheme, false);
       saveLocalCache();
       renderAll();
 

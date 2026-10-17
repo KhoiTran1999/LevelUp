@@ -24,17 +24,41 @@ function renderHeader() {
   document.getElementById('hero-exp-bar').style.width = `${pct}%`;
 
   const soundBtn = document.getElementById('toggle-sound-btn');
-  if (soundBtn) soundBtn.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (soundBtn) {
+    soundBtn.innerHTML = p.soundEnabled
+      ? '<span class="material-symbols-outlined text-lg leading-none">volume_up</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none text-slate-400">volume_off</span>';
+  }
   sfx.enabled = p.soundEnabled;
 
   const modalSoundIcon = document.getElementById('modal-sound-icon');
   const modalSoundText = document.getElementById('modal-sound-text');
-  if (modalSoundIcon) modalSoundIcon.textContent = p.soundEnabled ? '🔊' : '🔇';
+  if (modalSoundIcon) {
+    modalSoundIcon.innerHTML = p.soundEnabled
+      ? '<span class="material-symbols-outlined text-lg leading-none text-emerald-500">volume_up</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none text-slate-400">volume_off</span>';
+  }
   if (modalSoundText) modalSoundText.textContent = p.soundEnabled ? 'Đang bật' : 'Đang tắt';
 
   const themeBtn = document.getElementById('toggle-theme-btn');
   if (themeBtn) {
-    themeBtn.textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
+    themeBtn.innerHTML = document.documentElement.classList.contains('dark')
+      ? '<span class="material-symbols-outlined text-lg leading-none">light_mode</span>'
+      : '<span class="material-symbols-outlined text-lg leading-none">dark_mode</span>';
+  }
+
+  const paletteBtn = document.getElementById('toggle-palette-btn');
+  if (paletteBtn && typeof PALETTES !== 'undefined') {
+    const curPal = document.documentElement.dataset.palette || 'modern-indigo';
+    const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
+    paletteBtn.textContent = found.icon;
+    paletteBtn.title = `Bảng màu: ${found.name} (Bấm để đổi)`;
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      modalPaletteIcon.textContent = found.icon;
+      modalPaletteText.textContent = found.name.split(' (')[0];
+    }
   }
 
   const syncTime = document.getElementById('modal-sync-time');
@@ -1645,13 +1669,18 @@ function renderProofPhotos() {
     const safeFeedback = item.feedback ? escapeHtml(item.feedback) : '';
 
     return `
-      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" data-proof-id="${escapeHtml(item.id)}" title="Nhấn để xem chi tiết ảnh và ghi chú">
+      <div class="proof-photo-card group rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer" data-proof-id="${escapeHtml(item.id)}" title="Nhấn để xem chi tiết ảnh và ghi chú">
         <div class="relative aspect-square w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <img src="${safeUrl}" alt="${safeTitle}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy">
-          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1">
+          <div class="proof-skeleton absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-300 pointer-events-none">
+            <svg class="w-7 h-7 text-slate-300 dark:text-slate-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <img src="${safeUrl}" alt="${safeTitle}" class="proof-img-loading w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onload="this.classList.remove('proof-img-loading'); this.classList.add('proof-img-loaded'); const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) { sk.style.opacity = '0'; setTimeout(() => { sk.style.display = 'none'; }, 300); }" onerror="const sk = this.previousElementSibling; if (sk && sk.classList.contains('proof-skeleton')) sk.style.display = 'none'; this.classList.remove('proof-img-loading');">
+          <div class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1 z-20">
             <span>+${item.rewardCoins || 10}</span> ${COIN_ICON_HTML}
           </div>
-          <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px]">
+          <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px] z-20">
             <span class="btn-view-proof-img px-2.5 py-1 rounded-lg bg-sky-500/90 hover:bg-sky-400 text-white flex items-center gap-1 shadow-xs cursor-pointer" data-proof-url="${safeUrl}" data-quest-title="${safeTitle}">
               <span>🔍 Phóng to</span>
             </span>
@@ -2212,7 +2241,7 @@ function renderTrackerItemCard(item, period, isQuest) {
   const coins = isQuest ? (item.rewardCoins || 0) : (item.price || 0);
 
   return `
-    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800/80 transition-all hover:shadow-md">
+    <div class="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 transition-all hover:shadow-md">
       <!-- Header: Title, Category, Gold Value, Percentage & Days -->
       <div class="flex flex-wrap items-center justify-between gap-2.5 mb-3">
         <div class="flex items-center gap-2.5 min-w-0">
