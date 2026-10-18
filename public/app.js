@@ -5276,15 +5276,6 @@ function openQuestProofModal(quest) {
     tabSwitcher.classList.add('hidden');
   }
 
-  const cancelProofSessionBtn = document.getElementById('btn-cancel-proof-session');
-  if (cancelProofSessionBtn) {
-    if (quest.focusTimerCompleted) {
-      cancelProofSessionBtn.classList.remove('hidden');
-    } else {
-      cancelProofSessionBtn.classList.add('hidden');
-    }
-  }
-
   openModal('modal-quest-proof');
 }
 
@@ -17662,15 +17653,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSubmitProof.addEventListener('click', () => {
       sfx.playClick();
       submitQuestProofToAI();
-    });
-  }
-
-  const btnCancelProofSession = document.getElementById('btn-cancel-proof-session');
-  if (btnCancelProofSession) {
-    btnCancelProofSession.addEventListener('click', () => {
-      if (typeof currentProofQuest !== 'undefined' && currentProofQuest) {
-        cancelQuestFocusSession(currentProofQuest.id);
-      }
     });
   }
   const inputProofNote = document.getElementById('input-quest-proof-note');

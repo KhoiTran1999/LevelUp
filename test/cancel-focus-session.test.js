@@ -7,11 +7,10 @@ console.log('=== Kiểm thử Tính năng Hủy Phiên Tập Trung (Không Nộp
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
 
-// 1. Kiểm tra HTML của modal-quest-proof có nút hủy phiên
-console.log('Test 1: Kiểm tra nút Hủy Phiên trong modal nộp bằng chứng (modal-quest-proof)...');
-assert.ok(html.includes('id="btn-cancel-proof-session"'), 'modal-quest-proof phải có nút id="btn-cancel-proof-session"');
-assert.ok(html.includes('Hủy Phiên'), 'modal-quest-proof phải có nhãn "Hủy Phiên"');
-console.log('✓ Test 1: modal-quest-proof có sẵn nút hủy phiên tập trung.\n');
+// 1. Kiểm tra modal nộp bằng chứng (modal-quest-proof) giữ nguyên sạch sẽ, không có nút Hủy Phiên ở đây
+console.log('Test 1: Kiểm tra modal nộp bằng chứng (modal-quest-proof) không bị gắn nút Hủy Phiên rườm rà...');
+assert.ok(!html.includes('id="btn-cancel-proof-session"'), 'modal-quest-proof không được chứa id="btn-cancel-proof-session" (theo yêu cầu user)');
+console.log('✓ Test 1: modal-quest-proof chỉ giữ nút Đóng và Gửi AI Duyệt gọn gàng.\n');
 
 // 2. Kiểm tra logic cancelQuestFocusSession trong app.js
 console.log('Test 2: Kiểm tra hàm cancelQuestFocusSession trong app.js...');
@@ -35,16 +34,10 @@ assert.ok(appJs.includes('btn-cancel-focus-session'), 'Thẻ nhiệm vụ phải
 assert.ok(appJs.includes('Hủy phiên tập trung'), 'Menu thẻ nhiệm vụ phải có nhãn "Hủy phiên tập trung"');
 console.log('✓ Test 4: Menu thẻ nhiệm vụ cho phép hủy phiên tập trung trực tiếp từ danh sách.\n');
 
-// 5. Kiểm tra Logic Ẩn/Hiện nút Hủy Phiên trong modal nộp bằng chứng
-console.log('Test 5: Kiểm tra bật tắt nút Hủy Phiên trong openQuestProofModal...');
-assert.ok(appJs.includes('cancelProofSessionBtn.classList.remove(\'hidden\')'), 'openQuestProofModal phải hiển thị nút khi quest.focusTimerCompleted');
-assert.ok(appJs.includes('cancelProofSessionBtn.classList.add(\'hidden\')'), 'openQuestProofModal phải ẩn nút khi không phải focusTimerCompleted');
-console.log('✓ Test 5: Nút hủy phiên trong proof modal hiển thị đúng lúc đúng chỗ.\n');
-
-// 6. Kiểm tra Đồng bộ đa tab với BroadcastChannel
-console.log('Test 6: Kiểm tra xử lý BroadcastChannel cho cancelFocusSession...');
+// 5. Kiểm tra Đồng bộ đa tab với BroadcastChannel
+console.log('Test 5: Kiểm tra xử lý BroadcastChannel cho cancelFocusSession...');
 assert.ok(appJs.includes('action: \'cancelFocusSession\''), 'cancelQuestFocusSession phải gửi action cancelFocusSession qua BroadcastChannel');
 assert.ok(appJs.includes('event.data.action === \'cancelFocusSession\''), 'Event listener phải xử lý event cancelFocusSession');
-console.log('✓ Test 6: Đồng bộ đa tab cho sự kiện hủy phiên tập trung hoạt động đầy đủ.\n');
+console.log('✓ Test 5: Đồng bộ đa tab cho sự kiện hủy phiên tập trung hoạt động đầy đủ.\n');
 
 console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ HỦY PHIÊN TẬP TRUNG ĐÃ VƯỢT QUA!\n');

@@ -1291,15 +1291,6 @@ document.addEventListener('DOMContentLoaded', () => {
       submitQuestProofToAI();
     });
   }
-
-  const btnCancelProofSession = document.getElementById('btn-cancel-proof-session');
-  if (btnCancelProofSession) {
-    btnCancelProofSession.addEventListener('click', () => {
-      if (typeof currentProofQuest !== 'undefined' && currentProofQuest) {
-        cancelQuestFocusSession(currentProofQuest.id);
-      }
-    });
-  }
   const inputProofNote = document.getElementById('input-quest-proof-note');
   if (inputProofNote) {
     inputProofNote.addEventListener('keydown', (e) => {
