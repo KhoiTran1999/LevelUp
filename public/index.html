@@ -341,15 +341,15 @@
     <section id="tab-quests" class="tab-pane block">
 
       <!-- Filter and Action Ribbon -->
-      <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6">
-        <div class="m3-segmented-button-group flex items-center gap-0.5 sm:gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0" role="group" aria-label="Bộ lọc nhiệm vụ">
-          <button data-filter="all" class="quest-filter m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Tất cả</button>
-          <button data-filter="active" class="quest-filter active m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0">Chưa xong</button>
-          <button data-filter="completed" class="quest-filter m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Đã xong</button>
+      <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6 min-w-0">
+        <div class="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0" role="group" aria-label="Bộ lọc nhiệm vụ">
+          <button data-filter="all" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer">Tất cả</button>
+          <button data-filter="active" class="quest-filter active px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0 cursor-pointer">Chưa xong</button>
+          <button data-filter="completed" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer">Đã xong</button>
         </div>
-        <button id="btn-open-add-quest" class="btn-action-quest m3-btn m3-btn-sm inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
+        <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap cursor-pointer" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
           <span class="material-symbols-outlined text-base leading-none">add</span>
-          <span class="hidden xs:inline">Nhiệm vụ </span><span>mới</span>
+          <span class="hidden sm:inline">Nhiệm vụ </span><span>mới</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
         </button>
       </div>
@@ -545,16 +545,16 @@
     <section id="tab-shop" class="tab-pane hidden">
 
       <!-- Subtabs and Action Ribbon -->
-      <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="m3-segmented-button-group flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-800 text-xs shadow-xs" role="group" aria-label="Bộ lọc phần thưởng">
-          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active m3-segmented-button flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs cursor-pointer">
+      <div class="flex items-center justify-between gap-2 sm:gap-2.5 mb-4 sm:mb-6 min-w-0">
+        <div class="flex items-center gap-1 p-1 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs" role="group" aria-label="Bộ lọc phần thưởng">
+          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs cursor-pointer">
             <span class="material-symbols-outlined text-base leading-none">storefront</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Cửa Hàng</span>
               <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
             </span>
           </button>
-          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab m3-segmented-button flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
+          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
             <span class="material-symbols-outlined text-base leading-none">inventory_2</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Kho Quà</span>
@@ -562,9 +562,9 @@
             </span>
           </button>
         </div>
-        <button id="btn-open-add-reward-nav" class="btn-action-reward m3-btn m3-btn-sm inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold transition shadow-sm shrink-0 cursor-pointer" title="Tạo phần thưởng mới (Phím tắt: R)">
+        <button id="btn-open-add-reward-nav" class="btn-action-reward inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 cursor-pointer whitespace-nowrap" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="material-symbols-outlined text-base leading-none">add</span>
-          <span class="hidden xs:inline">Thêm </span><span>quà</span>
+          <span class="hidden sm:inline">Thêm </span><span>quà</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
         </button>
       </div>
@@ -1559,24 +1559,24 @@
       </button>
     </div>
 
-    <div class="flex items-center justify-around py-1.5 px-3 max-w-md mx-auto">
-      <button data-tab="quests" class="mobile-nav-btn active flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs transition cursor-pointer">
-        <span class="m3-nav-pill-indicator">
-          <span class="material-symbols-outlined text-2xl leading-none">task_alt</span>
+    <div class="flex items-center justify-around h-[68px] max-w-md mx-auto px-2 pt-1 pb-[env(safe-area-inset-bottom,0px)]">
+      <button data-tab="quests" class="mobile-nav-btn active flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all">
+        <span class="m3-nav-indicator flex items-center justify-center w-14 sm:w-16 h-8 rounded-full transition-all duration-200">
+          <span class="material-symbols-outlined text-2xl leading-none transition-transform duration-200 group-hover:scale-105">task_alt</span>
         </span>
-        <span class="text-[10px] whitespace-nowrap">Nhiệm Vụ</span>
+        <span class="m3-nav-label text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap mt-0.5 transition-colors">Nhiệm Vụ</span>
       </button>
-      <button data-tab="shop" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition cursor-pointer">
-        <span class="m3-nav-pill-indicator">
-          <span class="material-symbols-outlined text-2xl leading-none">redeem</span>
+      <button data-tab="shop" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all">
+        <span class="m3-nav-indicator flex items-center justify-center w-14 sm:w-16 h-8 rounded-full transition-all duration-200">
+          <span class="material-symbols-outlined text-2xl leading-none transition-transform duration-200 group-hover:scale-105">redeem</span>
         </span>
-        <span class="text-[10px] whitespace-nowrap">Phần Thưởng</span>
+        <span class="m3-nav-label text-[10px] sm:text-[11px] font-medium tracking-tight whitespace-nowrap mt-0.5 transition-colors">Phần Thưởng</span>
       </button>
-      <button id="btn-mobile-more" type="button" class="mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition cursor-pointer">
-        <span class="m3-nav-pill-indicator">
-          <span class="material-symbols-outlined text-2xl leading-none">more_horiz</span>
+      <button id="btn-mobile-more" type="button" class="mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all">
+        <span class="m3-nav-indicator flex items-center justify-center w-14 sm:w-16 h-8 rounded-full transition-all duration-200">
+          <span class="material-symbols-outlined text-2xl leading-none transition-transform duration-200 group-hover:scale-105">more_horiz</span>
         </span>
-        <span class="text-[10px] whitespace-nowrap">Xem Thêm</span>
+        <span class="m3-nav-label text-[10px] sm:text-[11px] font-medium tracking-tight whitespace-nowrap mt-0.5 transition-colors">Xem Thêm</span>
       </button>
     </div>
   </nav>

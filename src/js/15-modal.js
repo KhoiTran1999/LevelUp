@@ -241,9 +241,9 @@ function switchTab(tabId) {
   const btnMobileMore = document.getElementById('btn-mobile-more');
   if (btnMobileMore) {
     const currentTheme = tabColorTheme[tabId] || tabColorTheme.leaderboard;
-    btnMobileMore.className = `mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition cursor-pointer ${
+    btnMobileMore.className = `mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all ${
       isMoreTab
-        ? currentTheme.mobile
+        ? (currentTheme.mobile + ' active-theme-' + tabId)
         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
     }`;
   }
@@ -303,11 +303,11 @@ function switchTab(tabId) {
     }
 
     if (isAdminBtn && !isAdmin) {
-      b.className = 'mobile-nav-btn hidden flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition';
+      b.className = 'mobile-nav-btn hidden flex-1 min-w-0 flex-col items-center justify-center py-1 transition';
       return;
     }
 
-    b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl transition ${
+    b.className = `mobile-nav-btn flex flex-1 min-w-0 flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all ${
       isActive
         ? theme.mobile
         : (isAdminBtn

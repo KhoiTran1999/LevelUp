@@ -2680,17 +2680,14 @@ html.dark .quest-filter:not(.active):hover {
   box-shadow: var(--md-elevation-1);
 }
 
-/* 6. Material 3 Floating Action Button (FAB) & Extended FAB */
+/* 6. Material 3 Action Buttons */
 .btn-action-quest,
-.btn-action-reward,
-.btn-primary,
-button.bg-amber-500,
-button.bg-amber-600 {
+.btn-primary {
   background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
   color: #ffffff !important;
   font-family: var(--md-sys-typescale-font-plain);
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  border-radius: var(--md-shape-full) !important;
+  border-radius: var(--md-shape-md) !important;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28) !important;
   border: none !important;
   gap: var(--md-spacing-button-gap);
@@ -2698,31 +2695,51 @@ button.bg-amber-600 {
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
               filter 0.2s ease !important;
 }
+
+.btn-action-reward {
+  background: linear-gradient(135deg, #7e22ce 0%, #9333ea 100%) !important;
+  color: #ffffff !important;
+  font-family: var(--md-sys-typescale-font-plain);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  border-radius: var(--md-shape-md) !important;
+  box-shadow: 0 2px 8px rgba(147, 51, 234, 0.28) !important;
+  border: none !important;
+  gap: var(--md-spacing-button-gap);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+              filter 0.2s ease !important;
+}
+
 .btn-action-quest:hover,
-.btn-action-reward:hover,
-.btn-primary:hover,
-button.bg-amber-500:hover,
-button.bg-amber-600:hover {
+.btn-primary:hover {
   transform: translateY(-2px);
   background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%) !important;
   box-shadow: 0 4px 14px rgba(79, 70, 229, 0.38) !important;
 }
+
+.btn-action-reward:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #6b21a8 0%, #7e22ce 100%) !important;
+  box-shadow: 0 4px 14px rgba(147, 51, 234, 0.38) !important;
+}
+
 .btn-action-quest:active,
 .btn-action-reward:active,
-.btn-primary:active,
-button.bg-amber-500:active,
-button.bg-amber-600:active {
+.btn-primary:active {
   transform: scale(0.96);
 }
 
 html.dark .btn-action-quest,
-html.dark .btn-action-reward,
-html.dark .btn-primary,
-html.dark button.bg-amber-500,
-html.dark button.bg-amber-600 {
+html.dark .btn-primary {
   background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%) !important;
   color: #0f172a !important;
   box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35) !important;
+}
+
+html.dark .btn-action-reward {
+  background: linear-gradient(135deg, #9333ea 0%, #a855f7 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.35) !important;
 }
 
 /* Wizard Assistant FAB */
@@ -2810,11 +2827,15 @@ html.dark header.sticky.md-scrolled {
 
 /* 8. Material 3 Navigation Bar (Desktop & Mobile) */
 .nav-tab,
+.nav-more-toggle {
+  border-radius: var(--md-shape-full) !important;
+  transition: all 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
 .mobile-nav-btn,
-.nav-more-toggle,
 .mobile-more-btn,
 .reward-subtab {
-  border-radius: var(--md-shape-full) !important;
+  border-radius: var(--md-shape-md) !important;
   transition: all 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
@@ -3544,8 +3565,8 @@ html.dark .m3-skeleton-bar {
 
 .m3-segmented-button.active,
 .m3-segmented-button.m3-segmented-button--selected {
-  background: var(--md-sys-color-primary-container) !important;
-  color: var(--md-sys-color-on-primary-container) !important;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
   font-weight: 700;
   box-shadow: var(--md-elevation-1);
 }
@@ -3806,27 +3827,193 @@ html.dark .m3-skeleton-bar {
   font-weight: 600;
 }
 
-/* 24.7 M3 Mobile Navigation Bar with Active Pill Indicator */
-.mobile-nav-btn {
-  position: relative;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+/* ==========================================================================
+   24.7 Material Design 3 (M3) Mobile Navigation Bar System
+   Specs: https://m3.material.io/components/navigation-bar/overview
+   ========================================================================== */
+.m3-navigation-bar {
+  touch-action: manipulation;
 }
 
-.mobile-nav-btn .m3-nav-pill-indicator {
+/* Neutralize rigid block styles on top-level destination buttons */
+.m3-navigation-bar > div > .mobile-nav-btn,
+.m3-navigation-bar > div > .mobile-more-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: var(--md-shape-sm) !important;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0 !important;
+}
+
+/* M3 Active Indicator Pill (Around the Icon) */
+.m3-navigation-bar .m3-nav-indicator {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 56px;
-  height: 28px;
+  height: 32px;
   border-radius: 9999px;
   background: transparent;
-  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
-              color 0.2s cubic-bezier(0.2, 0, 0, 1);
+  color: #64748b;
+  transition: background-color 0.22s cubic-bezier(0.2, 0, 0, 1),
+              color 0.22s cubic-bezier(0.2, 0, 0, 1),
+              transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform, background-color;
 }
 
-.mobile-nav-btn.active .m3-nav-pill-indicator {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+html.dark .m3-navigation-bar .m3-nav-indicator {
+  color: #94a3b8;
+}
+
+.m3-navigation-bar .mobile-nav-btn:active .m3-nav-indicator,
+.m3-navigation-bar .mobile-more-btn:active .m3-nav-indicator {
+  transform: scale(0.92);
+}
+
+.m3-navigation-bar .m3-nav-label {
+  color: #64748b;
+  font-family: var(--font-main);
+  transition: color 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+html.dark .m3-navigation-bar .m3-nav-label {
+  color: #94a3b8;
+}
+
+/* Hover feedback on desktop/cursor */
+@media (hover: hover) {
+  .m3-navigation-bar .mobile-nav-btn:not(.active):hover .m3-nav-indicator,
+  .m3-navigation-bar .mobile-more-btn:not(.active):hover .m3-nav-indicator {
+    background: rgba(148, 163, 184, 0.14);
+    color: #1e293b;
+  }
+  html.dark .m3-navigation-bar .mobile-nav-btn:not(.active):hover .m3-nav-indicator,
+  html.dark .m3-navigation-bar .mobile-more-btn:not(.active):hover .m3-nav-indicator {
+    color: #f1f5f9;
+  }
+}
+
+/* --- M3 Archetype Color Synchronization --- */
+
+/* Quests: Warm Amber Archetype */
+.m3-navigation-bar .mobile-nav-btn[data-tab="quests"].active .m3-nav-indicator {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #d97706 !important;
+}
+html.dark .m3-navigation-bar .mobile-nav-btn[data-tab="quests"].active .m3-nav-indicator {
+  background: rgba(251, 191, 36, 0.24) !important;
+  color: #fbbf24 !important;
+}
+.m3-navigation-bar .mobile-nav-btn[data-tab="quests"].active .m3-nav-label {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-nav-btn[data-tab="quests"].active .m3-nav-label {
+  color: #fde68a !important;
+  font-weight: 700 !important;
+}
+
+/* Shop: Royal Purple Archetype */
+.m3-navigation-bar .mobile-nav-btn[data-tab="shop"].active .m3-nav-indicator {
+  background: rgba(147, 51, 234, 0.2) !important;
+  color: #7e22ce !important;
+}
+html.dark .m3-navigation-bar .mobile-nav-btn[data-tab="shop"].active .m3-nav-indicator {
+  background: rgba(192, 132, 252, 0.24) !important;
+  color: #c084fc !important;
+}
+.m3-navigation-bar .mobile-nav-btn[data-tab="shop"].active .m3-nav-label {
+  color: #6b21a8 !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-nav-btn[data-tab="shop"].active .m3-nav-label {
+  color: #e9d5ff !important;
+  font-weight: 700 !important;
+}
+
+/* Leaderboard: Imperial Gold Archetype */
+.m3-navigation-bar .mobile-more-btn.active.active-theme-leaderboard .m3-nav-indicator,
+.m3-navigation-bar .mobile-more-btn.active.text-yellow-700 .m3-nav-indicator {
+  background: rgba(234, 179, 8, 0.2) !important;
+  color: #a16207 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-leaderboard .m3-nav-indicator,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-yellow-300 .m3-nav-indicator {
+  background: rgba(250, 204, 21, 0.24) !important;
+  color: #facc15 !important;
+}
+.m3-navigation-bar .mobile-more-btn.active.active-theme-leaderboard .m3-nav-label,
+.m3-navigation-bar .mobile-more-btn.active.text-yellow-700 .m3-nav-label {
+  color: #854d0e !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-leaderboard .m3-nav-label,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-yellow-300 .m3-nav-label {
+  color: #fef08a !important;
+  font-weight: 700 !important;
+}
+
+/* Ledger: Scholar Cyan / Sky Blue Archetype */
+.m3-navigation-bar .mobile-more-btn.active.active-theme-ledger .m3-nav-indicator,
+.m3-navigation-bar .mobile-more-btn.active.text-sky-700 .m3-nav-indicator {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #0284c7 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-ledger .m3-nav-indicator,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-sky-300 .m3-nav-indicator {
+  background: rgba(56, 189, 248, 0.24) !important;
+  color: #38bdf8 !important;
+}
+.m3-navigation-bar .mobile-more-btn.active.active-theme-ledger .m3-nav-label,
+.m3-navigation-bar .mobile-more-btn.active.text-sky-700 .m3-nav-label {
+  color: #0369a1 !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-ledger .m3-nav-label,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-sky-300 .m3-nav-label {
+  color: #bae6fd !important;
+  font-weight: 700 !important;
+}
+
+/* Bank: Emerald Green Archetype */
+.m3-navigation-bar .mobile-more-btn.active.active-theme-bank .m3-nav-indicator,
+.m3-navigation-bar .mobile-more-btn.active.text-emerald-700 .m3-nav-indicator {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #059669 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-bank .m3-nav-indicator,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-emerald-300 .m3-nav-indicator {
+  background: rgba(52, 211, 153, 0.24) !important;
+  color: #34d399 !important;
+}
+.m3-navigation-bar .mobile-more-btn.active.active-theme-bank .m3-nav-label,
+.m3-navigation-bar .mobile-more-btn.active.text-emerald-700 .m3-nav-label {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-bank .m3-nav-label,
+html.dark .m3-navigation-bar .mobile-more-btn.active.dark\:text-emerald-300 .m3-nav-label {
+  color: #a7f3d0 !important;
+  font-weight: 700 !important;
+}
+
+/* Tracker: Modern Indigo Archetype */
+.m3-navigation-bar .mobile-more-btn.active.active-theme-tracker .m3-nav-indicator {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #4f46e5 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-tracker .m3-nav-indicator {
+  background: rgba(129, 140, 248, 0.24) !important;
+  color: #818cf8 !important;
+}
+.m3-navigation-bar .mobile-more-btn.active.active-theme-tracker .m3-nav-label {
+  color: #3730a3 !important;
+  font-weight: 700 !important;
+}
+html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-tracker .m3-nav-label {
+  color: #c7d2fe !important;
+  font-weight: 700 !important;
 }
 
 /* 24.8 M3 Snackbar (Toast Notification) */
