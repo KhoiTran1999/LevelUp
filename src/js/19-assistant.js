@@ -62,6 +62,12 @@ function openAssistantModal(sourceEl = null) {
     initAssistantWelcomeMessage();
   }
 
+  const assistChips = document.getElementById('assistant-suggest-chips');
+  if (assistChips) {
+    if (typeof makeHorizontalScrollable === 'function') makeHorizontalScrollable(assistChips);
+    assistChips.scrollLeft = 0;
+  }
+
   assistantAnimTimer = setTimeout(() => {
     modal.classList.remove('assistant-modal-opening');
     if (panel) panel.classList.remove('assistant-panel-opening');

@@ -1821,6 +1821,11 @@ function toggleBankAiDebate() {
     container.classList.remove('hidden');
     if (btnText) btnText.textContent = 'Thu Gọn';
     initBankDebateChat();
+    const bankChips = document.getElementById('bank-suggest-chips');
+    if (bankChips) {
+      if (typeof makeHorizontalScrollable === 'function') makeHorizontalScrollable(bankChips);
+      bankChips.scrollLeft = 0;
+    }
   } else {
     container.classList.add('hidden');
     if (btnText) btnText.textContent = 'Thương Lượng';

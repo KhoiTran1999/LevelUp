@@ -154,6 +154,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Giới thiệu dự án LevelUp (Desktop & Mobile)
+  const btnNavAbout = document.getElementById('btn-nav-about');
+  if (btnNavAbout) {
+    btnNavAbout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAboutModal();
+    });
+  }
+  const btnMobileAbout = document.getElementById('btn-mobile-about');
+  if (btnMobileAbout) {
+    btnMobileAbout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAboutModal();
+    });
+  }
+  const btnAboutStartTour = document.getElementById('btn-about-start-tour');
+  if (btnAboutStartTour) {
+    btnAboutStartTour.addEventListener('click', () => {
+      closeModal('modal-about');
+      if (typeof startTour === 'function') {
+        startTour();
+      }
+    });
+  }
+
   // Leaderboard Sub-tabs (Bảng Hiệp Sĩ & Sổ Đen Gian Lận)
   const btnSubtabRanking = document.getElementById('btn-subtab-ranking');
   if (btnSubtabRanking) {
@@ -830,8 +855,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-quest-estimate').value = '';
     const questDurEl = document.getElementById('input-quest-duration');
     if (questDurEl) questDurEl.value = '';
-    const repeatOnceRadio = document.querySelector('input[name="quest-repeat"][value="once"]');
-    if (repeatOnceRadio) repeatOnceRadio.checked = true;
+    const repeatRadio = document.querySelector('input[name="quest-repeat"][value="repeatable"]');
+    if (repeatRadio) repeatRadio.checked = true;
     const modNotice = document.getElementById('verdict-modified-notice');
     if (modNotice) modNotice.classList.add('hidden');
     const questSuggestBox = document.getElementById('quest-suggestions-container');
@@ -878,14 +903,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (verdictRepeatToggle) {
     verdictRepeatToggle.addEventListener('click', () => {
       if (!currentPendingVerdict) return;
-      const targetState = !currentPendingVerdict.isRepeatable;
-      if (targetState && (parseInt(currentPendingVerdict.rewardCoins, 10) || 0) > 15) {
-        showToast(`Nhiệm vụ có mức thưởng cao (${currentPendingVerdict.rewardCoins} Vàng). Để chuyển sang lặp lại an toàn, hãy dùng tính năng Thương Lượng AI để cân đối lại!`, 'warning');
-        return;
-      }
-      currentPendingVerdict.isRepeatable = targetState;
+      currentPendingVerdict.isRepeatable = !currentPendingVerdict.isRepeatable;
       sfx.playClick();
       updateVerdictDisplay();
+      showToast(`Đã đổi tần suất: ${currentPendingVerdict.isRepeatable ? 'Lặp lại' : 'Làm một lần'}`, 'info');
+    });
+  }
+
+  const verdictProofToggle = document.getElementById('verdict-proof-toggle');
+  if (verdictProofToggle) {
+    verdictProofToggle.addEventListener('click', () => {
+      const debateBox = document.getElementById('debate-container');
+      if (debateBox && debateBox.classList.contains('hidden')) {
+        debateBox.classList.remove('hidden');
+        initQuestDebateChat();
+      }
+      const argInput = document.getElementById('input-debate-arg');
+      if (argInput) {
+        setTimeout(() => {
+          argInput.focus();
+          debateBox?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+      }
+      showToast('Hãy nêu lý do để Trọng Tài AI thẩm định đổi hình thức xác thực nhé!', 'info');
     });
   }
 
@@ -896,6 +936,9 @@ document.addEventListener('DOMContentLoaded', () => {
     debateBox.classList.toggle('hidden');
     if (isOpening) {
       initQuestDebateChat();
+      if (typeof initHorizontalScrollContainers === 'function') initHorizontalScrollContainers();
+      const chips = document.getElementById('quest-suggest-chips');
+      if (chips) chips.scrollLeft = 0;
       const argInput = document.getElementById('input-debate-arg');
       if (argInput) {
         setTimeout(() => {
@@ -965,7 +1008,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const submitBtn = document.getElementById('btn-submit-proof');
         if (submitBtn) {
-          submitBtn.disabled = false;
+          if (currentProofMode === 'both') {
+            const textInput = document.getElementById('input-quest-proof-text');
+            const textVal = textInput ? textInput.value.trim() : '';
+            submitBtn.disabled = textVal.length < 10;
+          } else {
+            submitBtn.disabled = false;
+          }
           submitBtn.classList.add('animate-pulse');
           setTimeout(() => submitBtn.classList.remove('animate-pulse'), 800);
         }
@@ -989,8 +1038,72 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('proof-preview-zone')?.classList.add('hidden');
       document.getElementById('proof-capture-zone')?.classList.remove('hidden');
       const submitBtn = document.getElementById('btn-submit-proof');
-      if (submitBtn) submitBtn.disabled = true;
+      if (submitBtn) {
+        if (currentProofMode === 'both' || currentProofMode === 'photo') {
+          submitBtn.disabled = true;
+        }
+      }
       inputProofFile?.click();
+    });
+  }
+
+  // Proof mode tabs (Photo vs Text report vs Both)
+  const tabProofPhoto = document.getElementById('proof-tab-photo');
+  if (tabProofPhoto) {
+    tabProofPhoto.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('photo');
+    });
+  }
+
+  const tabProofText = document.getElementById('proof-tab-text');
+  if (tabProofText) {
+    tabProofText.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('text');
+    });
+  }
+
+  const tabProofBoth = document.getElementById('proof-tab-both');
+  if (tabProofBoth) {
+    tabProofBoth.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('both');
+    });
+  }
+
+  const inputProofText = document.getElementById('input-quest-proof-text');
+  if (inputProofText) {
+    inputProofText.addEventListener('input', () => {
+      const val = inputProofText.value.trim();
+      const textCharCount = document.getElementById('proof-text-char-count');
+      const submitBtn = document.getElementById('btn-submit-proof');
+      if (textCharCount) {
+        textCharCount.textContent = `${val.length}/10 ký tự tối thiểu`;
+        if (val.length >= 10) {
+          textCharCount.className = 'text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold';
+        } else {
+          textCharCount.className = 'text-[10px] font-mono text-slate-400 font-normal';
+        }
+      }
+      if (submitBtn) {
+        if (currentProofMode === 'text') {
+          submitBtn.disabled = val.length < 10;
+        } else if (currentProofMode === 'both') {
+          submitBtn.disabled = !(Boolean(currentProofBase64) && val.length >= 10);
+        }
+      }
+    });
+
+    inputProofText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('btn-submit-proof');
+        if (submitBtn && !submitBtn.disabled) {
+          sfx.playClick();
+          submitQuestProofToAI();
+        }
+      }
     });
   }
 
@@ -1054,22 +1167,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     const modal = document.getElementById('modal-quest-proof');
     if (modal && !modal.classList.contains('hidden') && currentProofQuest) {
-      const isMobile = isMobilePhone();
-      const captureZone = document.getElementById('proof-capture-zone');
-      const desktopNoticeZone = document.getElementById('proof-desktop-notice-zone');
-      const submitBtn = document.getElementById('btn-submit-proof');
-      const noteZone = document.getElementById('proof-note-zone');
-
-      if (isMobile) {
-        if (captureZone && !currentProofBase64) captureZone.classList.remove('hidden');
-        if (desktopNoticeZone) desktopNoticeZone.classList.add('hidden');
-        if (submitBtn) submitBtn.classList.remove('hidden');
-        if (noteZone) noteZone.classList.remove('hidden');
-      } else {
-        if (captureZone) captureZone.classList.add('hidden');
-        if (desktopNoticeZone) desktopNoticeZone.classList.remove('hidden');
-        if (submitBtn) submitBtn.classList.add('hidden');
-        if (noteZone) noteZone.classList.add('hidden');
+      if (typeof switchProofTab === 'function') {
+        switchProofTab(currentProofMode || 'photo');
       }
     }
   });
@@ -1197,6 +1296,9 @@ document.addEventListener('DOMContentLoaded', () => {
         debateBox.classList.toggle('hidden');
         if (isOpening) {
           initRewardDebateChat();
+          if (typeof initHorizontalScrollContainers === 'function') initHorizontalScrollContainers();
+          const chips = document.getElementById('reward-suggest-chips');
+          if (chips) chips.scrollLeft = 0;
           const argInput = document.getElementById('input-reward-debate-arg');
           if (argInput) {
             setTimeout(() => {
@@ -1474,6 +1576,119 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 4. Horizontal Scroll & Drag Interactions for Suggestions and Chips (Desktop Support)
+  initHorizontalScrollContainers();
+
   initMaterialDesignInteractions();
 });
+
+// =============================================================================
+// 15. HORIZONTAL DRAG & WHEEL SCROLL FOR CHIPS & SUGGESTIONS (DESKTOP UX)
+// =============================================================================
+/**
+ * Hỗ trợ cuộn ngang tự nhiên bằng con lăn chuột và kéo rê chuột (drag-to-scroll)
+ * cho các hàng gợi ý 'no-scrollbar' trên máy tính, tái hiện trải nghiệm vuốt mượt như điện thoại.
+ */
+function makeHorizontalScrollable(container) {
+  if (!container || container.dataset?.scrollInited === 'true') return;
+  if (!container.dataset) container.dataset = {};
+  container.dataset.scrollInited = 'true';
+  container.classList.add('horizontal-scroll-drag');
+
+  let isDown = false;
+  let startX = 0;
+  let scrollStart = 0;
+  let hasMoved = false;
+  let preventClick = false;
+
+  // 1. Chuyển đổi con lăn chuột dọc (deltaY) thành cuộn ngang tự nhiên trên PC
+  container.addEventListener('wheel', (e) => {
+    // Chỉ can thiệp nếu container thực sự có nội dung tràn ngang
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    // Nếu lăn dọc nhiều hơn lăn ngang (chuột máy tính thông thường)
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+
+  // 2. Kéo rê chuột để lướt mượt mà như ngón tay vuốt trên màn hình cảm ứng
+  const onMouseMove = (e) => {
+    if (!isDown) return;
+    const dx = e.clientX - startX;
+    if (!hasMoved && Math.abs(dx) > 5) {
+      hasMoved = true;
+      preventClick = true;
+      container.classList.add('is-dragging');
+    }
+    if (hasMoved) {
+      container.scrollLeft = scrollStart - dx;
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!isDown) return;
+    isDown = false;
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    window.removeEventListener('blur', onMouseUp);
+
+    container.classList.remove('is-dragging');
+    if (preventClick) {
+      setTimeout(() => {
+        preventClick = false;
+      }, 100);
+    }
+  };
+
+  container.addEventListener('mousedown', (e) => {
+    // Chỉ kích hoạt cho phím chuột trái và bỏ qua chạm cảm ứng di động
+    if (e.button !== 0 || (e.pointerType && e.pointerType === 'touch')) return;
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    isDown = true;
+    hasMoved = false;
+    startX = e.clientX;
+    scrollStart = container.scrollLeft;
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('blur', onMouseUp);
+  });
+
+  // Chặn hiện tượng kéo ảnh hoặc ghost drag mặc định của trình duyệt
+  container.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+  });
+
+  // 3. Nuốt sự kiện click của các nút con nếu người dùng đang kéo rê để lướt
+  container.addEventListener('click', (e) => {
+    if (preventClick || hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      preventClick = false;
+      hasMoved = false;
+    }
+  }, true); // Bắt ở capture phase để chặn trước khi tới nút con
+}
+
+function initHorizontalScrollContainers() {
+  const selectors = [
+    '.horizontal-scroll-drag',
+    '#quest-suggest-chips',
+    '#reward-suggest-chips',
+    '#bank-suggest-chips',
+    '#assistant-suggest-chips',
+    '.quick-suggest-chips'
+  ];
+  const containers = document.querySelectorAll(selectors.join(', '));
+  containers.forEach(el => makeHorizontalScrollable(el));
+}
+
+if (typeof window !== 'undefined') {
+  window.makeHorizontalScrollable = makeHorizontalScrollable;
+  window.initHorizontalScrollContainers = initHorizontalScrollContainers;
+}
 

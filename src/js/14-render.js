@@ -403,11 +403,11 @@ function renderQuests() {
           <button class="btn-undo-quest">Hoàn tác</button>
         ` : (q.focusTimerCompleted && q.requiresProof ? `
           <button class="btn-submit-quest-proof py-2 px-3 rounded-lg text-xs font-semibold">
-            <span>Chụp Ảnh Nhận Vàng 📸</span>
+            <span>${q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')}</span>
           </button>
         ` : (q.type === 'focus' ? (isTimerDone ? `
           <button class="btn-complete-focus-done">
-            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+            <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
           </button>
         ` : `
           <button class="btn-start-focus">
@@ -671,18 +671,18 @@ function openQuestDetailModal(questId) {
       `);
     }
 
-    // Badge 3: Yêu cầu bằng chứng ảnh
+    // Badge 3: Yêu cầu bằng chứng
     if (q.requiresProof) {
       if (q._proofVerified) {
         badges.push(`
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-            📸 Ảnh đã duyệt
+            ${q.proofType === 'both' ? '📸+✍️ Bằng chứng đã duyệt' : (q.proofType === 'text' ? '✍️ Báo cáo đã duyệt' : '📸 Ảnh đã duyệt')}
           </span>
         `);
       } else {
         badges.push(`
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-            📸 Cần ảnh AI duyệt
+            ${q.proofType === 'both' ? '📸+✍️ Cần ảnh & báo cáo AI duyệt' : (q.proofType === 'text' ? '✍️ Cần báo cáo AI duyệt' : '📸 Cần ảnh AI duyệt')}
           </span>
         `);
       }
@@ -743,8 +743,16 @@ function openQuestDetailModal(questId) {
     } else if (q.focusTimerCompleted && q.requiresProof) {
       primaryActionContainer.innerHTML = `
         <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-          <span>Chụp Ảnh Nhận Vàng 📸</span>
+          ${q.proofType === 'both' ? `
+            <span>📸+✍️</span>
+            <span>Nộp Ảnh & Báo Cáo Nhận Vàng</span>
+          ` : (q.proofType === 'text' ? `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <span>Nộp Báo Cáo Nhận Vàng ✍️</span>
+          ` : `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+            <span>Chụp Ảnh Nhận Vàng 📸</span>
+          `)}
         </button>
       `;
       document.getElementById('mqd-btn-proof')?.addEventListener('click', () => {
@@ -757,7 +765,7 @@ function openQuestDetailModal(questId) {
         primaryActionContainer.innerHTML = `
           <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+            <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
           </button>
         `;
         document.getElementById('mqd-btn-focus-done')?.addEventListener('click', () => {
@@ -1238,8 +1246,8 @@ function openRewardDetailModal(itemId, source) {
 
   const tierBadge = document.getElementById('mrd-tier-badge');
   if (tierBadge) {
-    tierBadge.textContent = tierLabelMap[rawTier] || (item.tier || 'CAO CẤP').toUpperCase();
-    tierBadge.className = `inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border ${tierColorMap[rawTier] || tierColorMap.rare}`;
+    tierBadge.textContent = '';
+    tierBadge.className = 'hidden';
   }
 
   // 2. Price / Value Strip
@@ -1268,13 +1276,6 @@ function openRewardDetailModal(itemId, source) {
   const metaBadges = document.getElementById('mrd-meta-badges');
   if (metaBadges) {
     const badges = [];
-
-    // Tier Badge
-    badges.push(`
-      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border ${tierColorMap[rawTier] || tierColorMap.rare}">
-        🏷️ ${tierLabelMap[rawTier] || 'Cao cấp'}
-      </span>
-    `);
 
     // Duration
     if (durationMins > 0) {
@@ -1864,11 +1865,19 @@ function renderLedger() {
                   <div class="font-semibold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
                     ${categoryBadge}
                     <span class="truncate">${escapeHtml(displayTitle)}</span>
-                    ${entry.proofImageUrl ? `
+                    ${entry.proofImageUrl && entry.proofUserNote ? `
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem ảnh & báo cáo đã duyệt">
+                        <span>📸+📝 Xem bằng chứng</span>
+                      </button>
+                    ` : (entry.proofImageUrl ? `
                       <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem ảnh bằng chứng đã duyệt">
                         <span>📸 Xem ảnh</span>
                       </button>
-                    ` : ''}
+                    ` : (entry.proofUserNote ? `
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 cursor-pointer ml-auto" data-proof-url="" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem báo cáo công việc đã duyệt">
+                        <span>📝 Xem báo cáo</span>
+                      </button>
+                    ` : ''))}
                   </div>
                   <div class="ledger-desc-container mt-0.5">
                     <div class="ledger-desc-content text-[10px] text-slate-400 truncate cursor-pointer transition-colors hover:text-slate-600 dark:hover:text-slate-300" title="Nhấn để xem thêm / thu gọn">
@@ -1888,13 +1897,13 @@ function renderLedger() {
     </div>
   `).join('');
 
-  // Gắn sự kiện click mở modal cho các nút xem ảnh trên giao dịch sổ cái
+  // Gắn sự kiện click mở modal cho các nút xem ảnh / báo cáo trên giao dịch sổ cái
   const viewProofBtns = list.querySelectorAll('.btn-view-proof-img');
   viewProofBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openProofViewerModal(
-        btn.dataset.proofUrl,
+        btn.dataset.proofUrl || null,
         btn.dataset.questTitle,
         btn.dataset.userNote || '',
         btn.dataset.feedback || '',

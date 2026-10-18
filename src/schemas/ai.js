@@ -57,6 +57,7 @@ export const QuestAppraisalOutputSchema = v.looseObject({
   category: v.optional(v.string(), 'other'),
   reasoning: v.optional(v.string(), ''),
   requiresProof: v.optional(v.boolean(), false),
+  proofType: v.optional(v.picklist(['photo', 'text', 'both']), 'photo'),
   proofGuidance: v.optional(v.string(), '')
 });
 
@@ -84,7 +85,9 @@ export const DebateOutputSchema = v.looseObject({
   newDescription: v.optional(v.string()),
   newType: v.optional(v.picklist(['focus', 'bounty'])),
   newRank: v.optional(v.string()),
-  newRequiresProof: v.optional(v.boolean())
+  newRequiresProof: v.optional(v.boolean()),
+  newProofType: v.optional(v.picklist(['photo', 'text', 'both'])),
+  newProofGuidance: v.optional(v.string())
 });
 
 /**
@@ -95,6 +98,14 @@ export const AssistantOutputSchema = v.looseObject({
   reply: v.optional(v.string(), ''),
   options: v.optional(v.array(v.any()), []),
   suggestedActions: v.optional(v.array(v.any()), [])
+});
+
+/**
+ * 6. Proof Verification Output Schema (Thẩm định bằng chứng ảnh/báo cáo chữ)
+ */
+export const ProofVerificationOutputSchema = v.looseObject({
+  approved: v.optional(v.boolean(), false),
+  feedback: v.optional(v.string(), '')
 });
 
 /**
@@ -119,3 +130,9 @@ export function validateAssistantOutput(raw) {
   const result = v.safeParse(AssistantOutputSchema, raw);
   return { success: result.success, data: result.success ? result.output : null };
 }
+
+export function validateProofVerificationOutput(raw) {
+  const result = v.safeParse(ProofVerificationOutputSchema, raw);
+  return { success: result.success, data: result.success ? result.output : null };
+}
+

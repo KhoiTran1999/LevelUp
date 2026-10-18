@@ -358,6 +358,23 @@ function openModal(id) {
   if (modal) modal.classList.remove('hidden');
 }
 
+function openAboutModal() {
+  const navMoreMenu = document.getElementById('nav-more-menu');
+  const mobileMoreMenu = document.getElementById('mobile-more-menu');
+  if (navMoreMenu) navMoreMenu.classList.add('hidden');
+  if (mobileMoreMenu) mobileMoreMenu.classList.add('hidden');
+  if (typeof sfx !== 'undefined' && sfx.playClick) {
+    sfx.playClick();
+  }
+  const modal = document.getElementById('modal-about');
+  if (modal) {
+    const scrollBody = modal.querySelector('.overflow-y-auto');
+    if (scrollBody) scrollBody.scrollTop = 0;
+  }
+  openModal('modal-about');
+}
+window.openAboutModal = openAboutModal;
+
 function closeModal(id) {
   if (id === 'modal-welcome') {
     if (!checkIsOnboarded()) return;

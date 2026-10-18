@@ -2537,28 +2537,19 @@ function renderFocusStationUI() {
 
   if (isBreakMode) {
     if (titleEl) titleEl.textContent = 'Nghỉ giải lao nạp năng lượng';
-    if (rankEl) {
-      rankEl.textContent = 'BREAK';
-      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG NGHỈ GIẢI LAO';
     if (coinsEl) coinsEl.textContent = '+0';
     if (expEl) expEl.textContent = '+0';
   } else if (activeRewardItem) {
     if (titleEl) titleEl.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
-    if (rankEl) {
-      rankEl.textContent = (activeRewardItem.tier || 'REWARD').toUpperCase();
-      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30';
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎉';
     if (coinsEl) coinsEl.textContent = `-${activeRewardItem.price}`;
     if (expEl) expEl.textContent = '🎉 Thư giãn';
   } else if (activeFocusQuest) {
     if (titleEl) titleEl.textContent = activeFocusQuest.title;
-    if (rankEl) {
-      rankEl.textContent = `HẠNG ${activeFocusQuest.rank}`;
-      rankEl.className = `rank-badge-${activeFocusQuest.rank} text-[10px] px-1.5 py-0.5 rounded font-bold font-mono`;
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG BẤM GIỜ TẬP TRUNG';
     if (coinsEl) coinsEl.textContent = `+${activeFocusQuest.rewardCoins}`;
     if (expEl) expEl.textContent = `+${activeFocusQuest.rewardCoins * 3}`;
@@ -4065,12 +4056,105 @@ async function deleteQuest(questId) {
 }
 
 // =============================================================================
-// 6.5. QUEST PROOF VERIFICATION (Camera Capture & AI Vision)
+// 6.5. QUEST PROOF VERIFICATION (Camera Capture, Text Report & AI Vision)
 // =============================================================================
 let currentProofQuest = null;
 let currentProofBase64 = null;
 let isSubmittingProof = false;
 let pendingApprovedQuest = null;
+let currentProofMode = 'photo'; // 'photo' | 'text' | 'both'
+
+function switchProofTab(mode) {
+  currentProofMode = (mode === 'text' || mode === 'both') ? mode : 'photo';
+
+  const tabPhoto = document.getElementById('proof-tab-photo');
+  const tabText = document.getElementById('proof-tab-text');
+  const tabBoth = document.getElementById('proof-tab-both');
+  const photoContainer = document.getElementById('proof-mode-photo-container');
+  const textContainer = document.getElementById('proof-mode-text-container');
+  const noteZone = document.getElementById('proof-note-zone');
+  const submitBtn = document.getElementById('btn-submit-proof');
+  const textInput = document.getElementById('input-quest-proof-text');
+  const textVal = textInput ? textInput.value.trim() : '';
+  const isMobile = typeof isMobilePhone === 'function' ? isMobilePhone() : false;
+
+  const inactiveClass = 'flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-bold';
+  const activeAmberClass = 'flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm border border-amber-500/30 font-bold';
+  const activeBlueClass = 'flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-500/30 font-bold';
+  const activePurpleClass = 'flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm border border-purple-500/30 font-bold';
+
+  const stepPhotoTitle = document.getElementById('proof-step-photo-title');
+  const stepTextTitle = document.getElementById('proof-step-text-title');
+
+  if (currentProofMode === 'photo') {
+    if (stepPhotoTitle) stepPhotoTitle.classList.add('hidden');
+    if (stepTextTitle) stepTextTitle.classList.add('hidden');
+    if (tabPhoto) tabPhoto.className = activeAmberClass;
+    if (tabText) tabText.className = inactiveClass;
+    if (tabBoth) tabBoth.className = inactiveClass;
+    if (photoContainer) photoContainer.classList.remove('hidden');
+    if (textContainer) textContainer.classList.add('hidden');
+    if (noteZone) {
+      if (isMobile) noteZone.classList.remove('hidden');
+      else noteZone.classList.add('hidden');
+    }
+
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      if (currentProofBase64) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Gửi AI Duyệt Ảnh</span><span>📸</span>`;
+      } else {
+        submitBtn.disabled = true;
+        if (!isMobile) {
+          submitBtn.classList.add('hidden');
+        } else {
+          submitBtn.classList.remove('hidden');
+          submitBtn.innerHTML = `<span>Gửi AI Duyệt Ảnh</span><span>📸</span>`;
+        }
+      }
+    }
+  } else if (currentProofMode === 'text') {
+    if (stepPhotoTitle) stepPhotoTitle.classList.add('hidden');
+    if (stepTextTitle) stepTextTitle.classList.add('hidden');
+    if (tabText) tabText.className = activeBlueClass;
+    if (tabPhoto) tabPhoto.className = inactiveClass;
+    if (tabBoth) tabBoth.className = inactiveClass;
+    if (photoContainer) photoContainer.classList.add('hidden');
+    if (textContainer) textContainer.classList.remove('hidden');
+
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      submitBtn.innerHTML = `<span>Gửi Báo Cáo Cho AI Duyệt</span><span>✍️</span>`;
+      submitBtn.disabled = textVal.length < 10;
+    }
+  } else {
+    // Mode 'both' (Kết hợp Ảnh và Báo Cáo)
+    if (stepPhotoTitle) stepPhotoTitle.classList.remove('hidden');
+    if (stepTextTitle) stepTextTitle.classList.remove('hidden');
+    if (tabBoth) tabBoth.className = activePurpleClass;
+    if (tabPhoto) tabPhoto.className = inactiveClass;
+    if (tabText) tabText.className = inactiveClass;
+    if (photoContainer) photoContainer.classList.remove('hidden');
+    if (textContainer) textContainer.classList.remove('hidden');
+    if (noteZone) noteZone.classList.add('hidden');
+
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      submitBtn.innerHTML = `<span>Gửi AI Duyệt (Ảnh + Báo Cáo)</span><span>🚀</span>`;
+      if (!isMobile) {
+        submitBtn.disabled = true;
+      } else {
+        const hasPhoto = Boolean(currentProofBase64);
+        const hasText = textVal.length >= 10;
+        submitBtn.disabled = !(hasPhoto && hasText);
+      }
+    }
+  }
+}
+if (typeof window !== 'undefined') {
+  window.switchProofTab = switchProofTab;
+}
 
 // ponytail: Strict real-mobile detector. Blocks desktop browsers and DevTools mobile emulation (anti-cheat).
 function isMobilePhone() {
@@ -4192,14 +4276,104 @@ function openQuestProofModal(quest) {
   const titleEl = document.getElementById('proof-quest-title');
   if (titleEl) titleEl.textContent = quest.title;
 
+  // Target mode strictly follows quest.proofType (1 out of 3 options: photo | text | both)
+  const targetMode = quest.proofType === 'both' ? 'both' : (quest.proofType === 'text' ? 'text' : 'photo');
+
+  // Harmonize guidance with targetMode so it never displays contradictory instructions
+  let effectiveGuidance = (quest.proofGuidance || '').trim();
+  if (targetMode === 'text') {
+    if (!effectiveGuidance || /chụp\s*(?:lại\s*)?ảnh|camera|trang\s*vở/i.test(effectiveGuidance)) {
+      effectiveGuidance = 'Ghi lại tóm tắt 2-3 ý chính, từ vựng hoặc kết quả cụ thể bạn vừa hoàn thành.';
+    }
+  } else if (targetMode === 'photo') {
+    if (!effectiveGuidance || /viết\s*(?:báo\s*cáo|tóm\s*tắt)|nhập\s*văn\s*bản/i.test(effectiveGuidance)) {
+      effectiveGuidance = 'Chụp ảnh màn hình hoặc kết quả công việc thực tế để AI thẩm định.';
+    }
+  } else if (targetMode === 'both') {
+    if (!effectiveGuidance || (!/chụp/i.test(effectiveGuidance) || !/(?:viết|báo\s*cáo|tóm\s*tắt)/i.test(effectiveGuidance))) {
+      effectiveGuidance = 'Chụp 1 bức ảnh thực tế và viết tóm tắt ngắn gọn những gì bạn đã làm.';
+    }
+  }
+
   const guidanceContainer = document.getElementById('proof-guidance-container');
+  const guidanceBox = document.getElementById('proof-guidance-box');
+  const guidanceLabel = document.getElementById('proof-guidance-label');
   const guidanceText = document.getElementById('proof-guidance-text');
   if (guidanceContainer && guidanceText) {
-    if (quest.proofGuidance) {
-      guidanceText.textContent = quest.proofGuidance;
+    if (effectiveGuidance) {
+      guidanceText.textContent = effectiveGuidance;
       guidanceContainer.classList.remove('hidden');
+      if (guidanceBox) {
+        if (targetMode === 'both') {
+          guidanceBox.className = 'p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-900 dark:text-purple-300 flex items-start gap-1.5';
+        } else if (targetMode === 'text') {
+          guidanceBox.className = 'p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-900 dark:text-blue-300 flex items-start gap-1.5';
+        } else {
+          guidanceBox.className = 'p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-900 dark:text-amber-300 flex items-start gap-1.5';
+        }
+      }
+      if (guidanceLabel) {
+        guidanceLabel.className = targetMode === 'both' ? 'font-bold text-purple-700 dark:text-purple-300' : (targetMode === 'text' ? 'font-bold text-blue-700 dark:text-blue-300' : 'font-bold text-amber-700 dark:text-amber-300');
+      }
     } else {
       guidanceContainer.classList.add('hidden');
+    }
+  }
+
+  // Update dynamic modal header icon, title and subtitle
+  const modalIconBox = document.getElementById('proof-modal-icon-box');
+  const modalIcon = document.getElementById('proof-modal-icon');
+  const modalTitle = document.getElementById('proof-modal-title');
+  const modalSub = document.getElementById('proof-modal-subtitle') || document.querySelector('#modal-quest-proof h3 + p');
+
+  if (targetMode === 'both') {
+    if (modalIconBox) modalIconBox.className = 'w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-lg shadow-sm';
+    if (modalIcon) {
+      modalIcon.textContent = 'auto_awesome';
+      modalIcon.className = 'material-symbols-outlined text-lg leading-none text-purple-500';
+    }
+    if (modalTitle) {
+      modalTitle.textContent = 'XÁC THỰC KẾT HỢP (ẢNH & BÁO CÁO)';
+      modalTitle.className = 'font-rpg-title font-extrabold text-sm sm:text-base text-purple-600 dark:text-purple-400';
+    }
+    if (modalSub) modalSub.textContent = 'Chụp ảnh thực tế và viết báo cáo để AI thẩm định trước khi mở khóa Vàng';
+  } else if (targetMode === 'text') {
+    if (modalIconBox) modalIconBox.className = 'w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-lg shadow-sm';
+    if (modalIcon) {
+      modalIcon.textContent = 'edit_note';
+      modalIcon.className = 'material-symbols-outlined text-lg leading-none text-blue-500';
+    }
+    if (modalTitle) {
+      modalTitle.textContent = 'BÁO CÁO KẾT QUẢ CHO AI DUYỆT';
+      modalTitle.className = 'font-rpg-title font-extrabold text-sm sm:text-base text-blue-600 dark:text-blue-400';
+    }
+    if (modalSub) modalSub.textContent = 'Ghi lại nội dung công việc để AI thẩm định trước khi mở khóa Vàng';
+  } else {
+    if (modalIconBox) modalIconBox.className = 'w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg shadow-sm';
+    if (modalIcon) {
+      modalIcon.textContent = 'photo_camera';
+      modalIcon.className = 'material-symbols-outlined text-lg leading-none text-amber-500';
+    }
+    if (modalTitle) {
+      modalTitle.textContent = 'NỘP BẰNG CHỨNG CHO AI DUYỆT';
+      modalTitle.className = 'font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400';
+    }
+    if (modalSub) modalSub.textContent = 'Chụp ảnh thực tế bằng camera điện thoại để AI thẩm định trước khi mở khóa Vàng';
+  }
+
+  // Update single proof mode badge indicator in the snapshot card
+  const indicator = document.getElementById('proof-mode-indicator');
+  if (indicator) {
+    indicator.classList.remove('hidden');
+    if (targetMode === 'both') {
+      indicator.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25';
+      indicator.innerHTML = `<span>📸+✍️</span><span>Kết hợp Ảnh & Báo cáo</span>`;
+    } else if (targetMode === 'text') {
+      indicator.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/25';
+      indicator.innerHTML = `<span>✍️</span><span>Báo cáo nội dung</span>`;
+    } else {
+      indicator.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25';
+      indicator.innerHTML = `<span>📸</span><span>Chụp ảnh thực tế</span>`;
     }
   }
 
@@ -4211,6 +4385,17 @@ function openQuestProofModal(quest) {
   if (noteInput) {
     noteInput.value = '';
     noteInput.disabled = false;
+  }
+
+  const textInput = document.getElementById('input-quest-proof-text');
+  if (textInput) {
+    textInput.value = '';
+    textInput.disabled = false;
+  }
+  const textCharCount = document.getElementById('proof-text-char-count');
+  if (textCharCount) {
+    textCharCount.textContent = '0/10 ký tự tối thiểu';
+    textCharCount.className = 'text-[10px] font-mono text-slate-400 font-normal';
   }
 
   const noteZone = document.getElementById('proof-note-zone');
@@ -4245,29 +4430,57 @@ function openQuestProofModal(quest) {
   const resultBox = document.getElementById('proof-result-box');
   if (resultBox) resultBox.classList.add('hidden');
 
-  const submitBtn = document.getElementById('btn-submit-proof');
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    if (!isMobile) {
-      submitBtn.classList.add('hidden');
-    } else {
-      submitBtn.classList.remove('hidden');
-      submitBtn.innerHTML = `<span>Gửi AI Duyệt</span><span>📸</span>`;
-    }
+  switchProofTab(targetMode);
+
+  // Hide 3-tab switcher so only the 1 required proof mode is displayed
+  const tabSwitcher = document.getElementById('proof-tab-switcher');
+  if (tabSwitcher) {
+    tabSwitcher.classList.add('hidden');
   }
 
   openModal('modal-quest-proof');
 }
 
 async function submitQuestProofToAI() {
-  if (!isMobilePhone()) {
-    showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
-    return;
-  }
-  if (!currentProofQuest || !currentProofBase64 || isSubmittingProof) return;
+  if (!currentProofQuest || isSubmittingProof) return;
 
+  const textInput = document.getElementById('input-quest-proof-text');
   const noteInput = document.getElementById('input-quest-proof-note');
-  const userNote = noteInput ? noteInput.value.trim() : '';
+  const workContent = textInput ? textInput.value.trim() : '';
+  let userNote = noteInput ? noteInput.value.trim() : '';
+  if (currentProofMode === 'text' || currentProofMode === 'both') {
+    userNote = workContent;
+  }
+
+  if (currentProofMode === 'both') {
+    if (!isMobilePhone()) {
+      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      return;
+    }
+    if (!currentProofBase64) {
+      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      return;
+    }
+    if (workContent.length < 10) {
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      return;
+    }
+  } else if (currentProofMode === 'photo') {
+    if (!isMobilePhone()) {
+      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      return;
+    }
+    if (!currentProofBase64) {
+      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      return;
+    }
+  } else {
+    // text mode
+    if (workContent.length < 10) {
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      return;
+    }
+  }
 
   const submitBtn = document.getElementById('btn-submit-proof');
   const evaluatingZone = document.getElementById('proof-evaluating-zone');
@@ -4279,23 +4492,28 @@ async function submitQuestProofToAI() {
   isSubmittingProof = true;
   if (submitBtn) submitBtn.disabled = true;
   if (noteInput) noteInput.disabled = true;
+  if (textInput) textInput.disabled = true;
   if (evaluatingZone) evaluatingZone.classList.remove('hidden');
   if (resultBox) resultBox.classList.add('hidden');
 
   try {
+    const payload = {
+      questId: currentProofQuest.id,
+      title: currentProofQuest.title,
+      description: currentProofQuest.description,
+      proofType: currentProofMode,
+      workContent: (currentProofMode === 'text' || currentProofMode === 'both') ? workContent : undefined,
+      userNote: currentProofMode === 'photo' ? userNote : workContent,
+      imageBase64: (currentProofMode === 'photo' || currentProofMode === 'both') ? currentProofBase64 : undefined
+    };
+
     const res = await fetch('/api/ai', {
       method: 'POST',
       credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         action: 'verify_proof',
-        payload: {
-          questId: currentProofQuest.id,
-          title: currentProofQuest.title,
-          description: currentProofQuest.description,
-          userNote,
-          imageBase64: currentProofBase64
-        }
+        payload
       })
     });
 
@@ -4315,6 +4533,7 @@ async function submitQuestProofToAI() {
         triggerSave(true);
         pendingApprovedQuest.proofUserNote = userNote || '';
         pendingApprovedQuest.proofFeedback = data.feedback || '';
+
         if (data.proofImageUrl) {
           pendingApprovedQuest.proofImageUrl = data.proofImageUrl;
           currentProofQuest.proofImageUrl = data.proofImageUrl;
@@ -4336,7 +4555,9 @@ async function submitQuestProofToAI() {
           if (appState.proofPhotos.length > 100) {
             appState.proofPhotos = appState.proofPhotos.slice(0, 100);
           }
-          triggerSave(false);
+        } else {
+          currentProofQuest.proofUserNote = userNote || '';
+          currentProofQuest.proofFeedback = data.feedback || '';
         }
 
         closeModal('modal-quest-proof');
@@ -4357,43 +4578,64 @@ async function submitQuestProofToAI() {
         resultBox.className = 'p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200';
         if (resultIcon) resultIcon.textContent = '⚠️';
         if (resultTitle) resultTitle.textContent = 'AI CHƯA PHÊ DUYỆT';
-        if (resultFeedback) resultFeedback.textContent = data.feedback || 'Ảnh chưa thấy rõ kết quả hoàn thành. Bạn vui lòng chụp lại nhé.';
+        const defaultFeedback = currentProofMode === 'both'
+          ? 'Bằng chứng kết hợp chưa đạt yêu cầu. Vui lòng kiểm tra lại ảnh chụp và nội dung báo cáo nhé.'
+          : (currentProofMode === 'text'
+            ? 'Nội dung báo cáo chưa đạt yêu cầu hoặc không rõ ràng. Vui lòng nêu cụ thể những gì bạn đã làm.'
+            : 'Ảnh chưa thấy rõ kết quả hoàn thành. Bạn vui lòng chụp lại nhé.');
+        if (resultFeedback) resultFeedback.textContent = data.feedback || defaultFeedback;
 
         sfx.playGong();
-        showToast('AI chưa phê duyệt bằng chứng. Vui lòng chụp lại ảnh rõ hơn nhé!', 'warning');
+        const warningMsg = currentProofMode === 'both'
+          ? 'AI chưa duyệt bằng chứng kết hợp: ' + (data.feedback || 'Chưa đạt yêu cầu')
+          : (currentProofMode === 'text'
+            ? 'AI chưa duyệt báo cáo: ' + (data.feedback || 'Nội dung chưa đạt yêu cầu')
+            : 'AI chưa phê duyệt bằng chứng. Vui lòng chụp lại ảnh rõ hơn nhé!');
+        showToast(warningMsg, 'warning');
+
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = `<span>Gửi Lại AI Duyệt</span><span>📸</span>`;
+          submitBtn.innerHTML = currentProofMode === 'both'
+            ? `<span>Nộp Lại (Ảnh + Báo Cáo)</span><span>🚀</span>`
+            : (currentProofMode === 'text'
+              ? `<span>Nộp Lại Báo Cáo</span><span>✍️</span>`
+              : `<span>Gửi Lại AI Duyệt</span><span>📸</span>`);
         }
         if (noteInput) noteInput.disabled = false;
+        if (textInput) textInput.disabled = false;
       }
     }
   } catch (err) {
     if (evaluatingZone) evaluatingZone.classList.add('hidden');
-    showToast('Lỗi thẩm định ảnh: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    const errPrefix = currentProofMode === 'both'
+      ? 'Lỗi thẩm định bằng chứng kết hợp: '
+      : (currentProofMode === 'text' ? 'Lỗi thẩm định báo cáo: ' : 'Lỗi thẩm định ảnh: ');
+    showToast(errPrefix + (err.message || 'Vui lòng thử lại'), 'error');
     if (submitBtn) submitBtn.disabled = false;
     if (noteInput) noteInput.disabled = false;
+    if (textInput) textInput.disabled = false;
   } finally {
     isSubmittingProof = false;
   }
 }
 
 /**
- * Mở modal xem lại hình ảnh bằng chứng nhiệm vụ đã được duyệt kèm ghi chú và nhận xét AI
- * @param {string} imageUrl 
+ * Mở modal xem lại hình ảnh hoặc nội dung báo cáo bằng chứng nhiệm vụ đã được duyệt kèm ghi chú và nhận xét AI
+ * @param {string|null} imageUrl 
  * @param {string} questTitle 
  * @param {string} userNote
  * @param {string} feedback
  * @param {number|null} timestamp
  */
 function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback = '', timestamp = null) {
-  if (!imageUrl) {
-    showToast('Không tìm thấy đường dẫn ảnh bằng chứng.', 'warning');
+  if (!imageUrl && !userNote && !feedback) {
+    showToast('Không tìm thấy nội dung bằng chứng.', 'warning');
     return;
   }
   const modal = document.getElementById('modal-proof-viewer');
   if (!modal) return;
 
+  const imgContainer = document.getElementById('proof-viewer-img-container');
   const imgEl = document.getElementById('proof-viewer-img');
   const skeletonEl = document.getElementById('proof-viewer-skeleton');
   const titleEl = document.getElementById('proof-viewer-title');
@@ -4405,49 +4647,58 @@ function openProofViewerModal(imageUrl, questTitle = '', userNote = '', feedback
   const feedbackZone = document.getElementById('proof-viewer-feedback-zone');
   const feedbackText = document.getElementById('proof-viewer-feedback-text');
 
-  if (imgEl) {
-    if (skeletonEl) {
-      skeletonEl.style.display = 'flex';
-      skeletonEl.style.opacity = '1';
-    }
-    imgEl.classList.remove('proof-img-loaded');
-    imgEl.classList.add('proof-img-loading');
-
-    imgEl.onload = () => {
-      imgEl.classList.remove('proof-img-loading');
-      imgEl.classList.add('proof-img-loaded');
+  if (imageUrl) {
+    if (imgContainer) imgContainer.classList.remove('hidden');
+    if (imgEl) {
       if (skeletonEl) {
-        skeletonEl.style.opacity = '0';
-        setTimeout(() => {
-          skeletonEl.style.display = 'none';
-        }, 300);
+        skeletonEl.style.display = 'flex';
+        skeletonEl.style.opacity = '1';
       }
-    };
-    imgEl.onerror = () => {
-      if (skeletonEl) skeletonEl.style.display = 'none';
-      imgEl.classList.remove('proof-img-loading');
-      imgEl.classList.add('proof-img-loaded');
-    };
-    imgEl.src = imageUrl;
+      imgEl.classList.remove('proof-img-loaded');
+      imgEl.classList.add('proof-img-loading');
+
+      imgEl.onload = () => {
+        imgEl.classList.remove('proof-img-loading');
+        imgEl.classList.add('proof-img-loaded');
+        if (skeletonEl) {
+          skeletonEl.style.opacity = '0';
+          setTimeout(() => {
+            skeletonEl.style.display = 'none';
+          }, 300);
+        }
+      };
+      imgEl.onerror = () => {
+        if (skeletonEl) skeletonEl.style.display = 'none';
+        imgEl.classList.remove('proof-img-loading');
+        imgEl.classList.add('proof-img-loaded');
+      };
+      imgEl.src = imageUrl;
+    }
+    if (downloadLink) {
+      downloadLink.classList.remove('hidden');
+      downloadLink.href = imageUrl;
+    }
+  } else {
+    // Không có ảnh (Text Proof)
+    if (imgContainer) imgContainer.classList.add('hidden');
+    if (downloadLink) downloadLink.classList.add('hidden');
   }
+
   if (titleEl) {
-    titleEl.textContent = questTitle || 'Ảnh Bằng Chứng Nhiệm Vụ';
+    titleEl.textContent = questTitle || (imageUrl ? 'ẢNH BẰNG CHỨNG NHIỆM VỤ' : 'BÁO CÁO NHIỆM VỤ');
   }
   if (subtitleEl) {
     if (timestamp) {
       const timeStr = new Date(timestamp).toLocaleDateString('vi-VN', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
-      subtitleEl.textContent = `Chụp lúc: ${timeStr} · AI Arbiter đã thẩm định`;
+      subtitleEl.textContent = `${imageUrl ? 'Chụp lúc' : 'Báo cáo lúc'}: ${timeStr} · AI Arbiter đã thẩm định`;
     } else {
       subtitleEl.textContent = 'Bằng chứng đã được AI Arbiter thẩm định và lưu trữ an toàn';
     }
   }
-  if (downloadLink) {
-    downloadLink.href = imageUrl;
-  }
 
-  // Hiển thị ghi chú thông tin thêm của người dùng gửi cho AI
+  // Hiển thị ghi chú thông tin thêm hoặc nội dung báo cáo của người dùng
   if (noteZone && noteText) {
     if (userNote && userNote.trim()) {
       noteText.textContent = userNote.trim();
@@ -5694,6 +5945,7 @@ async function submitQuestToAI() {
       icon: (data.icon && typeof data.icon === 'string') ? data.icon.trim() : '',
       isRepeatable: Boolean(isRepeatable),
       requiresProof: Boolean(data.requiresProof),
+      proofType: data.proofType || 'photo',
       proofGuidance: data.proofGuidance || ''
     };
     currentDebateHistory = [];
@@ -5746,15 +5998,34 @@ function updateVerdictDisplay() {
   const proofGuidanceBox = document.getElementById('verdict-proof-guidance-box');
   const proofGuidanceText = document.getElementById('verdict-proof-guidance-text');
 
+  const proofGuidanceLabel = document.getElementById('verdict-proof-guidance-label');
+
   if (currentPendingVerdict.requiresProof) {
     if (proofBadge) {
-      proofBadge.textContent = '📸 Cần chụp ảnh';
-      proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+      if (currentPendingVerdict.proofType === 'both') {
+        proofBadge.textContent = '📸+✍️ Cần ảnh & báo cáo';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+      } else if (currentPendingVerdict.proofType === 'text') {
+        proofBadge.textContent = '✍️ Cần báo cáo nội dung';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30';
+      } else {
+        proofBadge.textContent = '📸 Cần chụp ảnh';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+      }
     }
     if (proofGuidanceBox && proofGuidanceText) {
       if (currentPendingVerdict.proofGuidance) {
         proofGuidanceText.textContent = currentPendingVerdict.proofGuidance;
         proofGuidanceBox.classList.remove('hidden');
+        if (proofGuidanceLabel) {
+          if (currentPendingVerdict.proofType === 'both') {
+            proofGuidanceLabel.textContent = '💡 Hướng dẫn ảnh & báo cáo:';
+          } else if (currentPendingVerdict.proofType === 'text') {
+            proofGuidanceLabel.textContent = '💡 Gợi ý nội dung báo cáo:';
+          } else {
+            proofGuidanceLabel.textContent = '💡 Gợi ý chụp ảnh từ AI:';
+          }
+        }
       } else {
         proofGuidanceBox.classList.add('hidden');
       }
@@ -5772,11 +6043,28 @@ function updateVerdictDisplay() {
   const btnProofSuggest = document.getElementById('btn-suggest-proof');
   if (btnProofSuggest) {
     if (currentPendingVerdict.requiresProof) {
-      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
-      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+      if (currentPendingVerdict.proofType === 'both') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chỉ chụp ảnh';
+        btnProofSuggest.setAttribute('data-suggest', 'Mình muốn xin đổi sang chỉ cần chụp ảnh thực tế khi hoàn thành được không?');
+      } else if (currentPendingVerdict.proofType === 'text') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chụp ảnh thực tế';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình có sách vở hoặc sản phẩm thực tế, mình muốn xin đổi sang chụp ảnh được không?');
+      } else {
+        btnProofSuggest.textContent = '✍️ Xin đổi sang báo cáo nội dung';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên máy tính hoặc điện thoại không tiện chụp ảnh thực tế, mình xin đổi sang nộp báo cáo nội dung được không?');
+      }
     } else {
       btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
       btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
+  }
+
+  const btnProofBothSuggest = document.getElementById('btn-suggest-proof-both');
+  if (btnProofBothSuggest) {
+    if (currentPendingVerdict.requiresProof && currentPendingVerdict.proofType === 'both') {
+      btnProofBothSuggest.classList.add('hidden');
+    } else {
+      btnProofBothSuggest.classList.remove('hidden');
     }
   }
 
@@ -5866,6 +6154,7 @@ function openQuestRenegotiateModal(questId) {
     verdict: quest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
     isRepeatable: Boolean(quest.isRepeatable),
     requiresProof: Boolean(quest.requiresProof),
+    proofType: quest.proofType || 'photo',
     proofGuidance: quest.proofGuidance || ''
   };
   currentDebateHistory = [];
@@ -5909,7 +6198,9 @@ async function acceptVerdictAndCreateQuest() {
   const questCoins = currentPendingVerdict.rewardCoins || 10;
   const questTime = currentPendingVerdict.type === 'focus' ? `${currentPendingVerdict.targetMinutes || 25}p tập trung` : 'Không cần bấm giờ';
   const repeatText = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm một lần';
-  const proofText = currentPendingVerdict.requiresProof ? '📸 Cần chụp ảnh' : '⚡ Không cần chụp ảnh';
+  const proofText = currentPendingVerdict.requiresProof
+    ? (currentPendingVerdict.proofType === 'both' ? '📸+✍️ Cần ảnh & báo cáo' : (currentPendingVerdict.proofType === 'text' ? '✍️ Cần báo cáo nội dung' : '📸 Cần chụp ảnh'))
+    : '⚡ Không cần chụp ảnh';
 
   const ok = await confirmAction({
     title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
@@ -5940,6 +6231,7 @@ async function acceptVerdictAndCreateQuest() {
       targetQuest.verdict = currentPendingVerdict.verdict;
       targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
       targetQuest.requiresProof = Boolean(currentPendingVerdict.requiresProof);
+      targetQuest.proofType = currentPendingVerdict.proofType || (currentPendingVerdict.requiresProof ? 'photo' : null);
       targetQuest.proofGuidance = currentPendingVerdict.proofGuidance || '';
       delete targetQuest.focusTimerCompleted;
       delete targetQuest._proofVerified;
@@ -5976,6 +6268,7 @@ async function acceptVerdictAndCreateQuest() {
     verdict: currentPendingVerdict.verdict,
     isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
     requiresProof: Boolean(currentPendingVerdict.requiresProof),
+    proofType: currentPendingVerdict.proofType || (currentPendingVerdict.requiresProof ? 'photo' : null),
     proofGuidance: currentPendingVerdict.proofGuidance || '',
     completedCount: 0,
     status: 'active',
@@ -6521,17 +6814,43 @@ function initQuestDebateChat(forceReset = false) {
 
   const quest = currentPendingVerdict || {};
   const modeText = quest.type === 'focus' ? `${quest.targetMinutes || 25}p tập trung` : 'không cần bấm giờ';
-  const proofText = quest.requiresProof ? ' • 📸 Yêu cầu chụp ảnh' : ' • ⚡ Không cần ảnh';
+  let proofText = ' • ⚡ Không cần bằng chứng';
+  if (quest.requiresProof) {
+    if (quest.proofType === 'both') {
+      proofText = ' • 📸+✍️ Yêu cầu cả ảnh & báo cáo';
+    } else if (quest.proofType === 'text') {
+      proofText = ' • ✍️ Cần báo cáo nội dung';
+    } else {
+      proofText = ' • 📸 Yêu cầu chụp ảnh';
+    }
+  }
   const isRenegotiate = Boolean(currentEditingQuestId);
 
   const btnProofSuggest = document.getElementById('btn-suggest-proof');
   if (btnProofSuggest) {
     if (quest.requiresProof) {
-      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
-      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+      if (quest.proofType === 'both') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chỉ chụp ảnh';
+        btnProofSuggest.setAttribute('data-suggest', 'Mình muốn xin đổi sang chỉ cần chụp ảnh thực tế khi hoàn thành được không?');
+      } else if (quest.proofType === 'text') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chụp ảnh thực tế';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình có sách vở hoặc sản phẩm thực tế, mình muốn xin đổi sang chụp ảnh được không?');
+      } else {
+        btnProofSuggest.textContent = '✍️ Xin đổi sang báo cáo nội dung';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên máy tính hoặc điện thoại không tiện chụp ảnh thực tế, mình xin đổi sang nộp báo cáo nội dung được không?');
+      }
     } else {
       btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
       btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
+  }
+
+  const btnProofBothSuggest = document.getElementById('btn-suggest-proof-both');
+  if (btnProofBothSuggest) {
+    if (quest.requiresProof && quest.proofType === 'both') {
+      btnProofBothSuggest.classList.add('hidden');
+    } else {
+      btnProofBothSuggest.classList.remove('hidden');
     }
   }
 
@@ -6668,8 +6987,15 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       if (data.newTitle && data.newTitle !== prevVerdict.title) {
         diffTags.push(`📝 Tên mới: "${data.newTitle}"`);
       }
-      if (data.newRequiresProof !== undefined && Boolean(data.newRequiresProof) !== Boolean(prevVerdict.requiresProof)) {
-        diffTags.push(data.newRequiresProof ? '📸 Yêu cầu chụp ảnh bằng chứng' : '⚡ Miễn chụp ảnh (Hoàn thành 1 chạm)');
+      if (data.newProofType && data.newProofType !== prevVerdict.proofType) {
+        const typeLabels = {
+          both: '📸+✍️ Kết hợp cả ảnh & báo cáo',
+          text: '✍️ Báo cáo nội dung',
+          photo: '📸 Chụp ảnh thực tế'
+        };
+        diffTags.push(`🛡️ Xác thực: ${typeLabels[data.newProofType] || data.newProofType}`);
+      } else if (data.newRequiresProof !== undefined && Boolean(data.newRequiresProof) !== Boolean(prevVerdict.requiresProof)) {
+        diffTags.push(data.newRequiresProof ? '📸 Yêu cầu bằng chứng' : '⚡ Miễn bằng chứng');
       }
     }
 
@@ -6701,11 +7027,17 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       if (data.newRequiresProof !== undefined) {
         currentPendingVerdict.requiresProof = Boolean(data.newRequiresProof);
       }
+      if (data.newProofType !== undefined) {
+        currentPendingVerdict.proofType = data.newProofType;
+      }
       if (data.newProofGuidance !== undefined) {
         currentPendingVerdict.proofGuidance = data.newProofGuidance;
       }
       if (data.newIcon) {
         currentPendingVerdict.icon = data.newIcon;
+      }
+      if (data.isRepeatable !== undefined) {
+        currentPendingVerdict.isRepeatable = Boolean(data.isRepeatable);
       }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
       if (data.reply) currentPendingVerdict.verdict = data.reply;
@@ -8897,11 +9229,11 @@ function renderQuests() {
           <button class="btn-undo-quest">Hoàn tác</button>
         ` : (q.focusTimerCompleted && q.requiresProof ? `
           <button class="btn-submit-quest-proof py-2 px-3 rounded-lg text-xs font-semibold">
-            <span>Chụp Ảnh Nhận Vàng 📸</span>
+            <span>${q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')}</span>
           </button>
         ` : (q.type === 'focus' ? (isTimerDone ? `
           <button class="btn-complete-focus-done">
-            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+            <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
           </button>
         ` : `
           <button class="btn-start-focus">
@@ -9165,18 +9497,18 @@ function openQuestDetailModal(questId) {
       `);
     }
 
-    // Badge 3: Yêu cầu bằng chứng ảnh
+    // Badge 3: Yêu cầu bằng chứng
     if (q.requiresProof) {
       if (q._proofVerified) {
         badges.push(`
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-            📸 Ảnh đã duyệt
+            ${q.proofType === 'both' ? '📸+✍️ Bằng chứng đã duyệt' : (q.proofType === 'text' ? '✍️ Báo cáo đã duyệt' : '📸 Ảnh đã duyệt')}
           </span>
         `);
       } else {
         badges.push(`
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-            📸 Cần ảnh AI duyệt
+            ${q.proofType === 'both' ? '📸+✍️ Cần ảnh & báo cáo AI duyệt' : (q.proofType === 'text' ? '✍️ Cần báo cáo AI duyệt' : '📸 Cần ảnh AI duyệt')}
           </span>
         `);
       }
@@ -9237,8 +9569,16 @@ function openQuestDetailModal(questId) {
     } else if (q.focusTimerCompleted && q.requiresProof) {
       primaryActionContainer.innerHTML = `
         <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-          <span>Chụp Ảnh Nhận Vàng 📸</span>
+          ${q.proofType === 'both' ? `
+            <span>📸+✍️</span>
+            <span>Nộp Ảnh & Báo Cáo Nhận Vàng</span>
+          ` : (q.proofType === 'text' ? `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <span>Nộp Báo Cáo Nhận Vàng ✍️</span>
+          ` : `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+            <span>Chụp Ảnh Nhận Vàng 📸</span>
+          `)}
         </button>
       `;
       document.getElementById('mqd-btn-proof')?.addEventListener('click', () => {
@@ -9251,7 +9591,7 @@ function openQuestDetailModal(questId) {
         primaryActionContainer.innerHTML = `
           <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-            <span>${q.requiresProof && !q._proofVerified ? 'Chụp Ảnh Nhận Vàng 📸' : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+            <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
           </button>
         `;
         document.getElementById('mqd-btn-focus-done')?.addEventListener('click', () => {
@@ -9732,8 +10072,8 @@ function openRewardDetailModal(itemId, source) {
 
   const tierBadge = document.getElementById('mrd-tier-badge');
   if (tierBadge) {
-    tierBadge.textContent = tierLabelMap[rawTier] || (item.tier || 'CAO CẤP').toUpperCase();
-    tierBadge.className = `inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border ${tierColorMap[rawTier] || tierColorMap.rare}`;
+    tierBadge.textContent = '';
+    tierBadge.className = 'hidden';
   }
 
   // 2. Price / Value Strip
@@ -9762,13 +10102,6 @@ function openRewardDetailModal(itemId, source) {
   const metaBadges = document.getElementById('mrd-meta-badges');
   if (metaBadges) {
     const badges = [];
-
-    // Tier Badge
-    badges.push(`
-      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border ${tierColorMap[rawTier] || tierColorMap.rare}">
-        🏷️ ${tierLabelMap[rawTier] || 'Cao cấp'}
-      </span>
-    `);
 
     // Duration
     if (durationMins > 0) {
@@ -10358,11 +10691,19 @@ function renderLedger() {
                   <div class="font-semibold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
                     ${categoryBadge}
                     <span class="truncate">${escapeHtml(displayTitle)}</span>
-                    ${entry.proofImageUrl ? `
+                    ${entry.proofImageUrl && entry.proofUserNote ? `
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem ảnh & báo cáo đã duyệt">
+                        <span>📸+📝 Xem bằng chứng</span>
+                      </button>
+                    ` : (entry.proofImageUrl ? `
                       <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-pointer ml-auto" data-proof-url="${escapeHtml(entry.proofImageUrl)}" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem ảnh bằng chứng đã duyệt">
                         <span>📸 Xem ảnh</span>
                       </button>
-                    ` : ''}
+                    ` : (entry.proofUserNote ? `
+                      <button type="button" class="btn-view-proof-img shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 cursor-pointer ml-auto" data-proof-url="" data-quest-title="${escapeHtml(displayTitle)}" data-user-note="${escapeHtml(entry.proofUserNote || entry.userNote || '')}" data-feedback="${escapeHtml(entry.proofFeedback || entry.feedback || '')}" data-timestamp="${entry.timestamp || 0}" title="Xem báo cáo công việc đã duyệt">
+                        <span>📝 Xem báo cáo</span>
+                      </button>
+                    ` : ''))}
                   </div>
                   <div class="ledger-desc-container mt-0.5">
                     <div class="ledger-desc-content text-[10px] text-slate-400 truncate cursor-pointer transition-colors hover:text-slate-600 dark:hover:text-slate-300" title="Nhấn để xem thêm / thu gọn">
@@ -10382,13 +10723,13 @@ function renderLedger() {
     </div>
   `).join('');
 
-  // Gắn sự kiện click mở modal cho các nút xem ảnh trên giao dịch sổ cái
+  // Gắn sự kiện click mở modal cho các nút xem ảnh / báo cáo trên giao dịch sổ cái
   const viewProofBtns = list.querySelectorAll('.btn-view-proof-img');
   viewProofBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openProofViewerModal(
-        btn.dataset.proofUrl,
+        btn.dataset.proofUrl || null,
         btn.dataset.questTitle,
         btn.dataset.userNote || '',
         btn.dataset.feedback || '',
@@ -11373,6 +11714,23 @@ function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.classList.remove('hidden');
 }
+
+function openAboutModal() {
+  const navMoreMenu = document.getElementById('nav-more-menu');
+  const mobileMoreMenu = document.getElementById('mobile-more-menu');
+  if (navMoreMenu) navMoreMenu.classList.add('hidden');
+  if (mobileMoreMenu) mobileMoreMenu.classList.add('hidden');
+  if (typeof sfx !== 'undefined' && sfx.playClick) {
+    sfx.playClick();
+  }
+  const modal = document.getElementById('modal-about');
+  if (modal) {
+    const scrollBody = modal.querySelector('.overflow-y-auto');
+    if (scrollBody) scrollBody.scrollTop = 0;
+  }
+  openModal('modal-about');
+}
+window.openAboutModal = openAboutModal;
 
 function closeModal(id) {
   if (id === 'modal-welcome') {
@@ -14075,6 +14433,11 @@ function toggleBankAiDebate() {
     container.classList.remove('hidden');
     if (btnText) btnText.textContent = 'Thu Gọn';
     initBankDebateChat();
+    const bankChips = document.getElementById('bank-suggest-chips');
+    if (bankChips) {
+      if (typeof makeHorizontalScrollable === 'function') makeHorizontalScrollable(bankChips);
+      bankChips.scrollLeft = 0;
+    }
   } else {
     container.classList.add('hidden');
     if (btnText) btnText.textContent = 'Thương Lượng';
@@ -14831,6 +15194,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Giới thiệu dự án LevelUp (Desktop & Mobile)
+  const btnNavAbout = document.getElementById('btn-nav-about');
+  if (btnNavAbout) {
+    btnNavAbout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAboutModal();
+    });
+  }
+  const btnMobileAbout = document.getElementById('btn-mobile-about');
+  if (btnMobileAbout) {
+    btnMobileAbout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAboutModal();
+    });
+  }
+  const btnAboutStartTour = document.getElementById('btn-about-start-tour');
+  if (btnAboutStartTour) {
+    btnAboutStartTour.addEventListener('click', () => {
+      closeModal('modal-about');
+      if (typeof startTour === 'function') {
+        startTour();
+      }
+    });
+  }
+
   // Leaderboard Sub-tabs (Bảng Hiệp Sĩ & Sổ Đen Gian Lận)
   const btnSubtabRanking = document.getElementById('btn-subtab-ranking');
   if (btnSubtabRanking) {
@@ -15507,8 +15895,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-quest-estimate').value = '';
     const questDurEl = document.getElementById('input-quest-duration');
     if (questDurEl) questDurEl.value = '';
-    const repeatOnceRadio = document.querySelector('input[name="quest-repeat"][value="once"]');
-    if (repeatOnceRadio) repeatOnceRadio.checked = true;
+    const repeatRadio = document.querySelector('input[name="quest-repeat"][value="repeatable"]');
+    if (repeatRadio) repeatRadio.checked = true;
     const modNotice = document.getElementById('verdict-modified-notice');
     if (modNotice) modNotice.classList.add('hidden');
     const questSuggestBox = document.getElementById('quest-suggestions-container');
@@ -15555,14 +15943,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (verdictRepeatToggle) {
     verdictRepeatToggle.addEventListener('click', () => {
       if (!currentPendingVerdict) return;
-      const targetState = !currentPendingVerdict.isRepeatable;
-      if (targetState && (parseInt(currentPendingVerdict.rewardCoins, 10) || 0) > 15) {
-        showToast(`Nhiệm vụ có mức thưởng cao (${currentPendingVerdict.rewardCoins} Vàng). Để chuyển sang lặp lại an toàn, hãy dùng tính năng Thương Lượng AI để cân đối lại!`, 'warning');
-        return;
-      }
-      currentPendingVerdict.isRepeatable = targetState;
+      currentPendingVerdict.isRepeatable = !currentPendingVerdict.isRepeatable;
       sfx.playClick();
       updateVerdictDisplay();
+      showToast(`Đã đổi tần suất: ${currentPendingVerdict.isRepeatable ? 'Lặp lại' : 'Làm một lần'}`, 'info');
+    });
+  }
+
+  const verdictProofToggle = document.getElementById('verdict-proof-toggle');
+  if (verdictProofToggle) {
+    verdictProofToggle.addEventListener('click', () => {
+      const debateBox = document.getElementById('debate-container');
+      if (debateBox && debateBox.classList.contains('hidden')) {
+        debateBox.classList.remove('hidden');
+        initQuestDebateChat();
+      }
+      const argInput = document.getElementById('input-debate-arg');
+      if (argInput) {
+        setTimeout(() => {
+          argInput.focus();
+          debateBox?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+      }
+      showToast('Hãy nêu lý do để Trọng Tài AI thẩm định đổi hình thức xác thực nhé!', 'info');
     });
   }
 
@@ -15573,6 +15976,9 @@ document.addEventListener('DOMContentLoaded', () => {
     debateBox.classList.toggle('hidden');
     if (isOpening) {
       initQuestDebateChat();
+      if (typeof initHorizontalScrollContainers === 'function') initHorizontalScrollContainers();
+      const chips = document.getElementById('quest-suggest-chips');
+      if (chips) chips.scrollLeft = 0;
       const argInput = document.getElementById('input-debate-arg');
       if (argInput) {
         setTimeout(() => {
@@ -15642,7 +16048,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const submitBtn = document.getElementById('btn-submit-proof');
         if (submitBtn) {
-          submitBtn.disabled = false;
+          if (currentProofMode === 'both') {
+            const textInput = document.getElementById('input-quest-proof-text');
+            const textVal = textInput ? textInput.value.trim() : '';
+            submitBtn.disabled = textVal.length < 10;
+          } else {
+            submitBtn.disabled = false;
+          }
           submitBtn.classList.add('animate-pulse');
           setTimeout(() => submitBtn.classList.remove('animate-pulse'), 800);
         }
@@ -15666,8 +16078,72 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('proof-preview-zone')?.classList.add('hidden');
       document.getElementById('proof-capture-zone')?.classList.remove('hidden');
       const submitBtn = document.getElementById('btn-submit-proof');
-      if (submitBtn) submitBtn.disabled = true;
+      if (submitBtn) {
+        if (currentProofMode === 'both' || currentProofMode === 'photo') {
+          submitBtn.disabled = true;
+        }
+      }
       inputProofFile?.click();
+    });
+  }
+
+  // Proof mode tabs (Photo vs Text report vs Both)
+  const tabProofPhoto = document.getElementById('proof-tab-photo');
+  if (tabProofPhoto) {
+    tabProofPhoto.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('photo');
+    });
+  }
+
+  const tabProofText = document.getElementById('proof-tab-text');
+  if (tabProofText) {
+    tabProofText.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('text');
+    });
+  }
+
+  const tabProofBoth = document.getElementById('proof-tab-both');
+  if (tabProofBoth) {
+    tabProofBoth.addEventListener('click', () => {
+      sfx.playClick();
+      switchProofTab('both');
+    });
+  }
+
+  const inputProofText = document.getElementById('input-quest-proof-text');
+  if (inputProofText) {
+    inputProofText.addEventListener('input', () => {
+      const val = inputProofText.value.trim();
+      const textCharCount = document.getElementById('proof-text-char-count');
+      const submitBtn = document.getElementById('btn-submit-proof');
+      if (textCharCount) {
+        textCharCount.textContent = `${val.length}/10 ký tự tối thiểu`;
+        if (val.length >= 10) {
+          textCharCount.className = 'text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold';
+        } else {
+          textCharCount.className = 'text-[10px] font-mono text-slate-400 font-normal';
+        }
+      }
+      if (submitBtn) {
+        if (currentProofMode === 'text') {
+          submitBtn.disabled = val.length < 10;
+        } else if (currentProofMode === 'both') {
+          submitBtn.disabled = !(Boolean(currentProofBase64) && val.length >= 10);
+        }
+      }
+    });
+
+    inputProofText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('btn-submit-proof');
+        if (submitBtn && !submitBtn.disabled) {
+          sfx.playClick();
+          submitQuestProofToAI();
+        }
+      }
     });
   }
 
@@ -15731,22 +16207,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     const modal = document.getElementById('modal-quest-proof');
     if (modal && !modal.classList.contains('hidden') && currentProofQuest) {
-      const isMobile = isMobilePhone();
-      const captureZone = document.getElementById('proof-capture-zone');
-      const desktopNoticeZone = document.getElementById('proof-desktop-notice-zone');
-      const submitBtn = document.getElementById('btn-submit-proof');
-      const noteZone = document.getElementById('proof-note-zone');
-
-      if (isMobile) {
-        if (captureZone && !currentProofBase64) captureZone.classList.remove('hidden');
-        if (desktopNoticeZone) desktopNoticeZone.classList.add('hidden');
-        if (submitBtn) submitBtn.classList.remove('hidden');
-        if (noteZone) noteZone.classList.remove('hidden');
-      } else {
-        if (captureZone) captureZone.classList.add('hidden');
-        if (desktopNoticeZone) desktopNoticeZone.classList.remove('hidden');
-        if (submitBtn) submitBtn.classList.add('hidden');
-        if (noteZone) noteZone.classList.add('hidden');
+      if (typeof switchProofTab === 'function') {
+        switchProofTab(currentProofMode || 'photo');
       }
     }
   });
@@ -15874,6 +16336,9 @@ document.addEventListener('DOMContentLoaded', () => {
         debateBox.classList.toggle('hidden');
         if (isOpening) {
           initRewardDebateChat();
+          if (typeof initHorizontalScrollContainers === 'function') initHorizontalScrollContainers();
+          const chips = document.getElementById('reward-suggest-chips');
+          if (chips) chips.scrollLeft = 0;
           const argInput = document.getElementById('input-reward-debate-arg');
           if (argInput) {
             setTimeout(() => {
@@ -16151,8 +16616,121 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 4. Horizontal Scroll & Drag Interactions for Suggestions and Chips (Desktop Support)
+  initHorizontalScrollContainers();
+
   initMaterialDesignInteractions();
 });
+
+// =============================================================================
+// 15. HORIZONTAL DRAG & WHEEL SCROLL FOR CHIPS & SUGGESTIONS (DESKTOP UX)
+// =============================================================================
+/**
+ * Hỗ trợ cuộn ngang tự nhiên bằng con lăn chuột và kéo rê chuột (drag-to-scroll)
+ * cho các hàng gợi ý 'no-scrollbar' trên máy tính, tái hiện trải nghiệm vuốt mượt như điện thoại.
+ */
+function makeHorizontalScrollable(container) {
+  if (!container || container.dataset?.scrollInited === 'true') return;
+  if (!container.dataset) container.dataset = {};
+  container.dataset.scrollInited = 'true';
+  container.classList.add('horizontal-scroll-drag');
+
+  let isDown = false;
+  let startX = 0;
+  let scrollStart = 0;
+  let hasMoved = false;
+  let preventClick = false;
+
+  // 1. Chuyển đổi con lăn chuột dọc (deltaY) thành cuộn ngang tự nhiên trên PC
+  container.addEventListener('wheel', (e) => {
+    // Chỉ can thiệp nếu container thực sự có nội dung tràn ngang
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    // Nếu lăn dọc nhiều hơn lăn ngang (chuột máy tính thông thường)
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+
+  // 2. Kéo rê chuột để lướt mượt mà như ngón tay vuốt trên màn hình cảm ứng
+  const onMouseMove = (e) => {
+    if (!isDown) return;
+    const dx = e.clientX - startX;
+    if (!hasMoved && Math.abs(dx) > 5) {
+      hasMoved = true;
+      preventClick = true;
+      container.classList.add('is-dragging');
+    }
+    if (hasMoved) {
+      container.scrollLeft = scrollStart - dx;
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!isDown) return;
+    isDown = false;
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    window.removeEventListener('blur', onMouseUp);
+
+    container.classList.remove('is-dragging');
+    if (preventClick) {
+      setTimeout(() => {
+        preventClick = false;
+      }, 100);
+    }
+  };
+
+  container.addEventListener('mousedown', (e) => {
+    // Chỉ kích hoạt cho phím chuột trái và bỏ qua chạm cảm ứng di động
+    if (e.button !== 0 || (e.pointerType && e.pointerType === 'touch')) return;
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    isDown = true;
+    hasMoved = false;
+    startX = e.clientX;
+    scrollStart = container.scrollLeft;
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('blur', onMouseUp);
+  });
+
+  // Chặn hiện tượng kéo ảnh hoặc ghost drag mặc định của trình duyệt
+  container.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+  });
+
+  // 3. Nuốt sự kiện click của các nút con nếu người dùng đang kéo rê để lướt
+  container.addEventListener('click', (e) => {
+    if (preventClick || hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      preventClick = false;
+      hasMoved = false;
+    }
+  }, true); // Bắt ở capture phase để chặn trước khi tới nút con
+}
+
+function initHorizontalScrollContainers() {
+  const selectors = [
+    '.horizontal-scroll-drag',
+    '#quest-suggest-chips',
+    '#reward-suggest-chips',
+    '#bank-suggest-chips',
+    '#assistant-suggest-chips',
+    '.quick-suggest-chips'
+  ];
+  const containers = document.querySelectorAll(selectors.join(', '));
+  containers.forEach(el => makeHorizontalScrollable(el));
+}
+
+if (typeof window !== 'undefined') {
+  window.makeHorizontalScrollable = makeHorizontalScrollable;
+  window.initHorizontalScrollContainers = initHorizontalScrollContainers;
+}
 
 // =============================================================================
 // AI ASSISTANT / GUILD COMPANION (MODEL BRAIN & MODEL WORKER)
@@ -16216,6 +16794,12 @@ function openAssistantModal(sourceEl = null) {
   const chatLogs = document.getElementById('assistant-chat-logs');
   if (chatLogs && assistantChatHistory.length === 0) {
     initAssistantWelcomeMessage();
+  }
+
+  const assistChips = document.getElementById('assistant-suggest-chips');
+  if (assistChips) {
+    if (typeof makeHorizontalScrollable === 'function') makeHorizontalScrollable(assistChips);
+    assistChips.scrollLeft = 0;
   }
 
   assistantAnimTimer = setTimeout(() => {

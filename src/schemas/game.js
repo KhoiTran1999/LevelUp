@@ -17,6 +17,8 @@ export const QuestSchema = v.looseObject({
   targetMinutes: v.optional(v.pipe(v.number(), v.minValue(0, 'Thời gian tập trung không được âm')), 0),
   rewardCoins: v.optional(v.pipe(v.number(), v.minValue(1, 'Phần thưởng tối thiểu là 1 Vàng')), 1),
   requiresProof: v.optional(v.boolean(), false),
+  proofType: v.optional(v.picklist(['photo', 'text', 'both']), 'photo'),
+  proofGuidance: v.optional(v.string(), ''),
   isRepeatable: v.optional(v.boolean(), false),
   status: v.optional(v.string(), 'active'),
   completed: v.optional(v.boolean(), false),

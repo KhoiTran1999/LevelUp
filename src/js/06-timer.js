@@ -820,28 +820,19 @@ function renderFocusStationUI() {
 
   if (isBreakMode) {
     if (titleEl) titleEl.textContent = 'Nghỉ giải lao nạp năng lượng';
-    if (rankEl) {
-      rankEl.textContent = 'BREAK';
-      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG NGHỈ GIẢI LAO';
     if (coinsEl) coinsEl.textContent = '+0';
     if (expEl) expEl.textContent = '+0';
   } else if (activeRewardItem) {
     if (titleEl) titleEl.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
-    if (rankEl) {
-      rankEl.textContent = (activeRewardItem.tier || 'REWARD').toUpperCase();
-      rankEl.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30';
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎉';
     if (coinsEl) coinsEl.textContent = `-${activeRewardItem.price}`;
     if (expEl) expEl.textContent = '🎉 Thư giãn';
   } else if (activeFocusQuest) {
     if (titleEl) titleEl.textContent = activeFocusQuest.title;
-    if (rankEl) {
-      rankEl.textContent = `HẠNG ${activeFocusQuest.rank}`;
-      rankEl.className = `rank-badge-${activeFocusQuest.rank} text-[10px] px-1.5 py-0.5 rounded font-bold font-mono`;
-    }
+    if (rankEl) rankEl.classList.add('hidden');
     if (modeLabel) modeLabel.textContent = 'ĐANG BẤM GIỜ TẬP TRUNG';
     if (coinsEl) coinsEl.textContent = `+${activeFocusQuest.rewardCoins}`;
     if (expEl) expEl.textContent = `+${activeFocusQuest.rewardCoins * 3}`;

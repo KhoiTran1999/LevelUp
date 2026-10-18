@@ -1090,6 +1090,29 @@ html.dark .quest-dropdown-menu {
   scrollbar-width: none;
 }
 
+/* Horizontal scroll & drag interactions for desktop */
+.horizontal-scroll-drag {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-x;
+}
+
+.horizontal-scroll-drag:active {
+  cursor: grabbing;
+}
+
+.horizontal-scroll-drag.is-dragging {
+  cursor: grabbing !important;
+}
+
+.horizontal-scroll-drag.is-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: none !important;
+}
+
 /* ==========================================================================
    Primary Action Buttons (Quest & Reward Hero CTA)
    ========================================================================== */
@@ -2898,9 +2921,18 @@ html.dark #active-focus-banner {
 
 .quest-card-compact:active,
 .proof-photo-card:active,
-.rpg-card:active {
+.rpg-card:not(.modal-fade):not([role="dialog"] *):active {
   transform: scale(0.975) translate3d(0, 0, 0) !important;
   transition-duration: 0.12s !important;
+}
+
+/* Modal dialog sheets must NEVER trigger active press-down animation when clicked */
+.modal-fade:active,
+.rpg-panel:active,
+[role="dialog"] .rpg-panel:active,
+[role="dialog"] .rpg-card:active,
+.fixed[id^="modal-"] > div:active {
+  transform: none !important;
 }
 
 .nav-tab:active,
@@ -3031,19 +3063,22 @@ html.dark #active-focus-banner {
 /* 19. Custom Slim Scrollbar */
 .custom-scrollbar {
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(148, 163, 184, 0.4) transparent !important;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent !important;
 }
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px !important;
-  height: 4px !important;
+  width: 5px !important;
+  height: 5px !important;
   display: block !important;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent !important;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4) !important;
+  background: rgba(148, 163, 184, 0.45) !important;
   border-radius: 9999px !important;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.65) !important;
 }
 
 /* 20. iOS Celebration Spring Pop Micro-Animation */

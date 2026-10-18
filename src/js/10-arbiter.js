@@ -678,6 +678,7 @@ async function submitQuestToAI() {
       icon: (data.icon && typeof data.icon === 'string') ? data.icon.trim() : '',
       isRepeatable: Boolean(isRepeatable),
       requiresProof: Boolean(data.requiresProof),
+      proofType: data.proofType || 'photo',
       proofGuidance: data.proofGuidance || ''
     };
     currentDebateHistory = [];
@@ -730,15 +731,34 @@ function updateVerdictDisplay() {
   const proofGuidanceBox = document.getElementById('verdict-proof-guidance-box');
   const proofGuidanceText = document.getElementById('verdict-proof-guidance-text');
 
+  const proofGuidanceLabel = document.getElementById('verdict-proof-guidance-label');
+
   if (currentPendingVerdict.requiresProof) {
     if (proofBadge) {
-      proofBadge.textContent = '📸 Cần chụp ảnh';
-      proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+      if (currentPendingVerdict.proofType === 'both') {
+        proofBadge.textContent = '📸+✍️ Cần ảnh & báo cáo';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+      } else if (currentPendingVerdict.proofType === 'text') {
+        proofBadge.textContent = '✍️ Cần báo cáo nội dung';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30';
+      } else {
+        proofBadge.textContent = '📸 Cần chụp ảnh';
+        proofBadge.className = 'font-bold text-xs px-2 py-0.5 rounded-lg border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+      }
     }
     if (proofGuidanceBox && proofGuidanceText) {
       if (currentPendingVerdict.proofGuidance) {
         proofGuidanceText.textContent = currentPendingVerdict.proofGuidance;
         proofGuidanceBox.classList.remove('hidden');
+        if (proofGuidanceLabel) {
+          if (currentPendingVerdict.proofType === 'both') {
+            proofGuidanceLabel.textContent = '💡 Hướng dẫn ảnh & báo cáo:';
+          } else if (currentPendingVerdict.proofType === 'text') {
+            proofGuidanceLabel.textContent = '💡 Gợi ý nội dung báo cáo:';
+          } else {
+            proofGuidanceLabel.textContent = '💡 Gợi ý chụp ảnh từ AI:';
+          }
+        }
       } else {
         proofGuidanceBox.classList.add('hidden');
       }
@@ -756,11 +776,28 @@ function updateVerdictDisplay() {
   const btnProofSuggest = document.getElementById('btn-suggest-proof');
   if (btnProofSuggest) {
     if (currentPendingVerdict.requiresProof) {
-      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
-      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+      if (currentPendingVerdict.proofType === 'both') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chỉ chụp ảnh';
+        btnProofSuggest.setAttribute('data-suggest', 'Mình muốn xin đổi sang chỉ cần chụp ảnh thực tế khi hoàn thành được không?');
+      } else if (currentPendingVerdict.proofType === 'text') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chụp ảnh thực tế';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình có sách vở hoặc sản phẩm thực tế, mình muốn xin đổi sang chụp ảnh được không?');
+      } else {
+        btnProofSuggest.textContent = '✍️ Xin đổi sang báo cáo nội dung';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên máy tính hoặc điện thoại không tiện chụp ảnh thực tế, mình xin đổi sang nộp báo cáo nội dung được không?');
+      }
     } else {
       btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
       btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
+  }
+
+  const btnProofBothSuggest = document.getElementById('btn-suggest-proof-both');
+  if (btnProofBothSuggest) {
+    if (currentPendingVerdict.requiresProof && currentPendingVerdict.proofType === 'both') {
+      btnProofBothSuggest.classList.add('hidden');
+    } else {
+      btnProofBothSuggest.classList.remove('hidden');
     }
   }
 
@@ -850,6 +887,7 @@ function openQuestRenegotiateModal(questId) {
     verdict: quest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
     isRepeatable: Boolean(quest.isRepeatable),
     requiresProof: Boolean(quest.requiresProof),
+    proofType: quest.proofType || 'photo',
     proofGuidance: quest.proofGuidance || ''
   };
   currentDebateHistory = [];
@@ -893,7 +931,9 @@ async function acceptVerdictAndCreateQuest() {
   const questCoins = currentPendingVerdict.rewardCoins || 10;
   const questTime = currentPendingVerdict.type === 'focus' ? `${currentPendingVerdict.targetMinutes || 25}p tập trung` : 'Không cần bấm giờ';
   const repeatText = currentPendingVerdict.isRepeatable ? '🔁 Lặp lại' : '🎯 Làm một lần';
-  const proofText = currentPendingVerdict.requiresProof ? '📸 Cần chụp ảnh' : '⚡ Không cần chụp ảnh';
+  const proofText = currentPendingVerdict.requiresProof
+    ? (currentPendingVerdict.proofType === 'both' ? '📸+✍️ Cần ảnh & báo cáo' : (currentPendingVerdict.proofType === 'text' ? '✍️ Cần báo cáo nội dung' : '📸 Cần chụp ảnh'))
+    : '⚡ Không cần chụp ảnh';
 
   const ok = await confirmAction({
     title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
@@ -924,6 +964,7 @@ async function acceptVerdictAndCreateQuest() {
       targetQuest.verdict = currentPendingVerdict.verdict;
       targetQuest.isRepeatable = Boolean(currentPendingVerdict.isRepeatable);
       targetQuest.requiresProof = Boolean(currentPendingVerdict.requiresProof);
+      targetQuest.proofType = currentPendingVerdict.proofType || (currentPendingVerdict.requiresProof ? 'photo' : null);
       targetQuest.proofGuidance = currentPendingVerdict.proofGuidance || '';
       delete targetQuest.focusTimerCompleted;
       delete targetQuest._proofVerified;
@@ -960,6 +1001,7 @@ async function acceptVerdictAndCreateQuest() {
     verdict: currentPendingVerdict.verdict,
     isRepeatable: Boolean(currentPendingVerdict.isRepeatable),
     requiresProof: Boolean(currentPendingVerdict.requiresProof),
+    proofType: currentPendingVerdict.proofType || (currentPendingVerdict.requiresProof ? 'photo' : null),
     proofGuidance: currentPendingVerdict.proofGuidance || '',
     completedCount: 0,
     status: 'active',
@@ -1505,17 +1547,43 @@ function initQuestDebateChat(forceReset = false) {
 
   const quest = currentPendingVerdict || {};
   const modeText = quest.type === 'focus' ? `${quest.targetMinutes || 25}p tập trung` : 'không cần bấm giờ';
-  const proofText = quest.requiresProof ? ' • 📸 Yêu cầu chụp ảnh' : ' • ⚡ Không cần ảnh';
+  let proofText = ' • ⚡ Không cần bằng chứng';
+  if (quest.requiresProof) {
+    if (quest.proofType === 'both') {
+      proofText = ' • 📸+✍️ Yêu cầu cả ảnh & báo cáo';
+    } else if (quest.proofType === 'text') {
+      proofText = ' • ✍️ Cần báo cáo nội dung';
+    } else {
+      proofText = ' • 📸 Yêu cầu chụp ảnh';
+    }
+  }
   const isRenegotiate = Boolean(currentEditingQuestId);
 
   const btnProofSuggest = document.getElementById('btn-suggest-proof');
   if (btnProofSuggest) {
     if (quest.requiresProof) {
-      btnProofSuggest.textContent = '📸 Xin miễn chụp ảnh';
-      btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?');
+      if (quest.proofType === 'both') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chỉ chụp ảnh';
+        btnProofSuggest.setAttribute('data-suggest', 'Mình muốn xin đổi sang chỉ cần chụp ảnh thực tế khi hoàn thành được không?');
+      } else if (quest.proofType === 'text') {
+        btnProofSuggest.textContent = '📸 Xin đổi sang chụp ảnh thực tế';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình có sách vở hoặc sản phẩm thực tế, mình muốn xin đổi sang chụp ảnh được không?');
+      } else {
+        btnProofSuggest.textContent = '✍️ Xin đổi sang báo cáo nội dung';
+        btnProofSuggest.setAttribute('data-suggest', 'Công việc này mình làm trên máy tính hoặc điện thoại không tiện chụp ảnh thực tế, mình xin đổi sang nộp báo cáo nội dung được không?');
+      }
     } else {
       btnProofSuggest.textContent = '📸 Thêm yêu cầu chụp ảnh';
       btnProofSuggest.setAttribute('data-suggest', 'Mình muốn thêm yêu cầu chụp ảnh bằng chứng khi hoàn thành để tự rèn luyện kỷ luật hơn, bạn cập nhật giúp mình nhé!');
+    }
+  }
+
+  const btnProofBothSuggest = document.getElementById('btn-suggest-proof-both');
+  if (btnProofBothSuggest) {
+    if (quest.requiresProof && quest.proofType === 'both') {
+      btnProofBothSuggest.classList.add('hidden');
+    } else {
+      btnProofBothSuggest.classList.remove('hidden');
     }
   }
 
@@ -1652,8 +1720,15 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       if (data.newTitle && data.newTitle !== prevVerdict.title) {
         diffTags.push(`📝 Tên mới: "${data.newTitle}"`);
       }
-      if (data.newRequiresProof !== undefined && Boolean(data.newRequiresProof) !== Boolean(prevVerdict.requiresProof)) {
-        diffTags.push(data.newRequiresProof ? '📸 Yêu cầu chụp ảnh bằng chứng' : '⚡ Miễn chụp ảnh (Hoàn thành 1 chạm)');
+      if (data.newProofType && data.newProofType !== prevVerdict.proofType) {
+        const typeLabels = {
+          both: '📸+✍️ Kết hợp cả ảnh & báo cáo',
+          text: '✍️ Báo cáo nội dung',
+          photo: '📸 Chụp ảnh thực tế'
+        };
+        diffTags.push(`🛡️ Xác thực: ${typeLabels[data.newProofType] || data.newProofType}`);
+      } else if (data.newRequiresProof !== undefined && Boolean(data.newRequiresProof) !== Boolean(prevVerdict.requiresProof)) {
+        diffTags.push(data.newRequiresProof ? '📸 Yêu cầu bằng chứng' : '⚡ Miễn bằng chứng');
       }
     }
 
@@ -1685,11 +1760,17 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
       if (data.newRequiresProof !== undefined) {
         currentPendingVerdict.requiresProof = Boolean(data.newRequiresProof);
       }
+      if (data.newProofType !== undefined) {
+        currentPendingVerdict.proofType = data.newProofType;
+      }
       if (data.newProofGuidance !== undefined) {
         currentPendingVerdict.proofGuidance = data.newProofGuidance;
       }
       if (data.newIcon) {
         currentPendingVerdict.icon = data.newIcon;
+      }
+      if (data.isRepeatable !== undefined) {
+        currentPendingVerdict.isRepeatable = Boolean(data.isRepeatable);
       }
       currentPendingVerdict.rank = data.newRank || calculateRank(currentPendingVerdict.rewardCoins);
       if (data.reply) currentPendingVerdict.verdict = data.reply;

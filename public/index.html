@@ -247,6 +247,10 @@
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-purple-500">admin_panel_settings</span>
               <span>Quản Trị</span>
             </button>
+            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+              <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-indigo-500">auto_stories</span>
+              <span class="font-bold">Giới Thiệu Dự Án</span>
+            </button>
           </div>
         </div>
       </div>
@@ -591,7 +595,7 @@
 
       <!-- Subtabs & Quick Search Bar -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <div class="horizontal-scroll-drag flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 select-none">
           <button id="btn-subtab-ranking" type="button" class="px-3.5 py-2 rounded-xl text-xs font-black transition bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 shadow-sm shadow-yellow-500/20 flex items-center gap-1.5 shrink-0">
             <span>🏆</span>
             <span>Bảng Hiệp Sĩ</span>
@@ -1109,7 +1113,7 @@
                   <div id="bank-debate-chat-logs" class="relative min-h-[200px] max-h-72 sm:max-h-80 overflow-y-auto space-y-2.5 text-xs sm:text-[13px] pr-1.5"></div>
 
                   <!-- Quick Suggestion Chips -->
-                  <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+                  <div id="bank-suggest-chips" class="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none" title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý">
                     <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
                     <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?">📉 Xin giảm lãi suất</button>
                     <button type="button" class="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?">🚀 Xin nâng hạn mức</button>
@@ -1411,7 +1415,7 @@
           <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">🔍</span>
           <input id="admin-search-users" type="text" placeholder="Tìm theo Nickname, Email hoặc ID..." oninput="handleAdminSearch(this.value)" class="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-purple-500 transition">
         </div>
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full -mx-1 px-1 sm:mx-0 sm:px-0 shrink-0">
+        <div class="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full -mx-1 px-1 sm:mx-0 sm:px-0 shrink-0 select-none">
           <button id="admin-filter-all" onclick="setAdminFilter('all')" class="admin-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition bg-purple-600 text-white shadow-xs shrink-0 cursor-pointer">Tất Cả</button>
           <button id="admin-filter-adventurer" onclick="setAdminFilter('adventurer')" class="admin-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0 cursor-pointer">Hiệp Sĩ</button>
           <button id="admin-filter-admin" onclick="setAdminFilter('admin')" class="admin-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0 cursor-pointer">Admin 👑</button>
@@ -1522,6 +1526,10 @@
       <button id="mobile-nav-admin" data-tab="admin" class="mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-purple-500">admin_panel_settings</span>
         <span class="whitespace-nowrap">Quản Trị</span>
+      </button>
+      <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1">
+        <span class="material-symbols-outlined text-lg leading-none shrink-0 text-indigo-500">auto_stories</span>
+        <span class="font-bold whitespace-nowrap">Giới Thiệu Dự Án</span>
       </button>
     </div>
 
@@ -1640,7 +1648,7 @@
           </div>
           <div class="flex-1 min-w-0">
             <h3 id="mrd-title" class="font-bold text-lg sm:text-xl text-slate-900 dark:text-white leading-snug break-words"></h3>
-            <span id="mrd-tier-badge" class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider"></span>
+            <span id="mrd-tier-badge" class="hidden"></span>
           </div>
         </div>
         <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
@@ -1747,14 +1755,14 @@
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tần Suất Thực Hiện</label>
           <div class="grid grid-cols-2 gap-2">
             <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer bg-slate-50 dark:bg-slate-900/50 hover:border-amber-500/50 transition">
-              <input type="radio" name="quest-repeat" value="once" checked class="accent-amber-500">
+              <input type="radio" name="quest-repeat" value="once" class="accent-amber-500">
               <div class="text-xs">
                 <div class="font-bold text-slate-800 dark:text-slate-200">🎯 Làm 1 lần</div>
                 <div class="text-[10px] text-slate-500">Xong chuyển sang Đã Xong</div>
               </div>
             </label>
             <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer bg-slate-50 dark:bg-slate-900/50 hover:border-amber-500/50 transition">
-              <input type="radio" name="quest-repeat" value="repeatable" class="accent-amber-500">
+              <input type="radio" name="quest-repeat" value="repeatable" checked class="accent-amber-500">
               <div class="text-xs">
                 <div class="font-bold text-amber-600 dark:text-amber-400">🔁 Lặp lại</div>
                 <div class="text-[10px] text-slate-500">Làm nhiều lần / Hằng ngày</div>
@@ -1784,104 +1792,78 @@
       </div>
 
       <!-- Step 3: AI Verdict Display -->
-      <div id="quest-verdict-step" class="hidden p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
-        <div class="p-3.5 sm:p-4 rounded-xl sub-panel space-y-3">
+      <div id="quest-verdict-step" class="hidden p-4 sm:p-6 space-y-3 sm:space-y-3.5 overflow-y-auto">
+        <!-- AI Modification Notice (Shown if AI adjusted an unreasonable task) -->
+        <div id="verdict-modified-notice" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
+          <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+            <span>⚡</span>
+            <span>AI đã tối ưu lại nhiệm vụ:</span>
+          </div>
+          <p id="verdict-modified-reason" class="text-[11px] leading-relaxed italic"></p>
+        </div>
 
-          <!-- AI Modification Notice (Shown if AI adjusted an unreasonable task) -->
-          <div id="verdict-modified-notice" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
-            <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
-              <span>⚡</span>
-              <span>AI đã tối ưu lại nhiệm vụ:</span>
+        <!-- Hidden Legacy Elements to Guarantee 100% JS Safety -->
+        <div class="hidden" aria-hidden="true">
+          <span id="verdict-rank" class="hidden">HẠNG C</span>
+          <span id="verdict-type-badge">⏳ HẸN GIỜ TẬP TRUNG</span>
+          <span id="verdict-coins">15 Vàng</span>
+          <div id="verdict-target-time-box"><span id="verdict-minutes">25 Phút</span></div>
+          <span id="verdict-advice">Mẹo từ AI</span>
+        </div>
+
+        <!-- AI Verdict Quote (Lời nhận xét tinh tế từ AI) -->
+        <div class="p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-2.5">
+          <span class="text-base shrink-0 select-none">💬</span>
+          <p id="verdict-speech" class="italic leading-relaxed font-medium">"Phán quyết..."</p>
+        </div>
+
+        <!-- Clean Unified Quest Card (Thẻ Nhiệm Vụ Trực Quan) -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 space-y-3">
+          <!-- Title & Description Header -->
+          <div class="flex items-start gap-3">
+            <div class="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <span id="verdict-locked-icon" class="text-xl shrink-0">🎯</span>
             </div>
-            <p id="verdict-modified-reason" class="text-[11px] leading-relaxed italic"></p>
-          </div>
-
-          <div class="flex items-center justify-between">
-            <span id="verdict-rank" class="hidden">HẠNG C</span>
-            <div class="flex items-center gap-2 ml-auto">
-              <span id="verdict-type-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">⏳ HẸN GIỜ TẬP TRUNG</span>
-              <span id="verdict-coins" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
-            </div>
-          </div>
-
-          <div>
-            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-1">Nhận xét từ Trợ lý AI:</div>
-            <p id="verdict-speech" class="text-xs sm:text-sm text-amber-900 dark:text-amber-200/95 italic bg-amber-50/70 dark:bg-slate-950/80 p-3 rounded-lg border border-amber-200/60 dark:border-slate-800 leading-relaxed">
-              "Phán quyết..."
-            </p>
-          </div>
-
-          <div id="verdict-target-time-box" class="flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800/80 px-3 py-2 rounded-lg">
-            <span class="text-slate-600 dark:text-slate-400">Thời gian cần tập trung:</span>
-            <span id="verdict-minutes" class="font-bold text-cyan-700 dark:text-cyan-300 font-mono">25 Phút</span>
-          </div>
-
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5 pt-1">
-            <span>💡</span>
-            <span id="verdict-advice">Mẹo từ AI</span>
-          </div>
-
-          <!-- AI-Locked Quest Specification Card -->
-          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>🔒</span>
-                <span>Thông số do AI chốt</span>
-              </span>
-              <span class="text-[10px] text-slate-400 dark:text-slate-500">Chỉ AI có quyền sửa đổi</span>
-            </div>
-
-            <div class="bg-white dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1.5">
-              <div class="flex items-center gap-2">
-                <span id="verdict-locked-icon" class="text-xl shrink-0">🎯</span>
-                <div class="min-w-0 flex-1">
-                  <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tên việc cần làm:</div>
-                  <h4 id="verdict-locked-title" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug"></h4>
-                </div>
-              </div>
-              <div id="verdict-locked-desc-container" class="pt-1">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Chi tiết:</div>
-                <p id="verdict-locked-desc" class="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic"></p>
+            <div class="min-w-0 flex-1">
+              <h4 id="verdict-locked-title" class="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug"></h4>
+              <div id="verdict-locked-desc-container" class="pt-0.5">
+                <p id="verdict-locked-desc" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed"></p>
               </div>
             </div>
+          </div>
 
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div id="verdict-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                <span class="text-[11px] text-slate-500 dark:text-slate-400">Thời gian:</span>
-                <span id="verdict-locked-minutes" class="font-bold text-cyan-600 dark:text-cyan-400 font-mono">25 Phút</span>
-              </div>
-              <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                <span class="text-[11px] text-slate-500 dark:text-slate-400">Thưởng:</span>
-                <span id="verdict-locked-coins" class="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
-              </div>
+          <!-- Parameter Pills Grid (Các chỉ số cốt lõi) -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+            <div id="verdict-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Thời gian:</span>
+              <span id="verdict-locked-minutes" class="font-bold text-cyan-600 dark:text-cyan-400 font-mono">25 Phút</span>
             </div>
-
-            <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Tần suất:</span>
-              <button id="verdict-repeat-toggle" type="button" class="font-bold font-mono text-xs px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition flex items-center gap-1.5" title="Nhấn để đổi tần suất">
+            <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Thưởng:</span>
+              <span id="verdict-locked-coins" class="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 15 Vàng</span>
+            </div>
+            <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Tần suất:</span>
+              <button id="verdict-repeat-toggle" type="button" class="font-bold font-mono text-xs text-amber-600 dark:text-amber-400 hover:opacity-80 transition flex items-center gap-1 cursor-pointer" title="Nhấn để đổi tần suất">
                 <span id="verdict-repeat-text">🎯 Làm một lần</span>
                 <span class="text-[10px] text-slate-400">✏️</span>
               </button>
             </div>
-
-            <!-- AI Proof Requirement Box -->
-            <div id="verdict-proof-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Bằng chứng hoàn thành:</span>
-              <div id="verdict-proof-badge-wrap" class="flex items-center gap-1.5">
+            <div id="verdict-proof-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Xác thực:</span>
+              <button id="verdict-proof-toggle" type="button" class="hover:opacity-80 transition flex items-center gap-1 cursor-pointer" title="Thương lượng với AI để thẩm định đổi hình thức xác thực">
                 <span id="verdict-proof-badge" class="font-bold text-xs px-2 py-0.5 rounded-lg border">📸 Cần chụp ảnh</span>
-              </div>
+                <span class="text-[10px] text-slate-400">💬</span>
+              </button>
             </div>
-            <div id="verdict-proof-guidance-box" class="hidden p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 space-y-1">
-              <div class="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
-                <span>💡 Gợi ý chụp ảnh từ AI:</span>
-              </div>
-              <p id="verdict-proof-guidance-text" class="text-[11px] leading-relaxed italic"></p>
-            </div>
+          </div>
 
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1">
-              <span>⚖️</span>
-              <span>Muốn đổi tên, mô tả, tăng/giảm thưởng hoặc xin miễn chụp ảnh? Nhấn "Thương lượng với AI" bên dưới.</span>
-            </p>
+          <!-- Proof Guidance (Nếu có) -->
+          <div id="verdict-proof-guidance-box" class="hidden p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 space-y-1">
+            <div class="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
+              <span id="verdict-proof-guidance-label">💡 Hướng dẫn nộp bài từ AI:</span>
+            </div>
+            <p id="verdict-proof-guidance-text" class="text-[11px] leading-relaxed italic"></p>
           </div>
         </div>
 
@@ -1899,9 +1881,10 @@
           <div id="debate-chat-logs" class="relative min-h-[260px] max-h-80 sm:max-h-[380px] overflow-y-auto space-y-3 text-xs sm:text-[13px] pr-1.5"></div>
 
           <!-- Quick Suggestion Chips -->
-          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+          <div id="quest-suggest-chips" class="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none" title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý">
             <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
             <button id="btn-suggest-proof" type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest-proof="true" data-suggest="Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?">📸 Xin miễn chụp ảnh</button>
+            <button id="btn-suggest-proof-both" type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn nâng cấp lên kết hợp cả ảnh chụp thực tế và viết báo cáo tóm tắt để rèn luyện kỷ luật cao hơn nhé!">📸+✍️ Kết hợp cả hai</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?">💰 Xin thêm Vàng</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Mình muốn chia nhỏ việc này thành phiên tập trung ngắn hơn 25 phút để đỡ quá tải.">⏱️ Giảm thời gian</button>
             <button type="button" class="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Đây là việc mình làm xong lúc nào thì vào bấm nhận thưởng lúc đó, đổi sang không cần bấm giờ được không?">⚡ Không cần bấm giờ</button>
@@ -2008,84 +1991,55 @@
       </div>
 
       <!-- Step 3: AI Verdict Display & Debate -->
-      <div id="reward-verdict-step" class="hidden p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
-        <div id="reward-eval-box" class="p-3.5 sm:p-4 rounded-xl sub-panel space-y-3">
-          <!-- AI Modification Notice -->
-          <div id="reward-modified-notice" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
-            <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
-              <span>⚡</span>
-              <span>AI đã tối ưu lại phần thưởng:</span>
-            </div>
-            <p id="reward-modified-reason" class="text-[11px] leading-relaxed italic"></p>
+      <div id="reward-verdict-step" class="hidden p-4 sm:p-6 space-y-3 sm:space-y-3.5 overflow-y-auto">
+        <!-- AI Modification Notice -->
+        <div id="reward-modified-notice" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs space-y-1">
+          <div class="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+            <span>⚡</span>
+            <span>AI đã tối ưu lại phần thưởng:</span>
           </div>
+          <p id="reward-modified-reason" class="text-[11px] leading-relaxed italic"></p>
+        </div>
 
-          <div class="flex items-center justify-between">
-            <span id="eval-tier" class="hidden">RARE</span>
-            <div class="flex items-center gap-2 ml-auto">
-              <span id="eval-category-badge" class="text-xs px-2.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/30">🎁 TỰ THƯỞNG</span>
-              <span id="eval-price" class="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 35 Vàng</span>
-            </div>
-          </div>
+        <!-- Hidden Legacy Elements to Guarantee 100% JS Safety -->
+        <div class="hidden" aria-hidden="true">
+          <span id="eval-tier" class="hidden">RARE</span>
+          <span id="eval-price">35 Vàng</span>
+          <div id="reward-eval-time-box"><span id="eval-target-minutes">30 Phút</span></div>
+          <span id="eval-advice">Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.</span>
+          <span id="reward-locked-tier-label">RARE</span>
+        </div>
 
-          <div>
-            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-1">Nhận xét từ Trợ lý AI:</div>
-            <p id="eval-verdict" class="text-xs sm:text-sm text-amber-900 dark:text-amber-200/95 italic bg-amber-50/70 dark:bg-slate-950/80 p-3 rounded-lg border border-amber-200/60 dark:border-slate-800 leading-relaxed">
-              "Lời nhận xét từ AI..."
-            </p>
-          </div>
+        <!-- AI Reasoning / Speech (Lời nhận xét tinh tế từ AI) -->
+        <div class="p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-2.5">
+          <span class="text-base shrink-0 select-none">💬</span>
+          <p id="eval-verdict" class="italic leading-relaxed font-medium">"Lời nhận xét từ AI..."</p>
+        </div>
 
-          <div id="reward-eval-time-box" class="flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800/80 px-3 py-2 rounded-lg">
-            <span class="text-slate-600 dark:text-slate-400">Thời gian tận hưởng:</span>
-            <span id="eval-target-minutes" class="font-bold text-purple-700 dark:text-purple-300 font-mono">30 Phút</span>
-          </div>
-
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5 pt-1">
-            <span>💡</span>
-            <span id="eval-advice">Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.</span>
-          </div>
-
-          <!-- AI-Locked Reward Card -->
-          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>🔒</span>
-                <span>Thông số do AI chốt</span>
-              </span>
-              <span class="text-[10px] text-slate-400 dark:text-slate-500">Chỉ AI có quyền sửa đổi</span>
-            </div>
-
-            <div class="bg-white dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1.5">
-              <div class="flex items-center gap-2">
-                <span id="reward-locked-icon" class="text-xl shrink-0">🎁</span>
-                <div class="min-w-0 flex-1">
-                  <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tên phần thưởng:</div>
-                  <h4 id="reward-locked-name" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug truncate"></h4>
-                </div>
-              </div>
-              <div id="reward-locked-desc-container" class="pt-1">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Chi tiết:</div>
-                <p id="reward-locked-desc" class="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic"></p>
+        <!-- Clean Unified Reward Card (Thẻ Phần Thưởng Trực Quan) -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 space-y-3">
+          <!-- Title & Description Header -->
+          <div class="flex items-start gap-3">
+            <span id="reward-locked-icon" class="text-xl shrink-0 p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">🎁</span>
+            <div class="min-w-0 flex-1">
+              <h4 id="reward-locked-name" class="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug"></h4>
+              <div id="reward-locked-desc-container" class="pt-0.5">
+                <p id="reward-locked-desc" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed"></p>
               </div>
             </div>
+            <span id="eval-category-badge" class="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/30 shrink-0">🎁 TỰ THƯỞNG</span>
+          </div>
 
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div class="hidden">
-                <span id="reward-locked-tier-label" class="font-bold text-purple-600 dark:text-purple-400 font-mono uppercase truncate">RARE</span>
-              </div>
-              <div id="reward-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-center">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400">Thời gian:</span>
-                <span id="reward-locked-time-label" class="font-bold text-purple-600 dark:text-purple-400 font-mono truncate">30 Phút</span>
-              </div>
-              <div class="bg-white dark:bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 flex flex-col justify-center">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400">Giá Vàng:</span>
-                <span id="reward-locked-price-label" class="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1 truncate"><span class="coin-icon"></span> 35 Vàng</span>
-              </div>
+          <!-- Parameter Pills Grid (Các chỉ số cốt lõi) -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+            <div id="reward-locked-time-box" class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Thời gian:</span>
+              <span id="reward-locked-time-label" class="font-bold text-xs text-purple-600 dark:text-purple-400 font-mono">30 Phút</span>
             </div>
-
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1">
-              <span>⚖️</span>
-              <span>Muốn đổi tên, thời gian hay mức giá Vàng? Nhấn "Thương lượng với AI" bên dưới.</span>
-            </p>
+            <div class="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Giá đổi:</span>
+              <span id="reward-locked-price-label" class="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"><span class="coin-icon"></span> 35 Vàng</span>
+            </div>
           </div>
         </div>
 
@@ -2103,7 +2057,7 @@
           <div id="reward-debate-chat-logs" class="relative min-h-[260px] max-h-80 sm:max-h-[380px] overflow-y-auto space-y-3 text-xs sm:text-[13px] pr-1.5"></div>
 
           <!-- Quick Suggestion Chips -->
-          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+          <div id="reward-suggest-chips" class="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none" title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý">
             <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">Gợi ý:</span>
             <button type="button" class="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Món này khá đơn giản và nhỏ, mình xin giảm giá Vàng một chút để dễ tự thưởng hơn.">📉 Giảm giá Vàng</button>
             <button type="button" class="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]" data-suggest="Món quà này rất giá trị và đặc biệt, mình muốn nâng giá Vàng lên cho xứng đáng với nỗ lực.">💎 Nâng giá Vàng</button>
@@ -3130,95 +3084,137 @@
   <!-- MODAL: SUBMIT QUEST PROOF (AI PHOTO VERIFICATION)                       -->
   <!-- ======================================================================= -->
   <div id="modal-quest-proof" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="proof-modal-title">
-    <div class="rpg-card rpg-panel rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-amber-500/40 shadow-2xl modal-fade">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-amber-500/40 shadow-2xl modal-fade">
       <!-- Header -->
       <div class="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg shadow-sm">
-            <span class="material-symbols-outlined text-lg leading-none text-amber-500">photo_camera</span>
+          <div id="proof-modal-icon-box" class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg shadow-sm">
+            <span id="proof-modal-icon" class="material-symbols-outlined text-lg leading-none text-amber-500">photo_camera</span>
           </div>
           <div>
             <h3 id="proof-modal-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">NỘP BẰNG CHỨNG CHO AI DUYỆT</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Chụp ảnh thực tế để AI thẩm định trước khi mở khóa Vàng</p>
+            <p id="proof-modal-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Chụp ảnh thực tế để AI thẩm định trước khi mở khóa Vàng</p>
           </div>
         </div>
         <button id="btn-close-quest-proof" type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <!-- Body Container -->
-      <div class="p-4 sm:p-5 space-y-3.5 overflow-y-auto max-h-[calc(92vh-140px)]">
+      <div class="p-4 sm:p-5 space-y-3 overflow-y-auto max-h-[calc(92vh-140px)]">
         <!-- Quest Snapshot Card -->
-        <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-1.5">
-          <div class="flex items-center justify-between">
+        <div class="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2">
+          <div class="flex items-center justify-between gap-2">
             <span id="proof-quest-rank" class="hidden">HẠNG B</span>
+            <div id="proof-mode-indicator" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"></div>
             <span id="proof-quest-reward" class="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1 ml-auto">
               <span class="coin-icon"></span> <span id="proof-quest-coins">+15 Vàng</span>
             </span>
           </div>
           <h4 id="proof-quest-title" class="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 line-clamp-2"></h4>
-          <div id="proof-guidance-container" class="pt-1">
-            <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
-              <span>💡</span>
-              <div>
-                <span class="font-bold">Gợi ý chụp ảnh:</span>
+          <div id="proof-guidance-container" class="pt-0.5">
+            <div id="proof-guidance-box" class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] flex items-start gap-1.5">
+              <span class="shrink-0 text-xs">💡</span>
+              <div class="leading-relaxed">
+                <span id="proof-guidance-label" class="font-bold">Gợi ý từ AI:</span>
                 <span id="proof-guidance-text" class="italic ml-1"></span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Hidden Camera Input (native capture="environment" for rear camera on mobile) -->
-        <input type="file" id="input-quest-proof-file" accept="image/*" capture="environment" class="hidden">
-
-        <!-- Desktop Anti-Cheat Notice Zone (shown when accessed from computer) -->
-        <div id="proof-desktop-notice-zone" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3">
-          <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl shadow-sm">
-            📱
-          </div>
-          <div class="space-y-1">
-            <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
-              Yêu Cầu Chụp Ảnh Trên Điện Thoại
-            </div>
-            <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-              Để đảm bảo tính trung thực (tránh gian lận), hệ thống <span class="font-bold text-rose-500 dark:text-rose-400">không cho phép đính kèm hình từ máy tính</span> mà chỉ chấp nhận ảnh chụp thực tế bằng camera điện thoại.
-            </p>
-          </div>
-          <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left flex items-start gap-2">
-            <span class="text-base shrink-0">💡</span>
-            <span>Vui lòng đăng nhập hoặc mở <strong>LevelUp</strong> trên trình duyệt điện thoại để mở máy ảnh và hoàn thành nhiệm vụ này nhé!</span>
-          </div>
+        <!-- Proof Mode Switcher (Hidden, single required mode active) -->
+        <div id="proof-tab-switcher" class="hidden">
+          <button id="proof-tab-photo" type="button">📸 Chụp Ảnh</button>
+          <button id="proof-tab-text" type="button">✍️ Báo Cáo</button>
+          <button id="proof-tab-both" type="button">📸+✍️ Kết Hợp</button>
         </div>
 
-        <!-- Initial Photo Trigger Button / Dropzone (Mobile Only) -->
-        <div id="proof-capture-zone">
-          <button id="btn-trigger-camera" type="button" class="w-full py-6 px-4 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 transition-all flex flex-col items-center justify-center gap-2 group active:scale-[0.98]">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-              📷
-            </div>
-            <div class="text-center">
-              <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Chụp Ảnh Bằng Camera</div>
-              <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Nhấn để mở máy ảnh chụp thực tế ngay</div>
-            </div>
-          </button>
-        </div>
+        <!-- Mode 1: Photo Capture Container -->
+        <div id="proof-mode-photo-container" class="space-y-3">
+          <div id="proof-step-photo-title" class="hidden text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+            <span>📸</span>
+            <span>Bước 1: Chụp ảnh kết quả thực tế</span>
+            <span class="text-rose-500">*</span>
+          </div>
 
-        <!-- Preview Zone (shown once photo is taken) -->
-        <div id="proof-preview-zone" class="hidden space-y-2">
-          <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md max-h-60 bg-slate-950 flex items-center justify-center">
-            <img id="proof-preview-img" src="" alt="Bằng chứng nhiệm vụ" class="w-full h-auto max-h-60 object-contain">
-            <button id="btn-retake-photo" type="button" class="absolute bottom-2.5 right-2.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold backdrop-blur-sm border border-white/20 transition flex items-center gap-1.5 shadow-lg active:scale-95">
-              <span>🔄</span>
-              <span>Chụp lại</span>
+          <!-- Hidden Camera Input (native capture="environment" for rear camera on mobile) -->
+          <input type="file" id="input-quest-proof-file" accept="image/*" capture="environment" class="hidden">
+
+          <!-- Desktop Anti-Cheat Notice Zone (shown when accessed from computer) -->
+          <div id="proof-desktop-notice-zone" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl shadow-sm">
+              📱
+            </div>
+            <div class="space-y-1">
+              <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+                Chụp Ảnh Yêu Cầu Trên Điện Thoại
+              </div>
+              <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                Để đảm bảo tính trung thực (tránh gian lận), hệ thống <span class="font-bold text-rose-500 dark:text-rose-400">không cho phép đính kèm tệp từ máy tính</span> mà chỉ chấp nhận chụp trực tiếp bằng camera điện thoại.
+              </p>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left flex items-start gap-2">
+              <span class="text-base shrink-0">💡</span>
+              <div class="space-y-1">
+                <span>Vui lòng mở ứng dụng LevelUp trên điện thoại để chụp ảnh thực tế nhé! Nếu công việc làm trên máy tính không tiện chụp ảnh, bạn có thể bấm <strong>"Thương lượng AI"</strong> ở thẻ nhiệm vụ để đổi sang nộp báo cáo nội dung.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Initial Photo Trigger Button / Dropzone (Mobile Only) -->
+          <div id="proof-capture-zone">
+            <button id="btn-trigger-camera" type="button" class="w-full py-6 px-4 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 transition-all flex flex-col items-center justify-center gap-2 group active:scale-[0.98]">
+              <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                📷
+              </div>
+              <div class="text-center">
+                <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Chụp Ảnh Bằng Camera</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Nhấn để mở máy ảnh chụp thực tế ngay</div>
+              </div>
             </button>
           </div>
+
+          <!-- Preview Zone (shown once photo is taken) -->
+          <div id="proof-preview-zone" class="hidden space-y-2">
+            <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md max-h-60 bg-slate-950 flex items-center justify-center">
+              <img id="proof-preview-img" src="" alt="Bằng chứng nhiệm vụ" class="w-full h-auto max-h-60 object-contain">
+              <button id="btn-retake-photo" type="button" class="absolute bottom-2.5 right-2.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold backdrop-blur-sm border border-white/20 transition flex items-center gap-1.5 shadow-lg active:scale-95">
+                <span>🔄</span>
+                <span>Chụp lại</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Optional User Note -->
+          <div id="proof-note-zone">
+            <label for="input-quest-proof-note" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+              Ghi chú thêm cho AI <span class="text-[10px] font-normal text-slate-400">(Tùy chọn)</span>
+            </label>
+            <input id="input-quest-proof-note" type="text" placeholder="VD: Đã làm xong bài tập trang 45, dọn sạch bàn học..." class="w-full rpg-input rounded-xl px-3.5 py-2 text-xs">
+          </div>
         </div>
 
-        <!-- Optional User Note -->
-        <div id="proof-note-zone">
-          <label for="input-quest-proof-note" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-            Ghi chú thêm cho AI <span class="text-[10px] font-normal text-slate-400">(Tùy chọn)</span>
-          </label>
-          <input id="input-quest-proof-note" type="text" placeholder="VD: Đã làm xong bài tập trang 45, dọn sạch bàn học..." class="w-full rpg-input rounded-xl px-3.5 py-2 text-xs">
+        <!-- Mode 2: Text Report Mode Zone -->
+        <div id="proof-mode-text-container" class="hidden space-y-2.5">
+          <div id="proof-step-text-title" class="hidden text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+            <span>✍️</span>
+            <span>Bước 2: Viết tóm tắt nội dung</span>
+            <span class="text-rose-500">*</span>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              <label for="input-quest-proof-text" class="flex items-center gap-1">
+                <span>Nội dung đã hoàn thành</span>
+                <span class="text-rose-500">*</span>
+              </label>
+              <span id="proof-text-char-count" class="text-[10px] font-mono text-slate-400 font-normal">0/10 ký tự tối thiểu</span>
+            </div>
+            <textarea id="input-quest-proof-text" rows="3" placeholder="Mô tả cụ thể những gì bạn đã làm, kết quả đạt được hoặc kiến thức đã ghi nhận..." class="w-full rpg-input rounded-2xl p-3 text-xs leading-relaxed resize-none transition border border-slate-300 dark:border-slate-700 focus:border-amber-500"></textarea>
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 px-0.5">
+            <span class="text-xs text-amber-500 shrink-0">🛡️</span>
+            <span>AI thẩm định dựa trên nội dung cụ thể và trung thực (tối thiểu 10 ký tự).</span>
+          </div>
         </div>
 
         <!-- Evaluating Spinner (shown during AI inspection) -->
@@ -3228,7 +3224,7 @@
           </div>
           <div>
             <div class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">AI Đang Thẩm Định Bằng Chứng...</div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Đang quan sát ảnh chụp và tính hợp lý của kết quả</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Đang phân tích tính hợp lý và xác thực của kết quả công việc</div>
           </div>
         </div>
 
@@ -3304,7 +3300,7 @@
   <!-- MODAL: VIEW QUEST PROOF IMAGE                                            -->
   <!-- ======================================================================= -->
   <div id="modal-proof-viewer" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="proof-viewer-title">
-    <div class="rpg-card rpg-panel rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-amber-500/40 shadow-2xl modal-fade">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-amber-500/40 shadow-2xl modal-fade">
       <!-- Header -->
       <div class="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
         <div class="flex items-center gap-2.5 min-w-0">
@@ -3321,7 +3317,7 @@
 
       <!-- Image Display Body & Metadata -->
       <div class="p-4 sm:p-5 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/30 space-y-3">
-        <div class="relative w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-inner min-h-[220px] sm:min-h-[280px] max-h-[50vh] flex items-center justify-center bg-slate-900">
+        <div id="proof-viewer-img-container" class="relative w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-inner min-h-[220px] sm:min-h-[280px] max-h-[50vh] flex items-center justify-center bg-slate-900">
           <!-- Skeleton Loading placeholder -->
           <div id="proof-viewer-skeleton" class="proof-skeleton absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 transition-opacity duration-300">
             <svg class="w-10 h-10 text-slate-400 dark:text-slate-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3629,6 +3625,198 @@
     </div>
   </div>
 
+  <!-- ======================================================================= -->
+  <!-- MODAL: GIỚI THIỆU DỰ ÁN & CẨM NANG KINH TẾ LEVELUP RPG                  -->
+  <!-- ======================================================================= -->
+  <div id="modal-about" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-about-title">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-indigo-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
+      <!-- Modal Header -->
+      <div class="bg-indigo-50/80 dark:bg-indigo-950/50 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-indigo-500/20 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/40 flex items-center justify-center text-xl shadow-xs">
+            <span>⚔️</span>
+          </div>
+          <div>
+            <h3 id="modal-about-title" class="font-rpg-title font-black text-sm sm:text-base text-indigo-700 dark:text-indigo-300 tracking-wide uppercase">GIỚI THIỆU LEVELUP RPG</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Game hóa năng suất & Kỷ luật cá nhân đỉnh cao</p>
+          </div>
+        </div>
+        <button id="btn-close-about-top" type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
+          <span class="material-symbols-outlined text-lg leading-none">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body (Cuộn nội dung mượt mà) -->
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 sm:p-6 space-y-4 sm:space-y-5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+        
+        <!-- 1. Triết lý tổng quan -->
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-amber-500/10 border border-indigo-500/20">
+          <div class="flex items-center gap-2 font-bold text-sm text-indigo-600 dark:text-indigo-400 mb-1.5">
+            <span>✨</span>
+            <span>LevelUp Là Gì? (Hiểu Trong 1 Phút)</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-300">
+            LevelUp biến các công việc học tập, làm việc và thói quen sinh hoạt mỗi ngày của bạn thành một chuyến phiêu lưu nhập vai <b>RPG thực thụ</b>. 
+            Mỗi khi bạn hoàn thành nhiệm vụ, bạn nhận được <b>Vàng (Coins)</b> và <b>EXP</b> để nâng cấp hiệp sĩ và tự do đổi lấy những phần thưởng giải trí mình yêu thích.
+          </p>
+        </div>
+
+        <!-- 2. Cơ chế kinh tế cân bằng: AI Tính Thưởng vs AI Định Giá Quà -->
+        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide flex items-center gap-1.5 text-xs">
+              <span>⚖️</span>
+              <span>Kinh Tế Cân Bằng: Kiếm Vàng vs Tiêu Vàng</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono font-bold">Quy luật 3:1</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <!-- Cột kiếm vàng -->
+            <div class="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-500/20 space-y-2 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <span>🪙</span>
+                  <span>AI Tính Thưởng (Kiếm Vàng)</span>
+                </div>
+                <ul class="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 mt-2">
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-emerald-500 font-bold">•</span>
+                    <span><b>25 - 30 phút tập trung sâu:</b> Kiếm được <b>~10 Vàng</b> (tương đương ~20 - 24 Vàng/tiếng).</span>
+                  </li>
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-emerald-500 font-bold">•</span>
+                    <span><b>Việc nhà dọn dẹp nhanh (5-10p):</b> Cố định <b>3 - 5 Vàng</b>.</span>
+                  </li>
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-emerald-500 font-bold">•</span>
+                    <span><b>Việc sinh hoạt hiển nhiên:</b> 1 - 2 Vàng tượng trưng (chống farm điểm lười biếng).</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Cột tiêu vàng -->
+            <div class="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-500/20 space-y-2 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                  <span>🎁</span>
+                  <span>AI Định Giá Quà (Tiêu Vàng)</span>
+                </div>
+                <ul class="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 mt-2">
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-purple-500 font-bold">•</span>
+                    <span><b>30 phút lướt mạng / xem video:</b> Giá <b>30 - 35 Vàng</b> (cần ~1.5 tiếng nỗ lực).</span>
+                  </li>
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-purple-500 font-bold">•</span>
+                    <span><b>1 ly trà sữa / cà phê:</b> Giá <b>40 - 55 Vàng</b> (cần ~2 tiếng làm việc sâu).</span>
+                  </li>
+                  <li class="flex items-start gap-1.5">
+                    <span class="text-purple-500 font-bold">•</span>
+                    <span><b>1 giờ chơi game / xem phim:</b> Giá <b>55 - 65 Vàng</b> (cần ~3 tiếng tập trung).</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-slate-600 dark:text-slate-300 italic bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+            💡 <b>Tại sao lại có tỷ lệ này?</b> Bỏ ra 3 giờ nỗ lực để đổi lấy 1 giờ giải trí trọn vẹn giúp ngăn chặn "dopamine giá rẻ", bảo vệ sức khỏe và giúp bạn tận hưởng phần thưởng mà <b>không còn cảm giác tội lỗi</b>!
+          </div>
+        </div>
+
+        <!-- 3. Bộ 3 Trọng Tài AI -->
+        <div class="space-y-2.5">
+          <div class="font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide text-xs flex items-center gap-1.5">
+            <span>🤖</span>
+            <span>Bộ 3 Trọng Tài AI Giám Sát Công Tâm</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+            <div class="p-3 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 flex flex-col justify-between">
+              <div>
+                <div class="text-base mb-1">🎯</div>
+                <div class="font-bold text-amber-700 dark:text-amber-300">Trọng Tài Nhiệm Vụ</div>
+                <p class="text-slate-600 dark:text-slate-400 mt-1 leading-normal">Tự động chia nhỏ mục tiêu bị nhồi nhét quá tải và định mức Vàng công bằng theo thời gian.</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 flex flex-col justify-between">
+              <div>
+                <div class="text-base mb-1">🛍️</div>
+                <div class="font-bold text-purple-700 dark:text-purple-300">Trọng Tài Cửa Hàng</div>
+                <p class="text-slate-600 dark:text-slate-400 mt-1 leading-normal">Định giá quà tương xứng với công sức, bắt buộc có đồng hồ đếm ngược giải trí và ngăn chặn thói quen độc hại.</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-sky-500/5 dark:bg-sky-500/10 border border-sky-500/20 flex flex-col justify-between">
+              <div>
+                <div class="text-base mb-1">🛡️</div>
+                <div class="font-bold text-sky-700 dark:text-sky-300">Trọng Tài Bằng Chứng</div>
+                <p class="text-slate-600 dark:text-slate-400 mt-1 leading-normal">Thẩm định ảnh chụp 📸 hoặc báo cáo công việc ✍️. Kiên quyết từ chối nếu khai không biết làm gì, lạc đề hoặc vô lý.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Hệ thống RPG & Tính năng đặc sắc -->
+        <div class="space-y-2.5 pb-2">
+          <div class="font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide text-xs flex items-center gap-1.5">
+            <span>🌟</span>
+            <span>Các Tính Năng RPG Độc Đáo Khác</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2.5">
+              <span class="text-xl shrink-0">⚔️</span>
+              <div>
+                <div class="font-bold text-slate-800 dark:text-slate-200">Cấp Độ & EXP Bền Vững</div>
+                <p class="text-slate-500 dark:text-slate-400 mt-0.5">1 Vàng kiếm được = 1 EXP. Tiêu Vàng mua quà không làm mất EXP. Thăng tiến từ Tân Binh lên Huyền Thoại Kỷ Luật.</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2.5">
+              <span class="text-xl shrink-0">⏱️</span>
+              <div>
+                <div class="font-bold text-slate-800 dark:text-slate-200">Đồng Hồ Bảo Lưu Thông Minh</div>
+                <p class="text-slate-500 dark:text-slate-400 mt-0.5">Đang làm dở có việc gấp? Bấm Bảo Lưu để cất thời gian còn lại, tiếp tục sau mà không sợ mất chuỗi hay hỏng việc.</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2.5">
+              <span class="text-xl shrink-0">🏦</span>
+              <div>
+                <div class="font-bold text-slate-800 dark:text-slate-200">Ngân Hàng RPG & Vay Vốn</div>
+                <p class="text-slate-500 dark:text-slate-400 mt-0.5">Gửi tiết kiệm nhận lãi mỗi ngày. Vay Vàng đổi quà với cơ chế tự động trích nợ êm ái qua từng nhiệm vụ hoàn thành.</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2.5">
+              <span class="text-xl shrink-0">🤝</span>
+              <div>
+                <div class="font-bold text-slate-800 dark:text-slate-200">Quyền Thương Lượng Với AI</div>
+                <p class="text-slate-500 dark:text-slate-400 mt-0.5">Bất cứ lúc nào mệt mỏi hay việc quá khó, bạn có quyền bấm "Thương lượng" để xin giảm phút, tăng Vàng hoặc miễn ảnh chụp!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 shrink-0 z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.2)]">
+        <button id="btn-about-start-tour" type="button" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer">
+          <span class="material-symbols-outlined text-base leading-none">explore</span>
+          <span>Xem Tour Hướng Dẫn</span>
+        </button>
+        <button id="btn-close-about-bottom" type="button" class="modal-close w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition active:scale-95 cursor-pointer">
+          Đã Hiểu & Bắt Đầu Phiêu Lưu 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- FLOATING ACTION BUTTON: PHÙ THỦY (AI ASSISTANT) -->
   <aside aria-label="Phù Thủy AI LevelUp" class="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
     <button id="btn-floating-assistant" onclick="openAssistantModal()" type="button" class="group relative flex items-center justify-center rounded-full cursor-pointer transition-all duration-300 active:scale-95 select-none" title="Hỏi Phù Thủy (Phím tắt: Alt+A)">
@@ -3663,7 +3851,7 @@
       </div>
 
       <!-- Quick Suggestion Pills -->
-      <div class="px-3 py-1.5 sm:py-2 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs">
+      <div id="assistant-suggest-chips" class="horizontal-scroll-drag px-3 py-1.5 sm:py-2 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs select-none" title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý">
         <span class="text-[10px] font-bold text-violet-600/80 dark:text-violet-400/80 shrink-0 select-none uppercase tracking-wider">Gợi ý:</span>
         <button type="button" onclick="sendQuickAssistantPrompt('Hôm nay tôi nên làm gì?')" class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-violet-500/10 hover:bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/25 shrink-0 transition active:scale-95 cursor-pointer whitespace-nowrap">
           💡 Hôm nay nên làm gì?
