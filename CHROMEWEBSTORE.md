@@ -17,6 +17,7 @@ Khi bạn kích hoạt phiên làm việc sâu (Pomodoro Focus) trên ứng dụ
 
 Các tính năng nổi bật:
 - Tự động đồng bộ hai chiều với đồng hồ Pomodoro của LevelUp theo thời gian thực
+- Mini Floating Capsule Timer: Viên thuốc đếm ngược Pomodoro nổi siêu nhỏ gọn ở góc màn hình mọi trang web (kéo thả tự do, 0% che khuất nội dung, 1-click quay về LevelUp)
 - Chặn tức thì các mạng xã hội và trang web giải trí khi bước vào giờ làm việc sâu
 - Màn hình cảnh báo nhập vai RPG độc quyền với đồng hồ đếm ngược trực quan
 - Hỗ trợ tùy chỉnh danh sách chặn theo nhóm danh mục hoặc tự thêm tên miền yêu thích
@@ -84,4 +85,6 @@ Cần thiết để cơ chế Declarative Net Request và trình theo dõi đi�
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.1.0 | 2026-10-18 | Mini Floating Capsule Timer — Bong bóng đếm ngược Pomodoro siêu nhỏ gọn nổi trên mọi tab, kéo thả tự do, không chiếm diện tích màn hình & nút 1-click quay về tab LevelUp. |
 | 1.0.0 | 2026-10-18 | Initial release — Đồng bộ Pomodoro thời gian thực, DNR rule redirection, RPG blocked page, Popup HUD, Options manager. |
+

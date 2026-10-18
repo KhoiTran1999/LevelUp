@@ -114,10 +114,33 @@ chrome.runtime.onInstalled.addListener(async () => {
     }
   } catch (_) {}
 
+  // Auto-inject capsule.js into all open web tabs
+  await injectCapsuleIntoAllTabs();
+
   // Ensure DNR rules match current shield state
   await applyDnrRules(Boolean(data.isShieldActive), initialBlacklist, data.whitelist || []);
   await updateBadge(Boolean(data.isShieldActive), data.focusState);
 });
+
+// Auto-inject capsule.js into all open web tabs
+async function injectCapsuleIntoAllTabs() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const t of tabs) {
+      if (t.id && t.url && (t.url.startsWith('http://') || t.url.startsWith('https://'))) {
+        const u = t.url.toLowerCase();
+        if (!u.includes('localhost') && !u.includes('127.0.0.1') && !u.includes('vercel.app')) {
+          await chrome.scripting.executeScript({
+            target: { tabId: t.id },
+            files: ['capsule.js']
+          }).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[LevelUp Shield] Error auto-injecting capsule:', err);
+  }
+}
 
 // Update Declarative Net Request Dynamic Rules
 async function applyDnrRules(isActive, blacklist = [], whitelist = []) {
@@ -193,6 +216,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await chrome.tabs.update(tabId, {
       url: chrome.runtime.getURL('blocked/blocked.html?blockedUrl=' + encodeURIComponent(targetUrl))
     });
+    return;
+  }
+
+  // Ensure capsule is injected into the updated tab
+  if (changeInfo.status === 'complete' && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
+    const u = targetUrl.toLowerCase();
+    if (!u.includes('localhost') && !u.includes('127.0.0.1') && !u.includes('vercel.app')) {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['capsule.js']
+      }).catch(() => {});
+    }
   }
 });
 
@@ -254,6 +289,7 @@ async function handleTimerSync(state) {
   // If shield just activated, scan and redirect open tabs immediately
   if (shouldShield) {
     await scanAndRedirectOpenTabs(blacklist, whitelist);
+    await injectCapsuleIntoAllTabs();
     chrome.alarms.create('levelup_heartbeat', { periodInMinutes: 0.1 });
   } else {
     await chrome.alarms.clear('levelup_heartbeat');
@@ -382,6 +418,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
+        case 'RESTORE_CAPSULE': {
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs) {
+            if (tab.id) {
+              chrome.tabs.sendMessage(tab.id, { type: 'RESTORE_CAPSULE' }).catch(() => {});
+            }
+          }
+          sendResponse({ success: true });
+          break;
+        }
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }
@@ -393,3 +440,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
+

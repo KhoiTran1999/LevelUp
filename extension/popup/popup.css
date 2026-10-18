@@ -101,6 +101,12 @@ body {
   font-weight: 500;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .btn-icon {
   background: transparent;
   border: 1px solid transparent;
@@ -121,6 +127,10 @@ body {
   border-color: var(--border-subtle);
   color: var(--text-main);
   transform: rotate(30deg);
+}
+
+.btn-icon.no-rotate:hover {
+  transform: scale(1.12);
 }
 
 /* ---------------------------------------------------------------------------
@@ -274,6 +284,35 @@ body {
   color: #818cf8;
   letter-spacing: 0.5px;
   text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.btn-restore-capsule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  color: #c7d2fe;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  margin-top: 4px;
+}
+
+.btn-restore-capsule:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-restore-capsule:active {
+  transform: translateY(0);
 }
 
 /* Switch Row */
@@ -473,7 +512,15 @@ body {
 /* ---------------------------------------------------------------------------
    5. CTA Button
 --------------------------------------------------------------------------- */
+.cta-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .btn-primary-cta {
+  flex: 1;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -496,6 +543,36 @@ body {
 }
 
 .btn-primary-cta:active {
+  transform: translateY(0);
+}
+
+.btn-secondary-cta {
+  background: var(--surface-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-secondary-cta:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px var(--primary-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary-cta:active {
   transform: translateY(0);
 }
 

@@ -18,11 +18,13 @@ assert.strictEqual(manifest.background?.service_worker, 'background.js', 'Servic
 assert.strictEqual(manifest.action?.default_popup, 'popup/popup.html', 'Action popup phải là popup/popup.html');
 assert.strictEqual(manifest.options_page, 'options/options.html', 'Options page phải là options/options.html');
 
-const requiredPermissions = ['declarativeNetRequest', 'storage', 'alarms', 'tabs'];
+const requiredPermissions = ['declarativeNetRequest', 'storage', 'alarms', 'tabs', 'scripting'];
 requiredPermissions.forEach(perm => {
   assert(manifest.permissions.includes(perm), `Thiếu permission: ${perm}`);
 });
-console.log('✓ Test 1: manifest.json hợp lệ chuẩn Manifest V3 với đầy đủ permissions cần thiết.');
+assert(Array.isArray(manifest.content_scripts), 'Phải có content_scripts');
+assert(manifest.content_scripts.some(cs => cs.js?.includes('capsule.js')), 'Phải khai báo capsule.js trong content_scripts');
+console.log('✓ Test 1: manifest.json hợp lệ chuẩn Manifest V3 với đầy đủ permissions và capsule content script.');
 
 // Test 2: Kiểm tra các file icons tồn tại với định dạng PNG hợp lệ
 assert(manifest.icons, 'Phải khai báo icons trong manifest');
@@ -49,6 +51,7 @@ console.log('✓ Test 2: Bộ icon chuẩn pixel-perfect (16, 48, 128) tồn t�
 const requiredFiles = [
   'background.js',
   'content.js',
+  'capsule.js',
   'blocked/blocked.html',
   'blocked/blocked.css',
   'blocked/blocked.js',
@@ -66,7 +69,7 @@ requiredFiles.forEach(rel => {
   const content = fs.readFileSync(p, 'utf8');
   assert(content.length > 20, `File ${rel} rỗng hoặc nội dung quá ngắn`);
 });
-console.log('✓ Test 3: Đầy đủ 11 file thành phần UI và background của Chrome Extension.');
+console.log('✓ Test 3: Đầy đủ 12 file thành phần UI, capsule HUD và background của Chrome Extension.');
 
 // Test 4: Kiểm tra logic xây dựng quy tắc Declarative Net Request (DNR)
 function generateTestDnrRules(blacklist, whitelist) {

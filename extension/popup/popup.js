@@ -173,6 +173,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Restore Mini Timer on Tabs Button
+  const restoreCapsuleBtn = document.getElementById('btn-restore-capsule');
+  if (restoreCapsuleBtn) {
+    restoreCapsuleBtn.addEventListener('click', async () => {
+      try {
+        await chrome.runtime.sendMessage({ type: 'RESTORE_CAPSULE' });
+        const originalText = restoreCapsuleBtn.innerHTML;
+        restoreCapsuleBtn.innerHTML = '✅ Đã Bật Lại Mini Timer!';
+        restoreCapsuleBtn.style.color = '#34d399';
+        setTimeout(() => {
+          restoreCapsuleBtn.innerHTML = originalText;
+          restoreCapsuleBtn.style.color = '';
+        }, 1500);
+      } catch (e) {
+        console.error('Failed to restore capsule:', e);
+      }
+    });
+  }
+
   // Open LevelUp Tab Button
   const openLevelUpBtn = document.getElementById('btn-open-levelup');
   if (openLevelUpBtn) {
@@ -194,3 +213,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
