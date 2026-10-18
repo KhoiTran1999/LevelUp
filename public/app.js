@@ -3295,7 +3295,6 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 }
 
 let pendingShieldGateQuest = null;
-let isShieldGateBypassedForSession = false;
 
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
@@ -3315,47 +3314,80 @@ function updateShieldGateStatus(installed) {
   const spinner = document.getElementById('shield-gate-spinner');
   const statusText = document.getElementById('shield-gate-status-text');
   const btnSuccess = document.getElementById('btn-shield-gate-success');
+  const btnCheckNow = document.getElementById('btn-shield-check-now');
 
   if (installed) {
-    if (statusBox) statusBox.className = 'p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between text-xs transition-all';
-    if (spinner) spinner.className = 'w-3 h-3 rounded-full bg-emerald-400';
+    if (statusBox) {
+      statusBox.className = 'p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
+    }
+    if (spinner) {
+      spinner.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 shrink-0';
+    }
     if (statusText) {
-      statusText.className = 'text-xs font-bold text-emerald-300';
+      statusText.className = 'text-xs font-bold text-emerald-950 dark:text-emerald-100 truncate';
       statusText.textContent = '✅ Đã phát hiện Khiên Kỷ Luật sẵn sàng!';
     }
     if (btnSuccess) btnSuccess.classList.remove('hidden');
+    if (btnCheckNow) btnCheckNow.classList.add('hidden');
   } else {
-    if (statusBox) statusBox.className = 'p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex items-center justify-between text-xs transition-all';
-    if (spinner) spinner.className = 'w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin';
+    if (statusBox) {
+      statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
+    }
+    if (spinner) {
+      spinner.className = 'w-4 h-4 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0';
+    }
     if (statusText) {
-      statusText.className = 'text-xs font-bold text-indigo-300';
-      statusText.textContent = 'Đang quét phát hiện Khiên...';
+      statusText.className = 'text-xs font-bold text-amber-950 dark:text-amber-100 truncate';
+      statusText.textContent = 'Đang đợi phát hiện Khiên từ Chrome...';
     }
     if (btnSuccess) btnSuccess.classList.add('hidden');
+    if (btnCheckNow) btnCheckNow.classList.remove('hidden');
   }
 }
 
-function openShieldGateModal(quest) {
+function openShieldGateModal(quest = null) {
   pendingShieldGateQuest = quest;
   const modal = document.getElementById('modal-shield-gate');
   if (!modal) return;
   modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
   updateShieldGateStatus(isLevelUpExtensionInstalled());
 }
 
 function closeShieldGateModal() {
   const modal = document.getElementById('modal-shield-gate');
   if (modal) modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+function enforceMandatoryShieldGateOnStartup() {
+  if (typeof window === 'undefined') return;
+  // Thiết bị di động không cài được Extension Chrome máy tính -> Tự động miễn trừ
+  if (isMobileUserDevice()) return;
+
+  // Nếu đã cài Khiên từ trước, không hiện modal
+  if (isLevelUpExtensionInstalled()) return;
+
+  // Cho content script 350ms tự nạp nếu vừa mở tab
+  setTimeout(() => {
+    if (!isLevelUpExtensionInstalled()) {
+      openShieldGateModal(null);
+    }
+  }, 350);
 }
 
 function initShieldGateListeners() {
   if (typeof window === 'undefined') return;
 
+  // 1. Tự động kiểm tra và khóa ngay khi vừa vào trang web trên Desktop
+  enforceMandatoryShieldGateOnStartup();
+
+  // 2. Lắng nghe tín hiệu khi extension vừa được cài xong trong thời gian thực
   window.addEventListener('levelup:extension-installed', () => {
     updateShieldGateStatus(true);
     try {
       if (typeof confetti === 'function') {
-        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
       }
     } catch (_) {}
     if (typeof showToast === 'function') {
@@ -3363,6 +3395,7 @@ function initShieldGateListeners() {
     }
   });
 
+  // 3. Nút mở khóa và bắt đầu dùng app
   const btnSuccess = document.getElementById('btn-shield-gate-success');
   if (btnSuccess) {
     btnSuccess.addEventListener('click', () => {
@@ -3371,34 +3404,32 @@ function initShieldGateListeners() {
         const q = pendingShieldGateQuest;
         pendingShieldGateQuest = null;
         startFocusTimer(q);
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('⚔️ Chào mừng Hiệp sĩ đã mở khóa LevelUp!', 'success');
+        }
       }
     });
   }
 
-  const btnSkip = document.getElementById('btn-shield-gate-skip');
-  if (btnSkip) {
-    btnSkip.addEventListener('click', () => {
-      isShieldGateBypassedForSession = true;
-      closeShieldGateModal();
-      if (typeof showToast === 'function') {
-        showToast('⚠️ Đang bắt đầu tập trung mà không có Khiên bảo vệ!', 'warning');
-      }
-      if (pendingShieldGateQuest) {
-        const q = pendingShieldGateQuest;
-        pendingShieldGateQuest = null;
-        startFocusTimer(q);
+  // 4. Nút bấm để copy nhanh url chrome://extensions/
+  const copyBtn = document.getElementById('copy-chrome-url-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const textToCopy = 'chrome://extensions/';
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          if (typeof showToast === 'function') {
+            showToast('📋 Đã sao chép: chrome://extensions/ (Dán vào tab mới nhé!)', 'success');
+          }
+        }).catch(() => {});
       }
     });
   }
 
-  const btnClose = document.getElementById('btn-shield-gate-close');
-  if (btnClose) {
-    btnClose.addEventListener('click', () => {
-      closeShieldGateModal();
-      pendingShieldGateQuest = null;
-    });
-  }
-
+  // 5. Nút quét lại thủ công
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   if (btnCheckNow) {
     btnCheckNow.addEventListener('click', () => {
@@ -3428,7 +3459,7 @@ async function startFocusTimer(quest) {
   setTimeout(() => { isTimerActionPending = false; }, 300);
 
   // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng trên máy tính
-  if (!isShieldGateBypassedForSession && !isMobileUserDevice() && !isLevelUpExtensionInstalled()) {
+  if (!isMobileUserDevice() && !isLevelUpExtensionInstalled()) {
     openShieldGateModal(quest);
     return;
   }

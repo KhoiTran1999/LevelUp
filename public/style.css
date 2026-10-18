@@ -4530,3 +4530,20 @@ html.dark .m3-navigation-bar .mobile-more-btn.active.active-theme-tracker .m3-na
   font-size: var(--md-sys-typescale-body-medium-size);
 }
 
+/* 24.9 Shield Gate Mandatory Modal System */
+#modal-shield-gate {
+  z-index: 99999 !important;
+}
+
+#modal-shield-gate .shield-gate-dialog {
+  border-radius: 28px !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.15) !important;
+  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+html.dark #modal-shield-gate .shield-gate-dialog {
+  background-color: #0f172a !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.2) !important;
+}
+
