@@ -1076,14 +1076,18 @@ function initShieldGateListeners() {
 
   // 2. Lắng nghe tín hiệu khi extension vừa được cài xong trong thời gian thực
   window.addEventListener('levelup:extension-installed', () => {
+    const modal = document.getElementById('modal-shield-gate');
+    const isModalOpen = modal && !modal.classList.contains('hidden');
+
     updateShieldGateStatus(true);
-    try {
-      if (typeof confetti === 'function') {
-        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-      }
-    } catch (_) {}
-    if (typeof showToast === 'function') {
-      showToast('🛡️ Đã kết nối Khiên Chặn Xao Nhãng thành công!', 'success');
+
+    // Chỉ kích hoạt hiệu ứng nếu người dùng thực sự đang mở màn hình Shield Gate để cài đặt
+    if (isModalOpen) {
+      try {
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        }
+      } catch (_) {}
     }
   });
 
