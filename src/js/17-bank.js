@@ -234,6 +234,11 @@ async function loadBankState() {
   let userBank = appState.profile.bank;
   let creditLimit = calculateLocalCreditLimit(appState.profile, userBank.loan?.autoDeductPercent || 0.50);
 
+  // ⚡ INSTANT RENDER: Hiển thị ngay lập tức dữ liệu mới nhất trong appState
+  // Ngăn chặn triệt để hiện tượng chớp nháy hoặc hiện dữ liệu cũ khi người dùng mở tab Ngân Hàng
+  renderBankUI(poolData, userBank, creditLimit);
+  renderLedger();
+
   let fetchSuccess = false;
   try {
     const res = await fetch(`/api/sync?action=bank_state&token=${encodeURIComponent(token || '')}&ts=${Date.now()}`, { credentials: 'include' });
@@ -251,12 +256,17 @@ async function loadBankState() {
         creditLimit = data.creditLimit;
       }
       fetchSuccess = true;
+      // Cập nhật lại giao diện mượt mà với dữ liệu chính xác từ máy chủ
+      renderBankUI(poolData, userBank, creditLimit);
+      renderLedger();
     } else {
       userBank = accrueLocalUserBank(appState.profile.bank, currentBankPool);
+      renderBankUI(poolData, userBank, creditLimit);
     }
   } catch (err) {
     console.warn('Không thể kết nối đến máy chủ Ngân Hàng, sử dụng dữ liệu cục bộ:', err);
     userBank = accrueLocalUserBank(appState.profile.bank, currentBankPool);
+    renderBankUI(poolData, userBank, creditLimit);
   } finally {
     if (isManual && btnRefresh) {
       setTimeout(() => {
@@ -266,8 +276,6 @@ async function loadBankState() {
     }
   }
 
-  renderBankUI(poolData, userBank, creditLimit);
-  renderLedger();
   loadBankAiCommentary(poolData);
 
   if (isManual) {
@@ -278,6 +286,17 @@ async function loadBankState() {
     }
   }
 }
+
+function renderBank() {
+  ensureUserBankProfile();
+  const pool = typeof currentBankPool === 'object' && currentBankPool ? currentBankPool : {};
+  const userBank = appState?.profile?.bank || {};
+  const creditLimit = typeof calculateLocalCreditLimit === 'function' && appState?.profile
+    ? calculateLocalCreditLimit(appState.profile, userBank.loan?.autoDeductPercent || 0.50)
+    : (userBank.loan?.creditLimit || 20);
+  renderBankUI(pool, userBank, creditLimit);
+}
+window.renderBank = renderBank;
 
 function renderBankUI(pool, userBank, creditLimit) {
   // 1. Kiểm tra nợ quá hạn theo kỳ hạn
@@ -2451,4 +2470,5 @@ window.updateBorrowTermButtons = updateBorrowTermButtons;
 window.updateBorrowCalculator = updateBorrowCalculator;
 window.setBorrowAmount = setBorrowAmount;
 window.setBorrowMax = setBorrowMax;
+window.renderBankUI = renderBankUI;
 

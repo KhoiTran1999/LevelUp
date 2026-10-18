@@ -2168,6 +2168,15 @@ function renderAll() {
   renderShop();
   renderInventory();
   renderLedger();
+  if (typeof renderBank === 'function') {
+    renderBank();
+  } else if (typeof renderBankUI === 'function' && typeof currentBankPool === 'object' && appState?.profile?.bank) {
+    const userBank = appState.profile.bank;
+    const creditLimit = typeof calculateLocalCreditLimit === 'function'
+      ? calculateLocalCreditLimit(appState.profile, userBank.loan?.autoDeductPercent || 0.50)
+      : (userBank.loan?.creditLimit || 20);
+    renderBankUI(currentBankPool, userBank, creditLimit);
+  }
   updateAdminNavVisibility();
 }
 

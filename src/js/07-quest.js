@@ -251,6 +251,7 @@ async function completeQuest(questId, skipConfirm = false) {
     renderHeader();
     renderQuests();
     renderLedger();
+    if (typeof renderBank === 'function') renderBank();
 
     if (loanCleared) {
       showToast('🎉 XUẤT SẮC! Bạn đã trả hết nợ Ngân Hàng qua quá trình làm việc chăm chỉ!', 'gold');
@@ -439,6 +440,7 @@ async function undoCompleteQuest(questId) {
     renderHeader();
     renderQuests();
     renderLedger();
+    if (typeof renderBank === 'function') renderBank();
     showToast(
       isRepeat
         ? `Đã hoàn tác lần làm gần nhất của nhiệm vụ "${quest.title}".`
