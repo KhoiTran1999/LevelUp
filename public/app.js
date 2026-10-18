@@ -330,25 +330,503 @@ function toggleTheme() {
 }
 
 const PALETTES = [
-  { id: 'modern-indigo', name: 'Electric Modern (Sáng sủa / Indigo)', icon: '⚡' },
-  { id: 'm3-ocean', name: 'Material Ocean (Google Blue)', icon: '🔵' },
-  { id: 'm3-baseline', name: 'Material Purple (Google M3)', icon: '🟣' },
-  { id: 'guild', name: 'RPG Legacy (Hoài niệm)', icon: '🗡️' }
+  {
+    id: 'modern-indigo',
+    name: 'Electric Modern (Sáng sủa / Indigo)',
+    icon: '⚡',
+    seed: '#4f46e5',
+    desc: 'Hiện đại, sắc nét với tông Chàm Điện Tử và Tím Phóng Khoáng',
+    preview: ['#4f46e5', '#0284c7', '#9333ea', '#f8fafc']
+  },
+  {
+    id: 'm3-baseline',
+    name: 'Material Baseline (Google Purple)',
+    icon: '🟣',
+    seed: '#6750a4',
+    desc: 'Chuẩn mực Google M3 nguyên bản, sắc tím thạch anh thanh tao',
+    preview: ['#6750a4', '#625b71', '#7d5260', '#fef7ff']
+  },
+  {
+    id: 'm3-ocean',
+    name: 'Material Ocean (Google Blue)',
+    icon: '🔵',
+    seed: '#006399',
+    desc: 'Xanh dương đại dương Pixel, tĩnh lặng và nâng cao tập trung',
+    preview: ['#006399', '#51606f', '#6b5778', '#fdfbff']
+  },
+  {
+    id: 'guild',
+    name: 'RPG Legacy (Hoài niệm)',
+    icon: '🗡️',
+    seed: '#b45309',
+    desc: 'Sắc vàng hổ phách hiệp sĩ Guild RPG, ấm áp và kiêu hãnh',
+    preview: ['#b45309', '#78593a', '#8c4a60', '#fffbeb']
+  },
+  {
+    id: 'm3-emerald',
+    name: 'Emerald Grove (Zen Lục Bảo)',
+    icon: '🌲',
+    seed: '#15803d',
+    desc: 'Xanh ngọc lục bảo thiên nhiên, nuôi dưỡng thói quen bền bỉ',
+    preview: ['#15803d', '#4d6352', '#39656b', '#f7fbf3']
+  },
+  {
+    id: 'm3-crimson',
+    name: 'Cyber Crimson (Long Hỏa / Đỏ Thẫm)',
+    icon: '🌋',
+    seed: '#dc2626',
+    desc: 'Sắc đỏ rực lửa adrenaline, kích thích vượt qua mọi thử thách khó',
+    preview: ['#dc2626', '#775653', '#755a2b', '#fff8f7']
+  },
+  {
+    id: 'm3-monochrome',
+    name: 'Monochrome OLED (Tối giản Đen Trắng)',
+    icon: '🖤',
+    seed: '#5e5e5e',
+    desc: 'Đen trắng thuần khiết, tiết kiệm pin OLED và loại bỏ mọi xao nhãng',
+    preview: ['#1f1f1f', '#5e5e5e', '#a8a8a8', '#fcfcfc']
+  }
 ];
+
+// =============================================================================
+// MATERIAL DESIGN 3 TONAL COLOR ENGINE (HCT / PERCEPTUAL COLOR MATH)
+// Specs: https://m3.material.io/styles/color/dynamic/choosing-a-source
+// =============================================================================
+
+function m3HexToRgb(hex) {
+  let c = hex.replace('#', '').trim();
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return { r: 79, g: 70, b: 229 }; // fallback indigo
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+function m3RgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h *= 60;
+  }
+  return { h: Math.round(h), s, l };
+}
+
+function m3HslToRgb(h, s, l) {
+  h = (h % 360 + 360) % 360;
+  s = Math.max(0, Math.min(1, s));
+  l = Math.max(0, Math.min(1, l));
+
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+
+  if (h < 60) { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  };
+}
+
+function m3RgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(x => {
+    const hex = Math.max(0, Math.min(255, x)).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
+}
+
+function m3ToneToHex(h, s, tone) {
+  // Tone represents perceptual luminance from 0 (black) to 100 (white)
+  const l = tone / 100;
+  const rgb = m3HslToRgb(h, s, l);
+  return m3RgbToHex(rgb.r, rgb.g, rgb.b);
+}
+
+// M3 Harmonization Algorithm: gently pulls semantic color hue towards primary seed hue
+function m3HarmonizeHue(sourceHue, targetHue, maxShift = 15) {
+  let diff = (targetHue - sourceHue) % 360;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  const shift = Math.sign(diff) * Math.min(Math.abs(diff), maxShift);
+  return (sourceHue + shift + 360) % 360;
+}
+
+function generateM3TonalPalette(seedHex) {
+  const rgb = m3HexToRgb(seedHex);
+  const hsl = m3RgbToHsl(rgb.r, rgb.g, rgb.b);
+
+  const primaryHue = hsl.h;
+  const primarySat = Math.max(hsl.s, 0.45);
+
+  const secondaryHue = primaryHue;
+  const secondarySat = Math.max(hsl.s * 0.35, 0.16);
+
+  const tertiaryHue = (primaryHue + 60) % 360;
+  const tertiarySat = Math.max(hsl.s * 0.45, 0.22);
+
+  const neutralHue = primaryHue;
+  const neutralSat = 0.05;
+
+  const neutralVariantHue = primaryHue;
+  const neutralVariantSat = 0.10;
+
+  const errorHue = 10;
+  const errorSat = 0.78;
+
+  // Harmonized Domain Colors (Gold, Mana, Streak, XP)
+  const goldHue = m3HarmonizeHue(38, primaryHue, 15);
+  const manaHue = m3HarmonizeHue(200, primaryHue, 15);
+  const streakHue = m3HarmonizeHue(24, primaryHue, 15);
+  const xpHue = m3HarmonizeHue(150, primaryHue, 15);
+
+  return {
+    light: {
+      primary: m3ToneToHex(primaryHue, primarySat, 40),
+      onPrimary: '#ffffff',
+      primaryContainer: m3ToneToHex(primaryHue, primarySat, 90),
+      onPrimaryContainer: m3ToneToHex(primaryHue, primarySat, 10),
+      inversePrimary: m3ToneToHex(primaryHue, primarySat, 80),
+
+      secondary: m3ToneToHex(secondaryHue, secondarySat, 40),
+      onSecondary: '#ffffff',
+      secondaryContainer: m3ToneToHex(secondaryHue, secondarySat, 90),
+      onSecondaryContainer: m3ToneToHex(secondaryHue, secondarySat, 10),
+
+      tertiary: m3ToneToHex(tertiaryHue, tertiarySat, 40),
+      onTertiary: '#ffffff',
+      tertiaryContainer: m3ToneToHex(tertiaryHue, tertiarySat, 90),
+      onTertiaryContainer: m3ToneToHex(tertiaryHue, tertiarySat, 10),
+
+      error: m3ToneToHex(errorHue, errorSat, 40),
+      onError: '#ffffff',
+      errorContainer: m3ToneToHex(errorHue, errorSat, 90),
+      onErrorContainer: m3ToneToHex(errorHue, errorSat, 10),
+
+      surface: m3ToneToHex(neutralHue, neutralSat, 98),
+      surfaceDim: m3ToneToHex(neutralHue, neutralSat, 87),
+      surfaceBright: m3ToneToHex(neutralHue, neutralSat, 98),
+      surfaceContainerLowest: '#ffffff',
+      surfaceContainerLow: m3ToneToHex(neutralHue, neutralSat, 96),
+      surfaceContainer: m3ToneToHex(neutralHue, neutralSat, 94),
+      surfaceContainerHigh: m3ToneToHex(neutralHue, neutralSat, 92),
+      surfaceContainerHighest: m3ToneToHex(neutralHue, neutralSat, 90),
+
+      onSurface: m3ToneToHex(neutralHue, neutralSat, 10),
+      surfaceVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 90),
+      onSurfaceVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 30),
+      outline: m3ToneToHex(neutralVariantHue, neutralVariantSat, 50),
+      outlineVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 80),
+
+      inverseSurface: m3ToneToHex(neutralHue, neutralSat, 20),
+      inverseOnSurface: m3ToneToHex(neutralHue, neutralSat, 95),
+
+      // RPG Harmonized Domain Tokens (Light)
+      gold: m3ToneToHex(goldHue, 0.85, 42),
+      onGold: '#ffffff',
+      goldContainer: m3ToneToHex(goldHue, 0.75, 92),
+      onGoldContainer: m3ToneToHex(goldHue, 0.85, 15),
+
+      mana: m3ToneToHex(manaHue, 0.85, 42),
+      onMana: '#ffffff',
+      manaContainer: m3ToneToHex(manaHue, 0.75, 92),
+      onManaContainer: m3ToneToHex(manaHue, 0.85, 15),
+
+      streak: m3ToneToHex(streakHue, 0.88, 45),
+      onStreak: '#ffffff',
+      streakContainer: m3ToneToHex(streakHue, 0.78, 92),
+      onStreakContainer: m3ToneToHex(streakHue, 0.88, 15),
+
+      xp: m3ToneToHex(xpHue, 0.82, 38),
+      onXp: '#ffffff',
+      xpContainer: m3ToneToHex(xpHue, 0.75, 92),
+      onXpContainer: m3ToneToHex(xpHue, 0.82, 15),
+    },
+    dark: {
+      primary: m3ToneToHex(primaryHue, primarySat, 80),
+      onPrimary: m3ToneToHex(primaryHue, primarySat, 20),
+      primaryContainer: m3ToneToHex(primaryHue, primarySat, 30),
+      onPrimaryContainer: m3ToneToHex(primaryHue, primarySat, 90),
+      inversePrimary: m3ToneToHex(primaryHue, primarySat, 40),
+
+      secondary: m3ToneToHex(secondaryHue, secondarySat, 80),
+      onSecondary: m3ToneToHex(secondaryHue, secondarySat, 20),
+      secondaryContainer: m3ToneToHex(secondaryHue, secondarySat, 30),
+      onSecondaryContainer: m3ToneToHex(secondaryHue, secondarySat, 90),
+
+      tertiary: m3ToneToHex(tertiaryHue, tertiarySat, 80),
+      onTertiary: m3ToneToHex(tertiaryHue, tertiarySat, 20),
+      tertiaryContainer: m3ToneToHex(tertiaryHue, tertiarySat, 30),
+      onTertiaryContainer: m3ToneToHex(tertiaryHue, tertiarySat, 90),
+
+      error: m3ToneToHex(errorHue, errorSat, 80),
+      onError: m3ToneToHex(errorHue, errorSat, 20),
+      errorContainer: m3ToneToHex(errorHue, errorSat, 30),
+      onErrorContainer: m3ToneToHex(errorHue, errorSat, 90),
+
+      surface: m3ToneToHex(neutralHue, neutralSat, 7),
+      surfaceDim: m3ToneToHex(neutralHue, neutralSat, 6),
+      surfaceBright: m3ToneToHex(neutralHue, neutralSat, 24),
+      surfaceContainerLowest: m3ToneToHex(neutralHue, neutralSat, 4),
+      surfaceContainerLow: m3ToneToHex(neutralHue, neutralSat, 10),
+      surfaceContainer: m3ToneToHex(neutralHue, neutralSat, 14),
+      surfaceContainerHigh: m3ToneToHex(neutralHue, neutralSat, 18),
+      surfaceContainerHighest: m3ToneToHex(neutralHue, neutralSat, 22),
+
+      onSurface: m3ToneToHex(neutralHue, neutralSat, 90),
+      surfaceVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 20),
+      onSurfaceVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 80),
+      outline: m3ToneToHex(neutralVariantHue, neutralVariantSat, 60),
+      outlineVariant: m3ToneToHex(neutralVariantHue, neutralVariantSat, 30),
+
+      inverseSurface: m3ToneToHex(neutralHue, neutralSat, 90),
+      inverseOnSurface: m3ToneToHex(neutralHue, neutralSat, 20),
+
+      // RPG Harmonized Domain Tokens (Dark)
+      gold: m3ToneToHex(goldHue, 0.85, 75),
+      onGold: m3ToneToHex(goldHue, 0.85, 20),
+      goldContainer: m3ToneToHex(goldHue, 0.75, 28),
+      onGoldContainer: m3ToneToHex(goldHue, 0.85, 90),
+
+      mana: m3ToneToHex(manaHue, 0.85, 75),
+      onMana: m3ToneToHex(manaHue, 0.85, 20),
+      manaContainer: m3ToneToHex(manaHue, 0.75, 28),
+      onManaContainer: m3ToneToHex(manaHue, 0.85, 90),
+
+      streak: m3ToneToHex(streakHue, 0.88, 75),
+      onStreak: m3ToneToHex(streakHue, 0.88, 20),
+      streakContainer: m3ToneToHex(streakHue, 0.78, 28),
+      onStreakContainer: m3ToneToHex(streakHue, 0.88, 90),
+
+      xp: m3ToneToHex(xpHue, 0.82, 75),
+      onXp: m3ToneToHex(xpHue, 0.82, 20),
+      xpContainer: m3ToneToHex(xpHue, 0.75, 28),
+      onXpContainer: m3ToneToHex(xpHue, 0.82, 90),
+    }
+  };
+}
+
+function applyCustomDynamicSeed(seedHex, skipPersist = false) {
+  if (!seedHex || !seedHex.startsWith('#') || (seedHex.length !== 4 && seedHex.length !== 7)) {
+    seedHex = '#4f46e5';
+  }
+  const palette = generateM3TonalPalette(seedHex);
+  const l = palette.light;
+  const d = palette.dark;
+
+  let styleEl = document.getElementById('m3-dynamic-theme-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'm3-dynamic-theme-style';
+    document.head.appendChild(styleEl);
+  }
+
+  styleEl.textContent = `
+    html[data-palette="m3-custom"] {
+      --md-sys-color-primary: ${l.primary};
+      --md-sys-color-on-primary: ${l.onPrimary};
+      --md-sys-color-primary-container: ${l.primaryContainer};
+      --md-sys-color-on-primary-container: ${l.onPrimaryContainer};
+      --md-sys-color-inverse-primary: ${l.inversePrimary};
+
+      --md-sys-color-secondary: ${l.secondary};
+      --md-sys-color-on-secondary: ${l.onSecondary};
+      --md-sys-color-secondary-container: ${l.secondaryContainer};
+      --md-sys-color-on-secondary-container: ${l.onSecondaryContainer};
+
+      --md-sys-color-tertiary: ${l.tertiary};
+      --md-sys-color-on-tertiary: ${l.onTertiary};
+      --md-sys-color-tertiary-container: ${l.tertiaryContainer};
+      --md-sys-color-on-tertiary-container: ${l.onTertiaryContainer};
+
+      --md-sys-color-error: ${l.error};
+      --md-sys-color-on-error: ${l.onError};
+      --md-sys-color-error-container: ${l.errorContainer};
+      --md-sys-color-on-error-container: ${l.onErrorContainer};
+
+      --md-sys-color-surface: ${l.surface};
+      --md-sys-color-surface-dim: ${l.surfaceDim};
+      --md-sys-color-surface-bright: ${l.surfaceBright};
+      --md-sys-color-surface-container-lowest: ${l.surfaceContainerLowest};
+      --md-sys-color-surface-container-low: ${l.surfaceContainerLow};
+      --md-sys-color-surface-container: ${l.surfaceContainer};
+      --md-sys-color-surface-container-high: ${l.surfaceContainerHigh};
+      --md-sys-color-surface-container-highest: ${l.surfaceContainerHighest};
+
+      --md-sys-color-on-surface: ${l.onSurface};
+      --md-sys-color-surface-variant: ${l.surfaceVariant};
+      --md-sys-color-on-surface-variant: ${l.onSurfaceVariant};
+      --md-sys-color-outline: ${l.outline};
+      --md-sys-color-outline-variant: ${l.outlineVariant};
+
+      --md-sys-color-inverse-surface: ${l.inverseSurface};
+      --md-sys-color-inverse-on-surface: ${l.inverseOnSurface};
+
+      --md-sys-color-surface-tint: ${l.primary};
+
+      --md-custom-color-gold: ${l.gold};
+      --md-custom-color-on-gold: ${l.onGold};
+      --md-custom-color-gold-container: ${l.goldContainer};
+      --md-custom-color-on-gold-container: ${l.onGoldContainer};
+
+      --md-custom-color-mana: ${l.mana};
+      --md-custom-color-on-mana: ${l.onMana};
+      --md-custom-color-mana-container: ${l.manaContainer};
+      --md-custom-color-on-mana-container: ${l.onManaContainer};
+
+      --md-custom-color-streak: ${l.streak};
+      --md-custom-color-on-streak: ${l.onStreak};
+      --md-custom-color-streak-container: ${l.streakContainer};
+      --md-custom-color-on-streak-container: ${l.onStreakContainer};
+
+      --md-custom-color-xp: ${l.xp};
+      --md-custom-color-on-xp: ${l.onXp};
+      --md-custom-color-xp-container: ${l.xpContainer};
+      --md-custom-color-on-xp-container: ${l.onXpContainer};
+
+      --panel-bg: rgba(255, 255, 255, 0.96);
+      --panel-border: var(--md-sys-color-outline-variant);
+      --subpanel-bg: var(--md-sys-color-surface-container-low);
+      --input-bg: var(--md-sys-color-surface-container-lowest);
+      --input-border: var(--md-sys-color-outline-variant);
+    }
+
+    html.dark[data-palette="m3-custom"] {
+      --md-sys-color-primary: ${d.primary};
+      --md-sys-color-on-primary: ${d.onPrimary};
+      --md-sys-color-primary-container: ${d.primaryContainer};
+      --md-sys-color-on-primary-container: ${d.onPrimaryContainer};
+      --md-sys-color-inverse-primary: ${d.inversePrimary};
+
+      --md-sys-color-secondary: ${d.secondary};
+      --md-sys-color-on-secondary: ${d.onSecondary};
+      --md-sys-color-secondary-container: ${d.secondaryContainer};
+      --md-sys-color-on-secondary-container: ${d.onSecondaryContainer};
+
+      --md-sys-color-tertiary: ${d.tertiary};
+      --md-sys-color-on-tertiary: ${d.onTertiary};
+      --md-sys-color-tertiary-container: ${d.tertiaryContainer};
+      --md-sys-color-on-tertiary-container: ${d.onTertiaryContainer};
+
+      --md-sys-color-error: ${d.error};
+      --md-sys-color-on-error: ${d.onError};
+      --md-sys-color-error-container: ${d.errorContainer};
+      --md-sys-color-on-error-container: ${d.onErrorContainer};
+
+      --md-sys-color-surface: ${d.surface};
+      --md-sys-color-surface-dim: ${d.surfaceDim};
+      --md-sys-color-surface-bright: ${d.surfaceBright};
+      --md-sys-color-surface-container-lowest: ${d.surfaceContainerLowest};
+      --md-sys-color-surface-container-low: ${d.surfaceContainerLow};
+      --md-sys-color-surface-container: ${d.surfaceContainer};
+      --md-sys-color-surface-container-high: ${d.surfaceContainerHigh};
+      --md-sys-color-surface-container-highest: ${d.surfaceContainerHighest};
+
+      --md-sys-color-on-surface: ${d.onSurface};
+      --md-sys-color-surface-variant: ${d.surfaceVariant};
+      --md-sys-color-on-surface-variant: ${d.onSurfaceVariant};
+      --md-sys-color-outline: ${d.outline};
+      --md-sys-color-outline-variant: ${d.outlineVariant};
+
+      --md-sys-color-inverse-surface: ${d.inverseSurface};
+      --md-sys-color-inverse-on-surface: ${d.inverseOnSurface};
+
+      --md-sys-color-surface-tint: ${d.primary};
+
+      --md-custom-color-gold: ${d.gold};
+      --md-custom-color-on-gold: ${d.onGold};
+      --md-custom-color-gold-container: ${d.goldContainer};
+      --md-custom-color-on-gold-container: ${d.onGoldContainer};
+
+      --md-custom-color-mana: ${d.mana};
+      --md-custom-color-on-mana: ${d.onMana};
+      --md-custom-color-mana-container: ${d.manaContainer};
+      --md-custom-color-on-mana-container: ${d.onManaContainer};
+
+      --md-custom-color-streak: ${d.streak};
+      --md-custom-color-on-streak: ${d.onStreak};
+      --md-custom-color-streak-container: ${d.streakContainer};
+      --md-custom-color-on-streak-container: ${d.onStreakContainer};
+
+      --md-custom-color-xp: ${d.xp};
+      --md-custom-color-on-xp: ${d.onXp};
+      --md-custom-color-xp-container: ${d.xpContainer};
+      --md-custom-color-on-xp-container: ${d.onXpContainer};
+
+      --panel-bg: rgba(18, 18, 24, 0.95);
+      --panel-border: var(--md-sys-color-outline-variant);
+      --subpanel-bg: var(--md-sys-color-surface-container-low);
+      --input-bg: var(--md-sys-color-surface-container-low);
+      --input-border: var(--md-sys-color-outline-variant);
+    }
+  `;
+
+  document.documentElement.dataset.palette = 'm3-custom';
+
+  if (!skipPersist) {
+    try {
+      localStorage.setItem('levelup_theme_custom_seed', seedHex);
+      localStorage.setItem('levelup_theme_palette', 'm3-custom');
+    } catch (e) {}
+  }
+
+  const btn = document.getElementById('toggle-palette-btn');
+  if (btn) {
+    btn.textContent = '🎨';
+    btn.title = `Bảng màu: Material You (${seedHex}) (Bấm để mở Studio)`;
+  }
+  const modalPaletteIcon = document.getElementById('modal-palette-icon');
+  const modalPaletteText = document.getElementById('modal-palette-text');
+  if (modalPaletteIcon && modalPaletteText) {
+    modalPaletteIcon.textContent = '🎨';
+    modalPaletteText.textContent = `Material You (${seedHex})`;
+  }
+
+  if (typeof updatePaletteStudioUI === 'function') {
+    updatePaletteStudioUI();
+  }
+}
 
 function applyPalette(palette) {
   const root = document.documentElement;
+  if (palette === 'm3-custom') {
+    const savedSeed = localStorage.getItem('levelup_theme_custom_seed') || '#4f46e5';
+    applyCustomDynamicSeed(savedSeed);
+    return;
+  }
+
   if (!palette || palette === 'modern-indigo') {
     delete root.dataset.palette;
     palette = 'modern-indigo';
   } else {
     root.dataset.palette = palette;
   }
+
   const btn = document.getElementById('toggle-palette-btn');
   if (btn) {
     const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
     btn.textContent = cur.icon;
-    btn.title = `Bảng màu: ${cur.name} (Bấm để đổi)`;
+    btn.title = `Bảng màu: ${cur.name} (Bấm để mở Studio)`;
   }
   const modalPaletteIcon = document.getElementById('modal-palette-icon');
   const modalPaletteText = document.getElementById('modal-palette-text');
@@ -360,6 +838,10 @@ function applyPalette(palette) {
   try {
     localStorage.setItem('levelup_theme_palette', palette);
   } catch (e) {}
+
+  if (typeof updatePaletteStudioUI === 'function') {
+    updatePaletteStudioUI();
+  }
 }
 
 function cyclePalette() {
@@ -373,6 +855,76 @@ function cyclePalette() {
   if (typeof showToast === 'function') {
     showToast(`🎨 Bảng màu: ${next.name}`, 'info');
   }
+}
+
+function openPaletteStudio() {
+  const modal = document.getElementById('m3-palette-studio-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (typeof updatePaletteStudioUI === 'function') {
+    updatePaletteStudioUI();
+  }
+}
+
+function closePaletteStudio() {
+  const modal = document.getElementById('m3-palette-studio-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function updatePaletteStudioUI() {
+  const root = document.documentElement;
+  const currentPalette = root.dataset.palette || 'modern-indigo';
+  const listContainer = document.getElementById('m3-palette-studio-grid');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = PALETTES.map(p => {
+    const isActive = currentPalette === p.id;
+    return `
+      <button type="button" onclick="applyPalette('${p.id}'); if(typeof sfx!=='undefined'&&sfx.playClick)sfx.playClick();" 
+        class="text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between group ${
+          isActive 
+            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/30 shadow-md' 
+            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm'
+        }">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">${p.icon}</span>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${p.name.split(' (')[0]}</span>
+          </div>
+          ${isActive ? '<span class="material-symbols-outlined text-sm font-bold text-indigo-600 dark:text-indigo-400">check_circle</span>' : ''}
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">${p.desc}</p>
+        <div class="flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+          <span class="w-4 h-4 rounded-full border border-black/10 shadow-2xs" style="background-color: ${p.preview[0]};" title="Primary"></span>
+          <span class="w-4 h-4 rounded-full border border-black/10 shadow-2xs" style="background-color: ${p.preview[1]};" title="Secondary"></span>
+          <span class="w-4 h-4 rounded-full border border-black/10 shadow-2xs" style="background-color: ${p.preview[2]};" title="Tertiary"></span>
+          <span class="w-4 h-4 rounded-full border border-black/10 shadow-2xs ml-auto" style="background-color: ${p.preview[3]};" title="Surface Canvas"></span>
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  // Sync custom seed picker input
+  const seedInput = document.getElementById('m3-seed-picker-input');
+  const seedHexText = document.getElementById('m3-seed-picker-hex');
+  const savedSeed = localStorage.getItem('levelup_theme_custom_seed') || '#4f46e5';
+  if (seedInput) seedInput.value = savedSeed;
+  if (seedHexText) seedHexText.textContent = savedSeed.toUpperCase();
+}
+
+// Expose functions globally
+if (typeof window !== 'undefined') {
+  window.PALETTES = PALETTES;
+  window.applyPalette = applyPalette;
+  window.cyclePalette = cyclePalette;
+  window.openPaletteStudio = openPaletteStudio;
+  window.closePaletteStudio = closePaletteStudio;
+  window.updatePaletteStudioUI = updatePaletteStudioUI;
+  window.applyCustomDynamicSeed = applyCustomDynamicSeed;
+  window.generateM3TonalPalette = generateM3TonalPalette;
 }
 
 function getOrCreateUserToken() {
@@ -9081,14 +9633,26 @@ function renderHeader() {
   const paletteBtn = document.getElementById('toggle-palette-btn');
   if (paletteBtn && typeof PALETTES !== 'undefined') {
     const curPal = document.documentElement.dataset.palette || 'modern-indigo';
-    const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
-    paletteBtn.textContent = found.icon;
-    paletteBtn.title = `Bảng màu: ${found.name} (Bấm để đổi)`;
-    const modalPaletteIcon = document.getElementById('modal-palette-icon');
-    const modalPaletteText = document.getElementById('modal-palette-text');
-    if (modalPaletteIcon && modalPaletteText) {
-      modalPaletteIcon.textContent = found.icon;
-      modalPaletteText.textContent = found.name.split(' (')[0];
+    if (curPal === 'm3-custom') {
+      const savedSeed = (typeof localStorage !== 'undefined' && localStorage.getItem('levelup_theme_custom_seed')) || '#4f46e5';
+      paletteBtn.textContent = '🎨';
+      paletteBtn.title = `Bảng màu: Material You (${savedSeed}) (Bấm để mở Studio)`;
+      const modalPaletteIcon = document.getElementById('modal-palette-icon');
+      const modalPaletteText = document.getElementById('modal-palette-text');
+      if (modalPaletteIcon && modalPaletteText) {
+        modalPaletteIcon.textContent = '🎨';
+        modalPaletteText.textContent = `Material You (${savedSeed})`;
+      }
+    } else {
+      const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
+      paletteBtn.textContent = found.icon;
+      paletteBtn.title = `Bảng màu: ${found.name} (Bấm để mở Studio)`;
+      const modalPaletteIcon = document.getElementById('modal-palette-icon');
+      const modalPaletteText = document.getElementById('modal-palette-text');
+      if (modalPaletteIcon && modalPaletteText) {
+        modalPaletteIcon.textContent = found.icon;
+        modalPaletteText.textContent = found.name.split(' (')[0];
+      }
     }
   }
 
@@ -16135,10 +16699,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Palette Toggle Button (Material Design 3 vs RPG Guild)
+  // Palette Toggle Button (Opens Material 3 Palette Studio Hub, or cycle if Shift/Alt held)
   const paletteToggle = document.getElementById('toggle-palette-btn');
   if (paletteToggle) {
-    paletteToggle.addEventListener('click', cyclePalette);
+    paletteToggle.addEventListener('click', (e) => {
+      if (e.shiftKey || e.altKey) {
+        cyclePalette();
+      } else if (typeof openPaletteStudio === 'function') {
+        openPaletteStudio();
+      } else {
+        cyclePalette();
+      }
+    });
+  }
+
+  // Material 3 Dynamic Seed Picker Input Listeners
+  const seedPickerInput = document.getElementById('m3-seed-picker-input');
+  if (seedPickerInput) {
+    seedPickerInput.addEventListener('input', (e) => {
+      const hex = e.target.value;
+      const seedHexText = document.getElementById('m3-seed-picker-hex');
+      if (seedHexText) seedHexText.textContent = hex.toUpperCase();
+      if (typeof applyCustomDynamicSeed === 'function') {
+        applyCustomDynamicSeed(hex);
+      }
+    });
   }
 
   // Sound FX Toggle Buttons (Header + Profile Modal)

@@ -131,14 +131,26 @@ function renderHeader() {
   const paletteBtn = document.getElementById('toggle-palette-btn');
   if (paletteBtn && typeof PALETTES !== 'undefined') {
     const curPal = document.documentElement.dataset.palette || 'modern-indigo';
-    const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
-    paletteBtn.textContent = found.icon;
-    paletteBtn.title = `Bảng màu: ${found.name} (Bấm để đổi)`;
-    const modalPaletteIcon = document.getElementById('modal-palette-icon');
-    const modalPaletteText = document.getElementById('modal-palette-text');
-    if (modalPaletteIcon && modalPaletteText) {
-      modalPaletteIcon.textContent = found.icon;
-      modalPaletteText.textContent = found.name.split(' (')[0];
+    if (curPal === 'm3-custom') {
+      const savedSeed = (typeof localStorage !== 'undefined' && localStorage.getItem('levelup_theme_custom_seed')) || '#4f46e5';
+      paletteBtn.textContent = '🎨';
+      paletteBtn.title = `Bảng màu: Material You (${savedSeed}) (Bấm để mở Studio)`;
+      const modalPaletteIcon = document.getElementById('modal-palette-icon');
+      const modalPaletteText = document.getElementById('modal-palette-text');
+      if (modalPaletteIcon && modalPaletteText) {
+        modalPaletteIcon.textContent = '🎨';
+        modalPaletteText.textContent = `Material You (${savedSeed})`;
+      }
+    } else {
+      const found = PALETTES.find(pl => pl.id === curPal) || PALETTES[0];
+      paletteBtn.textContent = found.icon;
+      paletteBtn.title = `Bảng màu: ${found.name} (Bấm để mở Studio)`;
+      const modalPaletteIcon = document.getElementById('modal-palette-icon');
+      const modalPaletteText = document.getElementById('modal-palette-text');
+      if (modalPaletteIcon && modalPaletteText) {
+        modalPaletteIcon.textContent = found.icon;
+        modalPaletteText.textContent = found.name.split(' (')[0];
+      }
     }
   }
 

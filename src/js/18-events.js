@@ -613,10 +613,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Palette Toggle Button (Material Design 3 vs RPG Guild)
+  // Palette Toggle Button (Opens Material 3 Palette Studio Hub, or cycle if Shift/Alt held)
   const paletteToggle = document.getElementById('toggle-palette-btn');
   if (paletteToggle) {
-    paletteToggle.addEventListener('click', cyclePalette);
+    paletteToggle.addEventListener('click', (e) => {
+      if (e.shiftKey || e.altKey) {
+        cyclePalette();
+      } else if (typeof openPaletteStudio === 'function') {
+        openPaletteStudio();
+      } else {
+        cyclePalette();
+      }
+    });
+  }
+
+  // Material 3 Dynamic Seed Picker Input Listeners
+  const seedPickerInput = document.getElementById('m3-seed-picker-input');
+  if (seedPickerInput) {
+    seedPickerInput.addEventListener('input', (e) => {
+      const hex = e.target.value;
+      const seedHexText = document.getElementById('m3-seed-picker-hex');
+      if (seedHexText) seedHexText.textContent = hex.toUpperCase();
+      if (typeof applyCustomDynamicSeed === 'function') {
+        applyCustomDynamicSeed(hex);
+      }
+    });
   }
 
   // Sound FX Toggle Buttons (Header + Profile Modal)

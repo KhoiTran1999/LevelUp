@@ -115,7 +115,8 @@
   --md-sys-color-surface-container-high: #f1f5f9;
   --md-sys-color-surface-container-highest: #e2e8f0;
 
-  --md-sys-color-on-surface: #0f172a;        /* Deep crisp slate text */
+  --md-sys-color-on-surface: #0f172a;
+  --md-sys-color-surface-variant: #f1f5f9;
   --md-sys-color-on-surface-variant: #475569;
   --md-sys-color-outline: #cbd5e1;
   --md-sys-color-outline-variant: #e2e8f0;
@@ -123,6 +124,53 @@
   --md-sys-color-inverse-surface: #0f172a;
   --md-sys-color-inverse-on-surface: #f8fafc;
   --md-sys-color-inverse-primary: #818cf8;
+
+  --md-sys-color-surface-tint: var(--md-sys-color-primary);
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+
+  /* Material Design 3 Fixed Roles (Consistent Luminance in Light & Dark) */
+  --md-sys-color-primary-fixed: #e0e7ff;
+  --md-sys-color-primary-fixed-dim: #c7d2fe;
+  --md-sys-color-on-primary-fixed: #1e1b4b;
+  --md-sys-color-on-primary-fixed-variant: #3730a3;
+  --md-sys-color-secondary-fixed: #e0f2fe;
+  --md-sys-color-secondary-fixed-dim: #bae6fd;
+  --md-sys-color-on-secondary-fixed: #082f49;
+  --md-sys-color-tertiary-fixed: #f3e8ff;
+  --md-sys-color-tertiary-fixed-dim: #e9d5ff;
+  --md-sys-color-on-tertiary-fixed: #3b0764;
+
+  /* Material Design 3 State Layer Opacities (Specs: Hover 8%, Focus 12%, Press 12%, Drag 16%) */
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
+  --md-sys-state-dragged-opacity: 0.16;
+
+  /* Material Design 3 Harmonized RPG Domain Tokens (Light Mode) */
+  --md-custom-color-gold: #d97706;
+  --md-custom-color-gold-hover: #b45309;
+  --md-custom-color-on-gold: #ffffff;
+  --md-custom-color-gold-container: #fef3c7;
+  --md-custom-color-on-gold-container: #78350f;
+
+  --md-custom-color-mana: #0284c7;
+  --md-custom-color-mana-hover: #0369a1;
+  --md-custom-color-on-mana: #ffffff;
+  --md-custom-color-mana-container: #e0f2fe;
+  --md-custom-color-on-mana-container: #075985;
+
+  --md-custom-color-streak: #ea580c;
+  --md-custom-color-streak-hover: #c2410c;
+  --md-custom-color-on-streak: #ffffff;
+  --md-custom-color-streak-container: #ffedd5;
+  --md-custom-color-on-streak-container: #7c2d12;
+
+  --md-custom-color-xp: #059669;
+  --md-custom-color-xp-hover: #047857;
+  --md-custom-color-on-xp: #ffffff;
+  --md-custom-color-xp-container: #d1fae5;
+  --md-custom-color-on-xp-container: #064e3b;
 
   /* Material Design 3 Elevation Tokens (Levels 0 - 5) */
   --md-elevation-0: none;
@@ -308,6 +356,7 @@ html.dark {
   --md-sys-color-surface-container-highest: #263558;
 
   --md-sys-color-on-surface: #f8fafc;
+  --md-sys-color-surface-variant: #1e293b;
   --md-sys-color-on-surface-variant: #94a3b8;
   --md-sys-color-outline: #475569;
   --md-sys-color-outline-variant: #1e293b;
@@ -315,6 +364,47 @@ html.dark {
   --md-sys-color-inverse-surface: #f8fafc;
   --md-sys-color-inverse-on-surface: #0f172a;
   --md-sys-color-inverse-primary: #4f46e5;
+
+  --md-sys-color-surface-tint: var(--md-sys-color-primary);
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+
+  /* Material Design 3 Fixed Roles (Dark Mode inherits same luminous baseline) */
+  --md-sys-color-primary-fixed: #e0e7ff;
+  --md-sys-color-primary-fixed-dim: #c7d2fe;
+  --md-sys-color-on-primary-fixed: #1e1b4b;
+  --md-sys-color-on-primary-fixed-variant: #3730a3;
+  --md-sys-color-secondary-fixed: #e0f2fe;
+  --md-sys-color-secondary-fixed-dim: #bae6fd;
+  --md-sys-color-on-secondary-fixed: #082f49;
+  --md-sys-color-tertiary-fixed: #f3e8ff;
+  --md-sys-color-tertiary-fixed-dim: #e9d5ff;
+  --md-sys-color-on-tertiary-fixed: #3b0764;
+
+  /* Material Design 3 Harmonized RPG Domain Tokens (Dark Mode) */
+  --md-custom-color-gold: #fbbf24;
+  --md-custom-color-gold-hover: #f59e0b;
+  --md-custom-color-on-gold: #451a03;
+  --md-custom-color-gold-container: #78350f;
+  --md-custom-color-on-gold-container: #fef3c7;
+
+  --md-custom-color-mana: #38bdf8;
+  --md-custom-color-mana-hover: #0284c7;
+  --md-custom-color-on-mana: #082f49;
+  --md-custom-color-mana-container: #075985;
+  --md-custom-color-on-mana-container: #e0f2fe;
+
+  --md-custom-color-streak: #fb923c;
+  --md-custom-color-streak-hover: #ea580c;
+  --md-custom-color-on-streak: #431407;
+  --md-custom-color-streak-container: #7c2d12;
+  --md-custom-color-on-streak-container: #ffedd5;
+
+  --md-custom-color-xp: #34d399;
+  --md-custom-color-xp-hover: #059669;
+  --md-custom-color-on-xp: #064e3b;
+  --md-custom-color-xp-container: #065f46;
+  --md-custom-color-on-xp-container: #d1fae5;
 
   /* Material Design 3 Elevation Tokens (Dark Mode) - Dual ambient + key drop shadow */
   --md-elevation-0: none;
@@ -510,49 +600,362 @@ html.dark[data-palette="m3-ocean"] {
   --input-border: var(--md-sys-color-outline-variant);
 }
 
-/* Material Design 3 Palette Comprehensive Overrides */
-html[data-palette^="m3-"] .btn-action-quest,
-html[data-palette^="m3-"] .btn-primary,
-html[data-palette^="m3-"] button.bg-amber-500,
-html[data-palette^="m3-"] button.bg-amber-600 {
+/* Palette 3: RPG Legacy / Guildmaster Gold (Imperial Amber M3 System) */
+html[data-palette="guild"] {
+  --md-sys-color-primary: #b45309;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #fef3c7;
+  --md-sys-color-on-primary-container: #78350f;
+
+  --md-sys-color-secondary: #78593a;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #ffddb8;
+  --md-sys-color-on-secondary-container: #2b1700;
+
+  --md-sys-color-tertiary: #8c4a60;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd9e2;
+  --md-sys-color-on-tertiary-container: #3a071d;
+
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+
+  --md-sys-color-surface: #fffbeb;
+  --md-sys-color-surface-dim: #f7f0dc;
+  --md-sys-color-surface-bright: #ffffff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #fef7e2;
+  --md-sys-color-surface-container: #fbf2d5;
+  --md-sys-color-surface-container-high: #f5ebcc;
+  --md-sys-color-surface-container-highest: #efe4c2;
+
+  --md-sys-color-on-surface: #1f1b13;
+  --md-sys-color-surface-variant: #fbf2d5;
+  --md-sys-color-on-surface-variant: #4f4539;
+  --md-sys-color-outline: #817567;
+  --md-sys-color-outline-variant: #d3c4b4;
+
+  --panel-bg: rgba(255, 251, 235, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="guild"] {
+  --md-sys-color-primary: #fbbf24;
+  --md-sys-color-on-primary: #451a03;
+  --md-sys-color-primary-container: #78350f;
+  --md-sys-color-on-primary-container: #fef3c7;
+
+  --md-sys-color-secondary: #e5bf98;
+  --md-sys-color-on-secondary: #442b0f;
+  --md-sys-color-secondary-container: #5d4124;
+  --md-sys-color-on-secondary-container: #ffddb8;
+
+  --md-sys-color-tertiary: #ffb0c8;
+  --md-sys-color-on-tertiary: #541d32;
+  --md-sys-color-tertiary-container: #703348;
+  --md-sys-color-on-tertiary-container: #ffd9e2;
+
+  --md-sys-color-surface: #15120c;
+  --md-sys-color-surface-dim: #0e0c08;
+  --md-sys-color-surface-bright: #38332a;
+  --md-sys-color-surface-container-lowest: #0a0805;
+  --md-sys-color-surface-container-low: #1d1912;
+  --md-sys-color-surface-container: #231f17;
+  --md-sys-color-surface-container-high: #2e2920;
+  --md-sys-color-surface-container-highest: #3a3429;
+
+  --md-sys-color-on-surface: #eee0d5;
+  --md-sys-color-surface-variant: #2e2920;
+  --md-sys-color-on-surface-variant: #d3c4b4;
+  --md-sys-color-outline: #9c8f80;
+  --md-sys-color-outline-variant: #4f4539;
+
+  --panel-bg: rgba(21, 18, 12, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Palette 4: Emerald Grove (Druid Green / Zen Habit Nature) */
+html[data-palette="m3-emerald"] {
+  --md-sys-color-primary: #15803d;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #dcfce7;
+  --md-sys-color-on-primary-container: #14532d;
+
+  --md-sys-color-secondary: #4d6352;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #cfe8d3;
+  --md-sys-color-on-secondary-container: #0b1f12;
+
+  --md-sys-color-tertiary: #39656b;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #bcebf2;
+  --md-sys-color-on-tertiary-container: #001f24;
+
+  --md-sys-color-surface: #f7fbf3;
+  --md-sys-color-surface-dim: #d7dbd3;
+  --md-sys-color-surface-bright: #f7fbf3;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f1f5ed;
+  --md-sys-color-surface-container: #ebefe7;
+  --md-sys-color-surface-container-high: #e5eae2;
+  --md-sys-color-surface-container-highest: #e0e4dc;
+
+  --md-sys-color-on-surface: #181d18;
+  --md-sys-color-surface-variant: #ebefe7;
+  --md-sys-color-on-surface-variant: #424941;
+  --md-sys-color-outline: #727971;
+  --md-sys-color-outline-variant: #c2c9bf;
+
+  --panel-bg: rgba(247, 251, 243, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="m3-emerald"] {
+  --md-sys-color-primary: #4ade80;
+  --md-sys-color-on-primary: #052e16;
+  --md-sys-color-primary-container: #166534;
+  --md-sys-color-on-primary-container: #bbf7d0;
+
+  --md-sys-color-secondary: #b3ccb8;
+  --md-sys-color-on-secondary: #1f3526;
+  --md-sys-color-secondary-container: #354c3b;
+  --md-sys-color-on-secondary-container: #cfe8d3;
+
+  --md-sys-color-tertiary: #a0cfd5;
+  --md-sys-color-on-tertiary: #00363c;
+  --md-sys-color-tertiary-container: #1f4d53;
+  --md-sys-color-on-tertiary-container: #bcebf2;
+
+  --md-sys-color-surface: #0f1511;
+  --md-sys-color-surface-dim: #0a0e0b;
+  --md-sys-color-surface-bright: #343b35;
+  --md-sys-color-surface-container-lowest: #080b09;
+  --md-sys-color-surface-container-low: #141b16;
+  --md-sys-color-surface-container: #1b211d;
+  --md-sys-color-surface-container-high: #252c26;
+  --md-sys-color-surface-container-highest: #2f3630;
+
+  --md-sys-color-on-surface: #dfecdf;
+  --md-sys-color-surface-variant: #252c26;
+  --md-sys-color-on-surface-variant: #c2c9bf;
+  --md-sys-color-outline: #8c938a;
+  --md-sys-color-outline-variant: #424941;
+
+  --panel-bg: rgba(15, 21, 17, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Palette 5: Cyber Crimson (Dragon Flame / Adrenaline Red) */
+html[data-palette="m3-crimson"] {
+  --md-sys-color-primary: #dc2626;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #fee2e2;
+  --md-sys-color-on-primary-container: #7f1d1d;
+
+  --md-sys-color-secondary: #775653;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #ffdad6;
+  --md-sys-color-on-secondary-container: #2c1513;
+
+  --md-sys-color-tertiary: #755a2b;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffdf9e;
+  --md-sys-color-on-tertiary-container: #261a00;
+
+  --md-sys-color-surface: #fff8f7;
+  --md-sys-color-surface-dim: #e8d6d4;
+  --md-sys-color-surface-bright: #fff8f7;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #fff0ee;
+  --md-sys-color-surface-container: #fceae8;
+  --md-sys-color-surface-container-high: #f6e4e2;
+  --md-sys-color-surface-container-highest: #f2dbd8;
+
+  --md-sys-color-on-surface: #231918;
+  --md-sys-color-surface-variant: #fceae8;
+  --md-sys-color-on-surface-variant: #534342;
+  --md-sys-color-outline: #857371;
+  --md-sys-color-outline-variant: #d8c2bf;
+
+  --panel-bg: rgba(255, 248, 247, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="m3-crimson"] {
+  --md-sys-color-primary: #f87171;
+  --md-sys-color-on-primary: #450a0a;
+  --md-sys-color-primary-container: #991b1b;
+  --md-sys-color-on-primary-container: #fee2e2;
+
+  --md-sys-color-secondary: #e7bdb8;
+  --md-sys-color-on-secondary: #442927;
+  --md-sys-color-secondary-container: #5d3f3c;
+  --md-sys-color-on-secondary-container: #ffdad6;
+
+  --md-sys-color-tertiary: #e5c283;
+  --md-sys-color-on-tertiary: #402d04;
+  --md-sys-color-tertiary-container: #5a4317;
+  --md-sys-color-on-tertiary-container: #ffdf9e;
+
+  --md-sys-color-surface: #1a1111;
+  --md-sys-color-surface-dim: #120a0a;
+  --md-sys-color-surface-bright: #423635;
+  --md-sys-color-surface-container-lowest: #0d0707;
+  --md-sys-color-surface-container-low: #201717;
+  --md-sys-color-surface-container: #271d1c;
+  --md-sys-color-surface-container-high: #322827;
+  --md-sys-color-surface-container-highest: #3d3130;
+
+  --md-sys-color-on-surface: #f1dedc;
+  --md-sys-color-surface-variant: #322827;
+  --md-sys-color-on-surface-variant: #d8c2bf;
+  --md-sys-color-outline: #a08c8a;
+  --md-sys-color-outline-variant: #534342;
+
+  --panel-bg: rgba(26, 17, 17, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Palette 6: Monochrome OLED (Stealth Minimalist / Battery Saver) */
+html[data-palette="m3-monochrome"] {
+  --md-sys-color-primary: #1f1f1f;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #e3e3e3;
+  --md-sys-color-on-primary-container: #121212;
+
+  --md-sys-color-secondary: #5e5e5e;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e0e0e0;
+  --md-sys-color-on-secondary-container: #1a1a1a;
+
+  --md-sys-color-tertiary: #757575;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #eeeeee;
+  --md-sys-color-on-tertiary-container: #222222;
+
+  --md-sys-color-surface: #fcfcfc;
+  --md-sys-color-surface-dim: #e8e8e8;
+  --md-sys-color-surface-bright: #ffffff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f5f5f5;
+  --md-sys-color-surface-container: #f0f0f0;
+  --md-sys-color-surface-container-high: #eaeaea;
+  --md-sys-color-surface-container-highest: #e0e0e0;
+
+  --md-sys-color-on-surface: #121212;
+  --md-sys-color-surface-variant: #f0f0f0;
+  --md-sys-color-on-surface-variant: #4f4f4f;
+  --md-sys-color-outline: #757575;
+  --md-sys-color-outline-variant: #c7c7c7;
+
+  --panel-bg: rgba(252, 252, 252, 0.96);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-lowest);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+html.dark[data-palette="m3-monochrome"] {
+  --md-sys-color-primary: #ffffff;
+  --md-sys-color-on-primary: #121212;
+  --md-sys-color-primary-container: #303030;
+  --md-sys-color-on-primary-container: #f2f2f2;
+
+  --md-sys-color-secondary: #c7c7c7;
+  --md-sys-color-on-secondary: #1f1f1f;
+  --md-sys-color-secondary-container: #404040;
+  --md-sys-color-on-secondary-container: #f0f0f0;
+
+  --md-sys-color-tertiary: #a8a8a8;
+  --md-sys-color-on-tertiary: #1a1a1a;
+  --md-sys-color-tertiary-container: #474747;
+  --md-sys-color-on-tertiary-container: #eaeaea;
+
+  --md-sys-color-surface: #000000;
+  --md-sys-color-surface-dim: #000000;
+  --md-sys-color-surface-bright: #2b2b2b;
+  --md-sys-color-surface-container-lowest: #000000;
+  --md-sys-color-surface-container-low: #0a0a0a;
+  --md-sys-color-surface-container: #121212;
+  --md-sys-color-surface-container-high: #1c1c1c;
+  --md-sys-color-surface-container-highest: #262626;
+
+  --md-sys-color-on-surface: #f5f5f5;
+  --md-sys-color-surface-variant: #1c1c1c;
+  --md-sys-color-on-surface-variant: #b0b0b0;
+  --md-sys-color-outline: #8a8a8a;
+  --md-sys-color-outline-variant: #383838;
+
+  --panel-bg: rgba(0, 0, 0, 0.95);
+  --panel-border: var(--md-sys-color-outline-variant);
+  --subpanel-bg: var(--md-sys-color-surface-container-low);
+  --input-bg: var(--md-sys-color-surface-container-low);
+  --input-border: var(--md-sys-color-outline-variant);
+}
+
+/* Material Design 3 Palette Comprehensive Overrides (All Palettes) */
+html[data-palette] .btn-action-quest,
+html[data-palette] .btn-primary,
+html[data-palette] button.bg-amber-500,
+html[data-palette] button.bg-amber-600 {
   background-color: var(--md-sys-color-primary) !important;
   color: var(--md-sys-color-on-primary) !important;
   box-shadow: var(--md-elevation-2) !important;
 }
 
-html[data-palette^="m3-"] .quest-filter.active,
-html[data-palette^="m3-"] .nav-tab.active {
+html[data-palette] .quest-filter.active,
+html[data-palette] .nav-tab.active {
   background-color: var(--md-sys-color-primary-container) !important;
   color: var(--md-sys-color-on-primary-container) !important;
 }
 
-html[data-palette^="m3-"] #hero-level-badge,
-html[data-palette^="m3-"] #hero-title,
-html[data-palette^="m3-"] .text-amber-600,
-html[data-palette^="m3-"] .text-amber-500 {
+html[data-palette] #hero-level-badge,
+html[data-palette] #hero-title,
+html[data-palette] .text-amber-600,
+html[data-palette] .text-amber-500 {
   color: var(--md-sys-color-primary) !important;
 }
 
-html[data-palette^="m3-"] .border-amber-500,
-html[data-palette^="m3-"] .border-amber-500\/40,
-html[data-palette^="m3-"] .border-amber-500\/50 {
+html[data-palette] .border-amber-500,
+html[data-palette] .border-amber-500\/40,
+html[data-palette] .border-amber-500\/50 {
   border-color: var(--md-sys-color-outline-variant) !important;
 }
 
-html[data-palette^="m3-"] header.sticky.md-scrolled {
+html[data-palette] header.sticky.md-scrolled {
   background-color: var(--md-sys-color-surface) !important;
 }
 
-html[data-palette^="m3-"] #active-focus-banner {
+html[data-palette] #active-focus-banner {
   background: var(--md-sys-color-surface-container) !important;
   border-color: var(--md-sys-color-outline-variant) !important;
 }
 
-html[data-palette^="m3-"] .rpg-card:hover {
+html[data-palette] .rpg-card:hover {
   border-color: var(--md-sys-color-primary) !important;
 }
 
-html[data-palette^="m3-"] ::selection {
+html[data-palette] ::selection {
   background-color: var(--md-sys-color-primary-container) !important;
   color: var(--md-sys-color-on-primary-container) !important;
 }

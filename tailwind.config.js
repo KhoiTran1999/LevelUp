@@ -12,21 +12,75 @@ export default {
       },
       colors: {
         guild: {
-          gold: '#f59e0b',
-          goldHover: '#d97706',
-          goldLight: '#fde68a'
+          gold: 'var(--md-custom-color-gold, #f59e0b)',
+          goldHover: 'var(--md-custom-color-gold-hover, #d97706)',
+          goldLight: 'var(--md-custom-color-gold-container, #fde68a)'
         },
         md: {
-          primary: '#f59e0b',
-          'on-primary': '#ffffff',
-          'primary-container': '#fef3c7',
-          'on-primary-container': '#78350f',
-          surface: '#f8fafc',
-          'on-surface': '#0f172a',
-          'surface-variant': '#f1f5f9',
-          'on-surface-variant': '#475569',
-          outline: '#94a3b8',
-          'outline-variant': '#cbd5e1'
+          primary: 'var(--md-sys-color-primary)',
+          'on-primary': 'var(--md-sys-color-on-primary)',
+          'primary-container': 'var(--md-sys-color-primary-container)',
+          'on-primary-container': 'var(--md-sys-color-on-primary-container)',
+          'inverse-primary': 'var(--md-sys-color-inverse-primary)',
+
+          secondary: 'var(--md-sys-color-secondary)',
+          'on-secondary': 'var(--md-sys-color-on-secondary)',
+          'secondary-container': 'var(--md-sys-color-secondary-container)',
+          'on-secondary-container': 'var(--md-sys-color-on-secondary-container)',
+
+          tertiary: 'var(--md-sys-color-tertiary)',
+          'on-tertiary': 'var(--md-sys-color-on-tertiary)',
+          'tertiary-container': 'var(--md-sys-color-tertiary-container)',
+          'on-tertiary-container': 'var(--md-sys-color-on-tertiary-container)',
+
+          error: 'var(--md-sys-color-error)',
+          'on-error': 'var(--md-sys-color-on-error)',
+          'error-container': 'var(--md-sys-color-error-container)',
+          'on-error-container': 'var(--md-sys-color-on-error-container)',
+
+          surface: 'var(--md-sys-color-surface)',
+          'surface-dim': 'var(--md-sys-color-surface-dim)',
+          'surface-bright': 'var(--md-sys-color-surface-bright)',
+          'surface-variant': 'var(--md-sys-color-surface-variant)',
+          'surface-container-lowest': 'var(--md-sys-color-surface-container-lowest)',
+          'surface-container-low': 'var(--md-sys-color-surface-container-low)',
+          'surface-container': 'var(--md-sys-color-surface-container)',
+          'surface-container-high': 'var(--md-sys-color-surface-container-high)',
+          'surface-container-highest': 'var(--md-sys-color-surface-container-highest)',
+
+          'on-surface': 'var(--md-sys-color-on-surface)',
+          'on-surface-variant': 'var(--md-sys-color-on-surface-variant)',
+
+          outline: 'var(--md-sys-color-outline)',
+          'outline-variant': 'var(--md-sys-color-outline-variant)',
+
+          'inverse-surface': 'var(--md-sys-color-inverse-surface)',
+          'inverse-on-surface': 'var(--md-sys-color-inverse-on-surface)',
+
+          'surface-tint': 'var(--md-sys-color-surface-tint)',
+          scrim: 'var(--md-sys-color-scrim)',
+          shadow: 'var(--md-sys-color-shadow)',
+
+          // Custom Harmonized RPG Tokens
+          gold: 'var(--md-custom-color-gold)',
+          'gold-container': 'var(--md-custom-color-gold-container)',
+          'on-gold': 'var(--md-custom-color-on-gold)',
+          'on-gold-container': 'var(--md-custom-color-on-gold-container)',
+
+          mana: 'var(--md-custom-color-mana)',
+          'mana-container': 'var(--md-custom-color-mana-container)',
+          'on-mana': 'var(--md-custom-color-on-mana)',
+          'on-mana-container': 'var(--md-custom-color-on-mana-container)',
+
+          streak: 'var(--md-custom-color-streak)',
+          'streak-container': 'var(--md-custom-color-streak-container)',
+          'on-streak': 'var(--md-custom-color-on-streak)',
+          'on-streak-container': 'var(--md-custom-color-on-streak-container)',
+
+          xp: 'var(--md-custom-color-xp)',
+          'xp-container': 'var(--md-custom-color-xp-container)',
+          'on-xp': 'var(--md-custom-color-on-xp)',
+          'on-xp-container': 'var(--md-custom-color-on-xp-container)',
         }
       },
       screens: {
