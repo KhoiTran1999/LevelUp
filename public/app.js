@@ -11657,8 +11657,8 @@ function switchRewardSubtab(subtab) {
   const paneShop = document.getElementById('subtab-pane-shop');
   const paneInv = document.getElementById('subtab-pane-inventory');
 
-  const baseClass = 'reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs transition';
-  const activeClass = `${baseClass} active font-bold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm`;
+  const baseClass = 'reward-subtab flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-xs transition cursor-pointer select-none';
+  const activeClass = `${baseClass} active font-bold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs`;
   const inactiveClass = `${baseClass} font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200`;
 
   if (subtab === 'inventory') {
@@ -16462,7 +16462,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Open Quest Modal (Desktop & Mobile buttons)
   const openQuestHandler = () => {
     currentEditingQuestId = null;
-    sfx.playClick();
+    if (typeof sfx !== 'undefined' && sfx.playClick) {
+      try { sfx.playClick(); } catch (_) {}
+    }
     const titleEl = document.getElementById('modal-quest-title');
     const subEl = document.getElementById('modal-quest-subtitle');
     if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)';
@@ -16470,12 +16472,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const acceptBtn = document.getElementById('btn-accept-verdict');
     if (acceptBtn) acceptBtn.textContent = '✓ Đồng Ý & Thêm Nhiệm Vụ';
 
-    document.getElementById('quest-form-step').classList.remove('hidden');
-    document.getElementById('quest-evaluating-step').classList.add('hidden');
-    document.getElementById('quest-verdict-step').classList.add('hidden');
-    document.getElementById('input-quest-title').value = '';
-    document.getElementById('input-quest-desc').value = '';
-    document.getElementById('input-quest-estimate').value = '';
+    const questFormStep = document.getElementById('quest-form-step');
+    if (questFormStep) questFormStep.classList.remove('hidden');
+    const questEvalStep = document.getElementById('quest-evaluating-step');
+    if (questEvalStep) questEvalStep.classList.add('hidden');
+    const questVerdictStep = document.getElementById('quest-verdict-step');
+    if (questVerdictStep) questVerdictStep.classList.add('hidden');
+
+    const inputTitle = document.getElementById('input-quest-title');
+    if (inputTitle) inputTitle.value = '';
+    const inputDesc = document.getElementById('input-quest-desc');
+    if (inputDesc) inputDesc.value = '';
+    const inputEst = document.getElementById('input-quest-estimate');
+    if (inputEst) inputEst.value = '';
     const questDurEl = document.getElementById('input-quest-duration');
     if (questDurEl) questDurEl.value = '';
     const repeatRadio = document.querySelector('input[name="quest-repeat"][value="repeatable"]');
@@ -16484,7 +16493,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modNotice) modNotice.classList.add('hidden');
     const questSuggestBox = document.getElementById('quest-suggestions-container');
     if (questSuggestBox) questSuggestBox.classList.remove('hidden');
-    loadQuestSuggestions(false);
+    if (typeof loadQuestSuggestions === 'function') {
+      try { loadQuestSuggestions(false); } catch (_) {}
+    }
     openModal('modal-quest');
   };
   window.openQuestModal = openQuestHandler;
@@ -16807,7 +16818,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const openRewardHandler = () => {
     currentEditingRewardId = null;
     currentPendingReward = null;
-    sfx.playClick();
+    if (typeof sfx !== 'undefined' && sfx.playClick) {
+      try { sfx.playClick(); } catch (_) {}
+    }
     const titleEl = document.getElementById('modal-reward-title');
     const subEl = document.getElementById('modal-reward-subtitle');
     if (titleEl) titleEl.textContent = 'THÊM PHẦN THƯỞNG MỚI';
@@ -16816,12 +16829,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('btn-save-reward');
     if (saveBtn) saveBtn.textContent = '✓ Đồng Ý & Thêm Vào Cửa Hàng';
 
-    document.getElementById('reward-form-step').classList.remove('hidden');
-    document.getElementById('reward-evaluating-step').classList.add('hidden');
-    document.getElementById('reward-verdict-step').classList.add('hidden');
+    const rewardFormStep = document.getElementById('reward-form-step');
+    if (rewardFormStep) rewardFormStep.classList.remove('hidden');
+    const rewardEvalStep = document.getElementById('reward-evaluating-step');
+    if (rewardEvalStep) rewardEvalStep.classList.add('hidden');
+    const rewardVerdictStep = document.getElementById('reward-verdict-step');
+    if (rewardVerdictStep) rewardVerdictStep.classList.add('hidden');
 
-    document.getElementById('input-reward-name').value = '';
-    document.getElementById('input-reward-desc').value = '';
+    const inputName = document.getElementById('input-reward-name');
+    if (inputName) inputName.value = '';
+    const inputDesc = document.getElementById('input-reward-desc');
+    if (inputDesc) inputDesc.value = '';
     const estimateInput = document.getElementById('input-reward-estimate');
     if (estimateInput) estimateInput.value = '';
     const durationInput = document.getElementById('input-reward-duration');
@@ -16837,7 +16855,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const rewardSuggestBox = document.getElementById('reward-suggestions-container');
     if (rewardSuggestBox) rewardSuggestBox.classList.remove('hidden');
-    loadRewardSuggestions(false);
+    if (typeof loadRewardSuggestions === 'function') {
+      try { loadRewardSuggestions(false); } catch (_) {}
+    }
     openModal('modal-reward');
   };
   window.openRewardModal = openRewardHandler;

@@ -15,8 +15,8 @@ function switchRewardSubtab(subtab) {
   const paneShop = document.getElementById('subtab-pane-shop');
   const paneInv = document.getElementById('subtab-pane-inventory');
 
-  const baseClass = 'reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs transition';
-  const activeClass = `${baseClass} active font-bold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm`;
+  const baseClass = 'reward-subtab flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-xs transition cursor-pointer select-none';
+  const activeClass = `${baseClass} active font-bold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs`;
   const inactiveClass = `${baseClass} font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200`;
 
   if (subtab === 'inventory') {

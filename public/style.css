@@ -1151,6 +1151,8 @@ html.dark .quest-dropdown-menu {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn-action-quest:hover {
   transform: translateY(-1.5px);
@@ -1170,6 +1172,8 @@ html.dark .quest-dropdown-menu {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn-action-reward:hover {
   transform: translateY(-1.5px);
@@ -2711,6 +2715,9 @@ html.dark .quest-filter:not(.active):hover {
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28) !important;
   border: none !important;
   gap: var(--md-spacing-button-gap);
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
               filter 0.2s ease !important;
@@ -2725,6 +2732,9 @@ html.dark .quest-filter:not(.active):hover {
   box-shadow: 0 2px 8px rgba(147, 51, 234, 0.28) !important;
   border: none !important;
   gap: var(--md-spacing-button-gap);
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
               filter 0.2s ease !important;

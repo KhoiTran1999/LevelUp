@@ -342,15 +342,16 @@
 
       <!-- Filter and Action Ribbon -->
       <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6 min-w-0">
-        <div class="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0" role="group" aria-label="Bộ lọc nhiệm vụ">
-          <button data-filter="all" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer">Tất cả</button>
-          <button data-filter="active" class="quest-filter active px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0 cursor-pointer">Chưa xong</button>
-          <button data-filter="completed" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer">Đã xong</button>
+        <div class="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0 h-10 sm:h-10.5" role="group" aria-label="Bộ lọc nhiệm vụ">
+          <button data-filter="all" class="quest-filter px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer select-none">Tất cả</button>
+          <button data-filter="active" class="quest-filter active px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0 cursor-pointer select-none">Chưa xong</button>
+          <button data-filter="completed" class="quest-filter px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0 cursor-pointer select-none">Đã xong</button>
         </div>
-        <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap cursor-pointer" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
-          <span class="material-symbols-outlined text-base leading-none">add</span>
-          <span class="hidden sm:inline">Nhiệm vụ </span><span>mới</span>
-          <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
+        <button id="btn-open-add-quest" type="button" onclick="window.openQuestModal ? window.openQuestModal() : null" class="btn-action-quest inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 h-10 sm:h-10.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition shadow-sm hover:shadow-md shrink-0 whitespace-nowrap cursor-pointer select-none touch-manipulation active:scale-95" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
+          <span class="material-symbols-outlined text-base sm:text-lg leading-none font-bold">add</span>
+          <span class="hidden sm:inline">Thêm Nhiệm Vụ</span>
+          <span class="sm:hidden">Thêm việc</span>
+          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold bg-white/20 dark:bg-black/20 text-current rounded border border-white/25 dark:border-black/20 shadow-2xs">Q</kbd>
         </button>
       </div>
 
@@ -545,16 +546,16 @@
     <section id="tab-shop" class="tab-pane hidden">
 
       <!-- Subtabs and Action Ribbon -->
-      <div class="flex items-center justify-between gap-2 sm:gap-2.5 mb-4 sm:mb-6 min-w-0">
-        <div class="flex items-center gap-1 p-1 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs" role="group" aria-label="Bộ lọc phần thưởng">
-          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs cursor-pointer">
+      <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6 min-w-0">
+        <div class="flex items-center gap-0.5 sm:gap-1 p-1 bg-white dark:bg-slate-900/80 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0 h-10 sm:h-10.5" role="group" aria-label="Bộ lọc phần thưởng">
+          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs cursor-pointer select-none">
             <span class="material-symbols-outlined text-base leading-none">storefront</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Cửa Hàng</span>
               <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
             </span>
           </button>
-          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
+          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-8.5 rounded-lg text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer select-none">
             <span class="material-symbols-outlined text-base leading-none">inventory_2</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Kho Quà</span>
@@ -562,10 +563,11 @@
             </span>
           </button>
         </div>
-        <button id="btn-open-add-reward-nav" class="btn-action-reward inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 cursor-pointer whitespace-nowrap" title="Tạo phần thưởng mới (Phím tắt: R)">
-          <span class="material-symbols-outlined text-base leading-none">add</span>
-          <span class="hidden sm:inline">Thêm </span><span>quà</span>
-          <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
+        <button id="btn-open-add-reward-nav" type="button" onclick="window.openRewardModal ? window.openRewardModal() : null" class="btn-action-reward inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 h-10 sm:h-10.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition shadow-sm hover:shadow-md shrink-0 cursor-pointer select-none touch-manipulation whitespace-nowrap active:scale-95" title="Tạo phần thưởng mới (Phím tắt: R)">
+          <span class="material-symbols-outlined text-base sm:text-lg leading-none font-bold">add</span>
+          <span class="hidden sm:inline">Thêm Quà</span>
+          <span class="sm:hidden">Thêm quà</span>
+          <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20 shadow-2xs">R</kbd>
         </button>
       </div>
 
