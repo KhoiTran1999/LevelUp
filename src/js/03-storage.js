@@ -183,12 +183,20 @@ async function syncWithCloud(isManual = false, timerAction = null) {
   const modalSyncState = document.getElementById('modal-sync-state');
   const modalSyncTime = document.getElementById('modal-sync-time');
 
-  if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+  if (typeof setGlobalProgress === 'function') setGlobalProgress(true);
+  if (syncDot) {
+    syncDot.className = 'inline-flex items-center justify-center shrink-0 w-2 h-2 text-amber-500';
+    syncDot.innerHTML = '<span class="m3-loading-indicator-shape micro"></span>';
+  }
   if (modalSyncState) modalSyncState.textContent = 'Đang đồng bộ...';
 
   const nick = appState.profile.nickname;
   if (!appState.profile.googleId || !nick) {
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
+    if (syncDot) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Chưa đăng nhập Google';
     return;
   }
@@ -299,7 +307,10 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
           restoreFocusTimer();
         }
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        }
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
         showToast('Đã tự động cập nhật dữ liệu mới nhất từ thiết bị khác!', 'info');
@@ -323,7 +334,10 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         renderHeader();
       }
 
-      if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      if (syncDot) {
+        syncDot.innerHTML = '';
+        syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      }
       if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
       if (isManual && !data.penalty) showToast('Đồng bộ Cloud thành công!', 'success');
@@ -331,20 +345,31 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       const errData = await res.json().catch(() => ({}));
       if (res.status === 401) {
         if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        }
         if (isManual) showToast('Phiên đăng nhập Google đã hết hạn. Vui lòng đăng nhập lại!', 'error');
       } else if (res.status === 409 || res.status === 403) {
         showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
         if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        }
       } else {
         throw new Error(errData.error || 'Sync endpoint failed');
       }
     }
   } catch (err) {
     console.warn('Sync failed (offline or redis unavailable):', err.message);
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    if (syncDot) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Chỉ lưu cục bộ (Offline)';
+  } finally {
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
   }
 }
 
@@ -456,7 +481,11 @@ async function hydrateFromCloud(isManual = false) {
   const modalSyncTime = document.getElementById('modal-sync-time');
 
   if (isManual) {
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(true);
+    if (syncDot) {
+      syncDot.className = 'inline-flex items-center justify-center shrink-0 w-2 h-2 text-amber-500';
+      syncDot.innerHTML = '<span class="m3-loading-indicator-shape micro"></span>';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Đang kiểm tra dữ liệu Cloud...';
   }
 
@@ -643,6 +672,11 @@ async function hydrateFromCloud(isManual = false) {
     console.warn('Hydrate from cloud failed:', err.message);
   } finally {
     isHydrating = false;
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
+    if (syncDot && syncDot.querySelector('.m3-loading-indicator-shape')) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+    }
   }
 }
 

@@ -5,6 +5,32 @@ let currentPendingVerdict = null;
 let currentDebateHistory = [];
 let currentEditingQuestId = null;
 let currentEditingRewardId = null;
+
+function startM3EvaluationProgress(prefix, steps) {
+  let stepIdx = 0;
+  const update = () => {
+    if (stepIdx >= steps.length) return;
+    const curr = steps[stepIdx];
+    const textEl = document.getElementById(`${prefix}-phase-text`);
+    const pctEl = document.getElementById(`${prefix}-pct`);
+    const barEl = document.getElementById(`${prefix}-progress-bar`);
+    if (textEl) textEl.textContent = curr.text;
+    if (pctEl) pctEl.textContent = `${curr.pct}%`;
+    if (barEl) barEl.style.width = `${curr.pct}%`;
+    stepIdx++;
+  };
+  update();
+  const timer = setInterval(update, 1100);
+  return () => {
+    clearInterval(timer);
+    const barEl = document.getElementById(`${prefix}-progress-bar`);
+    const pctEl = document.getElementById(`${prefix}-pct`);
+    if (barEl) barEl.style.width = '100%';
+    if (pctEl) pctEl.textContent = '100%';
+  };
+}
+window.startM3EvaluationProgress = startM3EvaluationProgress;
+
 // =============================================================================
 // QUICK SMART AUTO-SUGGESTIONS (Nhiệm Vụ & Phần Thưởng Thông Minh)
 // =============================================================================
@@ -628,6 +654,15 @@ async function submitQuestToAI() {
   document.getElementById('quest-form-step').classList.add('hidden');
   document.getElementById('quest-evaluating-step').classList.remove('hidden');
 
+  let stopM3Progress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopM3Progress = startM3EvaluationProgress('quest-evaluating', [
+      { text: 'Đọc hiểu & phân tích yêu cầu...', pct: 25 },
+      { text: 'Đo lường độ khó & thời gian...', pct: 55 },
+      { text: 'Cân bằng số Vàng thưởng chuẩn...', pct: 85 }
+    ]);
+  }
+
   try {
     const currentRewards = (appState.shopItems || []).slice(0, 10).map(item => ({
       name: item.name,
@@ -682,9 +717,10 @@ async function submitQuestToAI() {
       proofGuidance: data.proofGuidance || ''
     };
     currentDebateHistory = [];
-
+    if (stopM3Progress) stopM3Progress();
     renderVerdictStep();
   } catch (err) {
+    if (stopM3Progress) stopM3Progress();
     showToast('Không thể kết nối với AI: ' + err.message, 'error');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-form-step').classList.remove('hidden');
@@ -1105,6 +1141,9 @@ function createDebateLoadingBubble(modeOrText = 'quest') {
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
+          <span class="m3-loading-indicator text-amber-500">
+            <span class="m3-loading-indicator-shape micro"></span>
+          </span>
           <span class="tracking-wide">AI Đang Xử Lý Thời Gian Thực</span>
         </span>
         <span class="step-badge font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-slate-800 text-amber-800 dark:text-amber-300">
@@ -1119,8 +1158,9 @@ function createDebateLoadingBubble(modeOrText = 'quest') {
         </span>
       </div>
 
-      <div class="w-full bg-amber-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
-        <div class="step-progress bg-gradient-to-r from-amber-500 to-amber-600 h-1 rounded-full transition-all duration-500" style="width: ${(1 / steps.length) * 100}%"></div>
+      <div class="m3-linear-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="step-progress m3-linear-progress-bar" style="width: ${(1 / steps.length) * 100}%"></div>
+        <div class="m3-linear-progress-stop"></div>
       </div>
     </div>
   `;

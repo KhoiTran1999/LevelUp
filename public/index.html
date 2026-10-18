@@ -197,6 +197,15 @@
   </header>
 
   <!-- ======================================================================= -->
+  <!-- M3 GLOBAL LINEAR PROGRESS BAR (Sticky top indeterminate/determinate bar)-->
+  <!-- ======================================================================= -->
+  <div id="global-progress-bar" class="m3-linear-progress is-indeterminate hidden opacity-0" role="progressbar" aria-label="Đang tải dữ liệu..." aria-valuemin="0" aria-valuemax="100">
+    <div class="m3-linear-progress-bar-primary"></div>
+    <div class="m3-linear-progress-bar-secondary"></div>
+    <div class="m3-linear-progress-stop"></div>
+  </div>
+
+  <!-- ======================================================================= -->
   <!-- DESKTOP / TABLET TOP NAVIGATION BAR (Hidden on Mobile)                  -->
   <!-- ======================================================================= -->
   <nav class="hidden md:block relative z-30 max-w-6xl mx-auto px-3 sm:px-4 mt-4">
@@ -302,24 +311,24 @@
           </button>
 
           <!-- Quick Time Adjust Buttons (Add Focus Challenge Time) -->
-          <div class="flex items-center gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
-            <button class="btn-timer-adjust px-2 py-1 text-[11px] font-mono font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="60" title="Thêm 1 phút tập trung">+1p</button>
-            <button class="btn-timer-adjust px-2 py-1 text-[11px] font-mono font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="300" title="Thêm 5 phút tập trung">+5p</button>
+          <div class="flex items-center gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-full border border-slate-200/50 dark:border-slate-800/50">
+            <button class="btn-timer-adjust px-2.5 py-1 text-[11px] font-mono font-bold rounded-full bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="60" title="Thêm 1 phút tập trung">+1p</button>
+            <button class="btn-timer-adjust px-2.5 py-1 text-[11px] font-mono font-bold rounded-full bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs" data-delta="300" title="Thêm 5 phút tập trung">+5p</button>
           </div>
 
           <!-- Primary Control Buttons: Toggle, Hold, Fullscreen, Cancel -->
           <div class="flex items-center gap-1.5">
-            <button id="btn-timer-toggle" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm active:scale-95 cursor-pointer" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
+            <button id="btn-timer-toggle" class="m3-btn m3-btn-sm m3-btn-filled px-4 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
               Tạm Dừng
             </button>
-            <button id="btn-timer-hold" class="px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 active:scale-95 cursor-pointer" title="Bảo lưu thời gian còn lại để làm việc khác">
+            <button id="btn-timer-hold" class="m3-btn m3-btn-sm m3-btn-tonal px-3 py-2 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 cursor-pointer" title="Bảo lưu thời gian còn lại để làm việc khác">
               <span class="material-symbols-outlined text-[16px] leading-none">pause_circle</span>
               <span class="hidden sm:inline">Bảo Lưu</span>
             </button>
-            <button id="btn-timer-zen" class="p-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center cursor-pointer" title="Chế độ Toàn màn hình (Tập trung tối đa)">
+            <button id="btn-timer-zen" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center cursor-pointer" title="Chế độ Toàn màn hình (Tập trung tối đa)">
               <span class="material-symbols-outlined text-[16px] leading-none">fullscreen</span>
             </button>
-            <button id="btn-timer-reset" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 transition cursor-pointer" title="Hủy phiên tập trung">
+            <button id="btn-timer-reset" class="m3-btn m3-btn-sm px-3 py-2 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 transition cursor-pointer" title="Hủy phiên tập trung">
               Hủy
             </button>
           </div>
@@ -333,16 +342,33 @@
 
       <!-- Filter and Action Ribbon -->
       <div class="flex items-center justify-between gap-1.5 sm:gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm shrink-0">
-          <button data-filter="all" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Tất cả</button>
-          <button data-filter="active" class="quest-filter active px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0">Chưa xong</button>
-          <button data-filter="completed" class="quest-filter px-2 sm:px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Đã xong</button>
+        <div class="m3-segmented-button-group flex items-center gap-0.5 sm:gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-800 text-xs shadow-xs shrink-0" role="group" aria-label="Bộ lọc nhiệm vụ">
+          <button data-filter="all" class="quest-filter m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Tất cả</button>
+          <button data-filter="active" class="quest-filter active m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold whitespace-nowrap shrink-0">Chưa xong</button>
+          <button data-filter="completed" class="quest-filter m3-segmented-button px-2.5 sm:px-3.5 py-1.5 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium whitespace-nowrap shrink-0">Đã xong</button>
         </div>
-        <button id="btn-open-add-quest" class="btn-action-quest inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
+        <button id="btn-open-add-quest" class="btn-action-quest m3-btn m3-btn-sm inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap" title="Tạo nhiệm vụ mới (Phím tắt: Q)">
           <span class="material-symbols-outlined text-base leading-none">add</span>
           <span class="hidden xs:inline">Nhiệm vụ </span><span>mới</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-black/15 dark:bg-black/25 rounded border border-black/10">Q</kbd>
         </button>
+      </div>
+
+      <!-- M3 Daily Quests Group Progress Indicator (Faithful to M3 Group Progress guidelines) -->
+      <div id="quests-daily-progress" class="mb-4 bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 dark:border-slate-800/70 shadow-2xs transition-all">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-sm">🎯</span>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Tiến độ hôm nay:</span>
+            <span id="quests-daily-progress-text" class="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400">0/0 (0%)</span>
+          </div>
+          <span id="quests-daily-progress-status" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">Chưa bắt đầu</span>
+        </div>
+        <!-- M3 Linear Progress Bar with Stop Indicator -->
+        <div class="m3-linear-progress m3-linear-progress--thick" role="progressbar" aria-label="Tiến độ nhiệm vụ hôm nay" aria-valuemin="0" aria-valuemax="100">
+          <div id="quests-daily-progress-bar" class="m3-linear-progress-bar" style="width: 0%"></div>
+          <div class="m3-linear-progress-stop"></div>
+        </div>
       </div>
 
       <!-- Week Calendar Strip (Faithful to Reference Image) -->
@@ -520,23 +546,23 @@
 
       <!-- Subtabs and Action Ribbon -->
       <div class="flex items-center justify-between gap-2.5 mb-4 sm:mb-6">
-        <div class="flex items-center gap-1 p-1 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm cursor-pointer">
+        <div class="m3-segmented-button-group flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-800 text-xs shadow-xs" role="group" aria-label="Bộ lọc phần thưởng">
+          <button id="subtab-btn-shop" onclick="switchRewardSubtab('shop')" class="reward-subtab active m3-segmented-button flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-xs cursor-pointer">
             <span class="material-symbols-outlined text-base leading-none">storefront</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Cửa Hàng</span>
-              <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
+              <span id="badge-shop-count" class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-mono">0</span>
             </span>
           </button>
-          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
+          <button id="subtab-btn-inventory" onclick="switchRewardSubtab('inventory')" class="reward-subtab m3-segmented-button flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
             <span class="material-symbols-outlined text-base leading-none">inventory_2</span>
             <span class="inline-flex items-center gap-1 whitespace-nowrap">
               <span>Kho Quà</span>
-              <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
+              <span id="badge-inventory-count" class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">0</span>
             </span>
           </button>
         </div>
-        <button id="btn-open-add-reward-nav" class="btn-action-reward inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm shrink-0 cursor-pointer" title="Tạo phần thưởng mới (Phím tắt: R)">
+        <button id="btn-open-add-reward-nav" class="btn-action-reward m3-btn m3-btn-sm inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold transition shadow-sm shrink-0 cursor-pointer" title="Tạo phần thưởng mới (Phím tắt: R)">
           <span class="material-symbols-outlined text-base leading-none">add</span>
           <span class="hidden xs:inline">Thêm </span><span>quà</span>
           <kbd class="hidden md:inline-flex items-center px-1.5 py-0.2 text-[9px] font-mono font-bold bg-white/20 dark:bg-white/25 rounded border border-white/20">R</kbd>
@@ -1503,7 +1529,7 @@
   <!-- ======================================================================= -->
   <!-- MOBILE BOTTOM NAVIGATION BAR (iOS / Android Native Feel)                -->
   <!-- ======================================================================= -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
+  <nav class="md:hidden m3-navigation-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
     <!-- Popover Menu for More Tabs -->
     <div id="mobile-more-menu" class="hidden absolute bottom-full mb-2 right-3 w-52 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-lg">
       <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 px-3 py-1.5 font-mono">Tính năng khác</div>
@@ -1535,15 +1561,21 @@
 
     <div class="flex items-center justify-around py-1.5 px-3 max-w-md mx-auto">
       <button data-tab="quests" class="mobile-nav-btn active flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs transition cursor-pointer">
-        <span class="material-symbols-outlined text-2xl leading-none">task_alt</span>
+        <span class="m3-nav-pill-indicator">
+          <span class="material-symbols-outlined text-2xl leading-none">task_alt</span>
+        </span>
         <span class="text-[10px] whitespace-nowrap">Nhiệm Vụ</span>
       </button>
       <button data-tab="shop" class="mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition cursor-pointer">
-        <span class="material-symbols-outlined text-2xl leading-none">redeem</span>
+        <span class="m3-nav-pill-indicator">
+          <span class="material-symbols-outlined text-2xl leading-none">redeem</span>
+        </span>
         <span class="text-[10px] whitespace-nowrap">Phần Thưởng</span>
       </button>
       <button id="btn-mobile-more" type="button" class="mobile-more-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1 sm:px-2 rounded-xl text-slate-500 dark:text-slate-400 font-medium transition cursor-pointer">
-        <span class="material-symbols-outlined text-2xl leading-none">more_horiz</span>
+        <span class="m3-nav-pill-indicator">
+          <span class="material-symbols-outlined text-2xl leading-none">more_horiz</span>
+        </span>
         <span class="text-[10px] whitespace-nowrap">Xem Thêm</span>
       </button>
     </div>
@@ -1554,8 +1586,9 @@
   <!-- ======================================================================= -->
 
   <!-- MODAL: QUEST DETAIL & ACTIONS (Opened when clicking quest card) -->
-  <div id="modal-quest-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="mqd-title">
-    <div class="rpg-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+  <div id="modal-quest-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mqd-title">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+      <div class="m3-drag-handle sm:hidden"></div>
 
       <!-- Modal Header -->
       <div id="mqd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-amber-500/10 dark:bg-amber-500/15 border-b border-slate-200/80 dark:border-slate-800">
@@ -1565,7 +1598,7 @@
           </div>
           <h3 id="mqd-title" class="font-bold text-lg sm:text-xl text-slate-900 dark:text-white leading-snug break-words flex-1 min-w-0"></h3>
         </div>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <!-- Modal Body (Details, Rewards, Timers, Proofs, AI Verdict) -->
@@ -1637,8 +1670,9 @@
   </div>
 
   <!-- MODAL: REWARD DETAIL (Shop & Inventory) -->
-  <div id="modal-reward-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="mrd-title">
-    <div class="rpg-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+  <div id="modal-reward-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mrd-title">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
+      <div class="m3-drag-handle sm:hidden"></div>
 
       <!-- Modal Header -->
       <div id="mrd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
@@ -1698,8 +1732,9 @@
   </div>
 
   <!-- MODAL 1: SUBMIT QUEST TO AI ARBITER -->
-  <div id="modal-quest" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-    <div class="rpg-panel rounded-2xl w-full sm:max-w-lg border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+  <div id="modal-quest" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-lg border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="m3-drag-handle sm:hidden"></div>
 
       <!-- Modal Header -->
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
@@ -1710,13 +1745,13 @@
             <p id="modal-quest-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng</p>
           </div>
         </div>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <!-- Step 1: Input Form -->
       <div id="quest-form-step" class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
         <!-- Smart Auto-Suggestions Container (Subtle & Contextual) -->
-        <div id="quest-suggestions-container" class="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 p-2.5 sm:p-3 space-y-2 transition">
+        <div id="quest-suggestions-container" class="rounded-2xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 p-2.5 sm:p-3 space-y-2 transition">
           <div class="flex items-center justify-between gap-1.5">
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="text-xs font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">Gợi ý phù hợp cho bạn</span>
@@ -1772,22 +1807,32 @@
         </div>
 
         <div class="pt-2 flex justify-end gap-2.5 sm:gap-3">
-          <button class="modal-close px-4 py-2.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">Hủy</button>
-          <button id="btn-submit-to-ai" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95">
+          <button class="modal-close m3-btn m3-btn-text px-4 py-2.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">Hủy</button>
+          <button id="btn-submit-to-ai" class="m3-btn m3-btn-filled flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer">
             <span>🤖</span>
             <span>Để AI Tính Thưởng</span>
           </button>
         </div>
       </div>
 
-      <!-- Step 2: AI Evaluating Spinner -->
-      <div id="quest-evaluating-step" class="hidden p-8 text-center space-y-4">
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl animate-pulse">
-          🤖
+      <!-- Step 2: AI Evaluating Spinner (M3 Expressive Loading & Linear Progress) -->
+      <div id="quest-evaluating-step" class="hidden p-6 sm:p-8 text-center space-y-4 max-w-md mx-auto">
+        <div class="m3-loading-indicator contained mx-auto text-amber-500">
+          <span class="m3-loading-indicator-shape large"></span>
         </div>
         <div>
-          <h4 class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">AI Đang Phân Tích Nhiệm Vụ...</h4>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Đang tính toán độ khó, thời gian cần tập trung và số Vàng thưởng công bằng...</p>
+          <h4 id="quest-evaluating-title" class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">AI Đang Phân Tích Nhiệm Vụ...</h4>
+          <p id="quest-evaluating-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Đang tính toán độ khó, thời gian cần tập trung và số Vàng thưởng công bằng...</p>
+        </div>
+        <div class="space-y-1.5 pt-2">
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <span id="quest-evaluating-phase-text">Đọc hiểu yêu cầu</span>
+            <span id="quest-evaluating-pct">25%</span>
+          </div>
+          <div class="m3-linear-progress m3-linear-progress--thick" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div id="quest-evaluating-progress-bar" class="m3-linear-progress-bar" style="width: 25%"></div>
+            <div class="m3-linear-progress-stop"></div>
+          </div>
         </div>
       </div>
 
@@ -1915,7 +1960,8 @@
 
   <!-- MODAL 2: ADD SHOP REWARD (AI PRICING) -->
   <div id="modal-reward" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-    <div class="rpg-panel rounded-2xl w-full sm:max-w-lg border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+    <div class="rpg-panel rounded-2xl w-full sm:max-w-lg m3-dialog-panel border border-amber-500/30 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="m3-drag-handle sm:hidden"></div>
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-xl text-purple-500">redeem</span>
@@ -1924,7 +1970,7 @@
             <p id="modal-reward-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực</p>
           </div>
         </div>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <!-- Step 1: Input Form -->
@@ -1966,22 +2012,32 @@
         </div>
 
         <div class="pt-2 flex justify-end gap-2.5 sm:gap-3">
-          <button class="modal-close px-4 py-2.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">Hủy</button>
-          <button id="btn-eval-reward" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer">
+          <button class="modal-close m3-btn m3-btn-text px-4 py-2.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">Hủy</button>
+          <button id="btn-eval-reward" class="m3-btn m3-btn-filled flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer">
             <span>🤖</span>
             <span>Để AI Định Giá Vàng</span>
           </button>
         </div>
       </div>
 
-      <!-- Step 2: AI Evaluating Spinner -->
-      <div id="reward-evaluating-step" class="hidden p-8 text-center space-y-4">
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl animate-pulse">
-          🎁
+      <!-- Step 2: AI Evaluating Spinner (M3 Expressive Loading & Linear Progress) -->
+      <div id="reward-evaluating-step" class="hidden p-6 sm:p-8 text-center space-y-4 max-w-md mx-auto">
+        <div class="m3-loading-indicator contained mx-auto text-amber-500">
+          <span class="m3-loading-indicator-shape large"></span>
         </div>
         <div>
-          <h4 class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">AI Đang Giám Định Phần Thưởng...</h4>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Đang tính toán giá trị, phân loại, thời gian tận hưởng và số Vàng tương xứng để tự thưởng...</p>
+          <h4 id="reward-evaluating-title" class="font-rpg-title font-bold text-amber-600 dark:text-amber-400 text-base">AI Đang Giám Định Phần Thưởng...</h4>
+          <p id="reward-evaluating-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Đang tính toán giá trị, phân loại, thời gian tận hưởng và số Vàng tương xứng để tự thưởng...</p>
+        </div>
+        <div class="space-y-1.5 pt-2">
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <span id="reward-evaluating-phase-text">Định giá mức độ thoả mãn</span>
+            <span id="reward-evaluating-pct">30%</span>
+          </div>
+          <div class="m3-linear-progress m3-linear-progress--thick" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div id="reward-evaluating-progress-bar" class="m3-linear-progress-bar" style="width: 30%"></div>
+            <div class="m3-linear-progress-stop"></div>
+          </div>
         </div>
       </div>
 
@@ -2085,11 +2141,12 @@
   </div>
 
   <!-- MODAL 3: PROFILE & SYNC (NICKNAME) -->
-  <div id="modal-profile" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-    <div class="rpg-panel rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+  <div id="modal-profile" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="m3-drag-handle sm:hidden"></div>
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <h3 class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">HỒ SƠ CÁ NHÂN & ĐỒNG BỘ</h3>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <div class="p-5 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
@@ -2235,14 +2292,15 @@
   </div>
 
   <!-- MODAL: LEVEL & EXP GUIDE -->
-  <div id="modal-level-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-level-title">
-    <div class="rpg-panel rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+  <div id="modal-level-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-level-title">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="m3-drag-handle sm:hidden"></div>
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-lg leading-none text-amber-500">military_tech</span>
           <h3 id="modal-level-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">CẤP ĐỘ & DANH HIỆU</h3>
         </div>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <div class="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
@@ -2328,14 +2386,15 @@
   </div>
 
   <!-- MODAL: CHUỖI NGÀY CHĂM CHỈ (STREAK) & THƯỞNG -->
-  <div id="modal-streak-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-streak-title">
-    <div class="rpg-panel rounded-2xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+  <div id="modal-streak-info" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-streak-title">
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="m3-drag-handle sm:hidden"></div>
       <div class="bg-slate-100 dark:bg-slate-900 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-lg leading-none text-orange-500 fill">local_fire_department</span>
           <h3 id="modal-streak-title" class="font-rpg-title font-extrabold text-sm sm:text-base text-orange-600 dark:text-orange-400">CHUỖI NGÀY CHĂM CHỈ (STREAK)</h3>
         </div>
-        <button type="button" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+        <button type="button" class="modal-close m3-icon-btn w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       </div>
 
       <div class="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
@@ -3047,8 +3106,8 @@
 
   <!-- MODAL: CONFIRMATION DIALOG (Chung cho các thao tác Bắt đầu, Hoàn thành, Xóa, Hoàn tác, Đổi quà, Dừng timer) -->
   <div id="modal-confirm" class="fixed inset-0 z-[120] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="rpg-panel rounded-2xl w-full max-w-sm border border-amber-500/30 overflow-hidden modal-fade shadow-2xl flex flex-col p-5 sm:p-6 text-center relative">
-      <button id="btn-confirm-close" type="button" class="modal-close absolute top-3.5 right-3.5 sm:top-4 sm:right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition active:scale-95 z-10" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
+    <div class="rpg-panel m3-dialog-panel rounded-3xl w-full max-w-sm border border-amber-500/30 overflow-hidden modal-fade shadow-2xl flex flex-col p-5 sm:p-6 text-center relative">
+      <button id="btn-confirm-close" type="button" class="modal-close m3-icon-btn absolute top-3.5 right-3.5 sm:top-4 sm:right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition active:scale-95 z-10" aria-label="Đóng"><span class="material-symbols-outlined text-lg leading-none">close</span></button>
       <div id="confirm-modal-icon" class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl shadow-sm">
         ❓
       </div>
@@ -3060,10 +3119,10 @@
       </p>
       <div id="confirm-modal-detail" class="hidden mb-4 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed"></div>
       <div class="flex items-center justify-center gap-2.5 pt-1">
-        <button id="btn-confirm-cancel" type="button" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95">
+        <button id="btn-confirm-cancel" type="button" class="m3-btn m3-btn-outlined rounded-full flex-1 py-2.5 px-4 text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 cursor-pointer">
           Hủy
         </button>
-        <button id="btn-confirm-ok" type="button" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95">
+        <button id="btn-confirm-ok" type="button" class="m3-btn m3-btn-filled rounded-full flex-1 py-2.5 px-4 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer">
           Xác Nhận
         </button>
       </div>
@@ -3207,14 +3266,24 @@
           </div>
         </div>
 
-        <!-- Evaluating Spinner (shown during AI inspection) -->
-        <div id="proof-evaluating-zone" class="hidden py-4 text-center space-y-2.5 bg-amber-500/5 rounded-2xl border border-amber-500/20">
-          <div class="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl animate-pulse">
-            🤖
+        <!-- Evaluating Zone (shown during AI inspection - M3 Expressive Loading & Linear Progress) -->
+        <div id="proof-evaluating-zone" class="hidden p-4 text-center space-y-3 bg-amber-500/5 rounded-2xl border border-amber-500/20">
+          <div class="m3-loading-indicator contained mx-auto text-amber-500">
+            <span class="m3-loading-indicator-shape large"></span>
           </div>
           <div>
-            <div class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">AI Đang Thẩm Định Bằng Chứng...</div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Đang phân tích tính hợp lý và xác thực của kết quả công việc</div>
+            <div id="proof-evaluating-title" class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">AI Đang Thẩm Định Bằng Chứng...</div>
+            <div id="proof-evaluating-subtitle" class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Đang phân tích tính hợp lý và xác thực của kết quả công việc</div>
+          </div>
+          <div class="space-y-1.5 max-w-xs mx-auto pt-1">
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
+              <span id="proof-evaluating-phase-text">Trích xuất nội dung minh chứng</span>
+              <span id="proof-evaluating-pct">35%</span>
+            </div>
+            <div class="m3-linear-progress m3-linear-progress--thick" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div id="proof-evaluating-progress-bar" class="m3-linear-progress-bar" style="width: 35%"></div>
+              <div class="m3-linear-progress-stop"></div>
+            </div>
           </div>
         </div>
 
@@ -3308,12 +3377,12 @@
       <!-- Image Display Body & Metadata -->
       <div class="p-4 sm:p-5 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/30 space-y-3">
         <div id="proof-viewer-img-container" class="relative w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-inner min-h-[220px] sm:min-h-[280px] max-h-[50vh] flex items-center justify-center bg-slate-900">
-          <!-- Skeleton Loading placeholder -->
-          <div id="proof-viewer-skeleton" class="proof-skeleton absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 transition-opacity duration-300">
-            <svg class="w-10 h-10 text-slate-400 dark:text-slate-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 animate-pulse">Đang tải ảnh bằng chứng...</span>
+          <!-- Skeleton Loading placeholder (M3 Loading Indicator) -->
+          <div id="proof-viewer-skeleton" class="proof-skeleton absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 transition-opacity duration-300">
+            <div class="m3-loading-indicator text-amber-400">
+              <span class="m3-loading-indicator-shape large"></span>
+            </div>
+            <span class="text-xs font-semibold text-slate-400">Đang tải ảnh bằng chứng...</span>
           </div>
           <img id="proof-viewer-img" src="" alt="Ảnh bằng chứng nhiệm vụ" class="proof-img-loading w-full h-auto max-h-[50vh] object-contain rounded-lg relative z-20">
         </div>
@@ -3875,20 +3944,20 @@
         </div>
       </div>
 
-      <!-- Live Realtime Step Progress Indicator (when thinking/working) -->
-      <div id="assistant-step-container" class="hidden px-3.5 sm:px-4 py-2 border-t border-violet-500/20 bg-violet-50/50 dark:bg-violet-950/20 shrink-0">
-        <div class="flex items-center justify-between text-[11px] font-semibold text-violet-700 dark:text-violet-300 mb-1">
+      <!-- Live Realtime Step Progress Indicator (when thinking/working - M3 Linear Progress) -->
+      <div id="assistant-step-container" class="hidden px-3.5 sm:px-4 py-2.5 border-t border-violet-500/20 bg-violet-50/50 dark:bg-violet-950/20 shrink-0">
+        <div class="flex items-center justify-between text-[11px] font-semibold text-violet-700 dark:text-violet-300 mb-1.5">
           <span id="assistant-step-text" class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2 shrink-0">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-violet-600 dark:bg-violet-400"></span>
+            <span class="m3-loading-indicator text-violet-500">
+              <span class="m3-loading-indicator-shape micro"></span>
             </span>
             <span id="assistant-step-msg" class="truncate font-medium">Phù Thủy đang suy nghĩ...</span>
           </span>
           <span id="assistant-step-pct" class="font-mono text-[10px]">25%</span>
         </div>
-        <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
-          <div id="assistant-step-bar" class="bg-gradient-to-r from-violet-600 to-indigo-600 h-1 rounded-full transition-all duration-300" style="width: 25%"></div>
+        <div class="m3-linear-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div id="assistant-step-bar" class="m3-linear-progress-bar" style="width: 25%"></div>
+          <div class="m3-linear-progress-stop"></div>
         </div>
       </div>
 

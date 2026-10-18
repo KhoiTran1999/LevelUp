@@ -275,7 +275,9 @@ async function fetchLeaderboard() {
   const podiumEl = document.getElementById('leaderboard-podium');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(5, 'Đang tải bảng xếp hạng...')
+    : '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
 
   try {
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
@@ -344,8 +346,9 @@ async function fetchCheaters() {
     }
   }
 
-  if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách vi phạm...</td></tr>`;
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(colSpan, 'Đang tải danh sách vi phạm...')
+    : `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách vi phạm...</td></tr>`;
 
   try {
     const res = await fetch('/api/sync?action=cheaters');

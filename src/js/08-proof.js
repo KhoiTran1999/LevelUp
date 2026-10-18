@@ -433,7 +433,19 @@ async function submitQuestProofToAI() {
   const resultFeedback = document.getElementById('proof-result-feedback');
 
   isSubmittingProof = true;
-  if (submitBtn) submitBtn.disabled = true;
+  let stopProofProgress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopProofProgress = startM3EvaluationProgress('proof-evaluating', [
+      { text: 'Trích xuất nội dung minh chứng...', pct: 35 },
+      { text: 'Đối chiếu tiêu chí hoàn thành...', pct: 70 },
+      { text: 'Đóng dấu xác thực kết quả...', pct: 95 }
+    ]);
+  }
+  if (typeof setButtonLoading === 'function' && submitBtn) {
+    setButtonLoading(submitBtn, true, 'AI đang thẩm định...');
+  } else if (submitBtn) {
+    submitBtn.disabled = true;
+  }
   if (noteInput) noteInput.disabled = true;
   if (textInput) textInput.disabled = true;
   if (evaluatingZone) evaluatingZone.classList.remove('hidden');
@@ -559,6 +571,10 @@ async function submitQuestProofToAI() {
     if (textInput) textInput.disabled = false;
   } finally {
     isSubmittingProof = false;
+    if (stopProofProgress) stopProofProgress();
+    if (typeof setButtonLoading === 'function' && submitBtn) {
+      setButtonLoading(submitBtn, false);
+    }
   }
 }
 

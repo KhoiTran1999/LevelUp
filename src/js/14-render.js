@@ -3,6 +3,87 @@
 // =============================================================================
 let currentQuestFilter = 'active';
 
+// M3 Progress & Loading Helper Utilities
+function safeEscape(text) {
+  if (typeof escapeHtml === 'function') return escapeHtml(text);
+  if (!text) return '';
+  return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
+function setGlobalProgress(isLoading, pct) {
+  const bar = document.getElementById('global-progress-bar');
+  if (!bar) return;
+  if (isLoading) {
+    bar.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      bar.classList.remove('opacity-0');
+    });
+    if (typeof pct === 'number') {
+      bar.classList.remove('is-indeterminate');
+      const barPrimary = bar.querySelector('.m3-linear-progress-bar-primary') || bar.querySelector('.m3-linear-progress-bar');
+      if (barPrimary) barPrimary.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+    } else {
+      bar.classList.add('is-indeterminate');
+    }
+  } else {
+    bar.classList.add('opacity-0');
+    setTimeout(() => {
+      if (bar.classList.contains('opacity-0')) bar.classList.add('hidden');
+    }, 250);
+  }
+}
+window.setGlobalProgress = setGlobalProgress;
+
+function setButtonLoading(btn, isLoading, loadingText = 'Đang xử lý...') {
+  if (!btn) return;
+  if (isLoading) {
+    if (btn.classList.contains('btn-m3-loading')) return;
+    btn.disabled = true;
+    btn.dataset.origHtml = btn.innerHTML;
+    btn.classList.add('btn-m3-loading');
+    const spinner = document.createElement('span');
+    spinner.className = 'btn-m3-spinner';
+    spinner.innerHTML = `
+      <span class="m3-loading-indicator text-inherit">
+        <span class="m3-loading-indicator-shape micro"></span>
+      </span>
+      <span class="text-[11px] font-bold tracking-tight">${safeEscape(loadingText)}</span>
+    `;
+    btn.appendChild(spinner);
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('btn-m3-loading');
+    const spinner = btn.querySelector('.btn-m3-spinner');
+    if (spinner) spinner.remove();
+    if (btn.dataset.origHtml) {
+      btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
+    }
+  }
+}
+window.setButtonLoading = setButtonLoading;
+
+function renderM3TableLoading(colSpan = 5, message = 'Đang tải dữ liệu...') {
+  return `
+    <tr>
+      <td colspan="${colSpan}" class="py-6 px-4">
+        <div class="flex flex-col items-center justify-center gap-3 py-4">
+          <div class="m3-loading-indicator contained text-indigo-500">
+            <span class="m3-loading-indicator-shape"></span>
+          </div>
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">${safeEscape(message)}</span>
+        </div>
+        <div class="m3-skeleton-container max-w-lg mx-auto">
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/4"></div><div class="m3-skeleton-bar w-1/2"></div><div class="m3-skeleton-bar w-1/6"></div></div>
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/3"></div><div class="m3-skeleton-bar w-2/5"></div><div class="m3-skeleton-bar w-1/5"></div></div>
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/4"></div><div class="m3-skeleton-bar w-3/5"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+window.renderM3TableLoading = renderM3TableLoading;
+
 function renderHeader() {
   const p = appState.profile;
   const heroAvatar = document.getElementById('hero-avatar');
@@ -236,8 +317,56 @@ function renderWeekStrip() {
 }
 window.renderWeekStrip = renderWeekStrip;
 
+function renderQuestsDailyProgress() {
+  const container = document.getElementById('quests-daily-progress');
+  const textEl = document.getElementById('quests-daily-progress-text');
+  const statusEl = document.getElementById('quests-daily-progress-status');
+  const barEl = document.getElementById('quests-daily-progress-bar');
+  if (!container || !textEl || !barEl) return;
+
+  const todayStr = (typeof getLocalDayString === 'function') ? getLocalDayString() : new Date().toISOString().split('T')[0];
+  const quests = Array.isArray(appState.quests) ? appState.quests : [];
+
+  let completedTodayCount = 0;
+  let totalTodayRelevant = 0;
+
+  quests.forEach(q => {
+    const isCompletedToday = (q.isRepeatable && q.history && (Number(q.history[todayStr]) > 0)) ||
+      (q.status === 'completed' && (q.completedAt ? ((typeof getLocalDayString === 'function' ? getLocalDayString(new Date(q.completedAt)) : '') === todayStr) : true));
+
+    if (isCompletedToday) {
+      completedTodayCount++;
+      totalTodayRelevant++;
+    } else if (q.status === 'active') {
+      totalTodayRelevant++;
+    }
+  });
+
+  const pct = totalTodayRelevant > 0 ? Math.round((completedTodayCount / totalTodayRelevant) * 100) : 0;
+  textEl.textContent = `${completedTodayCount}/${totalTodayRelevant} (${pct}%)`;
+  barEl.style.width = `${pct}%`;
+
+  if (statusEl) {
+    if (totalTodayRelevant === 0) {
+      statusEl.textContent = 'Chưa có nhiệm vụ';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-500/10 text-slate-500 dark:text-slate-400 shrink-0';
+    } else if (pct === 100) {
+      statusEl.textContent = 'Hoàn thành xuất sắc! 🌟';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0';
+    } else if (pct >= 50) {
+      statusEl.textContent = 'Đang tiến triển tốt 💪';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 shrink-0';
+    } else {
+      statusEl.textContent = 'Đang thực hiện';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0';
+    }
+  }
+}
+window.renderQuestsDailyProgress = renderQuestsDailyProgress;
+
 function renderQuests() {
   renderWeekStrip();
+  renderQuestsDailyProgress();
   const grid = document.getElementById('quests-grid');
   const empty = document.getElementById('quests-empty');
   const activeCountBadge = document.getElementById('badge-active-quests');

@@ -216,24 +216,51 @@
   --md-spacing-screen-expanded: var(--md-spacing-6);   /* 24px expanded desktop screen margin */
   --md-touch-target-min: var(--md-spacing-12);         /* 48px minimum touch target size */
 
-  /* Material Design 3 Motion Tokens (Standard Easing & Durations) */
-  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
-  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1.0);
-  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0.0, 0.8, 0.15);
+  /* ==========================================================================
+     Material Design 3 (M3) Motion Token System
+     Specs: https://m3.material.io/styles/motion/easing-and-duration/tokens-specs
+     ========================================================================== */
+
+  /* 1. M3 Easing Tokens */
+  --md-sys-motion-easing-linear: linear;
   --md-sys-motion-easing-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
   --md-sys-motion-easing-standard-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1.0);
   --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0.0, 1.0, 1.0);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0.0, 0.8, 0.15);
 
+  /* 2. M3 Duration Tokens (Short, Medium, Long, Extra Long) */
   --md-sys-motion-duration-short1: 50ms;
   --md-sys-motion-duration-short2: 100ms;
   --md-sys-motion-duration-short3: 150ms;
   --md-sys-motion-duration-short4: 200ms;
+
   --md-sys-motion-duration-medium1: 250ms;
   --md-sys-motion-duration-medium2: 300ms;
   --md-sys-motion-duration-medium3: 350ms;
   --md-sys-motion-duration-medium4: 400ms;
+
   --md-sys-motion-duration-long1: 450ms;
   --md-sys-motion-duration-long2: 500ms;
+  --md-sys-motion-duration-long3: 550ms;
+  --md-sys-motion-duration-long4: 600ms;
+
+  --md-sys-motion-duration-extra-long1: 700ms;
+  --md-sys-motion-duration-extra-long2: 800ms;
+  --md-sys-motion-duration-extra-long3: 900ms;
+  --md-sys-motion-duration-extra-long4: 1000ms;
+
+  /* 3. M3 Semantic Transition Pairs */
+  --md-motion-transition-fade-through: var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate);
+  --md-motion-transition-dialog-enter: var(--md-sys-motion-duration-medium4) var(--md-sys-motion-easing-emphasized-decelerate);
+  --md-motion-transition-dialog-exit: var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate);
+  --md-motion-transition-sheet-enter: var(--md-sys-motion-duration-long1) var(--md-sys-motion-easing-emphasized-decelerate);
+  --md-motion-transition-sheet-exit: var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate);
+  --md-motion-transition-shared-axis-x: var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate);
+  --md-motion-transition-shared-axis-y: var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard-decelerate);
+  --md-motion-transition-state-layer: var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+  --md-motion-transition-elevation: var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 
   /* Legacy & Bridge Tokens */
   --bg-app: var(--md-sys-color-surface);
@@ -1045,19 +1072,19 @@ html.dark .quest-dropdown-menu {
   50% { transform: scale(1.08); filter: drop-shadow(0 0 8px #fbbf24); }
 }
 
-/* Modal animation - Apple Fluid Sheet Presentation Curve */
+/* Modal animation - M3 Shared Axis Z Presentation */
 .modal-fade {
-  animation: modalFadeIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: modalFadeIn var(--md-sys-motion-duration-medium4) var(--md-sys-motion-easing-emphasized-decelerate) forwards;
   will-change: transform, opacity;
 }
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.94) translate3d(0, 12px, 0); }
+  from { opacity: 0; transform: scale(0.92) translate3d(0, 8px, 0); }
   to { opacity: 1; transform: scale(1) translate3d(0, 0, 0); }
 }
 
-/* Modal backdrop fade-in for smooth overlay appearance */
+/* Modal backdrop fade-in for smooth overlay appearance (M3 Scrim Standard Decelerate) */
 .fixed[id^="modal-"]:not(.hidden):not(#modal-ai-assistant) {
-  animation: iosBackdropFadeIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: iosBackdropFadeIn var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard-decelerate) forwards;
 }
 @keyframes iosBackdropFadeIn {
   from {
@@ -1159,7 +1186,7 @@ html.dark .quest-dropdown-menu {
    ========================================================================== */
 #focus-progress-ring,
 #zen-progress-ring {
-  transition: stroke-dashoffset 0.35s ease-out;
+  transition: stroke-dashoffset var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard-decelerate);
 }
 
 .btn-timer-adjust {
@@ -1264,21 +1291,21 @@ html.dark .tour-arrow-indicator {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* More menu dropdown and mobile popover smooth entrance */
+/* More menu dropdown and mobile popover smooth entrance (M3 Shared Axis Y) */
 #nav-more-menu:not(.hidden) {
-  animation: navDropdownFade 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: navDropdownFade var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard-decelerate) forwards;
   transform-origin: top left;
 }
 
 #mobile-more-menu:not(.hidden) {
-  animation: mobilePopoverFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: mobilePopoverFade var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard-decelerate) forwards;
   transform-origin: bottom right;
 }
 
 @keyframes navDropdownFade {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.97);
+    transform: translateY(-8px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -1289,7 +1316,7 @@ html.dark .tour-arrow-indicator {
 @keyframes mobilePopoverFade {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.96);
+    transform: translateY(8px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -1297,37 +1324,38 @@ html.dark .tour-arrow-indicator {
   }
 }
 
-/* Smooth Tab Pane Scene Transition (Apple Fluid Deceleration - No GPU Raster Blur) */
+/* Material Design 3 Canonical Fade Through: Top-Level Tab Scene Transitions (Fluid Deceleration Curve: cubic-bezier(0.22, 1, 0.36, 1)) */
 .tab-pane:not(.hidden) {
-  animation: tabPaneFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: tabPaneFadeIn var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate) forwards;
   will-change: opacity, transform;
 }
 
+/* Material Design 3 Shared Axis X: Peer Subtab Transitions (Shop vs Inventory) */
 #subtab-pane-shop:not(.hidden) {
-  animation: subtabSlideLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: subtabSlideLeft var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate) forwards;
   will-change: opacity, transform;
 }
 
 #subtab-pane-inventory:not(.hidden) {
-  animation: subtabSlideRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: subtabSlideRight var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes tabPaneFadeIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 6px, 0);
+    transform: scale(0.985) translate3d(0, 4px, 0);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: scale(1) translate3d(0, 0, 0);
   }
 }
 
 @keyframes subtabSlideLeft {
   0% {
     opacity: 0;
-    transform: translate3d(-8px, 0, 0);
+    transform: translate3d(-12px, 0, 0);
   }
   100% {
     opacity: 1;
@@ -1338,7 +1366,7 @@ html.dark .tour-arrow-indicator {
 @keyframes subtabSlideRight {
   0% {
     opacity: 0;
-    transform: translate3d(8px, 0, 0);
+    transform: translate3d(12px, 0, 0);
   }
   100% {
     opacity: 1;
@@ -2847,11 +2875,11 @@ html.dark #toast-container > div {
 }
 
 #toast-container > div {
-  animation: m3ToastEnter 0.32s cubic-bezier(0.34, 1.35, 0.64, 1) forwards !important;
+  animation: m3ToastEnter var(--md-sys-motion-duration-medium3) var(--md-sys-motion-easing-emphasized-decelerate) forwards !important;
 }
 
 #toast-container > div.toast-exit {
-  animation: m3ToastExit 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+  animation: m3ToastExit var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate) forwards !important;
 }
 
 @keyframes m3ToastEnter {
@@ -3167,11 +3195,647 @@ a,
     transition-duration: 0.01ms !important;
   }
   .modal-fade,
+  .m3-dialog-panel,
+  .m3-modal-sheet > .m3-dialog-panel,
+  .m3-modal-sheet > .rpg-panel,
   .tab-pane:not(.hidden),
+  #subtab-pane-shop:not(.hidden),
+  #subtab-pane-inventory:not(.hidden),
+  #nav-more-menu:not(.hidden),
+  #mobile-more-menu:not(.hidden),
   #toast-container > div,
-  .ios-celebrate-pop {
+  .ios-celebrate-pop,
+  .m3-loading-indicator-shape {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
 }
+
+
+/* ==========================================================================
+   23. MATERIAL DESIGN 3 (M3) LOADING & PROGRESS INDICATOR SYSTEM
+   Reference: https://m3.material.io/components/loading-indicator/overview
+              https://m3.material.io/components/progress-indicators/overview
+   ========================================================================== */
+
+:root {
+  --m3-progress-track: rgba(99, 102, 241, 0.16);
+  --m3-progress-active: linear-gradient(90deg, #6366f1, #818cf8);
+  --m3-progress-stop: #6366f1;
+}
+
+html.dark {
+  --m3-progress-track: rgba(99, 102, 241, 0.22);
+  --m3-progress-active: linear-gradient(90deg, #818cf8, #a5b4fc);
+  --m3-progress-stop: #a5b4fc;
+}
+
+/* 23.1 M3 Linear Progress Indicator (Determinate & Indeterminate) */
+.m3-linear-progress {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background-color: var(--m3-progress-track);
+  border-radius: 9999px;
+  overflow: hidden;
+  contain: paint;
+}
+
+.m3-linear-progress--thick {
+  height: 6px;
+}
+
+.m3-linear-progress-stop {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--m3-progress-stop);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.m3-linear-progress--thick .m3-linear-progress-stop {
+  width: 6px;
+  height: 6px;
+}
+
+/* Determinate Bar */
+.m3-linear-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--m3-progress-active);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+/* Indeterminate 2-Phase Animation (Strict Material 3 Specification) */
+.m3-linear-progress.is-indeterminate {
+  background-color: var(--m3-progress-track);
+}
+
+.m3-linear-progress.is-indeterminate .m3-linear-progress-bar-primary {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 9999px;
+  background: var(--m3-progress-active);
+  animation: m3LinearIndeterminate1 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+}
+
+.m3-linear-progress.is-indeterminate .m3-linear-progress-bar-secondary {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 9999px;
+  background: var(--m3-progress-active);
+  animation: m3LinearIndeterminate2 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+  animation-delay: 1.05s;
+}
+
+@keyframes m3LinearIndeterminate1 {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+@keyframes m3LinearIndeterminate2 {
+  0% {
+    left: -200%;
+    right: 100%;
+  }
+  60% {
+    left: 107%;
+    right: -8%;
+  }
+  100% {
+    left: 107%;
+    right: -8%;
+  }
+}
+
+/* Global Top-of-View Progress Bar (Directly beneath Header) */
+#global-progress-bar {
+  position: sticky;
+  top: 49px; /* Directly below the sticky header */
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 40;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+@media (min-width: 640px) {
+  #global-progress-bar {
+    top: 57px;
+  }
+}
+
+/* 23.2 M3 Expressive Loading Indicator (Shape-Morphing) */
+.m3-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.m3-loading-indicator.contained {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.15);
+}
+
+.m3-loading-indicator-shape {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  border-radius: 5px;
+  animation: m3ShapeMorph 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, border-radius;
+}
+
+.m3-loading-indicator-shape.micro {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.m3-loading-indicator-shape.large {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+@keyframes m3ShapeMorph {
+  0% {
+    transform: rotate(0deg) scale(1);
+    border-radius: 5px; /* Rounded square */
+  }
+  25% {
+    transform: rotate(90deg) scale(0.85);
+    border-radius: 50%; /* Circle */
+  }
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    border-radius: 14px 4px 14px 4px; /* Organic petal/burst */
+  }
+  75% {
+    transform: rotate(270deg) scale(0.9);
+    border-radius: 50% 25% 50% 25%; /* Slanted leaf */
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    border-radius: 5px;
+  }
+}
+
+/* 23.3 Interactive Button Loading States (M3 Button Loading) */
+.btn-m3-loading {
+  position: relative !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+.btn-m3-loading > * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.btn-m3-loading .btn-m3-spinner {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: inherit !important;
+}
+
+/* 23.4 M3 Shimmer Table & Card Skeleton Loading */
+.m3-skeleton-container {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.m3-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+html.dark .m3-skeleton-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.m3-skeleton-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: m3ShimmerWave 1.6s infinite;
+}
+
+html.dark .m3-skeleton-row::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+@keyframes m3ShimmerWave {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.m3-skeleton-bar {
+  height: 0.875rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+html.dark .m3-skeleton-bar {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* =============================================================================
+   24. MATERIAL DESIGN 3 (M3) COMPONENT SPECIFICATION SYSTEM
+   Official M3 Catalog Compliance: https://m3.material.io/components
+   ============================================================================= */
+
+/* 24.1 M3 Segmented Buttons (Single-Select / Multi-Select Pill Ribbon) */
+.m3-segmented-button-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-corner-full);
+  padding: 2px;
+  gap: 0;
+  box-shadow: var(--md-elevation-0);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-segmented-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--font-main);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--md-shape-corner-full);
+  position: relative;
+  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+              color 0.2s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+              transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-segmented-button:hover:not(.active):not(.m3-segmented-button--selected) {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--md-sys-color-on-surface);
+}
+
+.m3-segmented-button:active {
+  transform: scale(0.96);
+}
+
+.m3-segmented-button.active,
+.m3-segmented-button.m3-segmented-button--selected {
+  background: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
+  font-weight: 700;
+  box-shadow: var(--md-elevation-1);
+}
+
+.m3-segmented-icon {
+  font-size: 16px !important;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+}
+
+/* 24.2 M3 Button Family (Filled, Tonal, Outlined, Text, Icon Buttons) */
+.m3-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-2);
+  height: 40px;
+  padding: 0 var(--md-spacing-6);
+  border-radius: var(--md-shape-corner-full);
+  font-family: var(--font-main);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m3-btn-sm {
+  height: 32px;
+  padding: 0 var(--md-spacing-4);
+  font-size: var(--md-sys-typescale-label-medium-size);
+}
+
+.m3-btn-lg {
+  height: 48px;
+  padding: 0 var(--md-spacing-7);
+  font-size: var(--md-sys-typescale-label-large-size);
+}
+
+/* Filled Button */
+.m3-btn-filled {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--md-elevation-1);
+}
+.m3-btn-filled:hover {
+  box-shadow: var(--md-elevation-2);
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+.m3-btn-filled:active {
+  box-shadow: var(--md-elevation-1);
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Filled Tonal Button */
+.m3-btn-tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+.m3-btn-tonal:hover {
+  box-shadow: var(--md-elevation-1);
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+}
+.m3-btn-tonal:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Outlined Button */
+.m3-btn-outlined {
+  background: transparent;
+  border: 1px solid var(--md-sys-color-outline);
+  color: var(--md-sys-color-primary);
+}
+.m3-btn-outlined:hover {
+  background: var(--md-sys-color-primary-container);
+  border-color: var(--md-sys-color-primary);
+}
+.m3-btn-outlined:active {
+  transform: scale(0.98);
+}
+
+/* Text Button */
+.m3-btn-text {
+  background: transparent;
+  border: none;
+  color: var(--md-sys-color-primary);
+  padding: 0 var(--md-spacing-3);
+}
+.m3-btn-text:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+.m3-btn-text:active {
+  background: rgba(79, 70, 229, 0.14);
+}
+
+/* M3 Icon Button */
+.m3-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--md-shape-corner-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  flex-shrink: 0;
+  user-select: none;
+}
+.m3-icon-btn:hover {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--md-sys-color-on-surface);
+}
+.m3-icon-btn:active {
+  transform: scale(0.92);
+}
+.m3-icon-btn.tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+.m3-icon-btn.tonal:hover {
+  filter: brightness(1.05);
+}
+
+/* 24.3 M3 Card Architecture (Elevated, Filled, Outlined) */
+.m3-card-elevated {
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-shape-corner-large);
+  box-shadow: var(--md-elevation-1);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+              border-color 0.2s ease;
+}
+.m3-card-elevated:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--md-elevation-2);
+  border-color: var(--md-sys-color-outline);
+}
+
+.m3-card-filled {
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: var(--md-shape-corner-large);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.m3-card-outlined {
+  background: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-corner-large);
+}
+
+/* 24.4 M3 Dialog & Responsive Mobile Bottom Sheet */
+.m3-dialog-panel {
+  border-radius: var(--md-shape-corner-extra-large) !important;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--md-elevation-3);
+}
+
+.m3-drag-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--md-sys-color-outline-variant);
+  margin: 8px auto 6px auto;
+  flex-shrink: 0;
+  display: block;
+}
+
+@media (max-width: 639px) {
+  .m3-modal-sheet {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .m3-modal-sheet > .m3-dialog-panel,
+  .m3-modal-sheet > .rpg-panel {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: var(--md-shape-corner-extra-large) !important;
+    border-top-right-radius: var(--md-shape-corner-extra-large) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88vh !important;
+    margin: 0 !important;
+    animation: sheetSlideUp var(--md-sys-motion-duration-long1) var(--md-sys-motion-easing-emphasized-decelerate) forwards !important;
+  }
+}
+
+@keyframes sheetSlideUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 24.5 M3 Outlined Text Field & Form Controls */
+.rpg-input {
+  border-radius: var(--md-shape-corner-medium) !important;
+  border: 1px solid var(--input-border) !important;
+  background: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  transition: border-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.rpg-input:focus {
+  border-color: var(--md-sys-color-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--md-sys-color-primary-container) !important;
+}
+
+/* 24.6 M3 Chips & Badges */
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--md-shape-corner-small);
+  font-family: var(--font-main);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.m3-chip:hover {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+}
+
+.m3-chip.selected {
+  background: var(--md-sys-color-secondary-container);
+  border-color: transparent;
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 600;
+}
+
+/* 24.7 M3 Mobile Navigation Bar with Active Pill Indicator */
+.mobile-nav-btn {
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.mobile-nav-btn .m3-nav-pill-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 28px;
+  border-radius: 9999px;
+  background: transparent;
+  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+              color 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-nav-btn.active .m3-nav-pill-indicator {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+/* 24.8 M3 Snackbar (Toast Notification) */
+#toast {
+  border-radius: var(--md-shape-snackbar) !important;
+  background: var(--md-sys-color-inverse-surface) !important;
+  color: var(--md-sys-color-inverse-on-surface) !important;
+  box-shadow: var(--md-elevation-3) !important;
+  font-family: var(--font-main);
+  font-size: var(--md-sys-typescale-body-medium-size);
+}
+

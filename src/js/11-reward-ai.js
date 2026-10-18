@@ -126,6 +126,15 @@ async function evaluateRewardItem() {
   document.getElementById('reward-form-step').classList.add('hidden');
   document.getElementById('reward-evaluating-step').classList.remove('hidden');
 
+  let stopM3Progress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopM3Progress = startM3EvaluationProgress('reward-evaluating', [
+      { text: 'Đánh giá mức độ thoả mãn...', pct: 30 },
+      { text: 'Tính toán chi phí cơ hội...', pct: 65 },
+      { text: 'Thiết lập giá Vàng cân bằng...', pct: 90 }
+    ]);
+  }
+
   try {
     const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
       title: q.title,
@@ -176,9 +185,10 @@ async function evaluateRewardItem() {
       advice: data.advice || 'Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.'
     };
     currentRewardDebateHistory = [];
-
+    if (stopM3Progress) stopM3Progress();
     renderRewardVerdictStep();
   } catch (err) {
+    if (stopM3Progress) stopM3Progress();
     showToast('Không thể kết nối với AI: ' + err.message, 'error');
     document.getElementById('reward-evaluating-step').classList.add('hidden');
     document.getElementById('reward-form-step').classList.remove('hidden');

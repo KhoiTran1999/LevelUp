@@ -852,6 +852,11 @@ async function executeBankDeposit() {
     });
     if (!ok) return;
 
+    const btnDeposit = document.getElementById('btn-bank-deposit');
+    if (typeof setButtonLoading === 'function' && btnDeposit) {
+      setButtonLoading(btnDeposit, true, 'Đang gửi...');
+    }
+
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
       showToast('Vui lòng đăng nhập tài khoản Google để gửi tiết kiệm và bảo toàn tài sản!', 'warning');
@@ -955,6 +960,10 @@ async function executeBankDeposit() {
     loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnDeposit = document.getElementById('btn-bank-deposit');
+    if (typeof setButtonLoading === 'function' && btnDeposit) {
+      setButtonLoading(btnDeposit, false);
+    }
   }
 }
 
@@ -2149,6 +2158,11 @@ async function executeBankBorrow() {
     });
     if (!ok) return;
 
+    const btnBorrow = document.getElementById('btn-bank-borrow');
+    if (typeof setButtonLoading === 'function' && btnBorrow) {
+      setButtonLoading(btnBorrow, true, 'Đang giải ngân...');
+    }
+
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
       showToast('Vui lòng đăng nhập tài khoản Google để vay Vàng và lưu trữ an toàn!', 'warning');
@@ -2242,9 +2256,12 @@ async function executeBankBorrow() {
     triggerSave(true);
     renderHeader();
     renderLedger();
-    loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnBorrow = document.getElementById('btn-bank-borrow');
+    if (typeof setButtonLoading === 'function' && btnBorrow) {
+      setButtonLoading(btnBorrow, false);
+    }
   }
 }
 
@@ -2304,6 +2321,11 @@ async function executeBankRepay() {
       btnColor: 'amber'
     });
     if (!ok) return;
+
+    const btnRepay = document.getElementById('btn-bank-repay');
+    if (typeof setButtonLoading === 'function' && btnRepay) {
+      setButtonLoading(btnRepay, true, 'Đang thanh toán...');
+    }
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
@@ -2401,6 +2423,10 @@ async function executeBankRepay() {
     loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnRepay = document.getElementById('btn-bank-repay');
+    if (typeof setButtonLoading === 'function' && btnRepay) {
+      setButtonLoading(btnRepay, false);
+    }
   }
 }
 

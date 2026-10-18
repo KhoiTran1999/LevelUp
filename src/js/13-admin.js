@@ -38,9 +38,9 @@ function updateAdminNavVisibility() {
 
 async function fetchAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(6, 'Đang tải danh sách người chơi...')
+    : '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';
 
   try {
     const token = getAdminAuthToken();
@@ -575,8 +575,21 @@ async function openAdminUserLedgerModal(sub) {
   clearAdminLedgerSelection();
 
   if (subInput) subInput.value = sub;
-  if (titleEl) titleEl.textContent = `LỊCH SỬ THU CHI: ${user?.nickname || sub}`;
-  if (container) container.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs">Đang tải lịch sử giao dịch...</div>';
+  if (container) {
+    container.innerHTML = `
+      <div class="p-6 flex flex-col items-center justify-center gap-3">
+        <div class="m3-loading-indicator contained text-purple-500">
+          <span class="m3-loading-indicator-shape"></span>
+        </div>
+        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Đang tải lịch sử giao dịch...</span>
+      </div>
+      <div class="m3-skeleton-container">
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/3"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/2"></div><div class="m3-skeleton-bar w-1/5"></div></div>
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-2/5"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+      </div>
+    `;
+  }
   if (emptyEl) emptyEl.classList.add('hidden');
 
   openModal('modal-admin-user-ledger');

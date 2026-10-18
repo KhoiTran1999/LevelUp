@@ -444,12 +444,20 @@ async function syncWithCloud(isManual = false, timerAction = null) {
   const modalSyncState = document.getElementById('modal-sync-state');
   const modalSyncTime = document.getElementById('modal-sync-time');
 
-  if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+  if (typeof setGlobalProgress === 'function') setGlobalProgress(true);
+  if (syncDot) {
+    syncDot.className = 'inline-flex items-center justify-center shrink-0 w-2 h-2 text-amber-500';
+    syncDot.innerHTML = '<span class="m3-loading-indicator-shape micro"></span>';
+  }
   if (modalSyncState) modalSyncState.textContent = 'Đang đồng bộ...';
 
   const nick = appState.profile.nickname;
   if (!appState.profile.googleId || !nick) {
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
+    if (syncDot) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Chưa đăng nhập Google';
     return;
   }
@@ -560,7 +568,10 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         if (appState.activeTimer && (!isRecentLocalAction || isFocusRunning || activeFocusQuest || activeRewardItem)) {
           restoreFocusTimer();
         }
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        }
         if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
         showToast('Đã tự động cập nhật dữ liệu mới nhất từ thiết bị khác!', 'info');
@@ -584,7 +595,10 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         renderHeader();
       }
 
-      if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      if (syncDot) {
+        syncDot.innerHTML = '';
+        syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      }
       if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
       if (isManual && !data.penalty) showToast('Đồng bộ Cloud thành công!', 'success');
@@ -592,20 +606,31 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       const errData = await res.json().catch(() => ({}));
       if (res.status === 401) {
         if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        }
         if (isManual) showToast('Phiên đăng nhập Google đã hết hạn. Vui lòng đăng nhập lại!', 'error');
       } else if (res.status === 409 || res.status === 403) {
         showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
         if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
-        if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        if (syncDot) {
+          syncDot.innerHTML = '';
+          syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        }
       } else {
         throw new Error(errData.error || 'Sync endpoint failed');
       }
     }
   } catch (err) {
     console.warn('Sync failed (offline or redis unavailable):', err.message);
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    if (syncDot) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Chỉ lưu cục bộ (Offline)';
+  } finally {
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
   }
 }
 
@@ -717,7 +742,11 @@ async function hydrateFromCloud(isManual = false) {
   const modalSyncTime = document.getElementById('modal-sync-time');
 
   if (isManual) {
-    if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(true);
+    if (syncDot) {
+      syncDot.className = 'inline-flex items-center justify-center shrink-0 w-2 h-2 text-amber-500';
+      syncDot.innerHTML = '<span class="m3-loading-indicator-shape micro"></span>';
+    }
     if (modalSyncState) modalSyncState.textContent = 'Đang kiểm tra dữ liệu Cloud...';
   }
 
@@ -904,6 +933,11 @@ async function hydrateFromCloud(isManual = false) {
     console.warn('Hydrate from cloud failed:', err.message);
   } finally {
     isHydrating = false;
+    if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
+    if (syncDot && syncDot.querySelector('.m3-loading-indicator-shape')) {
+      syncDot.innerHTML = '';
+      syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+    }
   }
 }
 
@@ -4490,7 +4524,19 @@ async function submitQuestProofToAI() {
   const resultFeedback = document.getElementById('proof-result-feedback');
 
   isSubmittingProof = true;
-  if (submitBtn) submitBtn.disabled = true;
+  let stopProofProgress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopProofProgress = startM3EvaluationProgress('proof-evaluating', [
+      { text: 'Trích xuất nội dung minh chứng...', pct: 35 },
+      { text: 'Đối chiếu tiêu chí hoàn thành...', pct: 70 },
+      { text: 'Đóng dấu xác thực kết quả...', pct: 95 }
+    ]);
+  }
+  if (typeof setButtonLoading === 'function' && submitBtn) {
+    setButtonLoading(submitBtn, true, 'AI đang thẩm định...');
+  } else if (submitBtn) {
+    submitBtn.disabled = true;
+  }
   if (noteInput) noteInput.disabled = true;
   if (textInput) textInput.disabled = true;
   if (evaluatingZone) evaluatingZone.classList.remove('hidden');
@@ -4616,6 +4662,10 @@ async function submitQuestProofToAI() {
     if (textInput) textInput.disabled = false;
   } finally {
     isSubmittingProof = false;
+    if (stopProofProgress) stopProofProgress();
+    if (typeof setButtonLoading === 'function' && submitBtn) {
+      setButtonLoading(submitBtn, false);
+    }
   }
 }
 
@@ -5272,6 +5322,32 @@ let currentPendingVerdict = null;
 let currentDebateHistory = [];
 let currentEditingQuestId = null;
 let currentEditingRewardId = null;
+
+function startM3EvaluationProgress(prefix, steps) {
+  let stepIdx = 0;
+  const update = () => {
+    if (stepIdx >= steps.length) return;
+    const curr = steps[stepIdx];
+    const textEl = document.getElementById(`${prefix}-phase-text`);
+    const pctEl = document.getElementById(`${prefix}-pct`);
+    const barEl = document.getElementById(`${prefix}-progress-bar`);
+    if (textEl) textEl.textContent = curr.text;
+    if (pctEl) pctEl.textContent = `${curr.pct}%`;
+    if (barEl) barEl.style.width = `${curr.pct}%`;
+    stepIdx++;
+  };
+  update();
+  const timer = setInterval(update, 1100);
+  return () => {
+    clearInterval(timer);
+    const barEl = document.getElementById(`${prefix}-progress-bar`);
+    const pctEl = document.getElementById(`${prefix}-pct`);
+    if (barEl) barEl.style.width = '100%';
+    if (pctEl) pctEl.textContent = '100%';
+  };
+}
+window.startM3EvaluationProgress = startM3EvaluationProgress;
+
 // =============================================================================
 // QUICK SMART AUTO-SUGGESTIONS (Nhiệm Vụ & Phần Thưởng Thông Minh)
 // =============================================================================
@@ -5895,6 +5971,15 @@ async function submitQuestToAI() {
   document.getElementById('quest-form-step').classList.add('hidden');
   document.getElementById('quest-evaluating-step').classList.remove('hidden');
 
+  let stopM3Progress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopM3Progress = startM3EvaluationProgress('quest-evaluating', [
+      { text: 'Đọc hiểu & phân tích yêu cầu...', pct: 25 },
+      { text: 'Đo lường độ khó & thời gian...', pct: 55 },
+      { text: 'Cân bằng số Vàng thưởng chuẩn...', pct: 85 }
+    ]);
+  }
+
   try {
     const currentRewards = (appState.shopItems || []).slice(0, 10).map(item => ({
       name: item.name,
@@ -5949,9 +6034,10 @@ async function submitQuestToAI() {
       proofGuidance: data.proofGuidance || ''
     };
     currentDebateHistory = [];
-
+    if (stopM3Progress) stopM3Progress();
     renderVerdictStep();
   } catch (err) {
+    if (stopM3Progress) stopM3Progress();
     showToast('Không thể kết nối với AI: ' + err.message, 'error');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-form-step').classList.remove('hidden');
@@ -6372,6 +6458,9 @@ function createDebateLoadingBubble(modeOrText = 'quest') {
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
+          <span class="m3-loading-indicator text-amber-500">
+            <span class="m3-loading-indicator-shape micro"></span>
+          </span>
           <span class="tracking-wide">AI Đang Xử Lý Thời Gian Thực</span>
         </span>
         <span class="step-badge font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-slate-800 text-amber-800 dark:text-amber-300">
@@ -6386,8 +6475,9 @@ function createDebateLoadingBubble(modeOrText = 'quest') {
         </span>
       </div>
 
-      <div class="w-full bg-amber-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
-        <div class="step-progress bg-gradient-to-r from-amber-500 to-amber-600 h-1 rounded-full transition-all duration-500" style="width: ${(1 / steps.length) * 100}%"></div>
+      <div class="m3-linear-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="step-progress m3-linear-progress-bar" style="width: ${(1 / steps.length) * 100}%"></div>
+        <div class="m3-linear-progress-stop"></div>
       </div>
     </div>
   `;
@@ -7210,6 +7300,15 @@ async function evaluateRewardItem() {
   document.getElementById('reward-form-step').classList.add('hidden');
   document.getElementById('reward-evaluating-step').classList.remove('hidden');
 
+  let stopM3Progress = null;
+  if (typeof startM3EvaluationProgress === 'function') {
+    stopM3Progress = startM3EvaluationProgress('reward-evaluating', [
+      { text: 'Đánh giá mức độ thoả mãn...', pct: 30 },
+      { text: 'Tính toán chi phí cơ hội...', pct: 65 },
+      { text: 'Thiết lập giá Vàng cân bằng...', pct: 90 }
+    ]);
+  }
+
   try {
     const currentQuests = (appState.quests || []).filter(q => q.status === 'active').slice(0, 10).map(q => ({
       title: q.title,
@@ -7260,9 +7359,10 @@ async function evaluateRewardItem() {
       advice: data.advice || 'Tự thưởng có chừng mực sau khi nỗ lực để duy trì động lực bền vững.'
     };
     currentRewardDebateHistory = [];
-
+    if (stopM3Progress) stopM3Progress();
     renderRewardVerdictStep();
   } catch (err) {
+    if (stopM3Progress) stopM3Progress();
     showToast('Không thể kết nối với AI: ' + err.message, 'error');
     document.getElementById('reward-evaluating-step').classList.add('hidden');
     document.getElementById('reward-form-step').classList.remove('hidden');
@@ -7815,7 +7915,9 @@ async function fetchLeaderboard() {
   const podiumEl = document.getElementById('leaderboard-podium');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(5, 'Đang tải bảng xếp hạng...')
+    : '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>';
 
   try {
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
@@ -7884,8 +7986,9 @@ async function fetchCheaters() {
     }
   }
 
-  if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách vi phạm...</td></tr>`;
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(colSpan, 'Đang tải danh sách vi phạm...')
+    : `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách vi phạm...</td></tr>`;
 
   try {
     const res = await fetch('/api/sync?action=cheaters');
@@ -8085,9 +8188,9 @@ function updateAdminNavVisibility() {
 
 async function fetchAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';
+  tbody.innerHTML = (typeof renderM3TableLoading === 'function')
+    ? renderM3TableLoading(6, 'Đang tải danh sách người chơi...')
+    : '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';
 
   try {
     const token = getAdminAuthToken();
@@ -8622,8 +8725,21 @@ async function openAdminUserLedgerModal(sub) {
   clearAdminLedgerSelection();
 
   if (subInput) subInput.value = sub;
-  if (titleEl) titleEl.textContent = `LỊCH SỬ THU CHI: ${user?.nickname || sub}`;
-  if (container) container.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs">Đang tải lịch sử giao dịch...</div>';
+  if (container) {
+    container.innerHTML = `
+      <div class="p-6 flex flex-col items-center justify-center gap-3">
+        <div class="m3-loading-indicator contained text-purple-500">
+          <span class="m3-loading-indicator-shape"></span>
+        </div>
+        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Đang tải lịch sử giao dịch...</span>
+      </div>
+      <div class="m3-skeleton-container">
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/3"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/2"></div><div class="m3-skeleton-bar w-1/5"></div></div>
+        <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-2/5"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+      </div>
+    `;
+  }
   if (emptyEl) emptyEl.classList.add('hidden');
 
   openModal('modal-admin-user-ledger');
@@ -8832,6 +8948,87 @@ window.updateAdminNavVisibility = updateAdminNavVisibility;
 // 12. RENDER FUNCTIONS (Theme-aware & High Contrast)
 // =============================================================================
 let currentQuestFilter = 'active';
+
+// M3 Progress & Loading Helper Utilities
+function safeEscape(text) {
+  if (typeof escapeHtml === 'function') return escapeHtml(text);
+  if (!text) return '';
+  return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
+function setGlobalProgress(isLoading, pct) {
+  const bar = document.getElementById('global-progress-bar');
+  if (!bar) return;
+  if (isLoading) {
+    bar.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      bar.classList.remove('opacity-0');
+    });
+    if (typeof pct === 'number') {
+      bar.classList.remove('is-indeterminate');
+      const barPrimary = bar.querySelector('.m3-linear-progress-bar-primary') || bar.querySelector('.m3-linear-progress-bar');
+      if (barPrimary) barPrimary.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+    } else {
+      bar.classList.add('is-indeterminate');
+    }
+  } else {
+    bar.classList.add('opacity-0');
+    setTimeout(() => {
+      if (bar.classList.contains('opacity-0')) bar.classList.add('hidden');
+    }, 250);
+  }
+}
+window.setGlobalProgress = setGlobalProgress;
+
+function setButtonLoading(btn, isLoading, loadingText = 'Đang xử lý...') {
+  if (!btn) return;
+  if (isLoading) {
+    if (btn.classList.contains('btn-m3-loading')) return;
+    btn.disabled = true;
+    btn.dataset.origHtml = btn.innerHTML;
+    btn.classList.add('btn-m3-loading');
+    const spinner = document.createElement('span');
+    spinner.className = 'btn-m3-spinner';
+    spinner.innerHTML = `
+      <span class="m3-loading-indicator text-inherit">
+        <span class="m3-loading-indicator-shape micro"></span>
+      </span>
+      <span class="text-[11px] font-bold tracking-tight">${safeEscape(loadingText)}</span>
+    `;
+    btn.appendChild(spinner);
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('btn-m3-loading');
+    const spinner = btn.querySelector('.btn-m3-spinner');
+    if (spinner) spinner.remove();
+    if (btn.dataset.origHtml) {
+      btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
+    }
+  }
+}
+window.setButtonLoading = setButtonLoading;
+
+function renderM3TableLoading(colSpan = 5, message = 'Đang tải dữ liệu...') {
+  return `
+    <tr>
+      <td colspan="${colSpan}" class="py-6 px-4">
+        <div class="flex flex-col items-center justify-center gap-3 py-4">
+          <div class="m3-loading-indicator contained text-indigo-500">
+            <span class="m3-loading-indicator-shape"></span>
+          </div>
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">${safeEscape(message)}</span>
+        </div>
+        <div class="m3-skeleton-container max-w-lg mx-auto">
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/4"></div><div class="m3-skeleton-bar w-1/2"></div><div class="m3-skeleton-bar w-1/6"></div></div>
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/3"></div><div class="m3-skeleton-bar w-2/5"></div><div class="m3-skeleton-bar w-1/5"></div></div>
+          <div class="m3-skeleton-row"><div class="m3-skeleton-bar w-1/4"></div><div class="m3-skeleton-bar w-3/5"></div><div class="m3-skeleton-bar w-1/4"></div></div>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+window.renderM3TableLoading = renderM3TableLoading;
 
 function renderHeader() {
   const p = appState.profile;
@@ -9066,8 +9263,56 @@ function renderWeekStrip() {
 }
 window.renderWeekStrip = renderWeekStrip;
 
+function renderQuestsDailyProgress() {
+  const container = document.getElementById('quests-daily-progress');
+  const textEl = document.getElementById('quests-daily-progress-text');
+  const statusEl = document.getElementById('quests-daily-progress-status');
+  const barEl = document.getElementById('quests-daily-progress-bar');
+  if (!container || !textEl || !barEl) return;
+
+  const todayStr = (typeof getLocalDayString === 'function') ? getLocalDayString() : new Date().toISOString().split('T')[0];
+  const quests = Array.isArray(appState.quests) ? appState.quests : [];
+
+  let completedTodayCount = 0;
+  let totalTodayRelevant = 0;
+
+  quests.forEach(q => {
+    const isCompletedToday = (q.isRepeatable && q.history && (Number(q.history[todayStr]) > 0)) ||
+      (q.status === 'completed' && (q.completedAt ? ((typeof getLocalDayString === 'function' ? getLocalDayString(new Date(q.completedAt)) : '') === todayStr) : true));
+
+    if (isCompletedToday) {
+      completedTodayCount++;
+      totalTodayRelevant++;
+    } else if (q.status === 'active') {
+      totalTodayRelevant++;
+    }
+  });
+
+  const pct = totalTodayRelevant > 0 ? Math.round((completedTodayCount / totalTodayRelevant) * 100) : 0;
+  textEl.textContent = `${completedTodayCount}/${totalTodayRelevant} (${pct}%)`;
+  barEl.style.width = `${pct}%`;
+
+  if (statusEl) {
+    if (totalTodayRelevant === 0) {
+      statusEl.textContent = 'Chưa có nhiệm vụ';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-500/10 text-slate-500 dark:text-slate-400 shrink-0';
+    } else if (pct === 100) {
+      statusEl.textContent = 'Hoàn thành xuất sắc! 🌟';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0';
+    } else if (pct >= 50) {
+      statusEl.textContent = 'Đang tiến triển tốt 💪';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 shrink-0';
+    } else {
+      statusEl.textContent = 'Đang thực hiện';
+      statusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0';
+    }
+  }
+}
+window.renderQuestsDailyProgress = renderQuestsDailyProgress;
+
 function renderQuests() {
   renderWeekStrip();
+  renderQuestsDailyProgress();
   const grid = document.getElementById('quests-grid');
   const empty = document.getElementById('quests-empty');
   const activeCountBadge = document.getElementById('badge-active-quests');
@@ -13468,6 +13713,11 @@ async function executeBankDeposit() {
     });
     if (!ok) return;
 
+    const btnDeposit = document.getElementById('btn-bank-deposit');
+    if (typeof setButtonLoading === 'function' && btnDeposit) {
+      setButtonLoading(btnDeposit, true, 'Đang gửi...');
+    }
+
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
       showToast('Vui lòng đăng nhập tài khoản Google để gửi tiết kiệm và bảo toàn tài sản!', 'warning');
@@ -13571,6 +13821,10 @@ async function executeBankDeposit() {
     loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnDeposit = document.getElementById('btn-bank-deposit');
+    if (typeof setButtonLoading === 'function' && btnDeposit) {
+      setButtonLoading(btnDeposit, false);
+    }
   }
 }
 
@@ -14765,6 +15019,11 @@ async function executeBankBorrow() {
     });
     if (!ok) return;
 
+    const btnBorrow = document.getElementById('btn-bank-borrow');
+    if (typeof setButtonLoading === 'function' && btnBorrow) {
+      setButtonLoading(btnBorrow, true, 'Đang giải ngân...');
+    }
+
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
       showToast('Vui lòng đăng nhập tài khoản Google để vay Vàng và lưu trữ an toàn!', 'warning');
@@ -14858,9 +15117,12 @@ async function executeBankBorrow() {
     triggerSave(true);
     renderHeader();
     renderLedger();
-    loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnBorrow = document.getElementById('btn-bank-borrow');
+    if (typeof setButtonLoading === 'function' && btnBorrow) {
+      setButtonLoading(btnBorrow, false);
+    }
   }
 }
 
@@ -14920,6 +15182,11 @@ async function executeBankRepay() {
       btnColor: 'amber'
     });
     if (!ok) return;
+
+    const btnRepay = document.getElementById('btn-bank-repay');
+    if (typeof setButtonLoading === 'function' && btnRepay) {
+      setButtonLoading(btnRepay, true, 'Đang thanh toán...');
+    }
 
     const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token;
     if (!token) {
@@ -15017,6 +15284,10 @@ async function executeBankRepay() {
     loadBankState();
   } finally {
     isBankActionPending = false;
+    const btnRepay = document.getElementById('btn-bank-repay');
+    if (typeof setButtonLoading === 'function' && btnRepay) {
+      setButtonLoading(btnRepay, false);
+    }
   }
 }
 
