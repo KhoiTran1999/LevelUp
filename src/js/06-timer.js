@@ -532,6 +532,21 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
   } catch (_) {}
 
+  try {
+    if (typeof window !== 'undefined' && typeof window.postMessage === 'function') {
+      window.postMessage({
+        type: 'LEVELUP_TIMER_STATE_BROADCAST',
+        state: {
+          ...state,
+          questTitle: activeFocusQuest?.title || '',
+          questIcon: activeFocusQuest?.icon || '⚔️',
+          questRank: activeFocusQuest?.rank || 'C',
+          rewardCoins: activeFocusQuest?.rewardCoins || 12
+        }
+      }, '*');
+    }
+  } catch (_) {}
+
   if (syncCloudNow) {
     triggerSave(true, immediate, timerAction, true);
     if (typeof BroadcastChannel !== 'undefined') {
@@ -971,11 +986,144 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
   });
 }
 
+let pendingShieldGateQuest = null;
+let isShieldGateBypassedForSession = false;
+
+function isLevelUpExtensionInstalled() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    document.documentElement?.dataset?.levelupExtensionInstalled === 'true' ||
+    window.__LEVELUP_EXTENSION_INSTALLED__ === true
+  );
+}
+
+function isMobileUserDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function updateShieldGateStatus(installed) {
+  const statusBox = document.getElementById('shield-gate-status-box');
+  const spinner = document.getElementById('shield-gate-spinner');
+  const statusText = document.getElementById('shield-gate-status-text');
+  const btnSuccess = document.getElementById('btn-shield-gate-success');
+
+  if (installed) {
+    if (statusBox) statusBox.className = 'p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between text-xs transition-all';
+    if (spinner) spinner.className = 'w-3 h-3 rounded-full bg-emerald-400';
+    if (statusText) {
+      statusText.className = 'text-xs font-bold text-emerald-300';
+      statusText.textContent = '✅ Đã phát hiện Khiên Kỷ Luật sẵn sàng!';
+    }
+    if (btnSuccess) btnSuccess.classList.remove('hidden');
+  } else {
+    if (statusBox) statusBox.className = 'p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex items-center justify-between text-xs transition-all';
+    if (spinner) spinner.className = 'w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin';
+    if (statusText) {
+      statusText.className = 'text-xs font-bold text-indigo-300';
+      statusText.textContent = 'Đang quét phát hiện Khiên...';
+    }
+    if (btnSuccess) btnSuccess.classList.add('hidden');
+  }
+}
+
+function openShieldGateModal(quest) {
+  pendingShieldGateQuest = quest;
+  const modal = document.getElementById('modal-shield-gate');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  updateShieldGateStatus(isLevelUpExtensionInstalled());
+}
+
+function closeShieldGateModal() {
+  const modal = document.getElementById('modal-shield-gate');
+  if (modal) modal.classList.add('hidden');
+}
+
+function initShieldGateListeners() {
+  if (typeof window === 'undefined') return;
+
+  window.addEventListener('levelup:extension-installed', () => {
+    updateShieldGateStatus(true);
+    try {
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+      }
+    } catch (_) {}
+    if (typeof showToast === 'function') {
+      showToast('🛡️ Đã kết nối Khiên Chặn Xao Nhãng thành công!', 'success');
+    }
+  });
+
+  const btnSuccess = document.getElementById('btn-shield-gate-success');
+  if (btnSuccess) {
+    btnSuccess.addEventListener('click', () => {
+      closeShieldGateModal();
+      if (pendingShieldGateQuest) {
+        const q = pendingShieldGateQuest;
+        pendingShieldGateQuest = null;
+        startFocusTimer(q);
+      }
+    });
+  }
+
+  const btnSkip = document.getElementById('btn-shield-gate-skip');
+  if (btnSkip) {
+    btnSkip.addEventListener('click', () => {
+      isShieldGateBypassedForSession = true;
+      closeShieldGateModal();
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Đang bắt đầu tập trung mà không có Khiên bảo vệ!', 'warning');
+      }
+      if (pendingShieldGateQuest) {
+        const q = pendingShieldGateQuest;
+        pendingShieldGateQuest = null;
+        startFocusTimer(q);
+      }
+    });
+  }
+
+  const btnClose = document.getElementById('btn-shield-gate-close');
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      closeShieldGateModal();
+      pendingShieldGateQuest = null;
+    });
+  }
+
+  const btnCheckNow = document.getElementById('btn-shield-check-now');
+  if (btnCheckNow) {
+    btnCheckNow.addEventListener('click', () => {
+      const ok = isLevelUpExtensionInstalled();
+      updateShieldGateStatus(ok);
+      if (ok) {
+        if (typeof showToast === 'function') showToast('✅ Đã phát hiện Khiên Kỷ Luật!', 'success');
+      } else {
+        if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
+      }
+    });
+  }
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initShieldGateListeners);
+  } else {
+    initShieldGateListeners();
+  }
+}
+
 async function startFocusTimer(quest) {
   if (!quest) return;
   if (isTimerActionPending) return;
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
+
+  // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng trên máy tính
+  if (!isShieldGateBypassedForSession && !isMobileUserDevice() && !isLevelUpExtensionInstalled()) {
+    openShieldGateModal(quest);
+    return;
+  }
 
   // Edge case 1: Nhiệm vụ đã hoàn thành từ trước
   if (quest.status === 'completed') {

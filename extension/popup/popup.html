@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LevelUp Shield</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="header-brand">
+        <div class="brand-avatar">🛡️</div>
+        <div class="brand-text">
+          <h1 class="brand-title">LevelUp <span class="highlight">Shield</span></h1>
+          <span class="brand-subtitle">Khiên Kỷ Luật Pomodoro</span>
+        </div>
+      </div>
+
+      <button id="btn-open-options" class="btn-icon" title="Cài đặt danh sách chặn" type="button">
+        ⚙️
+      </button>
+    </header>
+
+    <!-- Status Card -->
+    <section id="status-card" class="status-card status-idle">
+      <div class="status-header">
+        <span class="status-label">TRẠNG THÁI KHIÊN</span>
+        <div id="status-badge" class="badge-status">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Nghỉ Ngơi</span>
+        </div>
+      </div>
+
+      <!-- Active Quest HUD (visible when running) -->
+      <div id="quest-hud" class="quest-hud hidden">
+        <div class="quest-info">
+          <div id="popup-quest-icon" class="quest-icon">📖</div>
+          <div class="quest-meta">
+            <div id="popup-quest-title" class="quest-title">Đọc 1 chương sách</div>
+            <div id="popup-quest-reward" class="quest-reward">+12 Vàng</div>
+          </div>
+        </div>
+
+        <div class="timer-row">
+          <span class="timer-label">Thời gian còn lại:</span>
+          <span id="popup-countdown" class="timer-countdown">25:00</span>
+        </div>
+      </div>
+
+      <!-- Manual Shield Switch -->
+      <div class="switch-row">
+        <span class="switch-label">Bật Khiên Thủ Công</span>
+        <label class="switch-control">
+          <input type="checkbox" id="shield-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Quick Add Domain -->
+    <section class="quick-add-section">
+      <label class="section-label" for="input-quick-domain">THÊM NHANH WEB CẦN CHẶN</label>
+      <form id="form-quick-add" class="add-form">
+        <input type="text" id="input-quick-domain" placeholder="vd: youtube.com" class="input-domain" autocomplete="off" spellcheck="false">
+        <button type="submit" class="btn-add" title="Thêm vào danh sách">
+          + Thêm
+        </button>
+      </form>
+    </section>
+
+    <!-- Popular Presets (Chips) -->
+    <section class="chips-section">
+      <div class="section-label-row">
+        <span class="section-label">TRANG ĐANG PHONG ẤN</span>
+        <span id="chips-count" class="chips-count">0</span>
+      </div>
+      <div id="blacklist-chips" class="chips-container">
+        <!-- Chips inserted by JS -->
+      </div>
+    </section>
+
+    <!-- Bottom CTA: Open LevelUp -->
+    <button id="btn-open-levelup" type="button" class="btn-primary-cta">
+      <span>⚔️ Quay Về LevelUp</span>
+    </button>
+
+    <!-- Footer Info -->
+    <footer class="popup-footer">
+      <div class="footer-left">
+        🛡️ Đã chặn: <strong id="popup-blocked-count" class="blocked-count-val">0</strong> lần
+      </div>
+      <div class="footer-right">
+        ⚡ Pomodoro Auto-Sync
+      </div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

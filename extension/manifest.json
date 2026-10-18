@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "LevelUp — Khiên Chặn Xao Nhãng (Focus Shield)",
+  "version": "1.0.0",
+  "description": "Tự động chặn các website gây xao nhãng khi bật Pomodoro Focus trên LevelUp. Kỷ luật thép bảo vệ chuỗi ngày và vàng!",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "LevelUp — Khiên Chặn Xao Nhãng",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "declarativeNetRequest",
+    "storage",
+    "alarms",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://*.vercel.app/*",
+        "https://level-up-seven-blue.vercel.app/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked/*",
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
