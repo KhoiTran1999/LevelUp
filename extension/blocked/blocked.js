@@ -15,8 +15,9 @@ let totalSeconds = 1500;
 let timerInterval = null;
 
 function formatTime(sec) {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
+  const total = Math.max(0, Math.floor(Number(sec) || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
@@ -71,8 +72,8 @@ async function initBlockedPage() {
 
         // Calculate accurate countdown with delta-time
         const elapsed = Math.floor((Date.now() - (focusState.updatedAt || Date.now())) / 1000);
-        remainingSeconds = Math.max(0, (focusState.remainingSeconds || 0) - elapsed);
-        totalSeconds = Math.max(focusState.totalSeconds || 1500, remainingSeconds);
+        remainingSeconds = Math.max(0, Math.floor(Number(focusState.remainingSeconds) || 0) - elapsed);
+        totalSeconds = Math.max(Math.floor(Number(focusState.totalSeconds) || 1500), remainingSeconds);
 
         startLocalCountdown();
       }
@@ -90,7 +91,7 @@ async function initBlockedPage() {
         await chrome.runtime.sendMessage({ type: 'FOCUS_OR_OPEN_LEVELUP' });
         window.close();
       } catch (_) {
-        window.location.href = 'http://localhost:3000';
+        window.location.href = 'https://level-up-seven-blue.vercel.app';
       }
     });
   }
@@ -103,38 +104,6 @@ async function initBlockedPage() {
         chrome.runtime.openOptionsPage();
       } else {
         window.open(chrome.runtime.getURL('options/options.html'));
-      }
-    });
-  }
-
-  // Emergency Pass Modal Handlers
-  const emergencyBtn = document.getElementById('btn-emergency-pass');
-  const modal = document.getElementById('modal-emergency');
-  const cancelBtn = document.getElementById('btn-cancel-pass');
-  const confirmBtn = document.getElementById('btn-confirm-pass');
-
-  if (emergencyBtn && modal) {
-    emergencyBtn.addEventListener('click', () => {
-      modal.classList.remove('hidden');
-    });
-  }
-
-  if (cancelBtn && modal) {
-    cancelBtn.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-  }
-
-  if (confirmBtn && modal) {
-    confirmBtn.addEventListener('click', async () => {
-      // Temporarily toggle shield off for 2 minutes
-      try {
-        await chrome.runtime.sendMessage({ type: 'TOGGLE_SHIELD_MANUAL', active: false });
-        alert('Khiên đã tạm thời hạ trong 2 phút! Hãy nhanh chóng hoàn thành việc cần thiết và quay lại tập trung.');
-        modal.classList.add('hidden');
-        history.back();
-      } catch (_) {
-        modal.classList.add('hidden');
       }
     });
   }

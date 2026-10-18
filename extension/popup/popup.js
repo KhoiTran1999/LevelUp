@@ -6,8 +6,9 @@ let currentBlacklist = [];
 let popupTimerInterval = null;
 
 function formatTime(sec) {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
+  const total = Math.max(0, Math.floor(Number(sec) || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
@@ -66,7 +67,7 @@ async function renderPopup() {
       if (rewardEl && focusState.rewardCoins) rewardEl.textContent = `+${focusState.rewardCoins} Vàng`;
 
       const elapsed = Math.floor((Date.now() - (focusState.updatedAt || Date.now())) / 1000);
-      let remaining = Math.max(0, (focusState.remainingSeconds || 0) - elapsed);
+      let remaining = Math.max(0, Math.floor(Number(focusState.remainingSeconds) || 0) - elapsed);
 
       if (countdownEl) {
         countdownEl.textContent = formatTime(remaining);

@@ -237,9 +237,8 @@ async function handleTimerSync(state) {
     isBreakMode: isBreakMode,
     questTitle: state.questTitle || state.title || 'Phiên Tập Trung',
     questIcon: state.questIcon || state.icon || '⚔️',
-    questRank: state.questRank || state.rank || 'C',
-    remainingSeconds: state.remainingSeconds || 0,
-    totalSeconds: state.totalSeconds || 1500,
+    remainingSeconds: Math.max(0, Math.round(Number(state.remainingSeconds) || 0)),
+    totalSeconds: Math.max(0, Math.round(Number(state.totalSeconds) || 1500)),
     rewardCoins: state.rewardCoins || 12,
     updatedAt: Date.now()
   };

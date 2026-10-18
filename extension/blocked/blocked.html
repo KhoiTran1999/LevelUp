@@ -79,13 +79,9 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <button id="btn-return-guild" type="button" class="btn-primary flex-1 py-3 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/25 transition-all transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+      <div class="flex justify-center">
+        <button id="btn-return-guild" type="button" class="btn-primary w-full sm:w-auto min-w-[240px] py-3.5 px-8 rounded-xl font-bold text-sm bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-xl shadow-indigo-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
           <span>⚔️ Quay Về LevelUp</span>
-        </button>
-
-        <button id="btn-emergency-pass" type="button" class="btn-ghost py-3 px-4 rounded-xl font-semibold text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-slate-800 transition cursor-pointer">
-          Xin Giải Lao Khẩn Cấp
         </button>
       </div>
 
@@ -95,25 +91,6 @@
         <a id="btn-options-link" href="#" class="hover:text-indigo-400 transition underline underline-offset-2">Cấu hình danh sách chặn</a>
       </div>
 
-    </div>
-  </div>
-
-  <!-- Emergency Pass Modal -->
-  <div id="modal-emergency" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 text-center shadow-2xl">
-      <div class="text-3xl mb-2">⚠️</div>
-      <h3 class="text-base font-bold text-white mb-1">Cảnh Báo Kỷ Luật</h3>
-      <p class="text-xs text-slate-400 mb-4">
-        Tạm mở khóa khẩn cấp 2 phút sẽ ghi lại một lần "lung lay ý chí" vào Sổ Cái của Guild. Bạn có thực sự muốn mở khóa tạm thời?
-      </p>
-      <div class="flex gap-2">
-        <button id="btn-cancel-pass" class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-          Hủy Bỏ
-        </button>
-        <button id="btn-confirm-pass" class="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition">
-          Mở 2 Phút
-        </button>
-      </div>
     </div>
   </div>
 
