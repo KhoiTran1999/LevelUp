@@ -294,14 +294,18 @@ function switchTab(tabId) {
     const theme = tabColorTheme[tabKey] || tabColorTheme.quests;
 
     if (b.classList.contains('mobile-more-item')) {
-      if (isAdminBtn && !isAdmin) {
-        b.className = 'mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left';
+      if (b.id === 'btn-mobile-about') {
+        b.className = 'mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-2xl text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1';
         return;
       }
-      b.className = `mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left ${
+      if (isAdminBtn && !isAdmin) {
+        b.className = 'mobile-nav-btn mobile-more-item group hidden items-center justify-between gap-3 w-full px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left';
+        return;
+      }
+      b.className = `mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
         isActive
           ? (theme.itemMobile || theme.mobile)
-          : (isAdminBtn ? 'text-fuchsia-600 dark:text-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/40' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800')
+          : (isAdminBtn ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800')
       }`;
       return;
     }
