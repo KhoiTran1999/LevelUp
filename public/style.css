@@ -1319,7 +1319,7 @@ body:has(#mobile-more-menu:not(.hidden)) #btn-floating-assistant {
 
 #mobile-more-menu:not(.hidden) {
   animation: mobilePopoverFade var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard-decelerate) forwards;
-  transform-origin: bottom right;
+  will-change: transform, opacity;
 }
 
 @keyframes navDropdownFade {
@@ -1336,11 +1336,11 @@ body:has(#mobile-more-menu:not(.hidden)) #btn-floating-assistant {
 @keyframes mobilePopoverFade {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translate3d(0, 100%, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
 

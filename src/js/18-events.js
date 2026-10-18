@@ -137,10 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileMoreMenu = document.getElementById('mobile-more-menu');
   const mobileMoreBackdrop = document.getElementById('mobile-more-backdrop');
 
+  let isClosingMoreMenu = false;
   const openMobileMoreMenu = () => {
     if (!mobileMoreMenu) return;
+    isClosingMoreMenu = false;
+    mobileMoreMenu.style.transform = '';
+    mobileMoreMenu.style.transition = '';
     mobileMoreMenu.classList.remove('hidden');
     mobileMoreBackdrop?.classList.remove('hidden');
+    if (mobileMoreBackdrop) mobileMoreBackdrop.style.opacity = '';
     document.body.classList.add('mobile-more-open');
     const fab = document.getElementById('btn-floating-assistant');
     if (fab) {
@@ -150,16 +155,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const closeMobileMoreMenu = () => {
-    if (!mobileMoreMenu) return;
-    mobileMoreMenu.classList.add('hidden');
-    mobileMoreBackdrop?.classList.add('hidden');
-    document.body.classList.remove('mobile-more-open');
-    const fab = document.getElementById('btn-floating-assistant');
-    if (fab) {
-      fab.style.opacity = '';
-      fab.style.pointerEvents = '';
-      fab.style.transform = '';
+  const closeMobileMoreMenu = (immediate = false) => {
+    if (!mobileMoreMenu || mobileMoreMenu.classList.contains('hidden') || isClosingMoreMenu) return;
+
+    const finalize = () => {
+      mobileMoreMenu.classList.add('hidden');
+      mobileMoreBackdrop?.classList.add('hidden');
+      if (mobileMoreBackdrop) mobileMoreBackdrop.style.opacity = '';
+      mobileMoreMenu.style.transform = '';
+      mobileMoreMenu.style.transition = '';
+      document.body.classList.remove('mobile-more-open');
+      const fab = document.getElementById('btn-floating-assistant');
+      if (fab) {
+        fab.style.opacity = '';
+        fab.style.pointerEvents = '';
+        fab.style.transform = '';
+      }
+      isClosingMoreMenu = false;
+    };
+
+    if (immediate === true) {
+      finalize();
+      return;
+    }
+
+    isClosingMoreMenu = true;
+    if (mobileMoreBackdrop) {
+      mobileMoreBackdrop.style.transition = 'opacity 0.2s ease';
+      mobileMoreBackdrop.style.opacity = '0';
+    }
+
+    try {
+      const anim = mobileMoreMenu.animate([
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+        { transform: 'translate3d(0, 105%, 0)', opacity: 0 }
+      ], {
+        duration: 200,
+        easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)'
+      });
+      anim.onfinish = finalize;
+      anim.oncancel = finalize;
+    } catch {
+      finalize();
     }
   };
 
@@ -182,6 +219,61 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       closeMobileMoreMenu();
     });
+  }
+
+  // Touch gesture: Pull down to dismiss mobile more bottom sheet
+  if (mobileMoreMenu) {
+    let startY = 0;
+    let currentDeltaY = 0;
+    let isDragging = false;
+    let startTime = 0;
+
+    mobileMoreMenu.addEventListener('touchstart', (e) => {
+      if (mobileMoreMenu.scrollTop <= 0) {
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+        isDragging = true;
+        currentDeltaY = 0;
+        mobileMoreMenu.style.transition = 'none';
+      }
+    }, { passive: true });
+
+    mobileMoreMenu.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0) {
+        currentDeltaY = dy;
+        mobileMoreMenu.style.transform = `translate3d(0, ${dy}px, 0)`;
+        if (mobileMoreBackdrop) {
+          const opacity = Math.max(0, 1 - dy / 250);
+          mobileMoreBackdrop.style.opacity = opacity.toString();
+        }
+      } else {
+        currentDeltaY = 0;
+        mobileMoreMenu.style.transform = 'translate3d(0, 0, 0)';
+      }
+    }, { passive: true });
+
+    const endDrag = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const duration = Date.now() - startTime;
+      const velocity = currentDeltaY / Math.max(duration, 1);
+      const shouldDismiss = currentDeltaY > 75 || velocity > 0.4;
+
+      if (shouldDismiss) {
+        closeMobileMoreMenu();
+      } else {
+        mobileMoreMenu.style.transition = 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)';
+        mobileMoreMenu.style.transform = 'translate3d(0, 0, 0)';
+        if (mobileMoreBackdrop) {
+          mobileMoreBackdrop.style.opacity = '';
+        }
+      }
+    };
+
+    mobileMoreMenu.addEventListener('touchend', endDrag, { passive: true });
+    mobileMoreMenu.addEventListener('touchcancel', endDrag, { passive: true });
   }
 
   document.addEventListener('click', (e) => {
