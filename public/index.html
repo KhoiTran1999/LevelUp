@@ -1530,30 +1530,33 @@
   <!-- MOBILE BOTTOM NAVIGATION BAR (iOS / Android Native Feel)                -->
   <!-- ======================================================================= -->
   <nav class="md:hidden m3-navigation-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
+    <!-- Backdrop overlay for Mobile More Menu -->
+    <div id="mobile-more-backdrop" class="hidden fixed inset-0 z-40 bg-slate-950/20 dark:bg-slate-950/40 backdrop-blur-[1px] transition-opacity"></div>
+
     <!-- Popover Menu for More Tabs -->
-    <div id="mobile-more-menu" class="hidden absolute bottom-full mb-2 right-3 w-52 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-lg">
+    <div id="mobile-more-menu" class="hidden absolute bottom-full mb-3 right-2.5 sm:right-4 w-60 sm:w-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-xl">
       <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 px-3 py-1.5 font-mono">Tính năng khác</div>
-      <button data-tab="tracker" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
+      <button data-tab="tracker" class="mobile-nav-btn mobile-more-item flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-indigo-500">insights</span>
         <span class="whitespace-nowrap">Tần Suất Thói Quen</span>
       </button>
-      <button data-tab="leaderboard" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
+      <button data-tab="leaderboard" class="mobile-nav-btn mobile-more-item flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-amber-500">leaderboard</span>
         <span class="whitespace-nowrap">Bảng Xếp Hạng</span>
       </button>
-      <button data-tab="ledger" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
+      <button data-tab="ledger" class="mobile-nav-btn mobile-more-item flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-sky-500">receipt_long</span>
         <span class="whitespace-nowrap">Lịch Sử</span>
       </button>
-      <button data-tab="bank" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
+      <button data-tab="bank" class="mobile-nav-btn mobile-more-item flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-emerald-500">account_balance</span>
         <span class="whitespace-nowrap">Ngân Hàng</span>
       </button>
-      <button id="mobile-nav-admin" data-tab="admin" class="mobile-nav-btn mobile-more-item hidden items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition text-left cursor-pointer">
+      <button id="mobile-nav-admin" data-tab="admin" class="mobile-nav-btn mobile-more-item hidden items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition text-left cursor-pointer">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-purple-500">admin_panel_settings</span>
         <span class="whitespace-nowrap">Quản Trị</span>
       </button>
-      <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1">
+      <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1">
         <span class="material-symbols-outlined text-lg leading-none shrink-0 text-indigo-500">auto_stories</span>
         <span class="font-bold whitespace-nowrap">Giới Thiệu Dự Án</span>
       </button>
@@ -3877,7 +3880,7 @@
   </div>
 
   <!-- FLOATING ACTION BUTTON: PHÙ THỦY (AI ASSISTANT) -->
-  <aside aria-label="Phù Thủy AI LevelUp" class="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+  <aside aria-label="Phù Thủy AI LevelUp" class="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-30 flex flex-col items-end gap-2 pointer-events-auto">
     <button id="btn-floating-assistant" onclick="openAssistantModal()" type="button" class="group relative flex items-center justify-center rounded-full cursor-pointer transition-all duration-300 active:scale-95 select-none" title="Hỏi Phù Thủy (Phím tắt: Alt+A)">
       <img src="wizard.svg" alt="Phù Thủy" class="assistant-fab-icon transition-transform duration-300 group-hover:scale-110 pointer-events-none select-none" />
       <span class="hidden md:inline font-bold text-xs tracking-wide text-violet-100 dark:text-violet-200">Phù Thủy</span>

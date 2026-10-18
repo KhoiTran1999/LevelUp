@@ -1297,6 +1297,26 @@ html.dark .tour-arrow-indicator {
   transform-origin: top left;
 }
 
+/* Hide floating assistant button when mobile more menu is open */
+body.mobile-more-open aside[aria-label="Phù Thủy AI LevelUp"],
+body:has(#mobile-more-menu:not(.hidden)) aside[aria-label="Phù Thủy AI LevelUp"],
+body.mobile-more-open #btn-floating-assistant,
+body:has(#mobile-more-menu:not(.hidden)) #btn-floating-assistant {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: scale(0.8) translateY(12px) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+#mobile-more-backdrop:not(.hidden) {
+  animation: backdropFadeIn 0.2s ease forwards;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 #mobile-more-menu:not(.hidden) {
   animation: mobilePopoverFade var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard-decelerate) forwards;
   transform-origin: bottom right;

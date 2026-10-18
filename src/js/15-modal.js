@@ -224,7 +224,11 @@ function switchTab(tabId) {
 
   // Close any open more menus
   document.getElementById('nav-more-menu')?.classList.add('hidden');
-  document.getElementById('mobile-more-menu')?.classList.add('hidden');
+  if (typeof closeMobileMoreMenu === 'function') {
+    closeMobileMoreMenu();
+  } else {
+    document.getElementById('mobile-more-menu')?.classList.add('hidden');
+  }
 
   // Sync desktop more toggle button with current tab vibe
   const btnNavMore = document.getElementById('btn-nav-more');
@@ -473,9 +477,12 @@ function openModal(id) {
 
 function openAboutModal() {
   const navMoreMenu = document.getElementById('nav-more-menu');
-  const mobileMoreMenu = document.getElementById('mobile-more-menu');
   if (navMoreMenu) navMoreMenu.classList.add('hidden');
-  if (mobileMoreMenu) mobileMoreMenu.classList.add('hidden');
+  if (typeof closeMobileMoreMenu === 'function') {
+    closeMobileMoreMenu();
+  } else {
+    document.getElementById('mobile-more-menu')?.classList.add('hidden');
+  }
   if (typeof sfx !== 'undefined' && sfx.playClick) {
     sfx.playClick();
   }

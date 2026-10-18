@@ -135,10 +135,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnMobileMore = document.getElementById('btn-mobile-more');
   const mobileMoreMenu = document.getElementById('mobile-more-menu');
+  const mobileMoreBackdrop = document.getElementById('mobile-more-backdrop');
+
+  const openMobileMoreMenu = () => {
+    if (!mobileMoreMenu) return;
+    mobileMoreMenu.classList.remove('hidden');
+    mobileMoreBackdrop?.classList.remove('hidden');
+    document.body.classList.add('mobile-more-open');
+    const fab = document.getElementById('btn-floating-assistant');
+    if (fab) {
+      fab.style.opacity = '0';
+      fab.style.pointerEvents = 'none';
+      fab.style.transform = 'scale(0.8) translateY(12px)';
+    }
+  };
+
+  const closeMobileMoreMenu = () => {
+    if (!mobileMoreMenu) return;
+    mobileMoreMenu.classList.add('hidden');
+    mobileMoreBackdrop?.classList.add('hidden');
+    document.body.classList.remove('mobile-more-open');
+    const fab = document.getElementById('btn-floating-assistant');
+    if (fab) {
+      fab.style.opacity = '';
+      fab.style.pointerEvents = '';
+      fab.style.transform = '';
+    }
+  };
+
+  window.openMobileMoreMenu = openMobileMoreMenu;
+  window.closeMobileMoreMenu = closeMobileMoreMenu;
+
   if (btnMobileMore && mobileMoreMenu) {
     btnMobileMore.addEventListener('click', (e) => {
       e.stopPropagation();
-      mobileMoreMenu.classList.toggle('hidden');
+      if (mobileMoreMenu.classList.contains('hidden')) {
+        openMobileMoreMenu();
+      } else {
+        closeMobileMoreMenu();
+      }
+    });
+  }
+
+  if (mobileMoreBackdrop) {
+    mobileMoreBackdrop.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeMobileMoreMenu();
     });
   }
 
@@ -147,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navMoreMenu?.classList.add('hidden');
     }
     if (!e.target.closest('#btn-mobile-more') && !e.target.closest('#mobile-more-menu')) {
-      mobileMoreMenu?.classList.add('hidden');
+      closeMobileMoreMenu();
     }
     if (!e.target.closest('.btn-quest-menu') && !e.target.closest('.btn-shop-menu') && !e.target.closest('.btn-inv-menu') && !e.target.closest('.quest-dropdown-menu')) {
       closeAllCardDropdowns();
