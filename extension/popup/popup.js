@@ -25,15 +25,17 @@ async function renderPopup() {
     const res = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
     if (!res?.success || !res.data) return;
 
-    const { isShieldActive, focusState, blacklist, blockedCountToday } = res.data;
+    const { isShieldActive, focusState, blacklist, blockedCountToday, mascotEnabled } = res.data;
     currentBlacklist = Array.isArray(blacklist) ? blacklist : [];
 
     // 1. Status Badge & Toggle
     const statusBadge = document.getElementById('status-badge');
     const shieldToggle = document.getElementById('shield-toggle');
+    const mascotToggle = document.getElementById('mascot-toggle');
     const statusCard = document.getElementById('status-card');
 
     if (shieldToggle) shieldToggle.checked = Boolean(isShieldActive);
+    if (mascotToggle) mascotToggle.checked = typeof mascotEnabled === 'boolean' ? mascotEnabled : true;
 
     if (isShieldActive) {
       if (statusBadge) {
@@ -149,6 +151,32 @@ document.addEventListener('DOMContentLoaded', () => {
         active: active
       });
       renderPopup();
+    });
+  }
+
+  // Mascot toggle switch
+  const mascotToggle = document.getElementById('mascot-toggle');
+  if (mascotToggle) {
+    mascotToggle.addEventListener('change', async () => {
+      await chrome.runtime.sendMessage({
+        type: 'UPDATE_SETTINGS',
+        mascotEnabled: mascotToggle.checked
+      });
+    });
+  }
+
+  // Test Fireworks Button
+  const testFireworksBtn = document.getElementById('btn-test-fireworks');
+  if (testFireworksBtn) {
+    testFireworksBtn.addEventListener('click', async () => {
+      await chrome.runtime.sendMessage({ type: 'TRIGGER_TEST_FIREWORKS' });
+      const origText = testFireworksBtn.innerHTML;
+      testFireworksBtn.innerHTML = '✨ Đã Bắn Pháo Hoa Trên Web!';
+      testFireworksBtn.style.color = '#34d399';
+      setTimeout(() => {
+        testFireworksBtn.innerHTML = origText;
+        testFireworksBtn.style.color = '#fbbf24';
+      }, 1800);
     });
   }
 

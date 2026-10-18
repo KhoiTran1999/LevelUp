@@ -126,6 +126,58 @@ assert(fs.existsSync(storeDocPath), 'CHROMEWEBSTORE.md phải tồn tại');
 const storeDoc = fs.readFileSync(storeDocPath, 'utf8');
 assert(storeDoc.includes('Permissions Justification'), 'Thiếu phần Permissions Justification trong CHROMEWEBSTORE.md');
 assert(storeDoc.includes('Privacy & Data Use'), 'Thiếu phần Privacy & Data Use trong CHROMEWEBSTORE.md');
+assert(storeDoc.includes('1.2.0'), 'CHROMEWEBSTORE.md phải ghi nhận phiên bản 1.2.0');
 console.log('✓ Test 6: Tài liệu chuẩn bị xuất bản Chrome Web Store (CHROMEWEBSTORE.md) đầy đủ.');
 
-console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield thành công 100%!');
+// Test 7: Kiểm tra tính năng Mini Floating Capsule HUD (Chấm Xanh/Đỏ, Timer, Nút x, Shadow DOM, Pháo hoa 8-bit)
+const capsulePath = path.join(extDir, 'capsule.js');
+const capsuleCode = fs.readFileSync(capsulePath, 'utf8');
+
+assert(capsuleCode.includes('attachShadow'), 'capsule.js phải sử dụng Shadow DOM để cô lập CSS/DOM');
+assert(capsuleCode.includes('dot-green'), 'capsule.js phải có chấm màu xanh khi tập trung bình thường');
+assert(capsuleCode.includes('dot-red'), 'capsule.js phải có chấm màu đỏ khi phân tâm');
+assert(capsuleCode.includes('capsule-timer'), 'capsule.js phải có đồng hồ hiển thị thời gian đếm ngược');
+assert(capsuleCode.includes('capsule-dismiss'), 'capsule.js phải có nút × để tạm ẩn');
+assert(!capsuleCode.includes('arbiter-bubble'), 'capsule.js KHÔNG được chứa bong bóng thoại thẩm phán AI (đã lược bỏ theo yêu cầu)');
+assert(!capsuleCode.includes('mascot-svg'), 'capsule.js KHÔNG được chứa avatar hiệp sĩ (đã lược bỏ theo yêu cầu)');
+assert(capsuleCode.includes('capsuleRumble'), 'capsule.js phải có animation rung rung (capsuleRumble) khi ở trang bị chặn');
+assert(capsuleCode.includes('.capsule-pill.is-distraction .btn-dismiss'), 'capsule.js phải có định kiểu cho nút × trên trang bị chặn');
+assert(capsuleCode.includes('returnToLevelUp(true)'), 'capsule.js phải gọi returnToLevelUp(true) khi bấm nút × ở trang bị chặn để đóng tab');
+assert(capsuleCode.includes('.capsule-pill:hover .btn-dismiss'), 'capsule.js phải hỗ trợ hiện nút × khi hover');
+assert(capsuleCode.includes('fireworks'), 'capsule.js phải có động cơ pháo hoa 8-bit ăn mừng');
+assert(capsuleCode.includes('blocked-overlay'), 'capsule.js phải có lớp phủ cảnh báo lớn ở giữa màn hình (blocked-overlay)');
+assert(capsuleCode.includes('blocked-card-center'), 'capsule.js phải có thẻ cảnh báo trung tâm (blocked-card-center)');
+assert(capsuleCode.includes('gentleBobbing'), 'capsule.js phải có animation nảy lên xuống nhẹ nhàng (gentleBobbing)');
+assert(capsuleCode.includes('btn-overlay-shrink'), 'capsule.js phải có nút kích hoạt thu nhỏ khiên (btn-overlay-shrink)');
+assert(capsuleCode.includes('backdrop-filter'), 'capsule.js phải có hiệu ứng blur kính cho con nhộng thời gian');
+
+// Kiểm tra trang blocked.html và blocked.css giữ trọn vẹn hiệu ứng Motion yêu thích
+const blockedHtmlPath = path.join(extDir, 'blocked/blocked.html');
+const blockedHtmlCode = fs.readFileSync(blockedHtmlPath, 'utf8');
+const blockedCssPath = path.join(extDir, 'blocked/blocked.css');
+const blockedCssCode = fs.readFileSync(blockedCssPath, 'utf8');
+
+assert(blockedHtmlCode.includes('glow-orb'), 'blocked.html phải giữ hiệu ứng motion glow-orb');
+assert(blockedHtmlCode.includes('animate-pulse'), 'blocked.html phải giữ hiệu ứng motion animate-pulse');
+assert(blockedHtmlCode.includes('animate-ping'), 'blocked.html phải giữ hiệu ứng motion animate-ping');
+assert(blockedCssCode.includes('cardRumble'), 'blocked.css phải có animation rung rung (cardRumble) khi xuất hiện');
+console.log('✓ Test 7: Cảnh báo lớn nảy lên xuống nhẹ nhàng (gentleBobbing), con nhộng trong suốt blur kính, rung rung và nút × hover đóng tab khi ở trang bị chặn hoạt động chuẩn xác.');
+
+// Test 8: Kiểm tra cấu hình, truyền tin hoàn thành phiên Focus và đóng tab phân tâm khi quay về LevelUp
+const bgPath = path.join(extDir, 'background.js');
+const bgCode = fs.readFileSync(bgPath, 'utf8');
+assert(bgCode.includes('FOCUS_SESSION_COMPLETED'), 'background.js phải hỗ trợ sự kiện FOCUS_SESSION_COMPLETED');
+assert(bgCode.includes('blockMode'), 'background.js phải hỗ trợ tùy chọn blockMode (in_page_alert vs redirect)');
+assert(bgCode.includes('closeCurrentTab'), 'background.js phải hỗ trợ đóng tab trang bị chặn khi quay về LevelUp');
+assert(capsuleCode.includes('closeCurrentTab'), 'capsule.js phải truyền closeCurrentTab khi bấm quay về LevelUp từ cảnh báo');
+
+assert(timerSrc.includes('LEVELUP_FOCUS_COMPLETED'), '06-timer.js phải phát event LEVELUP_FOCUS_COMPLETED');
+assert(appJs.includes('LEVELUP_FOCUS_COMPLETED'), 'public/app.js bundle phải chứa LEVELUP_FOCUS_COMPLETED');
+
+const contentJsPath = path.join(extDir, 'content.js');
+const contentJsCode = fs.readFileSync(contentJsPath, 'utf8');
+assert(contentJsCode.includes('LEVELUP_FOCUS_COMPLETED'), 'content.js phải đón nhận LEVELUP_FOCUS_COMPLETED');
+assert(contentJsCode.includes('FOCUS_SESSION_COMPLETED'), 'content.js phải chuyển tiếp FOCUS_SESSION_COMPLETED tới extension');
+console.log('✓ Test 8: Chu trình đồng bộ hoàn thành phiên Focus và tự động đóng tab phân tâm hoạt động hoàn chỉnh.');
+
+console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.2.0 thành công 100%!');

@@ -1913,6 +1913,20 @@ function focusTimerFinished() {
     sfx.playFanfare();
     sfx.playGong();
 
+    try {
+      if (typeof window !== 'undefined' && typeof window.postMessage === 'function') {
+        window.postMessage({
+          type: 'LEVELUP_FOCUS_COMPLETED',
+          detail: {
+            questTitle: quest.title,
+            rewardCoins: quest.rewardCoins || 12,
+            questRank: quest.rank || 'C',
+            targetMinutes: quest.targetMinutes || 25
+          }
+        }, '*');
+      }
+    } catch (_) {}
+
     sendFocusNotification(
       '🎉 HOÀN THÀNH TẬP TRUNG!',
       `Chúc mừng bạn đã xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung: "${quest.title}"!`

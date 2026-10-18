@@ -58,8 +58,23 @@ function isDomainBlocked(urlStr, blacklist = [], whitelist = []) {
   return false;
 }
 
-// Redirect all already-open tabs that are currently on blocked domains
-async function scanAndRedirectOpenTabs(blacklist, whitelist) {
+// Broadcast message to all open tabs
+async function broadcastToAllTabs(msg) {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const t of tabs) {
+      if (t.id) {
+        chrome.tabs.sendMessage(t.id, msg).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('[LevelUp Shield] Failed to broadcast to tabs:', err);
+  }
+}
+
+// Redirect all already-open tabs that are currently on blocked domains (only when blockMode === 'redirect')
+async function scanAndRedirectOpenTabs(blacklist, whitelist, blockMode = 'redirect') {
+  if (blockMode !== 'redirect') return;
   try {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
@@ -83,12 +98,19 @@ chrome.runtime.onInstalled.addListener(async () => {
     'isShieldActive',
     'focusState',
     'blockedCountToday',
-    'strictMode'
+    'strictMode',
+    'mascotEnabled',
+    'soundEnabled',
+    'blockMode'
   ]);
 
   const initialBlacklist = Array.isArray(data.blacklist) && data.blacklist.length > 0 
     ? data.blacklist 
     : DEFAULT_BLACKLIST;
+
+  const blockMode = data.blockMode || 'in_page_alert';
+  const mascotEnabled = typeof data.mascotEnabled === 'boolean' ? data.mascotEnabled : true;
+  const soundEnabled = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : true;
 
   await chrome.storage.local.set({
     blacklist: initialBlacklist,
@@ -96,7 +118,10 @@ chrome.runtime.onInstalled.addListener(async () => {
     isShieldActive: Boolean(data.isShieldActive),
     focusState: data.focusState || null,
     blockedCountToday: typeof data.blockedCountToday === 'number' ? data.blockedCountToday : 0,
-    strictMode: Boolean(data.strictMode)
+    strictMode: Boolean(data.strictMode),
+    mascotEnabled: mascotEnabled,
+    soundEnabled: soundEnabled,
+    blockMode: blockMode
   });
 
   // Auto-inject content.js into any currently open LevelUp tabs
@@ -118,7 +143,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await injectCapsuleIntoAllTabs();
 
   // Ensure DNR rules match current shield state
-  await applyDnrRules(Boolean(data.isShieldActive), initialBlacklist, data.whitelist || []);
+  await applyDnrRules(Boolean(data.isShieldActive), initialBlacklist, data.whitelist || [], blockMode);
   await updateBadge(Boolean(data.isShieldActive), data.focusState);
 });
 
@@ -143,12 +168,13 @@ async function injectCapsuleIntoAllTabs() {
 }
 
 // Update Declarative Net Request Dynamic Rules
-async function applyDnrRules(isActive, blacklist = [], whitelist = []) {
+async function applyDnrRules(isActive, blacklist = [], whitelist = [], blockMode = 'redirect') {
   try {
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const removeRuleIds = existingRules.map(r => r.id);
 
-    if (!isActive || !Array.isArray(blacklist) || blacklist.length === 0) {
+    // If shield is not active or blockMode is not 'redirect'
+    if (!isActive || blockMode !== 'redirect' || !Array.isArray(blacklist) || blacklist.length === 0) {
       if (removeRuleIds.length > 0) {
         await chrome.declarativeNetRequest.updateDynamicRules({
           removeRuleIds: removeRuleIds,
@@ -203,20 +229,21 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const targetUrl = changeInfo.url || tab.url;
   if (!targetUrl) return;
 
-  const { isShieldActive, blacklist, whitelist } = await chrome.storage.local.get([
+  const { isShieldActive, blacklist, whitelist, blockMode } = await chrome.storage.local.get([
     'isShieldActive',
     'blacklist',
-    'whitelist'
+    'whitelist',
+    'blockMode'
   ]);
 
-  if (!isShieldActive) return;
-
-  if (isDomainBlocked(targetUrl, blacklist || DEFAULT_BLACKLIST, whitelist || [])) {
-    console.log(`[LevelUp Shield] onUpdated intercepted blocked URL: ${targetUrl}`);
-    await chrome.tabs.update(tabId, {
-      url: chrome.runtime.getURL('blocked/blocked.html?blockedUrl=' + encodeURIComponent(targetUrl))
-    });
-    return;
+  if (isShieldActive && (blockMode === 'redirect')) {
+    if (isDomainBlocked(targetUrl, blacklist || DEFAULT_BLACKLIST, whitelist || [])) {
+      console.log(`[LevelUp Shield] onUpdated intercepted blocked URL: ${targetUrl}`);
+      await chrome.tabs.update(tabId, {
+        url: chrome.runtime.getURL('blocked/blocked.html?blockedUrl=' + encodeURIComponent(targetUrl))
+      });
+      return;
+    }
   }
 
   // Ensure capsule is injected into the updated tab
@@ -263,9 +290,10 @@ async function handleTimerSync(state) {
   // Shield is active ONLY during work focus, not during break
   const shouldShield = isRunning && !isBreakMode;
 
-  const storage = await chrome.storage.local.get(['blacklist', 'whitelist', 'strictMode']);
+  const storage = await chrome.storage.local.get(['blacklist', 'whitelist', 'strictMode', 'blockMode']);
   const blacklist = storage.blacklist || DEFAULT_BLACKLIST;
   const whitelist = storage.whitelist || [];
+  const blockMode = storage.blockMode || 'in_page_alert';
 
   const focusState = {
     isRunning: isRunning,
@@ -283,12 +311,12 @@ async function handleTimerSync(state) {
     focusState: focusState
   });
 
-  await applyDnrRules(shouldShield, blacklist, whitelist);
+  await applyDnrRules(shouldShield, blacklist, whitelist, blockMode);
   await updateBadge(shouldShield, focusState);
 
-  // If shield just activated, scan and redirect open tabs immediately
+  // If shield just activated, scan and redirect open tabs if in redirect mode
   if (shouldShield) {
-    await scanAndRedirectOpenTabs(blacklist, whitelist);
+    await scanAndRedirectOpenTabs(blacklist, whitelist, blockMode);
     await injectCapsuleIntoAllTabs();
     chrome.alarms.create('levelup_heartbeat', { periodInMinutes: 0.1 });
   } else {
@@ -300,7 +328,7 @@ async function handleTimerSync(state) {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== 'levelup_heartbeat') return;
 
-  const data = await chrome.storage.local.get(['isShieldActive', 'focusState', 'blacklist', 'whitelist']);
+  const data = await chrome.storage.local.get(['isShieldActive', 'focusState', 'blacklist', 'whitelist', 'blockMode']);
   if (!data.isShieldActive || !data.focusState || !data.focusState.isRunning) {
     await chrome.alarms.clear('levelup_heartbeat');
     return;
@@ -316,9 +344,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       isShieldActive: false,
       focusState: updatedState
     });
-    await applyDnrRules(false, data.blacklist, data.whitelist);
+    const blockMode = data.blockMode || 'in_page_alert';
+    await applyDnrRules(false, data.blacklist, data.whitelist, blockMode);
     await updateBadge(false, updatedState);
     await chrome.alarms.clear('levelup_heartbeat');
+
+    // Broadcast focus session completion to all open tabs for 8-bit fireworks!
+    await broadcastToAllTabs({
+      type: 'FOCUS_SESSION_COMPLETED',
+      detail: {
+        questTitle: data.focusState.questTitle || 'Phiên Tập Trung',
+        rewardCoins: data.focusState.rewardCoins || 12
+      }
+    });
   } else {
     await updateBadge(true, { ...data.focusState, remainingSeconds: currentRemaining });
   }
@@ -340,6 +378,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
+        case 'FOCUS_SESSION_COMPLETED': {
+          // Web app notified focus completion
+          await broadcastToAllTabs({
+            type: 'FOCUS_SESSION_COMPLETED',
+            detail: message.detail || {}
+          });
+          sendResponse({ success: true });
+          break;
+        }
+
+        case 'TRIGGER_TEST_FIREWORKS': {
+          // Testing fireworks trigger
+          await broadcastToAllTabs({
+            type: 'FOCUS_SESSION_COMPLETED',
+            detail: {
+              questTitle: 'Luyện Kiếm Hoàn Tất',
+              rewardCoins: 12,
+              isTest: true
+            }
+          });
+          sendResponse({ success: true });
+          break;
+        }
+
         case 'GET_STATUS': {
           const state = await chrome.storage.local.get([
             'isShieldActive',
@@ -347,24 +409,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             'blacklist',
             'whitelist',
             'blockedCountToday',
-            'strictMode'
+            'strictMode',
+            'mascotEnabled',
+            'soundEnabled',
+            'blockMode'
           ]);
           sendResponse({ success: true, data: state });
           break;
         }
 
+        case 'UPDATE_SETTINGS': {
+          const toUpdate = {};
+          if (typeof message.mascotEnabled === 'boolean') toUpdate.mascotEnabled = message.mascotEnabled;
+          if (typeof message.soundEnabled === 'boolean') toUpdate.soundEnabled = message.soundEnabled;
+          if (message.blockMode) toUpdate.blockMode = message.blockMode;
+          if (typeof message.strictMode === 'boolean') toUpdate.strictMode = message.strictMode;
+          await chrome.storage.local.set(toUpdate);
+
+          const current = await chrome.storage.local.get(['isShieldActive', 'blacklist', 'whitelist', 'blockMode']);
+          const blockMode = current.blockMode || 'in_page_alert';
+          await applyDnrRules(Boolean(current.isShieldActive), current.blacklist || DEFAULT_BLACKLIST, current.whitelist || [], blockMode);
+          if (current.isShieldActive && blockMode === 'redirect') {
+            await scanAndRedirectOpenTabs(current.blacklist || DEFAULT_BLACKLIST, current.whitelist || [], blockMode);
+          }
+          sendResponse({ success: true, updated: toUpdate });
+          break;
+        }
+
         case 'TOGGLE_SHIELD_MANUAL': {
-          const current = await chrome.storage.local.get(['isShieldActive', 'blacklist', 'whitelist', 'focusState']);
+          const current = await chrome.storage.local.get(['isShieldActive', 'blacklist', 'whitelist', 'focusState', 'blockMode']);
           const targetActive = typeof message.active === 'boolean' ? message.active : !current.isShieldActive;
+          const blockMode = current.blockMode || 'in_page_alert';
           
           await chrome.storage.local.set({ isShieldActive: targetActive });
           const blacklist = current.blacklist || DEFAULT_BLACKLIST;
           const whitelist = current.whitelist || [];
-          await applyDnrRules(targetActive, blacklist, whitelist);
+          await applyDnrRules(targetActive, blacklist, whitelist, blockMode);
           await updateBadge(targetActive, current.focusState);
 
-          if (targetActive) {
-            await scanAndRedirectOpenTabs(blacklist, whitelist);
+          if (targetActive && blockMode === 'redirect') {
+            await scanAndRedirectOpenTabs(blacklist, whitelist, blockMode);
           }
           
           sendResponse({ success: true, isShieldActive: targetActive });
@@ -383,10 +467,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const newList = Array.isArray(message.blacklist) ? message.blacklist : DEFAULT_BLACKLIST;
           await chrome.storage.local.set({ blacklist: newList });
           
-          const current = await chrome.storage.local.get(['isShieldActive', 'whitelist']);
-          await applyDnrRules(Boolean(current.isShieldActive), newList, current.whitelist || []);
-          if (current.isShieldActive) {
-            await scanAndRedirectOpenTabs(newList, current.whitelist || []);
+          const current = await chrome.storage.local.get(['isShieldActive', 'whitelist', 'blockMode']);
+          const blockMode = current.blockMode || 'in_page_alert';
+          await applyDnrRules(Boolean(current.isShieldActive), newList, current.whitelist || [], blockMode);
+          if (current.isShieldActive && blockMode === 'redirect') {
+            await scanAndRedirectOpenTabs(newList, current.whitelist || [], blockMode);
           }
           sendResponse({ success: true, blacklist: newList });
           break;
@@ -405,16 +490,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const storage = await chrome.storage.local.get(['levelupWebUrl']);
           const targetUrl = message.targetUrl || storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
           const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+          let targetTabId = null;
+
           if (tabs.length > 0) {
+            targetTabId = tabs[0].id;
             await chrome.tabs.update(tabs[0].id, { active: true });
             if (tabs[0].windowId) {
               await chrome.windows.update(tabs[0].windowId, { focused: true });
             }
-            sendResponse({ success: true, tabId: tabs[0].id });
           } else {
             const newTab = await chrome.tabs.create({ url: targetUrl });
-            sendResponse({ success: true, tabId: newTab.id });
+            targetTabId = newTab.id;
           }
+
+          // Close the current distracted page tab if requested
+          const senderTabId = sender?.tab?.id;
+          if (message.closeCurrentTab && senderTabId && senderTabId !== targetTabId) {
+            try {
+              await chrome.tabs.remove(senderTabId);
+            } catch (closeErr) {
+              console.warn('[LevelUp Shield] Could not close sender tab:', closeErr);
+            }
+          }
+
+          sendResponse({ success: true, tabId: targetTabId });
           break;
         }
 

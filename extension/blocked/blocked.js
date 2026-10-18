@@ -4,6 +4,7 @@
 
 const ARBITER_QUOTES = [
   '"Cám dỗ nhất thời không xứng đáng để ngươi đánh đổi chuỗi ngày kiên trì và danh dự mạo hiểm giả!"',
+  '"Thú cưng đồng hành đã bị hóa đá vì ngươi lướt mạng trong giờ luyện kiếm! Mau quay lại để giải trừ phong ấn!"',
   '"Một hiệp sĩ chân chính không bao giờ gục ngã trước vài phút lướt mạng vô bổ!"',
   '"Vàng và danh vọng chỉ trao cho kẻ biết giữ vững kỷ luật. Hãy hoàn thành nhiệm vụ!"',
   '"Mọi giấc mơ lớn đều được xây đắp từ những phiên tập trung nhỏ này. Đừng bỏ cuộc!"',

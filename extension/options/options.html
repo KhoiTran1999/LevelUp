@@ -105,6 +105,65 @@
       </div>
     </div>
 
+    <!-- Section 5: Mini HUD & Discipline Behavior -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-sm space-y-4">
+      <h2 class="text-sm font-bold text-white flex items-center gap-1.5">
+        <span>⏱️</span> Đồng Hồ Nổi Mini HUD & Hành Vi Phân Tâm
+      </h2>
+      <p class="text-xs text-slate-400">Tùy chỉnh viên thuốc đếm giờ nổi (Chấm trạng thái Xanh/Đỏ, thời gian và nút ×) cùng cơ chế chuyển hướng phong ấn:</p>
+
+      <!-- Toggle Mascot / Mini HUD -->
+      <div class="flex items-center justify-between pt-2">
+        <div>
+          <div class="text-xs font-bold text-white flex items-center gap-1">
+            <span>⏱️</span> Bật Viên Thuốc Đếm Giờ Mini (Floating HUD)
+          </div>
+          <div class="text-[11px] text-slate-400">Viên thuốc nhỏ gọn ở góc màn hình gồm chấm trạng thái Xanh/Đỏ, thời gian đếm ngược và nút ×</div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggle-mascot-enabled" class="sr-only peer" checked>
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+        </label>
+      </div>
+
+      <!-- Toggle Sound -->
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <div>
+          <div class="text-xs font-bold text-white flex items-center gap-1">
+            <span>🔊</span> Âm Thanh 8-Bit (Chiptune Sound FX)
+          </div>
+          <div class="text-[11px] text-slate-400">Hiệu ứng âm thanh khi nổ pháo hoa hoàn thành phiên tập trung</div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggle-sound-enabled" class="sr-only peer" checked>
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+        </label>
+      </div>
+
+      <!-- Block Mode Radio -->
+      <div class="pt-3 border-t border-slate-800">
+        <label class="block text-xs font-bold text-white mb-2">
+          🛡️ Hành Vi Khi Mở Trang Phân Tâm (Facebook, TikTok, YouTube...):
+        </label>
+        <div class="space-y-2">
+          <label class="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+            <input type="radio" name="block-mode" value="redirect" id="radio-mode-redirect" class="mt-0.5 text-indigo-600 focus:ring-0" checked>
+            <div>
+              <div class="text-xs font-bold text-indigo-300">1. Phong Ấn Chuyển Trang (Mặc Định — Motion Toàn Màn Hình)</div>
+              <div class="text-[11px] text-slate-400">Tự động chuyển hướng ngay sang trang toàn màn hình "Khiên Kỷ Luật LevelUp" với hiệu ứng Motion ánh sáng, quả cầu năng lượng và đồng hồ đếm ngược trực quan.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+            <input type="radio" name="block-mode" value="in_page_alert" id="radio-mode-alert" class="mt-0.5 text-indigo-600 focus:ring-0">
+            <div>
+              <div class="text-xs font-bold text-indigo-300">2. Cảnh Báo Tại Chỗ (Chấm Đỏ Trên Mini HUD)</div>
+              <div class="text-[11px] text-slate-400">Không chuyển trang. Giữ nguyên tab đang xem nhưng chấm trạng thái trên Mini HUD chuyển sang màu Đỏ cảnh báo.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Save Button & Alert Feedback -->
     <div class="flex items-center justify-between">
       <div id="save-status" class="text-xs font-bold text-emerald-400 hidden">

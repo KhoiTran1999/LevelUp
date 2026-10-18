@@ -95,6 +95,15 @@
     if (event.data && event.data.type === 'LEVELUP_TIMER_STATE_BROADCAST') {
       const state = event.data.state || readCurrentTimer();
       syncTimerToExtension(state);
+    } else if (event.data && event.data.type === 'LEVELUP_FOCUS_COMPLETED') {
+      try {
+        chrome.runtime.sendMessage({
+          type: 'FOCUS_SESSION_COMPLETED',
+          detail: event.data.detail || {}
+        }, () => {
+          if (chrome.runtime.lastError) {}
+        });
+      } catch (_) {}
     }
   });
 

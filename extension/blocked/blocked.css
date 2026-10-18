@@ -59,6 +59,19 @@ body {
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(99, 102, 241, 0.2);
   backdrop-filter: blur(16px);
+  animation: cardEntrance 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards, cardRumble 0.35s ease-in-out 0.45s 3;
+}
+
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cardRumble {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-3px, 1.5px) rotate(-1deg); }
+  50% { transform: translate(3px, -1.5px) rotate(1deg); }
+  75% { transform: translate(-2px, -1.5px) rotate(-0.5deg); }
 }
 
 .glow-orb {
