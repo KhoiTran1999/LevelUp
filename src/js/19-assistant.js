@@ -913,6 +913,7 @@ function acceptAssistantReward(encodedJson, btnEl) {
 window.holdFocusTimer = holdFocusTimer;
 window.clearSavedQuestTimer = clearSavedQuestTimer;
 window.clearSavedRewardTimer = clearSavedRewardTimer;
+window.cancelQuestFocusSession = cancelQuestFocusSession;
 window.acceptAssistantQuest = acceptAssistantQuest;
 window.acceptAssistantReward = acceptAssistantReward;
 window.sendQuickAssistantPrompt = sendQuickAssistantPrompt;

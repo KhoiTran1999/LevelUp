@@ -67,6 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
               if (it) delete it.savedTimer;
               renderInventory();
             }
+          } else if (event.data.action === 'cancelFocusSession') {
+            lastLocalTimerActionTime = Date.now();
+            if (event.data.questId) {
+              const q = appState.quests?.find(x => x.id === event.data.questId);
+              if (q) {
+                delete q.focusTimerCompleted;
+                delete q._proofVerified;
+                delete q.savedTimer;
+              }
+              renderQuests();
+            }
           } else if (event.data.action === 'pause' && isFocusRunning) {
             lastLocalTimerActionTime = Date.now();
             isFocusRunning = false;
@@ -1278,6 +1289,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSubmitProof.addEventListener('click', () => {
       sfx.playClick();
       submitQuestProofToAI();
+    });
+  }
+
+  const btnCancelProofSession = document.getElementById('btn-cancel-proof-session');
+  if (btnCancelProofSession) {
+    btnCancelProofSession.addEventListener('click', () => {
+      if (typeof currentProofQuest !== 'undefined' && currentProofQuest) {
+        cancelQuestFocusSession(currentProofQuest.id);
+      }
     });
   }
   const inputProofNote = document.getElementById('input-quest-proof-note');

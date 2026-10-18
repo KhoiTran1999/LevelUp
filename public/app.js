@@ -3914,6 +3914,54 @@ async function clearSavedQuestTimer(questId) {
   showToast(`Đã hủy bảo lưu "${quest.title}".`, 'info');
 }
 
+async function cancelQuestFocusSession(questId) {
+  const quest = appState.quests?.find(q => q.id === questId);
+  if (!quest) return;
+  if (!quest.focusTimerCompleted && !(activeFocusQuest && activeFocusQuest.id === questId)) return;
+
+  const ok = await confirmAction({
+    title: 'Hủy Phiên Tập Trung?',
+    message: `Bạn có chắc muốn hủy phiên tập trung của "${quest.title}"?`,
+    detail: '⚠️ Phiên tập trung sẽ bị hủy bỏ, bạn sẽ không nhận được Vàng thưởng và nhiệm vụ sẽ quay về trạng thái ban đầu để có thể bắt đầu lại bất cứ lúc nào.',
+    confirmText: 'Hủy Phiên ⏹️',
+    cancelText: 'Giữ Lại',
+    icon: '⏹️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  if (activeFocusQuest && activeFocusQuest.id === quest.id) {
+    clearFocusTimerSession(true);
+  }
+
+  delete quest.focusTimerCompleted;
+  delete quest._proofVerified;
+  delete quest.savedTimer;
+
+  triggerSave(true);
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.postMessage({
+        type: 'TIMER_SYNC_UPDATE',
+        tabId: CURRENT_TAB_ID,
+        action: 'cancelFocusSession',
+        questId: quest.id
+      });
+      syncChannel.close();
+    } catch (_) {}
+  }
+
+  closeModal('modal-quest-detail');
+  closeModal('modal-quest-proof');
+  renderQuests();
+  sfx.playClick();
+  showToast(`Đã hủy phiên tập trung của "${quest.title}".`, 'info');
+}
+
+window.cancelQuestFocusSession = cancelQuestFocusSession;
+
 async function clearSavedRewardTimer(invId) {
   const item = appState.inventory?.find(i => i.id === invId);
   if (!item || !item.savedTimer) return;
@@ -5226,6 +5274,15 @@ function openQuestProofModal(quest) {
   const tabSwitcher = document.getElementById('proof-tab-switcher');
   if (tabSwitcher) {
     tabSwitcher.classList.add('hidden');
+  }
+
+  const cancelProofSessionBtn = document.getElementById('btn-cancel-proof-session');
+  if (cancelProofSessionBtn) {
+    if (quest.focusTimerCompleted) {
+      cancelProofSessionBtn.classList.remove('hidden');
+    } else {
+      cancelProofSessionBtn.classList.add('hidden');
+    }
   }
 
   openModal('modal-quest-proof');
@@ -10229,6 +10286,9 @@ function renderQuests() {
           ${hasSavedTimer ? `
             <button type="button" class="btn-clear-saved-timer">Hủy bảo lưu</button>
           ` : ''}
+          ${q.focusTimerCompleted ? `
+            <button type="button" class="btn-cancel-focus-session text-rose-600 dark:text-rose-400">Hủy phiên tập trung</button>
+          ` : ''}
           ${!isCompleted ? `
             <button type="button" class="btn-debate-quest">Thương lượng AI</button>
           ` : ''}
@@ -10315,6 +10375,15 @@ function renderQuests() {
         e.stopPropagation();
         closeAllCardDropdowns();
         clearSavedQuestTimer(q.id);
+      });
+    }
+
+    const cancelFocusBtn = card.querySelector('.btn-cancel-focus-session');
+    if (cancelFocusBtn) {
+      cancelFocusBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllCardDropdowns();
+        cancelQuestFocusSession(q.id);
       });
     }
 
@@ -10585,37 +10654,55 @@ function openQuestDetailModal(questId) {
       });
     } else if (q.focusTimerCompleted && q.requiresProof) {
       primaryActionContainer.innerHTML = `
-        <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-          ${q.proofType === 'both' ? `
-            <span>📸+✍️</span>
-            <span>Nộp Ảnh & Báo Cáo Nhận Vàng</span>
-          ` : (q.proofType === 'text' ? `
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            <span>Nộp Báo Cáo Nhận Vàng ✍️</span>
-          ` : `
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-            <span>Chụp Ảnh Nhận Vàng 📸</span>
-          `)}
-        </button>
+        <div class="space-y-2">
+          <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
+            ${q.proofType === 'both' ? `
+              <span>📸+✍️</span>
+              <span>Nộp Ảnh & Báo Cáo Nhận Vàng</span>
+            ` : (q.proofType === 'text' ? `
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              <span>Nộp Báo Cáo Nhận Vàng ✍️</span>
+            ` : `
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
+              <span>Chụp Ảnh Nhận Vàng 📸</span>
+            `)}
+          </button>
+          <button id="mqd-btn-cancel-session" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Hủy kết quả phiên tập trung này để bắt đầu lại">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <span>Hủy Phiên Này (Không nộp bằng chứng)</span>
+          </button>
+        </div>
       `;
       document.getElementById('mqd-btn-proof')?.addEventListener('click', () => {
         window.parentDetailQuestId = q.id;
         closeModal('modal-quest-detail');
         openQuestProofModal(q);
       });
+      document.getElementById('mqd-btn-cancel-session')?.addEventListener('click', () => {
+        cancelQuestFocusSession(q.id);
+      });
     } else if (q.type === 'focus') {
       if (isTimerDone) {
         primaryActionContainer.innerHTML = `
-          <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-            <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
-          </button>
+          <div class="space-y-2">
+            <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
+              <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
+            </button>
+            <button id="mqd-btn-cancel-session" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Hủy phiên tập trung này để bắt đầu lại">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              <span>Hủy Phiên Tập Trung Này</span>
+            </button>
+          </div>
         `;
         document.getElementById('mqd-btn-focus-done')?.addEventListener('click', () => {
           closeModal('modal-quest-detail');
           actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
           focusRemainingSeconds = 0;
           focusTimerFinished();
+        });
+        document.getElementById('mqd-btn-cancel-session')?.addEventListener('click', () => {
+          cancelQuestFocusSession(q.id);
         });
       } else if (isCurrentlyFocusing) {
         primaryActionContainer.innerHTML = `
@@ -16353,6 +16440,17 @@ document.addEventListener('DOMContentLoaded', () => {
               if (it) delete it.savedTimer;
               renderInventory();
             }
+          } else if (event.data.action === 'cancelFocusSession') {
+            lastLocalTimerActionTime = Date.now();
+            if (event.data.questId) {
+              const q = appState.quests?.find(x => x.id === event.data.questId);
+              if (q) {
+                delete q.focusTimerCompleted;
+                delete q._proofVerified;
+                delete q.savedTimer;
+              }
+              renderQuests();
+            }
           } else if (event.data.action === 'pause' && isFocusRunning) {
             lastLocalTimerActionTime = Date.now();
             isFocusRunning = false;
@@ -17564,6 +17662,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSubmitProof.addEventListener('click', () => {
       sfx.playClick();
       submitQuestProofToAI();
+    });
+  }
+
+  const btnCancelProofSession = document.getElementById('btn-cancel-proof-session');
+  if (btnCancelProofSession) {
+    btnCancelProofSession.addEventListener('click', () => {
+      if (typeof currentProofQuest !== 'undefined' && currentProofQuest) {
+        cancelQuestFocusSession(currentProofQuest.id);
+      }
     });
   }
   const inputProofNote = document.getElementById('input-quest-proof-note');
@@ -19265,6 +19372,7 @@ function acceptAssistantReward(encodedJson, btnEl) {
 window.holdFocusTimer = holdFocusTimer;
 window.clearSavedQuestTimer = clearSavedQuestTimer;
 window.clearSavedRewardTimer = clearSavedRewardTimer;
+window.cancelQuestFocusSession = cancelQuestFocusSession;
 window.acceptAssistantQuest = acceptAssistantQuest;
 window.acceptAssistantReward = acceptAssistantReward;
 window.sendQuickAssistantPrompt = sendQuickAssistantPrompt;

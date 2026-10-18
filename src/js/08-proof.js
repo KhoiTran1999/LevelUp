@@ -381,6 +381,15 @@ function openQuestProofModal(quest) {
     tabSwitcher.classList.add('hidden');
   }
 
+  const cancelProofSessionBtn = document.getElementById('btn-cancel-proof-session');
+  if (cancelProofSessionBtn) {
+    if (quest.focusTimerCompleted) {
+      cancelProofSessionBtn.classList.remove('hidden');
+    } else {
+      cancelProofSessionBtn.classList.add('hidden');
+    }
+  }
+
   openModal('modal-quest-proof');
 }
 

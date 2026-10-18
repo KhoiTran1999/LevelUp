@@ -1606,6 +1606,54 @@ async function clearSavedQuestTimer(questId) {
   showToast(`Đã hủy bảo lưu "${quest.title}".`, 'info');
 }
 
+async function cancelQuestFocusSession(questId) {
+  const quest = appState.quests?.find(q => q.id === questId);
+  if (!quest) return;
+  if (!quest.focusTimerCompleted && !(activeFocusQuest && activeFocusQuest.id === questId)) return;
+
+  const ok = await confirmAction({
+    title: 'Hủy Phiên Tập Trung?',
+    message: `Bạn có chắc muốn hủy phiên tập trung của "${quest.title}"?`,
+    detail: '⚠️ Phiên tập trung sẽ bị hủy bỏ, bạn sẽ không nhận được Vàng thưởng và nhiệm vụ sẽ quay về trạng thái ban đầu để có thể bắt đầu lại bất cứ lúc nào.',
+    confirmText: 'Hủy Phiên ⏹️',
+    cancelText: 'Giữ Lại',
+    icon: '⏹️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  if (activeFocusQuest && activeFocusQuest.id === quest.id) {
+    clearFocusTimerSession(true);
+  }
+
+  delete quest.focusTimerCompleted;
+  delete quest._proofVerified;
+  delete quest.savedTimer;
+
+  triggerSave(true);
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncChannel = new BroadcastChannel('levelup_sync_channel');
+      syncChannel.postMessage({
+        type: 'TIMER_SYNC_UPDATE',
+        tabId: CURRENT_TAB_ID,
+        action: 'cancelFocusSession',
+        questId: quest.id
+      });
+      syncChannel.close();
+    } catch (_) {}
+  }
+
+  closeModal('modal-quest-detail');
+  closeModal('modal-quest-proof');
+  renderQuests();
+  sfx.playClick();
+  showToast(`Đã hủy phiên tập trung của "${quest.title}".`, 'info');
+}
+
+window.cancelQuestFocusSession = cancelQuestFocusSession;
+
 async function clearSavedRewardTimer(invId) {
   const item = appState.inventory?.find(i => i.id === invId);
   if (!item || !item.savedTimer) return;
