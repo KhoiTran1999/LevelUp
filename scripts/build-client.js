@@ -24,6 +24,12 @@ export function buildClient() {
   const parts = [];
   for (const file of files) {
     const filePath = path.join(srcJsDir, file);
+    try {
+      execSync(`node -c "${filePath}"`, { stdio: 'pipe' });
+    } catch (err) {
+      console.error(`❌ Syntax Error detected in module: src/js/${file}!`);
+      throw err;
+    }
     const content = fs.readFileSync(filePath, 'utf8');
     parts.push(content);
   }

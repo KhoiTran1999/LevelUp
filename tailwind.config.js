@@ -2,7 +2,8 @@
 export default {
   darkMode: 'class',
   content: [
-    './public/**/*.{html,js}',
+    './public/index.html',
+    './public/vendor/**/*.js',
     './src/**/*.{html,js}',
   ],
   theme: {

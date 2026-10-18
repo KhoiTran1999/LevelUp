@@ -1255,10 +1255,46 @@ export default async function handler(req, res) {
 
         const users = [];
         const seenSubs = new Set();
+        const userKeyList = Array.from(userKeySet);
 
-        for (const subOrKey of userKeySet) {
-          let raw = await redis.get(`levelup:user:google:${subOrKey}`);
-          if (!raw) raw = await redis.get(`levelup:user:${subOrKey}`);
+        // Batch fetch primary keys: levelup:user:google:<subOrKey>
+        const googleKeys = userKeyList.map(subOrKey => `levelup:user:google:${subOrKey}`);
+        let rawGoogleList = [];
+        if (googleKeys.length > 0) {
+          if (typeof redis.mget === 'function') {
+            rawGoogleList = await redis.mget(...googleKeys);
+          } else {
+            rawGoogleList = await Promise.all(googleKeys.map(k => redis.get(k)));
+          }
+        }
+
+        // Identify any misses that might need legacy levelup:user:<key> fallback
+        const missedIndices = [];
+        for (let i = 0; i < userKeyList.length; i++) {
+          if (!rawGoogleList[i]) missedIndices.push(i);
+        }
+
+        let rawLegacyList = [];
+        if (missedIndices.length > 0) {
+          const legacyKeys = missedIndices.map(idx => `levelup:user:${userKeyList[idx]}`);
+          if (typeof redis.mget === 'function') {
+            rawLegacyList = await redis.mget(...legacyKeys);
+          } else {
+            rawLegacyList = await Promise.all(legacyKeys.map(k => redis.get(k)));
+          }
+        }
+
+        const rawDataList = [...rawGoogleList];
+        for (let j = 0; j < missedIndices.length; j++) {
+          const origIdx = missedIndices[j];
+          if (rawLegacyList[j]) {
+            rawDataList[origIdx] = rawLegacyList[j];
+          }
+        }
+
+        for (let i = 0; i < userKeyList.length; i++) {
+          const subOrKey = userKeyList[i];
+          let raw = rawDataList[i];
           if (!raw) {
             const mapped = await redis.get(`levelup:nick_to_sub:${sanitizeNickname(subOrKey)}`);
             if (mapped) {

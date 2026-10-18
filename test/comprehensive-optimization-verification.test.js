@@ -1,0 +1,104 @@
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import handler, { setRedisClientForTesting } from '../api/sync.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+console.log('=== KIỂM THỬ XÁC MINH CÁC TỐI ƯU HÓA ĐÃ TRIỂN KHAI (1, 2, 4, 5) ===\n');
+
+// 1. Kiểm thử server.js có tích hợp compression, apiCacheControl và gracefulShutdown
+{
+  const serverCode = fs.readFileSync(path.join(rootDir, 'server.js'), 'utf8');
+  assert.ok(serverCode.includes("import compression from 'compression'"), 'server.js phải import compression');
+  assert.ok(serverCode.includes('app.use(compression('), 'server.js phải kích hoạt compression middleware');
+  assert.ok(serverCode.includes('Cache-Control') && serverCode.includes('private, no-cache, no-store'), 'server.js phải cấu hình Cache-Control no-store cho API');
+  assert.ok(serverCode.includes('gracefulShutdown'), 'server.js phải xử lý gracefulShutdown');
+  console.log('✓ Mục 1: server.js đã tích hợp chuẩn HTTP compression, Cache-Control API và Graceful Shutdown.');
+}
+
+// 2. Kiểm thử api/sync.js batching mget cho admin_list_users
+{
+  let mgetCallCount = 0;
+  const mockStore = new Map();
+  for (let i = 1; i <= 5; i++) {
+    mockStore.set(`levelup:user:google:user_${i}`, JSON.stringify({
+      profile: { nickname: `Hero ${i}`, level: i, coins: i * 10, totalCoinsEarned: i * 20 }
+    }));
+  }
+
+  const mockBatchRedis = {
+    status: 'ready',
+    async connect() {},
+    async smembers(key) {
+      if (key === 'levelup:all_users') {
+        return ['user_1', 'user_2', 'user_3', 'user_4', 'user_5'];
+      }
+      return [];
+    },
+    async zrevrange() { return []; },
+    async mget(...keys) {
+      mgetCallCount++;
+      return keys.map(k => mockStore.get(k) || null);
+    },
+    async get(key) {
+      return mockStore.get(key) || null;
+    }
+  };
+
+  setRedisClientForTesting(mockBatchRedis);
+
+  process.env.ADMIN_TOKEN = 'test_admin_token';
+  const mockReq = {
+    method: 'GET',
+    headers: { authorization: 'Bearer test_admin_token' },
+    query: { action: 'admin_list_users' }
+  };
+
+  let responseData = null;
+  const mockRes = {
+    setHeader() {},
+    status(code) {
+      return {
+        json: (data) => {
+          responseData = data;
+          return data;
+        },
+        end: () => {}
+      };
+    }
+  };
+
+  await handler(mockReq, mockRes);
+  assert.ok(responseData && responseData.success, 'admin_list_users phải trả về success: true');
+  assert.strictEqual(responseData.users.length, 5, 'Phải tải đủ 5 users');
+  assert.ok(mgetCallCount >= 1, 'admin_list_users phải sử dụng mget để batching truy vấn');
+  console.log('✓ Mục 2: admin_list_users đã batching O(1) query bằng mget thành công.');
+}
+
+// 4. Kiểm thử 03-storage.js giải phóng BroadcastChannel trong finally
+{
+  const storageCode = fs.readFileSync(path.join(rootDir, 'src', 'js', '03-storage.js'), 'utf8').replace(/\r\n/g, '\n');
+  assert.ok(storageCode.includes('finally {\n        ch.close();\n      }'), '03-storage.js phải đóng channel trong khối finally');
+  console.log('✓ Mục 4: src/js/03-storage.js đã bọc ch.close() trong finally để chống rò rỉ tài nguyên.');
+}
+
+// 5. Kiểm thử sw.js và tailwind.config.js và build-client.js
+{
+  const swCode = fs.readFileSync(path.join(rootDir, 'public', 'sw.js'), 'utf8');
+  assert.ok(swCode.includes('ignoreSearch: true'), 'public/sw.js phải sử dụng ignoreSearch: true khi match cache');
+
+  const tailwindConfig = fs.readFileSync(path.join(rootDir, 'tailwind.config.js'), 'utf8');
+  assert.ok(!tailwindConfig.includes('./public/**/*.{html,js}'), 'tailwind.config.js không được quét trùng public/app.js');
+  assert.ok(tailwindConfig.includes('./public/index.html'), 'tailwind.config.js phải quét public/index.html');
+
+  const buildClientCode = fs.readFileSync(path.join(rootDir, 'scripts', 'build-client.js'), 'utf8');
+  assert.ok(buildClientCode.includes('Syntax Error detected in module: src/js/'), 'scripts/build-client.js phải kiểm tra cú pháp từng module');
+
+  console.log('✓ Mục 5: sw.js có ignoreSearch: true, tailwind.config.js tối ưu scanning, build-client.js kiểm tra cú pháp từng file.');
+}
+
+console.log('\n🎉 TẤT CẢ CÁC MỤC TỐI ƯU HÓA 1, 2, 4, 5 ĐÃ ĐƯỢC XÁC MINH HOÀN TOÀN!');

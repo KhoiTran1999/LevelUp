@@ -1243,17 +1243,20 @@ function triggerSave(needsCloud = true, immediate = false, timerAction = null, s
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const ch = new BroadcastChannel('levelup_sync_channel');
-      ch.postMessage({
-        type: 'STATE_UPDATED',
-        tabId: CURRENT_TAB_ID,
-        profile: {
-          coins: appState.profile.coins,
-          totalCoinsEarned: appState.profile.totalCoinsEarned,
-          adminAdjusted: appState.profile.adminAdjusted,
-          bank: appState.profile.bank
-        }
-      });
-      ch.close();
+      try {
+        ch.postMessage({
+          type: 'STATE_UPDATED',
+          tabId: CURRENT_TAB_ID,
+          profile: {
+            coins: appState.profile.coins,
+            totalCoinsEarned: appState.profile.totalCoinsEarned,
+            adminAdjusted: appState.profile.adminAdjusted,
+            bank: appState.profile.bank
+          }
+        });
+      } finally {
+        ch.close();
+      }
     } catch (_) {}
   }
 
