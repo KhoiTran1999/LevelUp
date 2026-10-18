@@ -840,8 +840,10 @@ function renderVerdictStep() {
 
   updateVerdictDisplay();
 
-  document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
-  document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
+  const speechEl = document.getElementById('verdict-speech');
+  if (speechEl && currentPendingVerdict.verdict) speechEl.textContent = `"${currentPendingVerdict.verdict}"`;
+  const adviceEl = document.getElementById('verdict-advice');
+  if (adviceEl && currentPendingVerdict.advice) adviceEl.textContent = currentPendingVerdict.advice;
 
   // AI Modification Notice
   const modNotice = document.getElementById('verdict-modified-notice');
@@ -905,8 +907,10 @@ function openQuestRenegotiateModal(questId) {
   document.getElementById('quest-verdict-step').classList.remove('hidden');
 
   updateVerdictDisplay();
-  document.getElementById('verdict-speech').textContent = `"${currentPendingVerdict.verdict}"`;
-  document.getElementById('verdict-advice').textContent = currentPendingVerdict.advice;
+  const speechEl = document.getElementById('verdict-speech');
+  if (speechEl && currentPendingVerdict.verdict) speechEl.textContent = `"${currentPendingVerdict.verdict}"`;
+  const adviceEl = document.getElementById('verdict-advice');
+  if (adviceEl && currentPendingVerdict.advice) adviceEl.textContent = currentPendingVerdict.advice;
 
   const modNotice = document.getElementById('verdict-modified-notice');
   if (modNotice) modNotice.classList.add('hidden');
