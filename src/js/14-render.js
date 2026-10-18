@@ -1032,13 +1032,21 @@ function openQuestDetailModal(questId) {
   modal.classList.remove('sheet-closing');
   modal.style.pointerEvents = '';
   modal.style.opacity = '';
+  modal.style.transition = '';
   modal.style.backgroundColor = '';
   const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
   if (panel) {
     panel.style.transform = '';
     panel.style.transition = '';
     panel.style.opacity = '';
+    if (typeof panel.getAnimations === 'function') {
+      try { panel.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+    }
   }
+  if (typeof modal.getAnimations === 'function') {
+    try { modal.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+  }
+  modal._suppressBackdropClick = false;
   modal.classList.remove('hidden');
 }
 window.openQuestDetailModal = openQuestDetailModal;
@@ -1630,13 +1638,21 @@ function openRewardDetailModal(itemId, source) {
   modal.classList.remove('sheet-closing');
   modal.style.pointerEvents = '';
   modal.style.opacity = '';
+  modal.style.transition = '';
   modal.style.backgroundColor = '';
   const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
   if (panel) {
     panel.style.transform = '';
     panel.style.transition = '';
     panel.style.opacity = '';
+    if (typeof panel.getAnimations === 'function') {
+      try { panel.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+    }
   }
+  if (typeof modal.getAnimations === 'function') {
+    try { modal.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+  }
+  modal._suppressBackdropClick = false;
   modal.classList.remove('hidden');
 }
 window.openRewardDetailModal = openRewardDetailModal;

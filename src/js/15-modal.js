@@ -387,16 +387,28 @@ function dismissModalWithSlideDown(modal, onDone) {
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const targetY = isMobile ? '105%' : '60px';
-  const targetOpacity = isMobile ? 0.2 : 0;
 
   let cleanedUp = false;
   const cleanup = () => {
     if (cleanedUp) return;
     cleanedUp = true;
+
+    // 1. Hủy bỏ mọi animation đang chạy để không bị khóa transform/opacity
+    try {
+      if (panel && typeof panel.getAnimations === 'function') {
+        panel.getAnimations().forEach(a => a.cancel());
+      }
+      if (modal && typeof modal.getAnimations === 'function') {
+        modal.getAnimations().forEach(a => a.cancel());
+      }
+    } catch (_) {}
+
+    // 2. Ẩn modal và trả lại style sạch hoàn toàn
     modal.classList.add('hidden');
     modal.classList.remove('sheet-closing');
     modal.style.pointerEvents = '';
     modal.style.opacity = '';
+    modal.style.transition = '';
     modal.style.backgroundColor = '';
     if (panel) {
       panel.style.transform = '';
@@ -404,7 +416,9 @@ function dismissModalWithSlideDown(modal, onDone) {
       panel.style.opacity = '';
     }
 
-    // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
+    modal._suppressBackdropClick = false;
+
+    // 3. Quay lại modal chi tiết nhiệm vụ trước đó nếu có
     if (typeof window !== 'undefined' && window.parentDetailQuestId && (modal.id === 'modal-quest' || modal.id === 'modal-frequency-detail' || modal.id === 'modal-quest-proof')) {
       const returnQuestId = window.parentDetailQuestId;
       window.parentDetailQuestId = null;
@@ -417,36 +431,19 @@ function dismissModalWithSlideDown(modal, onDone) {
     if (typeof onDone === 'function') onDone();
   };
 
-  try {
-    if (panel && typeof panel.animate === 'function') {
-      const panelAnim = panel.animate([
-        { transform: `translate3d(0, ${currentY}px, 0)`, opacity: '1' },
-        { transform: isMobile ? `translate3d(0, ${targetY}, 0)` : `translate3d(0, ${targetY}, 0) scale(0.96)`, opacity: targetOpacity }
-      ], {
-        duration: 230,
-        easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)',
-        fill: 'forwards'
-      });
-      panelAnim.onfinish = cleanup;
-
-      if (typeof modal.animate === 'function') {
-        modal.animate([
-          { opacity: '1' },
-          { opacity: '0' }
-        ], {
-          duration: 230,
-          easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)',
-          fill: 'forwards'
-        });
-      }
-
-      setTimeout(cleanup, 260);
-    } else {
-      setTimeout(cleanup, 230);
-    }
-  } catch (_) {
-    cleanup();
+  // Nếu người dùng đã kéo dở dang bằng tay (currentY > 0), dùng transition trượt tiếp từ vị trí đó xuống
+  if (panel && currentY > 0) {
+    panel.style.transition = 'transform 0.22s cubic-bezier(0.3, 0, 0.8, 0.15), opacity 0.22s ease';
+    panel.style.transform = isMobile ? 'translate3d(0, 105%, 0)' : 'translate3d(0, 60px, 0)';
+    panel.style.opacity = '0';
+    modal.style.transition = 'opacity 0.22s ease';
+    modal.style.opacity = '0';
+    setTimeout(cleanup, 230);
+    return;
   }
+
+  // Nếu đóng bình thường (click x, click ngoài, Esc), class .sheet-closing trong CSS sẽ chạy animation 240ms
+  setTimeout(cleanup, 240);
 }
 window.dismissModalWithSlideDown = dismissModalWithSlideDown;
 
@@ -456,13 +453,21 @@ function openModal(id) {
   modal.classList.remove('sheet-closing');
   modal.style.pointerEvents = '';
   modal.style.opacity = '';
+  modal.style.transition = '';
   modal.style.backgroundColor = '';
   const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
   if (panel) {
     panel.style.transform = '';
     panel.style.transition = '';
     panel.style.opacity = '';
+    if (typeof panel.getAnimations === 'function') {
+      try { panel.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+    }
   }
+  if (typeof modal.getAnimations === 'function') {
+    try { modal.getAnimations().forEach(a => a.cancel()); } catch (_) {}
+  }
+  modal._suppressBackdropClick = false;
   modal.classList.remove('hidden');
 }
 

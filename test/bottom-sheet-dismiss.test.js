@@ -58,4 +58,20 @@ assert.ok(js.includes('translate3d(0, ${deltaY}px, 0)'), 'panel phải theo ngó
 assert.ok(js.includes('shouldDismiss'), 'phải có logic kiểm tra ngưỡng khoảng cách và vận tốc để thoát');
 console.log('✓ Test 3: JavaScript Gestures & Animation logic hoàn chỉnh 100%.\n');
 
+// 4. Kiểm tra khả năng mở lại modal sau khi trượt xuống thoát (Tránh lỗi kẹt animation fill/opacity)
+console.log('Test 4: Kiểm tra khả năng mở lại modal sau khi trượt xuống...');
+assert.ok(
+  js.includes('panel.getAnimations().forEach(a => a.cancel())') || js.includes('panel.getAnimations().forEach(a => a.cancel());'),
+  'phải hủy bỏ các animation đang chạy để không bị khóa transform/opacity'
+);
+assert.ok(
+  !js.includes("fill: 'forwards'"),
+  'không được giữ animation fill: forwards vĩnh viễn gây kẹt màn hình transparent'
+);
+assert.ok(
+  js.includes("modal._suppressBackdropClick = false;"),
+  'phải giải phóng cờ chặn backdrop click sau khi thoát'
+);
+console.log('✓ Test 4: Modal giải phóng hoàn toàn animation lock, mở lại mượt mà 100% sau khi trượt xuống.\n');
+
 console.log('🎉 TẤT CẢ TEST BOTTOM SHEET PULL-TO-DISMISS & SLIDE-DOWN EXIT ĐÃ PASS XUẤT SẮC!');
