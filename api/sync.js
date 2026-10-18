@@ -484,8 +484,10 @@ export async function saveGlobalBankState(redis, bankState) {
  * Cryptographically verifies AI signatures on quests and shop prices. Zero-trust: quests without AI signatures award 0 coins.
  */
 export function deriveLegitimateBalance(state, existingState = null) {
-  let rawTotal = parseInt(state?.profile?.totalCoinsEarned, 10) || 20;
-  let rawCoins = parseInt(state?.profile?.coins, 10) || 20;
+  const parsedTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
+  let rawTotal = Number.isFinite(parsedTotal) ? Math.max(0, parsedTotal) : 20;
+  const parsedCoins = parseInt(state?.profile?.coins, 10);
+  let rawCoins = Number.isFinite(parsedCoins) ? Math.max(0, parsedCoins) : 20;
   let rawLevel = parseInt(state?.profile?.level, 10) || 1;
   let rawSpent = parseInt(state?.profile?.totalCoinsSpent, 10) || 0;
   return { coins: rawCoins, totalCoinsEarned: rawTotal, level: rawLevel, tampered: false, fine: 0, title: state?.profile?.title || deriveTitleForLevel(rawLevel), totalCoinsSpent: rawSpent };

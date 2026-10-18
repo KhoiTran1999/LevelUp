@@ -166,8 +166,10 @@ function computeStateIntegrity(profile) {
 
 // Anti-Cheat: Kiểm tra và tái tạo số dư Vàng hợp lệ dựa trên nhiệm vụ và kho đồ
 function deriveLegitimateBalance(state) {
-  let rawTotal = parseInt(state?.profile?.totalCoinsEarned, 10) || 20;
-  let rawCoins = parseInt(state?.profile?.coins, 10) || 20;
+  const parsedTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
+  let rawTotal = Number.isFinite(parsedTotal) ? Math.max(0, parsedTotal) : 20;
+  const parsedCoins = parseInt(state?.profile?.coins, 10);
+  let rawCoins = Number.isFinite(parsedCoins) ? Math.max(0, parsedCoins) : 20;
   let rawSpent = parseInt(state?.profile?.totalCoinsSpent, 10) || 0;
   return { coins: rawCoins, totalCoinsEarned: rawTotal, tampered: false, fine: 0, totalCoinsSpent: rawSpent };
 }
