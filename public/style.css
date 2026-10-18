@@ -3740,13 +3740,32 @@ html.dark .m3-skeleton-bar {
 }
 
 .m3-drag-handle {
-  width: 36px;
-  height: 4px;
+  width: 44px;
+  height: 5px;
   border-radius: 9999px;
-  background: var(--md-sys-color-outline-variant);
-  margin: 8px auto 6px auto;
+  background: var(--md-sys-color-outline-variant, #cbd5e1);
+  margin: 10px auto 8px auto;
   flex-shrink: 0;
   display: block;
+  cursor: grab;
+  position: relative;
+  touch-action: none;
+  transition: background-color 0.2s ease;
+}
+
+.m3-drag-handle::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  left: -24px;
+  right: -24px;
+}
+
+.m3-drag-handle:hover,
+.m3-drag-handle:active {
+  background: var(--md-sys-color-outline, #94a3b8);
+  cursor: grabbing;
 }
 
 @media (max-width: 639px) {
@@ -3764,7 +3783,28 @@ html.dark .m3-skeleton-bar {
     max-width: 100% !important;
     max-height: 88vh !important;
     margin: 0 !important;
+    will-change: transform, opacity;
     animation: sheetSlideUp var(--md-sys-motion-duration-long1) var(--md-sys-motion-easing-emphasized-decelerate) forwards !important;
+  }
+}
+
+/* Exit slide-down animations for M3 Bottom Sheets & Dialogs */
+.m3-modal-sheet.sheet-closing {
+  pointer-events: none !important;
+  animation: sheetBackdropFadeOut 240ms var(--md-sys-motion-easing-emphasized-accelerate, cubic-bezier(0.3, 0, 0.8, 0.15)) forwards !important;
+}
+
+@media (max-width: 639px) {
+  .m3-modal-sheet.sheet-closing > .m3-dialog-panel,
+  .m3-modal-sheet.sheet-closing > .rpg-panel {
+    animation: sheetSlideDown 240ms var(--md-sys-motion-easing-emphasized-accelerate, cubic-bezier(0.3, 0, 0.8, 0.15)) forwards !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .m3-modal-sheet.sheet-closing > .m3-dialog-panel,
+  .m3-modal-sheet.sheet-closing > .rpg-panel {
+    animation: dialogSlideDownExit 240ms var(--md-sys-motion-easing-emphasized-accelerate, cubic-bezier(0.3, 0, 0.8, 0.15)) forwards !important;
   }
 }
 
@@ -3776,6 +3816,37 @@ html.dark .m3-skeleton-bar {
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheetSlideDown {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0.15;
+    transform: translate3d(0, 105%, 0);
+  }
+}
+
+@keyframes dialogSlideDownExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translate3d(0, 60px, 0);
+  }
+}
+
+@keyframes sheetBackdropFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

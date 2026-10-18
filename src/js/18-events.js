@@ -1444,6 +1444,15 @@ document.addEventListener('DOMContentLoaded', () => {
           currentEditingQuestId = null;
           currentPendingVerdict = null;
         }
+
+        const isDismissibleSheet = modal.id === 'modal-quest-detail' ||
+                                   modal.id === 'modal-reward-detail' ||
+                                   modal.dataset?.sheetDismiss === 'true';
+        if (isDismissibleSheet && typeof dismissModalWithSlideDown === 'function') {
+          dismissModalWithSlideDown(modal);
+          return;
+        }
+
         modal.classList.add('hidden');
 
         // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
@@ -1459,14 +1468,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Chặn đóng modal khi click ra ngoài backdrop (kể cả Phù Thủy); chỉ cho phép thoát khi nhấn dấu x
+  // Chặn đóng modal khi click ra ngoài backdrop đối với các modal form/xác nhận quan trọng;
+  // Cho phép thoát nhanh với hiệu ứng trượt xuống khi click ra ngoài đối với modal chi tiết nhiệm vụ và phần thưởng
   document.querySelectorAll('.fixed').forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         if (modal.id === 'tour-overlay') return;
         if (modal.id === 'modal-welcome') {
           showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
+          return;
         }
+
+        const isDismissibleSheet = modal.id === 'modal-quest-detail' ||
+                                   modal.id === 'modal-reward-detail' ||
+                                   modal.dataset?.sheetDismiss === 'true';
+
+        if (isDismissibleSheet) {
+          if (!modal._suppressBackdropClick) {
+            if (typeof dismissModalWithSlideDown === 'function') {
+              dismissModalWithSlideDown(modal);
+            } else {
+              closeModal(modal.id);
+            }
+          }
+          return;
+        }
+
         const panel = modal.querySelector('.rpg-panel') || modal.querySelector('#assistant-panel');
         if (panel) {
           panel.classList.add('ring-4', 'ring-amber-500/60');
@@ -1476,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Phím Escape: chặn đóng tất cả modal (kể cả Phù Thủy); chỉ cho phép thoát khi nhấn dấu x
+  // Phím Escape: đóng modal chi tiết hoặc chặn đóng đối với modal quan trọng
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isTourActive) {
@@ -1486,6 +1513,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const openModal = document.querySelector('.fixed[id^="modal-"]:not(.hidden)');
       if (openModal) {
+        const isDismissibleSheet = openModal.id === 'modal-quest-detail' ||
+                                   openModal.id === 'modal-reward-detail' ||
+                                   openModal.dataset?.sheetDismiss === 'true';
+        if (isDismissibleSheet) {
+          e.preventDefault();
+          if (typeof dismissModalWithSlideDown === 'function') {
+            dismissModalWithSlideDown(openModal);
+          } else {
+            closeModal(openModal.id);
+          }
+          return;
+        }
+
         e.preventDefault();
         const panel = openModal.querySelector('.rpg-panel') || openModal.querySelector('#assistant-panel');
         if (panel) {
@@ -1580,6 +1620,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initHorizontalScrollContainers();
 
   initMaterialDesignInteractions();
+
+  // 5. Material Design 3 Bottom Sheet Drag-to-Dismiss Gestures
+  initBottomSheetGestures();
 });
 
 // =============================================================================
@@ -1690,5 +1733,159 @@ function initHorizontalScrollContainers() {
 if (typeof window !== 'undefined') {
   window.makeHorizontalScrollable = makeHorizontalScrollable;
   window.initHorizontalScrollContainers = initHorizontalScrollContainers;
+}
+
+// =============================================================================
+// 16. MATERIAL DESIGN 3 BOTTOM SHEET GESTURES & PULL-TO-DISMISS
+// =============================================================================
+/**
+ * Cho phép vuốt/kéo xuống để đóng (pull-to-dismiss) đối với Bottom Sheet (Quest Detail, Reward Detail).
+ * Cung cấp phản hồi xúc giác bám ngón tay thời gian thực và hoạt ảnh trượt xuống thoát màn hình.
+ */
+function initBottomSheetGestures() {
+  const sheetIds = ['modal-quest-detail', 'modal-reward-detail'];
+
+  sheetIds.forEach(id => {
+    const modal = document.getElementById(id);
+    if (!modal || modal._gestureInitialized) return;
+    modal._gestureInitialized = true;
+
+    const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
+    if (!panel) return;
+
+    const handle = panel.querySelector('.m3-drag-handle');
+    const header = panel.querySelector('#mqd-header-banner, #mrd-header-banner') || panel.firstElementChild;
+    const scrollEl = panel.querySelector('.overflow-y-auto');
+
+    let startY = 0;
+    let startX = 0;
+    let startTime = 0;
+    let deltaY = 0;
+    let isDragging = false;
+    let dragTarget = null;
+
+    const canStartDrag = (target) => {
+      if (!target) return false;
+      // Không can thiệp nếu người dùng chạm vào các nút bấm, icon đóng, liên kết hoặc ô nhập
+      if (target.closest('button, a, input, textarea, select, .modal-close, [role="button"]:not(.m3-drag-handle)')) {
+        return false;
+      }
+      return true;
+    };
+
+    const handleStart = (clientY, clientX, target) => {
+      if (!canStartDrag(target)) return false;
+      startY = clientY;
+      startX = clientX;
+      startTime = Date.now();
+      deltaY = 0;
+      isDragging = false;
+      dragTarget = target;
+      return true;
+    };
+
+    const handleMove = (clientY, clientX, e) => {
+      if (startTime === 0) return;
+      const currentDeltaY = clientY - startY;
+      const currentDeltaX = clientX - startX;
+
+      if (!isDragging) {
+        // Chỉ kích hoạt khi di chuyển xuống dưới và ưu tiên hướng dọc so với ngang
+        if (currentDeltaY > 6 && Math.abs(currentDeltaY) > Math.abs(currentDeltaX) * 1.1) {
+          const isOnHandle = handle && (handle.contains(dragTarget) || dragTarget === handle);
+          const isOnHeader = header && (header.contains(dragTarget) || dragTarget === header);
+          const isAtTop = !scrollEl || scrollEl.scrollTop <= 0;
+
+          if (isOnHandle || isOnHeader || isAtTop) {
+            isDragging = true;
+            modal._suppressBackdropClick = true;
+            panel.style.transition = 'none';
+          }
+        }
+      }
+
+      if (isDragging) {
+        if (e && e.cancelable) e.preventDefault();
+        deltaY = Math.max(0, currentDeltaY);
+        panel.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+        const panelHeight = panel.offsetHeight || 500;
+        const dim = Math.max(0.15, 1 - (deltaY / panelHeight) * 0.7);
+        modal.style.backgroundColor = `rgba(2, 6, 23, ${0.75 * dim})`;
+      }
+    };
+
+    const handleEnd = () => {
+      if (isDragging) {
+        isDragging = false;
+        const duration = Math.max(1, Date.now() - startTime);
+        const velocity = deltaY / duration; // px/ms
+        const panelHeight = panel.offsetHeight || 500;
+        const shouldDismiss = deltaY > Math.min(80, panelHeight * 0.22) || (deltaY > 30 && velocity > 0.35);
+
+        if (shouldDismiss) {
+          if (typeof dismissModalWithSlideDown === 'function') {
+            dismissModalWithSlideDown(modal);
+          } else {
+            closeModal(modal.id);
+          }
+        } else {
+          // Bật ngược lại lên trên mượt mà nếu chưa kéo đủ xa
+          panel.style.transition = 'transform 0.24s cubic-bezier(0.1, 0.9, 0.2, 1)';
+          panel.style.transform = 'translate3d(0, 0, 0)';
+          modal.style.backgroundColor = '';
+          setTimeout(() => {
+            if (!modal.classList.contains('sheet-closing')) {
+              panel.style.transition = '';
+              panel.style.transform = '';
+            }
+          }, 250);
+        }
+        setTimeout(() => { modal._suppressBackdropClick = false; }, 150);
+      }
+      startY = 0;
+      startX = 0;
+      startTime = 0;
+      deltaY = 0;
+      dragTarget = null;
+    };
+
+    // Sự kiện Touch (Điện thoại, máy tính bảng)
+    panel.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length === 1) {
+        handleStart(e.touches[0].clientY, e.touches[0].clientX, e.target);
+      }
+    }, { passive: true });
+
+    panel.addEventListener('touchmove', (e) => {
+      if (e.touches && e.touches.length === 1) {
+        handleMove(e.touches[0].clientY, e.touches[0].clientX, e);
+      }
+    }, { passive: false });
+
+    panel.addEventListener('touchend', handleEnd, { passive: true });
+    panel.addEventListener('touchcancel', handleEnd, { passive: true });
+
+    // Hỗ trợ kéo thử nghiệm bằng chuột trên thanh handle hoặc header (Desktop Preview)
+    const dragStarters = [handle, header].filter(Boolean);
+    dragStarters.forEach(starter => {
+      starter.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button === 0) {
+          if (!handleStart(e.clientY, e.clientX, e.target)) return;
+          const onPointerMove = (ev) => handleMove(ev.clientY, ev.clientX, ev);
+          const onPointerUp = () => {
+            handleEnd();
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+          };
+          window.addEventListener('pointermove', onPointerMove);
+          window.addEventListener('pointerup', onPointerUp);
+        }
+      });
+    });
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.initBottomSheetGestures = initBottomSheetGestures;
 }
 

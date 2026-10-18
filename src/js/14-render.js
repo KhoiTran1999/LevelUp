@@ -1029,6 +1029,16 @@ function openQuestDetailModal(questId) {
     };
   }
 
+  modal.classList.remove('sheet-closing');
+  modal.style.pointerEvents = '';
+  modal.style.opacity = '';
+  modal.style.backgroundColor = '';
+  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
+  if (panel) {
+    panel.style.transform = '';
+    panel.style.transition = '';
+    panel.style.opacity = '';
+  }
   modal.classList.remove('hidden');
 }
 window.openQuestDetailModal = openQuestDetailModal;
@@ -1617,6 +1627,16 @@ function openRewardDetailModal(itemId, source) {
     });
   }
 
+  modal.classList.remove('sheet-closing');
+  modal.style.pointerEvents = '';
+  modal.style.opacity = '';
+  modal.style.backgroundColor = '';
+  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
+  if (panel) {
+    panel.style.transform = '';
+    panel.style.transition = '';
+    panel.style.opacity = '';
+  }
   modal.classList.remove('hidden');
 }
 window.openRewardDetailModal = openRewardDetailModal;

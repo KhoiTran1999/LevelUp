@@ -353,9 +353,117 @@ function switchTab(tabId) {
   }
 }
 
+function dismissModalWithSlideDown(modal, onDone) {
+  if (!modal) {
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+  if (typeof modal === 'string') {
+    modal = document.getElementById(modal);
+  }
+  if (!modal || modal.classList.contains('hidden') || modal.classList.contains('sheet-closing')) {
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+
+  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
+  modal.classList.add('sheet-closing');
+  modal.style.pointerEvents = 'none';
+
+  let currentY = 0;
+  if (panel && typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+    const transform = window.getComputedStyle(panel).transform;
+    if (transform && transform !== 'none') {
+      try {
+        if (typeof DOMMatrixReadOnly !== 'undefined') {
+          const matrix = new DOMMatrixReadOnly(transform);
+          currentY = Math.max(0, matrix.m42);
+        }
+      } catch (_) {
+        currentY = 0;
+      }
+    }
+  }
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const targetY = isMobile ? '105%' : '60px';
+  const targetOpacity = isMobile ? 0.2 : 0;
+
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    modal.classList.add('hidden');
+    modal.classList.remove('sheet-closing');
+    modal.style.pointerEvents = '';
+    modal.style.opacity = '';
+    modal.style.backgroundColor = '';
+    if (panel) {
+      panel.style.transform = '';
+      panel.style.transition = '';
+      panel.style.opacity = '';
+    }
+
+    // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
+    if (typeof window !== 'undefined' && window.parentDetailQuestId && (modal.id === 'modal-quest' || modal.id === 'modal-frequency-detail' || modal.id === 'modal-quest-proof')) {
+      const returnQuestId = window.parentDetailQuestId;
+      window.parentDetailQuestId = null;
+      const q = typeof appState !== 'undefined' && Array.isArray(appState.quests) ? appState.quests.find(item => item.id === returnQuestId) : null;
+      if (q && typeof openQuestDetailModal === 'function') {
+        setTimeout(() => openQuestDetailModal(returnQuestId), 50);
+      }
+    }
+
+    if (typeof onDone === 'function') onDone();
+  };
+
+  try {
+    if (panel && typeof panel.animate === 'function') {
+      const panelAnim = panel.animate([
+        { transform: `translate3d(0, ${currentY}px, 0)`, opacity: '1' },
+        { transform: isMobile ? `translate3d(0, ${targetY}, 0)` : `translate3d(0, ${targetY}, 0) scale(0.96)`, opacity: targetOpacity }
+      ], {
+        duration: 230,
+        easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)',
+        fill: 'forwards'
+      });
+      panelAnim.onfinish = cleanup;
+
+      if (typeof modal.animate === 'function') {
+        modal.animate([
+          { opacity: '1' },
+          { opacity: '0' }
+        ], {
+          duration: 230,
+          easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)',
+          fill: 'forwards'
+        });
+      }
+
+      setTimeout(cleanup, 260);
+    } else {
+      setTimeout(cleanup, 230);
+    }
+  } catch (_) {
+    cleanup();
+  }
+}
+window.dismissModalWithSlideDown = dismissModalWithSlideDown;
+
 function openModal(id) {
   const modal = document.getElementById(id);
-  if (modal) modal.classList.remove('hidden');
+  if (!modal) return;
+  modal.classList.remove('sheet-closing');
+  modal.style.pointerEvents = '';
+  modal.style.opacity = '';
+  modal.style.backgroundColor = '';
+  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
+  if (panel) {
+    panel.style.transform = '';
+    panel.style.transition = '';
+    panel.style.opacity = '';
+  }
+  modal.classList.remove('hidden');
 }
 
 function openAboutModal() {
@@ -375,12 +483,26 @@ function openAboutModal() {
 }
 window.openAboutModal = openAboutModal;
 
-function closeModal(id) {
+function closeModal(id, immediate = false) {
   if (id === 'modal-welcome') {
     if (!checkIsOnboarded()) return;
   }
   const modal = document.getElementById(id);
-  if (modal) modal.classList.add('hidden');
+  if (!modal) return;
+
+  const isDismissibleSheet = !immediate && (
+    modal.id === 'modal-quest-detail' ||
+    modal.id === 'modal-reward-detail' ||
+    modal.dataset?.sheetDismiss === 'true'
+  );
+
+  if (isDismissibleSheet && !modal.classList.contains('hidden') && !modal.classList.contains('sheet-closing')) {
+    dismissModalWithSlideDown(modal);
+    return;
+  }
+
+  modal.classList.add('hidden');
+  modal.classList.remove('sheet-closing');
 
   // Quay lại modal chi tiết nhiệm vụ trước đó nếu có
   if (window.parentDetailQuestId && (id === 'modal-quest' || id === 'modal-frequency-detail' || id === 'modal-quest-proof')) {

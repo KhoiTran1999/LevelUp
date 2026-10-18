@@ -1586,9 +1586,9 @@
   <!-- ======================================================================= -->
 
   <!-- MODAL: QUEST DETAIL & ACTIONS (Opened when clicking quest card) -->
-  <div id="modal-quest-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mqd-title">
+  <div id="modal-quest-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mqd-title" data-sheet-dismiss="true">
     <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
-      <div class="m3-drag-handle sm:hidden"></div>
+      <div class="m3-drag-handle sm:hidden" role="button" aria-label="Kéo xuống để đóng"></div>
 
       <!-- Modal Header -->
       <div id="mqd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-amber-500/10 dark:bg-amber-500/15 border-b border-slate-200/80 dark:border-slate-800">
@@ -1670,9 +1670,9 @@
   </div>
 
   <!-- MODAL: REWARD DETAIL (Shop & Inventory) -->
-  <div id="modal-reward-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mrd-title">
+  <div id="modal-reward-detail" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 m3-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mrd-title" data-sheet-dismiss="true">
     <div class="rpg-panel m3-dialog-panel rounded-3xl w-full sm:max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden modal-fade shadow-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900">
-      <div class="m3-drag-handle sm:hidden"></div>
+      <div class="m3-drag-handle sm:hidden" role="button" aria-label="Kéo xuống để đóng"></div>
 
       <!-- Modal Header -->
       <div id="mrd-header-banner" class="p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
