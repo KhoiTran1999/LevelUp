@@ -1304,6 +1304,15 @@ export default async function handler(req, res) {
           if (leaderboard.length >= 50) break;
         }
 
+        if (leaderboard.length === 0 && isDbConfigured()) {
+          try {
+            const dbList = await getDbLeaderboard(50);
+            if (dbList && dbList.length > 0) {
+              leaderboard.push(...dbList);
+            }
+          } catch (_) {}
+        }
+
         // Tích hợp presence: Lấy trạng thái online và thời điểm hoạt động gần nhất
         const memberKeyList = leaderboard.flatMap(u => [u.key, u.googleId].filter(Boolean));
         const presence = await getOnlineUsersPresence(redis, memberKeyList);
@@ -1389,6 +1398,15 @@ export default async function handler(req, res) {
               });
             }
           } catch (e) {}
+        }
+
+        if (cheaters.length === 0 && isDbConfigured()) {
+          try {
+            const dbCheaters = await getDbCheaters(50);
+            if (dbCheaters && dbCheaters.length > 0) {
+              cheaters.push(...dbCheaters);
+            }
+          } catch (_) {}
         }
 
         return res.status(200).json({ cheaters, count: cheaters.length });

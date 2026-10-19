@@ -1,4 +1,7 @@
 import dotenv from 'dotenv';
+import { isDbConfigured } from '../src/db/index.js';
+import { getUserById } from '../src/db/repositories/userRepository.js';
+import { getBankPoolState as getDbBankPoolState } from '../src/db/repositories/bankRepository.js';
 import {
   extractToken,
   getRedis,
@@ -407,7 +410,16 @@ export async function handleGetMyUserData(category = 'all', callerSub, redis, dr
     return { error: 'Không xác định được danh tính người chơi.' };
   }
 
-  const cloud = (redis && callerSub) ? await getUserCloudData(redis, callerSub) : null;
+  let cloud = null;
+  if (isDbConfigured() && callerSub) {
+    try {
+      cloud = await getUserById(callerSub);
+    } catch (_) {}
+  }
+  if (!cloud && redis && callerSub) {
+    cloud = await getUserCloudData(redis, callerSub);
+  }
+
   const profile = cloud?.profile || draftContext.profile || {};
   const quests = (cloud?.quests && cloud.quests.length > 0) ? cloud.quests : (draftContext.quests || []);
   const shopItems = (cloud?.shopItems && cloud.shopItems.length > 0) ? cloud.shopItems : (draftContext.shopItems || []);
@@ -485,11 +497,28 @@ export async function handleGetMyUserData(category = 'all', callerSub, redis, dr
 }
 
 export async function handleGetBankMarketStatus(redis, callerSub, draftProfile = {}) {
-  const poolState = redis ? await getGlobalBankState(redis) : {};
+  let poolState = null;
+  if (isDbConfigured()) {
+    try {
+      poolState = await getDbBankPoolState();
+    } catch (_) {}
+  }
+  if (!poolState && redis) {
+    poolState = await getGlobalBankState(redis);
+  }
+  poolState = poolState || {};
   const macro = analyzeMacroTelemetry(poolState);
   let creditLimit = 50;
-  if (callerSub && redis) {
-    const cloud = await getUserCloudData(redis, callerSub);
+  if (callerSub) {
+    let cloud = null;
+    if (isDbConfigured()) {
+      try {
+        cloud = await getUserById(callerSub);
+      } catch (_) {}
+    }
+    if (!cloud && redis) {
+      cloud = await getUserCloudData(redis, callerSub);
+    }
     const profile = cloud?.profile || draftProfile || {};
     creditLimit = calculateCreditLimit(profile, 0.5);
   }
@@ -3622,7 +3651,7 @@ Trả về ĐÚNG định dạng JSON:
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
-        const sse = isStream ? createSSEStream(res) : null;
+        const sse = isStream ? (res?.sse || createSSEStream(res)) : null;
         const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         const selectedOpt = payload?.selectedOption;
@@ -3990,7 +4019,7 @@ Trả về ĐÚNG định dạng JSON:
 - Ý kiến / đề xuất mới của người dùng: "${argument}"`;
 
         const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
-        const sse = isStream ? createSSEStream(res) : null;
+        const sse = isStream ? (res?.sse || createSSEStream(res)) : null;
         const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         const selectedOpt = payload?.selectedOption;
@@ -4751,7 +4780,7 @@ ${questSummary}
 - Ý kiến / Đề xuất thương lượng mới của người chơi: "${argument}"`;
 
         const isStream = Boolean(payload?.stream) || req.headers?.accept === 'text/event-stream';
-        const sse = isStream ? createSSEStream(res) : null;
+        const sse = isStream ? (res?.sse || createSSEStream(res)) : null;
         const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         let result = null;
@@ -5001,7 +5030,7 @@ QUY TẮC:
           return res.status(400).json({ error: 'Nội dung câu hỏi không được để trống.' });
         }
 
-        const sse = isStream ? createSSEStream(res) : null;
+        const sse = isStream ? (res?.sse || createSSEStream(res)) : null;
         const onEvent = sse ? (ev, data) => sse.send(ev, data) : null;
 
         try {
