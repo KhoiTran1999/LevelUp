@@ -256,7 +256,11 @@
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-purple-500">admin_panel_settings</span>
               <span>Quản Trị</span>
             </button>
-            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+            <button id="btn-nav-notes" type="button" onclick="openBrainDumpModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+              <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-amber-500">edit_note</span>
+              <span class="font-bold">Sổ Ghi Chú</span>
+            </button>
+            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer">
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-indigo-500">auto_stories</span>
               <span class="font-bold">Giới Thiệu Dự Án</span>
             </button>
@@ -1662,6 +1666,18 @@
         </div>
       </div>
       <span class="material-symbols-outlined text-base text-purple-300 dark:text-purple-600 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+    </button>
+    <button id="btn-mobile-notes" type="button" onclick="openBrainDumpModal()" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+          <span class="material-symbols-outlined text-[20px] leading-none">edit_note</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold text-amber-700 dark:text-amber-300 truncate">Sổ Ghi Chú</div>
+          <div class="text-[10px] text-amber-500/80 truncate font-normal">Ghi chép ý tưởng &amp; bản thảo tự do</div>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-base text-amber-300 dark:text-amber-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
     </button>
     <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
       <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -4599,7 +4615,7 @@
   <!-- ======================================================================= -->
   <!-- MODAL: SỔ TAY GHI CHÚ (FOCUS NOTES & SCRATCHPAD)                        -->
   <!-- ======================================================================= -->
-  <div id="modal-brain-dump" class="fixed inset-0 z-[100] hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title" data-sheet-dismiss="true">
+  <div id="modal-brain-dump" class="fixed inset-0 z-[100] hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title">
     <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-white dark:bg-slate-900">
       <!-- Modal Header -->
       <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 border-b border-amber-500/20 flex justify-between items-center shrink-0">
@@ -4708,13 +4724,6 @@
           >
             <span class="material-symbols-outlined text-[16px] leading-none">delete</span>
             <span>Xóa Sạch</span>
-          </button>
-          <button
-            type="button"
-            onclick="closeBrainDumpModal()"
-            class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer shadow-sm"
-          >
-            Đóng (Esc)
           </button>
         </div>
       </div>

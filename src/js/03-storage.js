@@ -1173,6 +1173,17 @@ async function hydrateFromCloud(isManual = false) {
       const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
       const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
       applyTheme(resolvedTheme, false);
+      if (typeof cloudData.focusNotes === 'string') {
+        appState.focusNotes = cloudData.focusNotes;
+        try {
+          localStorage.setItem('levelup_focus_notes', cloudData.focusNotes);
+        } catch (_) {}
+        const editor = document.getElementById('focus-notes-editor');
+        if (editor && document.activeElement !== editor) {
+          editor.innerHTML = cloudData.focusNotes;
+          if (typeof updateNotesStats === 'function') updateNotesStats();
+        }
+      }
       saveLocalCache();
       renderAll();
 

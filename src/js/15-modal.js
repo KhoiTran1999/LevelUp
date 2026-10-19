@@ -541,17 +541,39 @@ let notesSaveTimeout = null;
 
 function getFocusNotesContent() {
   try {
+    if (typeof appState !== 'undefined' && typeof appState.focusNotes === 'string' && appState.focusNotes) {
+      return appState.focusNotes;
+    }
     return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
   } catch (_) {
-    return '';
+    return (typeof appState !== 'undefined' && appState.focusNotes) || '';
   }
 }
 window.getFocusNotesContent = getFocusNotesContent;
 
 function saveFocusNotesContent(htmlContent) {
+  const content = htmlContent || '';
   try {
-    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, htmlContent || '');
+    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, content);
   } catch (_) {}
+
+  if (typeof appState !== 'undefined') {
+    if (appState.focusNotes !== content) {
+      appState.focusNotes = content;
+      if (typeof triggerSave === 'function') {
+        triggerSave(true, false, null, true);
+      }
+    }
+  }
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const ch = new BroadcastChannel('levelup_sync_channel');
+      ch.postMessage({ type: 'NOTES_UPDATED', content });
+      ch.close();
+    } catch (_) {}
+  }
+
   updateNotesStats();
 }
 window.saveFocusNotesContent = saveFocusNotesContent;

@@ -2965,6 +2965,7 @@ export default async function handler(req, res) {
         // ponytail: Lưu trữ tối đa 100 ảnh bằng chứng gần nhất trên Cloud/Redis
         proofPhotos: Array.isArray(state.proofPhotos) ? state.proofPhotos.slice(0, 100) : (Array.isArray(existingState?.proofPhotos) ? existingState.proofPhotos : []),
         googleId: userSub,
+        focusNotes: typeof state.focusNotes === 'string' ? state.focusNotes : (typeof existingState?.focusNotes === 'string' ? existingState.focusNotes : ''),
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),

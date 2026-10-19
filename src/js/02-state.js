@@ -47,6 +47,7 @@ const DEFAULT_STATE = {
       isFrozen: false
     }
   },
+  focusNotes: '',
   quests: [
     {
       id: 'q_seed_1',

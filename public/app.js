@@ -169,6 +169,7 @@ const DEFAULT_STATE = {
       isFrozen: false
     }
   },
+  focusNotes: '',
   quests: [
     {
       id: 'q_seed_1',
@@ -1434,6 +1435,17 @@ async function hydrateFromCloud(isManual = false) {
       const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
       const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
       applyTheme(resolvedTheme, false);
+      if (typeof cloudData.focusNotes === 'string') {
+        appState.focusNotes = cloudData.focusNotes;
+        try {
+          localStorage.setItem('levelup_focus_notes', cloudData.focusNotes);
+        } catch (_) {}
+        const editor = document.getElementById('focus-notes-editor');
+        if (editor && document.activeElement !== editor) {
+          editor.innerHTML = cloudData.focusNotes;
+          if (typeof updateNotesStats === 'function') updateNotesStats();
+        }
+      }
       saveLocalCache();
       renderAll();
 
@@ -13517,17 +13529,39 @@ let notesSaveTimeout = null;
 
 function getFocusNotesContent() {
   try {
+    if (typeof appState !== 'undefined' && typeof appState.focusNotes === 'string' && appState.focusNotes) {
+      return appState.focusNotes;
+    }
     return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
   } catch (_) {
-    return '';
+    return (typeof appState !== 'undefined' && appState.focusNotes) || '';
   }
 }
 window.getFocusNotesContent = getFocusNotesContent;
 
 function saveFocusNotesContent(htmlContent) {
+  const content = htmlContent || '';
   try {
-    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, htmlContent || '');
+    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, content);
   } catch (_) {}
+
+  if (typeof appState !== 'undefined') {
+    if (appState.focusNotes !== content) {
+      appState.focusNotes = content;
+      if (typeof triggerSave === 'function') {
+        triggerSave(true, false, null, true);
+      }
+    }
+  }
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const ch = new BroadcastChannel('levelup_sync_channel');
+      ch.postMessage({ type: 'NOTES_UPDATED', content });
+      ch.close();
+    } catch (_) {}
+  }
+
   updateNotesStats();
 }
 window.saveFocusNotesContent = saveFocusNotesContent;
@@ -17568,6 +17602,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.data.profile.bank) appState.profile.bank = event.data.profile.bank;
             renderHeader();
           }
+        } else if (event.data?.type === 'NOTES_UPDATED') {
+          if (typeof event.data.content === 'string') {
+            appState.focusNotes = event.data.content;
+            try {
+              localStorage.setItem('levelup_focus_notes', event.data.content);
+            } catch (_) {}
+            const editor = document.getElementById('focus-notes-editor');
+            if (editor && document.activeElement !== editor) {
+              editor.innerHTML = event.data.content;
+              if (typeof updateNotesStats === 'function') updateNotesStats();
+            }
+          }
         }
       };
     } catch (_) {}
@@ -19236,6 +19282,15 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Vui lòng đăng nhập bằng Google để tiếp tục!', 'info');
           return;
         }
+        if (modal.id === 'modal-brain-dump') {
+          // Sổ ghi chú chỉ được tắt khi nhấn dấu 'x'
+          const panel = modal.querySelector('.rpg-panel');
+          if (panel) {
+            panel.classList.add('ring-4', 'ring-amber-500/60');
+            setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
+          }
+          return;
+        }
 
         const isDismissibleSheet = modal.id === 'modal-quest-detail' ||
                                    modal.id === 'modal-reward-detail' ||
@@ -19271,6 +19326,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const openModal = document.querySelector('.fixed[id^="modal-"]:not(.hidden)');
       if (openModal) {
+        if (openModal.id === 'modal-brain-dump') {
+          // Sổ ghi chú chỉ được tắt khi nhấn dấu 'x'
+          e.preventDefault();
+          const panel = openModal.querySelector('.rpg-panel');
+          if (panel) {
+            panel.classList.add('ring-4', 'ring-amber-500/60');
+            setTimeout(() => panel.classList.remove('ring-4', 'ring-amber-500/60'), 400);
+          }
+          return;
+        }
         const isDismissibleSheet = openModal.id === 'modal-quest-detail' ||
                                    openModal.id === 'modal-reward-detail' ||
                                    openModal.dataset?.sheetDismiss === 'true';
@@ -19307,15 +19372,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Phím tắt Alt+D mở/đóng Sổ Ghi Chú (Focus Notes)
+  // Phím tắt Alt+D mở Sổ Ghi Chú (Focus Notes)
   document.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();
       const modal = document.getElementById('modal-brain-dump');
-      if (modal && !modal.classList.contains('hidden')) {
-        closeBrainDumpModal();
-      } else {
+      if (modal && modal.classList.contains('hidden')) {
         openBrainDumpModal();
+      } else {
+        const editor = document.getElementById('focus-notes-editor');
+        if (editor) editor.focus();
       }
     }
   });
