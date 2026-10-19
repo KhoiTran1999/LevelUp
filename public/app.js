@@ -3365,11 +3365,15 @@ function enforceMandatoryShieldGateOnStartup() {
   // Thiết bị di động không cài được Extension Chrome máy tính -> Tự động miễn trừ
   if (isMobileUserDevice()) return;
 
+  // Nếu người dùng chưa đăng nhập Google, ưu tiên hoàn tất đăng nhập trước, không mở đè modal
+  if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
+
   // Nếu đã cài Khiên từ trước, không hiện modal
   if (isLevelUpExtensionInstalled()) return;
 
   // Cho content script 350ms tự nạp nếu vừa mở tab
   setTimeout(() => {
+    if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
     if (!isLevelUpExtensionInstalled()) {
       openShieldGateModal(null);
     }
@@ -13322,6 +13326,10 @@ async function handleGoogleCredentialResponse(response) {
 
     if (loadingEl) loadingEl.classList.add('hidden');
 
+    if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+      setTimeout(() => enforceMandatoryShieldGateOnStartup(), 200);
+    }
+
     if (isNew) {
       showToast(`Chào mừng Hiệp Sĩ ${appState.profile.nickname} gia nhập LevelUp!`, 'success');
       setTimeout(() => startInteractiveTour(true), 350);
@@ -13414,7 +13422,7 @@ function initWelcomeModal() {
   // Anti-DevTools 2: Event Capture toàn trang - Chặn đứng mọi cú click vào ứng dụng nếu chưa onboard
   document.addEventListener('click', (e) => {
     if (checkIsOnboarded()) return;
-    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+    if (e.target.closest && (e.target.closest('#modal-welcome') || e.target.closest('#modal-shield-gate'))) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -13425,7 +13433,7 @@ function initWelcomeModal() {
   // Anti-DevTools 3: Chặn phím tắt gõ vào trang nếu chưa onboard
   document.addEventListener('keydown', (e) => {
     if (checkIsOnboarded()) return;
-    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+    if (e.target.closest && (e.target.closest('#modal-welcome') || e.target.closest('#modal-shield-gate'))) return;
     e.preventDefault();
     e.stopPropagation();
   }, true);
@@ -13901,6 +13909,9 @@ async function initStartupFlow() {
           if (!isModalOpen) {
             showToast(`📸 Nhiệm vụ "${pendingProofQuest.title}" đã hoàn thành thời gian! Hãy bấm "Chụp Ảnh Nhận Vàng" để AI duyệt thưởng.`, 'info');
           }
+        }
+        if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+          setTimeout(() => enforceMandatoryShieldGateOnStartup(), 250);
         }
         return;
       }

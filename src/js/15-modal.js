@@ -786,6 +786,10 @@ async function handleGoogleCredentialResponse(response) {
 
     if (loadingEl) loadingEl.classList.add('hidden');
 
+    if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+      setTimeout(() => enforceMandatoryShieldGateOnStartup(), 200);
+    }
+
     if (isNew) {
       showToast(`Chào mừng Hiệp Sĩ ${appState.profile.nickname} gia nhập LevelUp!`, 'success');
       setTimeout(() => startInteractiveTour(true), 350);
@@ -878,7 +882,7 @@ function initWelcomeModal() {
   // Anti-DevTools 2: Event Capture toàn trang - Chặn đứng mọi cú click vào ứng dụng nếu chưa onboard
   document.addEventListener('click', (e) => {
     if (checkIsOnboarded()) return;
-    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+    if (e.target.closest && (e.target.closest('#modal-welcome') || e.target.closest('#modal-shield-gate'))) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -889,7 +893,7 @@ function initWelcomeModal() {
   // Anti-DevTools 3: Chặn phím tắt gõ vào trang nếu chưa onboard
   document.addEventListener('keydown', (e) => {
     if (checkIsOnboarded()) return;
-    if (e.target.closest && e.target.closest('#modal-welcome')) return;
+    if (e.target.closest && (e.target.closest('#modal-welcome') || e.target.closest('#modal-shield-gate'))) return;
     e.preventDefault();
     e.stopPropagation();
   }, true);

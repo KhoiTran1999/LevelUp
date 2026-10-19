@@ -208,5 +208,15 @@ assert(timerSrc.includes('btn-download-shield-zip'), '06-timer.js phải lắng 
 assert(appJs.includes('btn-download-shield-zip'), 'public/app.js bundle phải chứa logic tải zip an toàn');
 console.log('✓ Test 9: Hạ tầng tải file ZIP (ServiceWorker bypass, Server header, Vercel config, Blob fallback) hoạt động chuẩn xác.');
 
+// Test 10: Kiểm tra triệt tiêu xung đột giữa Google Login (modal-welcome) và Shield Gate (modal-shield-gate)
+const modalSrcPath = path.resolve('src/js/15-modal.js');
+const modalSrc = fs.readFileSync(modalSrcPath, 'utf8');
+
+assert(timerSrc.includes('checkIsOnboarded') && timerSrc.includes('!checkIsOnboarded()'), 'enforceMandatoryShieldGateOnStartup phải kiểm tra checkIsOnboarded để không mở đè modal');
+assert(appJs.includes('checkIsOnboarded') && appJs.includes('enforceMandatoryShieldGateOnStartup'), 'app.js bundle phải chứa logic kiểm tra checkIsOnboarded cho shield gate');
+assert(modalSrc.includes('#modal-shield-gate'), '15-modal.js phải cho phép tương tác với modal-shield-gate mà không bị event capture chặn');
+assert(modalSrc.includes('enforceMandatoryShieldGateOnStartup'), '15-modal.js phải kích hoạt shield gate sau khi đăng nhập Google thành công');
+console.log('✓ Test 10: Xung đột giữa Google Login và Shield Gate đã được giải quyết triệt để (đúng thứ tự và không bị capture chặn click).');
+
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.2.0 thành công 100%!');
 

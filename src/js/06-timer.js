@@ -1057,11 +1057,15 @@ function enforceMandatoryShieldGateOnStartup() {
   // Thiết bị di động không cài được Extension Chrome máy tính -> Tự động miễn trừ
   if (isMobileUserDevice()) return;
 
+  // Nếu người dùng chưa đăng nhập Google, ưu tiên hoàn tất đăng nhập trước, không mở đè modal
+  if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
+
   // Nếu đã cài Khiên từ trước, không hiện modal
   if (isLevelUpExtensionInstalled()) return;
 
   // Cho content script 350ms tự nạp nếu vừa mở tab
   setTimeout(() => {
+    if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
     if (!isLevelUpExtensionInstalled()) {
       openShieldGateModal(null);
     }

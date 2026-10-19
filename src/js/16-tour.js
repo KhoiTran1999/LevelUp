@@ -444,6 +444,9 @@ async function initStartupFlow() {
             showToast(`📸 Nhiệm vụ "${pendingProofQuest.title}" đã hoàn thành thời gian! Hãy bấm "Chụp Ảnh Nhận Vàng" để AI duyệt thưởng.`, 'info');
           }
         }
+        if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+          setTimeout(() => enforceMandatoryShieldGateOnStartup(), 250);
+        }
         return;
       }
     } else if (res.status === 401) {
