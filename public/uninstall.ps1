@@ -41,11 +41,19 @@ try {
     }
 } catch {}
 
+# Tự động mở tab chrome://extensions để người dùng không phải gõ thủ công
+try {
+    Start-Process "chrome.exe" "chrome://extensions" -ErrorAction SilentlyContinue
+} catch {
+    try { Start-Process "chrome://extensions" -ErrorAction SilentlyContinue } catch {}
+}
+
 Write-Host ""
-Write-Host ">> [2/2] BƯỚC CUỐI CÙNG TRÊN GOOGLE CHROME (Mất 3 giây):" -ForegroundColor Cyan
-Write-Host "   1. Mở tab: chrome://extensions trên trình duyệt." -ForegroundColor White
-Write-Host "   2. Tìm ô tiện ích [LevelUp Focus Shield]." -ForegroundColor White
-Write-Host "   3. Bấm nút [Xóa] (Remove) để gỡ bỏ hoàn toàn khỏi Chrome." -ForegroundColor White
+Write-Host ">> [2/2] BƯỚC CUỐI TRÊN CHROME (Script đã tự mở tab chrome://extensions cho bạn):" -ForegroundColor Cyan
+Write-Host "   -> Tại ô tiện ích [LevelUp Focus Shield]:" -ForegroundColor White
+Write-Host "      Bấm nút [Xóa] (Remove / biểu tượng thùng rác) để hoàn tất." -ForegroundColor Yellow
+Write-Host "   (Lưu ý: Theo chính sách bảo mật Sandbox của Chrome, bắt buộc người dùng" -ForegroundColor Gray
+Write-Host "    tự bấm nút Xóa, không một phần mềm nào được phép tự ý gỡ ngầm tiện ích)." -ForegroundColor Gray
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host " [OK] ĐÃ DỌN DẸP SẠCH SẼ 100% CÁC TỆP TIN KHỎI MÁY TÍNH!" -ForegroundColor Green
