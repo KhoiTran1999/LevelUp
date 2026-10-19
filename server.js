@@ -63,6 +63,15 @@ app.get('/install.ps1', (req, res) => {
   res.sendFile(filePath);
 });
 
+// Serve 1-click installer batch file (no clipboard interaction needed)
+app.get('/install.bat', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'install.bat');
+  res.setHeader('Content-Type', 'application/x-bat');
+  res.setHeader('Content-Disposition', 'attachment; filename="install.bat"');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(filePath);
+});
+
 // Serve static frontend
 // ponytail: static asset cache 1h default, 1d immutable for media/icons
 app.use(express.static(path.join(__dirname, 'public'), {

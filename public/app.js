@@ -3619,20 +3619,28 @@ function initShieldGateListeners() {
     });
   }
 
-  // 4b. Nút copy lệnh cài đặt tự động bằng Terminal (PowerShell)
+  // 4b. Nút copy lệnh cài đặt tự động bằng Terminal (PowerShell) & Container click-to-select
   const btnCopyInstallCmd = document.getElementById('btn-copy-install-cmd');
   const codeInstallCmd = document.getElementById('code-install-cmd');
-  if (codeInstallCmd && typeof window !== 'undefined' && window.location?.origin) {
-    codeInstallCmd.textContent = `irm ${window.location.origin}/install.ps1 | iex`;
-  }
-  if (btnCopyInstallCmd) {
-    btnCopyInstallCmd.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  const containerInstallCmd = document.getElementById('container-install-cmd');
+
+  function selectAndCopyInstallCmd() {
+    if (codeInstallCmd) {
+      // 1. Luôn bôi đen toàn bộ đoạn text trên giao diện trước
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(codeInstallCmd);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+
+      // 2. Thử sao chép tự động
       const origin = typeof window !== 'undefined' && window.location?.origin
         ? window.location.origin
         : 'https://level-up-seven-blue.vercel.app';
       const cmd = `irm ${origin}/install.ps1 | iex`;
+
       if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(cmd).then(() => {
           const btnText = document.getElementById('btn-copy-install-text');
@@ -3643,8 +3651,35 @@ function initShieldGateListeners() {
           if (typeof showToast === 'function') {
             showToast('📋 Đã sao chép lệnh PowerShell! Mở Terminal và nhấn Ctrl+V để chạy.', 'success');
           }
-        }).catch(() => {});
+        }).catch(() => {
+          // Khi bị ad-blocker (uBlock Origin ClickFix filter) chặn writeText -> Báo user nhấn Ctrl+C
+          if (typeof showToast === 'function') {
+            showToast('📋 Đã bôi đen dòng lệnh! Hãy nhấn Ctrl + C trên bàn phím để sao chép nhé.', 'info');
+          }
+        });
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('📋 Đã bôi đen dòng lệnh! Hãy nhấn Ctrl + C trên bàn phím để sao chép nhé.', 'info');
+        }
       }
+    }
+  }
+
+  if (codeInstallCmd && typeof window !== 'undefined' && window.location?.origin) {
+    codeInstallCmd.textContent = `irm ${window.location.origin}/install.ps1 | iex`;
+  }
+
+  if (containerInstallCmd) {
+    containerInstallCmd.addEventListener('click', () => {
+      selectAndCopyInstallCmd();
+    });
+  }
+
+  if (btnCopyInstallCmd) {
+    btnCopyInstallCmd.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectAndCopyInstallCmd();
     });
   }
 

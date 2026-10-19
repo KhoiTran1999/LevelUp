@@ -3365,45 +3365,36 @@
       <div class="p-5 sm:p-6 space-y-4 text-left">
 
         <!-- Hero Automation Box: 1-Click PowerShell Installer -->
-        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-indigo-500/40 shadow-xl text-white space-y-3.5">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span class="text-xs font-black uppercase tracking-wider text-amber-400">
-                ⚡ TỰ ĐỘNG 100% QUA POWERSHELL
-              </span>
-            </div>
-            <button id="btn-copy-install-cmd" type="button" class="py-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer active:scale-95">
-              <span class="material-symbols-outlined text-[15px]">content_copy</span>
-              <span id="btn-copy-install-text">Copy Lệnh</span>
-            </button>
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-indigo-500/40 shadow-xl text-white space-y-3">
+          
+          <!-- 1-Click BAT Launcher (No clipboard needed) -->
+          <a href="/install.bat" download="install.bat" id="btn-download-install-bat" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-xs transition active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer">
+            <span class="material-symbols-outlined text-[18px]">bolt</span>
+            <span>TẢI BỘ CÀI TỰ ĐỘNG (install.bat) — 1 CLICK CHẠY NGAY</span>
+          </a>
+
+          <div class="flex items-center gap-3 my-1">
+            <div class="flex-1 h-px bg-slate-800"></div>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">HOẶC DÙNG DÒNG LỆNH POWERSHELL</span>
+            <div class="flex-1 h-px bg-slate-800"></div>
           </div>
 
-          <!-- Code command snippet -->
-          <div class="bg-black/80 rounded-xl p-3 border border-slate-800 flex items-center justify-between">
-            <code id="code-install-cmd" class="text-xs font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none font-semibold">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
-          </div>
-
-          <!-- 2 Simple Visual Steps -->
-          <div class="grid grid-cols-2 gap-2 pt-0.5">
-            <div class="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-start gap-2.5 text-xs">
-              <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">1</span>
-              <div>
-                <div class="font-bold text-white text-[11.5px]">Mở PowerShell</div>
-                <div class="text-[10px] text-slate-400 leading-tight mt-0.5">Bấm phím Win &rarr; gõ PowerShell</div>
-              </div>
+          <!-- Code command snippet with select-on-click -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[11px] text-slate-300 font-medium">Bôi đen hoặc bấm sao chép:</span>
+              <button id="btn-copy-install-cmd" type="button" class="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1 cursor-pointer active:scale-95">
+                <span class="material-symbols-outlined text-[13px]">content_copy</span>
+                <span id="btn-copy-install-text">Copy Lệnh</span>
+              </button>
             </div>
-            <div class="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-start gap-2.5 text-xs">
-              <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-              <div>
-                <div class="font-bold text-white text-[11.5px]">Dán &amp; Enter</div>
-                <div class="text-[10px] text-slate-400 leading-tight mt-0.5">Bấm Ctrl+V rồi gõ Enter</div>
-              </div>
+            <div class="bg-black/80 rounded-xl p-2.5 border border-slate-800 flex items-center justify-between cursor-pointer" id="container-install-cmd" title="Bấm vào để bôi đen toàn bộ">
+              <code id="code-install-cmd" class="text-[11.5px] font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none font-semibold">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
             </div>
           </div>
 
-          <p class="text-[11px] text-slate-400 text-center leading-relaxed">
-            ✨ Tự tải, tự lưu cố định và tự làm mới Chrome. Không cần chọn thư mục hay giải nén thủ công!
+          <p class="text-[10.5px] text-slate-400 text-center leading-relaxed">
+            💡 Mở PowerShell, dán dòng lệnh rồi Enter. Tiện ích sẽ tự động nạp vào Chrome!
           </p>
         </div>
 
