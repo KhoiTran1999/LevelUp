@@ -1375,6 +1375,37 @@ function initShieldGateListeners() {
     });
   }
 
+  // 4c. Nút copy đường dẫn thư mục cài đặt (%LOCALAPPDATA%\LevelUpShield)
+  const btnCopyFolderPath = document.getElementById('btn-copy-folder-path');
+  const folderPathDisplay = document.getElementById('folder-path-display');
+  if (btnCopyFolderPath) {
+    btnCopyFolderPath.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const folderPath = folderPathDisplay?.textContent?.trim() || '%LOCALAPPDATA%\\LevelUpShield';
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(folderPath).then(() => {
+          const btnText = document.getElementById('btn-copy-folder-text');
+          if (btnText) {
+            btnText.textContent = 'Đã chép!';
+            setTimeout(() => { btnText.textContent = 'Copy Thư Mục'; }, 2000);
+          }
+          if (typeof showToast === 'function') {
+            showToast('📋 Đã sao chép: %LOCALAPPDATA%\\LevelUpShield! Dán vào ô chọn folder nhé.', 'success');
+          }
+        }).catch(() => {
+          if (typeof showToast === 'function') {
+            showToast('📋 Đường dẫn thư mục: %LOCALAPPDATA%\\LevelUpShield', 'info');
+          }
+        });
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('📋 Đường dẫn thư mục: %LOCALAPPDATA%\\LevelUpShield', 'info');
+        }
+      }
+    });
+  }
+
   // 5. Nút quét lại thủ công
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   if (btnCheckNow) {

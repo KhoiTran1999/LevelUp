@@ -1,25 +1,25 @@
 # =============================================================================
 # LevelUp Shield — One-Line PowerShell Auto Installer & Updater
-# Tự động tải, giải nén và nạp/làm mới Khiên Kỷ Luật vào Chrome chỉ với 1 dòng lệnh.
+# Tự động tải, giải nén và chuẩn bị tiện ích LevelUp Focus Shield cho Google Chrome.
 # =============================================================================
 $ErrorActionPreference = 'Stop'
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = "LevelUp Focus Shield — Auto Installer"
+$Host.UI.RawUI.WindowTitle = "LevelUp Focus Shield — Auto Installer & Updater"
 
 Write-Host ""
-Write-Host "⚔️  ========================================================" -ForegroundColor Cyan
-Write-Host "🛡️   LEVELUP FOCUS SHIELD — TỰ ĐỘNG CÀI ĐẶT & CẬP NHẬT" -ForegroundColor Cyan
-Write-Host "⚔️  ========================================================" -ForegroundColor Cyan
+Write-Host "========================================================" -ForegroundColor Cyan
+Write-Host "   LEVELUP FOCUS SHIELD — TỰ ĐỘNG CÀI ĐẶT & CẬP NHẬT   " -ForegroundColor Cyan
+Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 1. Thư mục cài đặt cố định chuẩn Windows (Không cần người dùng chọn nơi lưu)
+# 1. Thư mục cài đặt cố định chuẩn Windows
 $targetDir = Join-Path $env:LOCALAPPDATA "LevelUpShield"
 if (!(Test-Path $targetDir)) {
     New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 }
 
-# 2. Xác định URL tải (ưu tiên tham số hoặc mặc định production)
+# 2. Xác định URL tải
 $baseUrl = "https://level-up-seven-blue.vercel.app"
 if ($args.Count -gt 0 -and $args[0]) {
     $baseUrl = $args[0].TrimEnd('/')
@@ -28,58 +28,56 @@ if ($args.Count -gt 0 -and $args[0]) {
 $zipUrl = "$baseUrl/download/levelup-shield.zip"
 $tempZip = Join-Path $targetDir "shield_temp.zip"
 
-Write-Host "📥 [1/3] Đang tải gói tiện ích mới nhất từ máy chủ..." -ForegroundColor Yellow
+Write-Host "[1/2] Đang tải gói tiện ích mới nhất từ máy chủ..." -ForegroundColor Yellow
 Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip -UseBasicParsing
 
-Write-Host "📦 [2/3] Đang giải nén vào $targetDir..." -ForegroundColor Yellow
+Write-Host "[2/2] Đang giải nén vào thư mục:" -ForegroundColor Yellow
+Write-Host "      $targetDir" -ForegroundColor Cyan
 Expand-Archive -Path $tempZip -DestinationPath $targetDir -Force
 if (Test-Path $tempZip) {
     Remove-Item -Path $tempZip -Force
 }
 
-# 3. Kích hoạt và nạp vào Google Chrome
-Write-Host "🚀 [3/3] Đang kích hoạt tiện ích vào Google Chrome..." -ForegroundColor Yellow
+# Tự động sao chép đường dẫn thư mục vào Clipboard để người dùng dán nhanh
+try {
+    Set-Clipboard -Value $targetDir
+} catch {}
 
-$chromePrefPath = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\Default\Preferences"
+# Kiểm tra xem extension đã từng được nạp trong bất kỳ profile nào của Chrome chưa
+$chromeUserData = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
 $isAlreadyInstalled = $false
-if (Test-Path $chromePrefPath) {
+if (Test-Path $chromeUserData) {
     try {
-        $isAlreadyInstalled = Select-String -Path $chromePrefPath -Pattern "LevelUp" -Quiet -ErrorAction SilentlyContinue
+        $prefFiles = Get-ChildItem -Path $chromeUserData -Filter "Preferences" -Recurse -Depth 2 -ErrorAction SilentlyContinue
+        foreach ($pref in $prefFiles) {
+            if (Select-String -Path $pref.FullName -Pattern "LevelUp" -Quiet -ErrorAction SilentlyContinue) {
+                $isAlreadyInstalled = $true
+                break
+            }
+        }
     } catch {}
 }
 
-$chromeRunning = Get-Process chrome -ErrorAction SilentlyContinue
-
+Write-Host ""
 if ($isAlreadyInstalled) {
-    # Trường hợp CẬP NHẬT: Extension đã từng được nạp trong Chrome
-    # Gửi tín hiệu reload tự động thông qua query parameter trigger
-    Start-Process chrome.exe "$baseUrl/?reload_shield=1"
-    Write-Host ""
-    Write-Host "🎉 HOÀN TẤT CẬP NHẬT! Tiện ích LevelUp Shield đã tự động làm mới lên bản mới nhất." -ForegroundColor Green
-    Write-Host "👉 Bạn có thể quay lại trình duyệt và tiếp tục phiên làm việc ngay lập tức!" -ForegroundColor Cyan
+    Write-Host "========================================================" -ForegroundColor Green
+    Write-Host " HOÀN TẤT CẬP NHẬT THÀNH CÔNG!" -ForegroundColor Green
+    Write-Host "========================================================" -ForegroundColor Green
+    Write-Host "Toàn bộ file tiện ích trong thư mục đã được cập nhật bản mới nhất." -ForegroundColor White
+    Write-Host "👉 Bạn chỉ cần quay lại tab LevelUp trên Chrome và F5 (reload) là xong!" -ForegroundColor Yellow
 } else {
-    # Trường hợp CÀI MỚI LẦN ĐẦU
-    if (-not $chromeRunning) {
-        # Nếu Chrome chưa mở -> Mở thẳng Chrome với cờ load-extension nạp sẵn luôn
-        Start-Process chrome.exe -ArgumentList "--load-extension=`"$targetDir`"", "$baseUrl"
-        Write-Host ""
-        Write-Host "🎉 HOÀN TẤT CÀI ĐẶT! Chrome đã mở cùng Khiên Kỷ Luật sẵn sàng." -ForegroundColor Green
-    } else {
-        # Nếu Chrome đang mở -> Đưa đường dẫn vào clipboard và mở trang extensions
-        try {
-            Set-Clipboard -Value $targetDir
-        } catch {}
-        Start-Process chrome.exe "chrome://extensions"
-        Start-Process chrome.exe "$baseUrl"
-        Write-Host ""
-        Write-Host "📋 ĐÃ TỰ ĐỘNG COPY ĐƯỜNG DẪN FOLDER VÀO BỘ NHỚ TẠM (CLIPBOARD)!" -ForegroundColor Green
-        Write-Host "👉 Trên tab chrome://extensions vừa mở trong Chrome:" -ForegroundColor Yellow
-        Write-Host "   1. Bật công tắc [Chế độ cho nhà phát triển / Developer mode] ở góc trên bên phải." -ForegroundColor White
-        Write-Host "   2. Bấm nút [Tải tiện ích đã giải nén] (Load unpacked) ở góc trên bên trái." -ForegroundColor White
-        Write-Host "   3. Chỉ cần bấm Ctrl+V và nhấn Enter (vì script đã copy sẵn đường dẫn cho bạn)!" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "💡 LƯU Ý: Bạn chỉ cần làm bước này đúng 1 LẦN DUY NHẤT." -ForegroundColor Gray
-        Write-Host "   Từ các lần sau khi có bản cập nhật mới, chỉ cần chạy lại dòng lệnh terminal này là TỰ ĐỘNG 100%!" -ForegroundColor Gray
-    }
+    Write-Host "========================================================" -ForegroundColor Green
+    Write-Host " ĐÃ TẢI TIỆN ÍCH VÀO MÁY THÀNH CÔNG!" -ForegroundColor Green
+    Write-Host "========================================================" -ForegroundColor Green
+    Write-Host "Đường dẫn thư mục đã được copy sẵn vào bộ nhớ tạm (Clipboard)." -ForegroundColor White
+    Write-Host ""
+    Write-Host "👉 CHỈ CÒN 1 BƯỚC NẠP VÀO CHROME (Mất 5 giây - Chỉ làm 1 lần duy nhất):" -ForegroundColor Yellow
+    Write-Host "   1. Mở tab mới trên Google Chrome, gõ: chrome://extensions" -ForegroundColor White
+    Write-Host "   2. Bật công tắc [Chế độ cho nhà phát triển] (Developer mode) ở góc trên bên phải." -ForegroundColor White
+    Write-Host "   3. Bấm nút [Tải tiện ích đã giải nén] (Load unpacked) ở góc trên bên trái." -ForegroundColor White
+    Write-Host "   4. Bấm Ctrl + V rồi nhấn Enter để chọn thư mục LevelUpShield -> Bấm Select Folder." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "🎉 Tab LevelUp sẽ TỰ ĐỘNG nhận diện và mở khóa ngay lập tức!" -ForegroundColor Green
+    Write-Host "💡 Từ các lần cập nhật sau, chỉ cần chạy lại lệnh này là tự động 100%!" -ForegroundColor Gray
 }
 Write-Host ""
