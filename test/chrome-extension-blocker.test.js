@@ -180,4 +180,33 @@ assert(contentJsCode.includes('LEVELUP_FOCUS_COMPLETED'), 'content.js phải đ�
 assert(contentJsCode.includes('FOCUS_SESSION_COMPLETED'), 'content.js phải chuyển tiếp FOCUS_SESSION_COMPLETED tới extension');
 console.log('✓ Test 8: Chu trình đồng bộ hoàn thành phiên Focus và tự động đóng tab phân tâm hoạt động hoàn chỉnh.');
 
+// Test 9: Kiểm tra hạ tầng và độ tin cậy tải file ZIP Extension
+const zipPath = path.resolve('public/download/levelup-shield.zip');
+assert(fs.existsSync(zipPath), 'File public/download/levelup-shield.zip phải tồn tại');
+const zipBuf = fs.readFileSync(zipPath);
+assert(zipBuf.length > 1000, 'File zip tiện ích phải có kích thước hợp lệ');
+// PK zip signature: 50 4B 03 04
+assert.strictEqual(zipBuf[0], 0x50, 'Byte 0 phải là 0x50 (PK)');
+assert.strictEqual(zipBuf[1], 0x4B, 'Byte 1 phải là 0x4B');
+assert.strictEqual(zipBuf[2], 0x03, 'Byte 2 phải là 0x03');
+assert.strictEqual(zipBuf[3], 0x04, 'Byte 3 phải là 0x04');
+
+const swPath = path.resolve('public/sw.js');
+const swCode = fs.readFileSync(swPath, 'utf8');
+assert(swCode.includes('/download/'), 'public/sw.js phải bỏ qua /download/ để không nuốt request download file');
+assert(swCode.includes('.zip'), 'public/sw.js phải bỏ qua .zip để tránh lỗi tải file trên Chrome PWA');
+
+const serverJsPath = path.resolve('server.js');
+const serverJsCode = fs.readFileSync(serverJsPath, 'utf8');
+assert(serverJsCode.includes('/download/levelup-shield.zip'), 'server.js phải khai báo route phục vụ tải extension zip');
+
+const vercelJsonPath = path.resolve('vercel.json');
+const vercelJsonCode = fs.readFileSync(vercelJsonPath, 'utf8');
+assert(vercelJsonCode.includes('Content-Disposition') && vercelJsonCode.includes('attachment'), 'vercel.json phải đính kèm Content-Disposition: attachment cho download');
+
+assert(timerSrc.includes('btn-download-shield-zip'), '06-timer.js phải lắng nghe nút tải zip');
+assert(appJs.includes('btn-download-shield-zip'), 'public/app.js bundle phải chứa logic tải zip an toàn');
+console.log('✓ Test 9: Hạ tầng tải file ZIP (ServiceWorker bypass, Server header, Vercel config, Blob fallback) hoạt động chuẩn xác.');
+
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.2.0 thành công 100%!');
+

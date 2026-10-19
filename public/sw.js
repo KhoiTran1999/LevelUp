@@ -3,7 +3,7 @@
  * Offline-First Caching & Background Asset Revalidation
  */
 
-const CACHE_NAME = 'levelup-app-shell-v4';
+const CACHE_NAME = 'levelup-app-shell-v5';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -53,10 +53,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // 1. Never cache non-GET or API endpoints (/api/*)
+  // 1. Never cache non-GET, API endpoints (/api/*), or downloads (/download/*, *.zip)
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/download/') || url.pathname.endsWith('.zip')) return;
 
   // 2. Navigation requests (HTML pages): Network-First, fallback to cached index.html
   if (request.mode === 'navigate') {

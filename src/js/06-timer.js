@@ -1138,6 +1138,45 @@ function initShieldGateListeners() {
       }
     });
   }
+
+  // 6. Nút tải file ZIP tiện ích Chrome (Blob fetch + fallback an toàn)
+  const btnDownloadZip = document.getElementById('btn-download-shield-zip');
+  if (btnDownloadZip) {
+    btnDownloadZip.addEventListener('click', async (e) => {
+      if (typeof window !== 'undefined' && window.fetch && window.URL && window.URL.createObjectURL) {
+        e.preventDefault();
+        try {
+          if (typeof showToast === 'function') {
+            showToast('📥 Đang tải xuống file khiên levelup-shield.zip...', 'info');
+          }
+          const targetUrl = btnDownloadZip.getAttribute('href') || '/download/levelup-shield.zip';
+          const response = await fetch(targetUrl, { cache: 'no-cache' });
+          if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+          }
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const tempLink = document.createElement('a');
+          tempLink.style.display = 'none';
+          tempLink.href = blobUrl;
+          tempLink.download = 'levelup-shield.zip';
+          document.body.appendChild(tempLink);
+          tempLink.click();
+          setTimeout(() => {
+            tempLink.remove();
+            window.URL.revokeObjectURL(blobUrl);
+          }, 15000);
+          if (typeof showToast === 'function') {
+            showToast('✅ Đã tải file zip thành công! Hãy giải nén và nạp vào Chrome.', 'success');
+          }
+        } catch (err) {
+          console.warn('[ShieldGate] Blob download fallback to direct download:', err);
+          const fallbackUrl = btnDownloadZip.getAttribute('href') || '/download/levelup-shield.zip';
+          window.location.href = fallbackUrl;
+        }
+      }
+    });
+  }
 }
 
 if (typeof document !== 'undefined') {

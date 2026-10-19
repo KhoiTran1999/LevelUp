@@ -44,6 +44,17 @@ const apiCacheControl = (req, res, next) => {
 app.all('/api/ai', apiCacheControl, (req, res) => aiHandler(req, res));
 app.all('/api/sync', apiCacheControl, (req, res) => syncHandler(req, res));
 
+// Force attachment download for extension zip packages
+app.get('/download/levelup-shield.zip', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'download', 'levelup-shield.zip');
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.download(filePath, 'levelup-shield.zip', (err) => {
+    if (err && !res.headersSent) {
+      res.status(404).send('File not found');
+    }
+  });
+});
+
 // Serve static frontend
 // ponytail: static asset cache 1h default, 1d immutable for media/icons
 app.use(express.static(path.join(__dirname, 'public'), {
