@@ -7,7 +7,7 @@ console.log('--- Bắt đầu kiểm thử Kiểm Tra Phiên Bản & Ép Buộc 
 // 1. Kiểm tra manifest.json và content.js
 const manifestPath = path.resolve('extension/manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-assert.strictEqual(manifest.version, '1.3.0', 'manifest.json phải có phiên bản 1.3.0');
+assert(manifest.version && /^\d+\.\d+\.\d+$/.test(manifest.version), 'manifest.json phải có phiên bản hợp lệ chuẩn semver');
 
 const contentJsPath = path.resolve('extension/content.js');
 const contentJs = fs.readFileSync(contentJsPath, 'utf8');
@@ -21,7 +21,9 @@ console.log('✓ Test 1: Extension manifest và content script đã cấu hình 
 const timerSrcPath = path.resolve('src/js/06-timer.js');
 const timerSrc = fs.readFileSync(timerSrcPath, 'utf8');
 
-assert(timerSrc.includes('const REQUIRED_EXTENSION_VERSION = \'1.3.0\';'), '06-timer.js phải quy định REQUIRED_EXTENSION_VERSION là 1.3.0');
+const verMatch = timerSrc.match(/const REQUIRED_EXTENSION_VERSION = ['"]([^'"]+)['"]/);
+assert(verMatch, '06-timer.js phải quy định hằng số REQUIRED_EXTENSION_VERSION');
+assert.strictEqual(manifest.version, verMatch[1], `manifest.json (v${manifest.version}) và 06-timer.js (v${verMatch[1]}) phải đồng bộ cùng phiên bản`);
 assert(timerSrc.includes('compareExtensionVersions'), '06-timer.js phải chứa hàm compareExtensionVersions');
 assert(timerSrc.includes('isLevelUpExtensionOutdated'), '06-timer.js phải chứa hàm isLevelUpExtensionOutdated');
 assert(timerSrc.includes('isLevelUpExtensionReady'), '06-timer.js phải chứa hàm isLevelUpExtensionReady');
