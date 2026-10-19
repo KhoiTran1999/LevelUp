@@ -3399,7 +3399,15 @@ function isLevelUpExtensionReady() {
 
 function isMobileUserDevice() {
   if (typeof navigator === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const ua = navigator.userAgent || '';
+  const isStandardMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileClientHint = Boolean(navigator.userAgentData?.mobile);
+  // iPadOS 13+ (Safari & Chrome trên iPad) mặc định gửi UA của macOS (Macintosh / MacIntel) nhưng có cảm ứng đa điểm (maxTouchPoints > 1)
+  const isIPadOS = (navigator.platform === 'MacIntel' || /Macintosh/i.test(ua)) && (navigator.maxTouchPoints > 1);
+  return isStandardMobile || isMobileClientHint || isIPadOS;
+}
+if (typeof window !== 'undefined') {
+  window.isMobileUserDevice = isMobileUserDevice;
 }
 
 function updateShieldGateStatus(installedOverride = null) {
@@ -5461,9 +5469,11 @@ function isMobilePhone() {
   const ua = navigator.userAgent || navigator.vendor || '';
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
   const isMobileClientHint = Boolean(navigator.userAgentData?.mobile);
+  // iPadOS 13+ (Safari & Chrome trên iPad gửi UA Macintosh)
+  const isIPadOS = (navigator.platform === 'MacIntel' || /Macintosh/i.test(ua)) && ((navigator.maxTouchPoints || 0) > 1);
 
-  // 1. Must match a mobile UA or client hint
-  if (!isMobileUA && !isMobileClientHint) return false;
+  // 1. Must match a mobile UA or client hint or iPadOS
+  if (!isMobileUA && !isMobileClientHint && !isIPadOS) return false;
 
   // --- ANTI-CHEAT DEVTOOLS & DESKTOP SPOOFING GUARDS ---
   // 2. Desktop OS check: Host platform on Windows/Mac/Linux (DevTools keeps host platform)
@@ -5474,7 +5484,7 @@ function isMobilePhone() {
   // MacIntel host check: on desktop Mac running DevTools iPhone mode, platform is MacIntel but touchPoints <= 1
   if (/MacIntel/i.test(platform)) {
     const tp = navigator.maxTouchPoints || 0;
-    if (tp <= 1 || !/iPad/i.test(ua)) {
+    if (tp <= 1) {
       return false;
     }
   }
@@ -5486,7 +5496,8 @@ function isMobilePhone() {
   }
 
   // 4. Pointer / Hover hardware check: PC/Laptop mouse is active even in DevTools
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  // (Miễn trừ khi là iPad thực thụ có gắn bàn phím/trackpad Magic Keyboard)
+  if (!isIPadOS && typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     if (window.matchMedia('(any-pointer: fine)').matches && window.matchMedia('(any-hover: hover)').matches) {
       return false;
     }

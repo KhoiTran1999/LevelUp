@@ -1035,7 +1035,15 @@ function isLevelUpExtensionReady() {
 
 function isMobileUserDevice() {
   if (typeof navigator === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const ua = navigator.userAgent || '';
+  const isStandardMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileClientHint = Boolean(navigator.userAgentData?.mobile);
+  // iPadOS 13+ (Safari & Chrome trên iPad) mặc định gửi UA của macOS (Macintosh / MacIntel) nhưng có cảm ứng đa điểm (maxTouchPoints > 1)
+  const isIPadOS = (navigator.platform === 'MacIntel' || /Macintosh/i.test(ua)) && (navigator.maxTouchPoints > 1);
+  return isStandardMobile || isMobileClientHint || isIPadOS;
+}
+if (typeof window !== 'undefined') {
+  window.isMobileUserDevice = isMobileUserDevice;
 }
 
 function updateShieldGateStatus(installedOverride = null) {
