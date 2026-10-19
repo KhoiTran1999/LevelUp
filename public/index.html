@@ -793,6 +793,14 @@
               <button type="button" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault()" onclick="formatNoteDoc('redo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Làm lại (Ctrl+Y)">
                 <span class="material-symbols-outlined text-[18px] leading-none">redo</span>
               </button>
+
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
+
+              <!-- Markdown Auto-Formatter -->
+              <button id="btn-format-markdown" type="button" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault()" onclick="formatMarkdownInActiveEditor()" class="px-2.5 h-7 sm:h-8 rounded-lg flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition cursor-pointer text-xs font-bold shrink-0" title="Nhận diện & chuyển đổi Markdown thành định dạng đẹp (Ctrl+Shift+M)">
+                <span class="material-symbols-outlined text-[17px] leading-none">auto_awesome</span>
+                <span class="inline">Markdown</span>
+              </button>
             </div>
 
             <!-- Contenteditable Editor Area -->
@@ -5006,6 +5014,13 @@
             </button>
             <button type="button" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault()" onclick="formatNoteDoc('redo')" class="w-6 h-6 sm:w-7 sm:h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Làm lại (Ctrl+Y)">
               <span class="material-symbols-outlined text-[16px] leading-none">redo</span>
+            </button>
+
+            <div class="w-px h-4 bg-slate-300 dark:bg-slate-700 mx-0.5"></div>
+
+            <button type="button" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault()" onclick="formatMarkdownInActiveEditor()" class="px-1.5 h-6 sm:h-7 rounded flex items-center gap-1 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition cursor-pointer font-semibold text-xs" title="Nhận diện & chuyển đổi Markdown (Ctrl+Shift+M)">
+              <span class="material-symbols-outlined text-[16px] leading-none">auto_awesome</span>
+              <span class="text-[11px] hidden lg:inline">Markdown</span>
             </button>
           </div>
 

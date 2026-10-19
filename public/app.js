@@ -14593,6 +14593,249 @@ function insertNoteDivider() {
 }
 window.insertNoteDivider = insertNoteDivider;
 
+// 17b. Bộ nhận diện & chuyển đổi cú pháp Markdown trong Sổ Ghi Chú
+function isMarkdownText(text) {
+  if (!text || typeof text !== 'string') return false;
+  const mdPatterns = [
+    /\*\*[^*]+?\*\*/,                     // **bold**
+    /__[^_]+?__/,                         // __bold__
+    /~~[^~]+?~~/,                         // ~~strikethrough~~
+    /(?:^|\n)\s*#{1,6}\s+\S/,              // # Heading
+    /(?:^|\n)\s*[-*+]\s+\[[ xX]\]\s+/,       // - [ ] Checklist
+    /(?:^|\n)\s*[-*+]\s+\S/,              // * List item or - List item
+    /(?:^|\n)\s*\d+\.\s+\S/,              // 1. Numbered item
+    /(?:^|\n)\s*>\s+\S/,                  // > Blockquote
+    /```[\s\S]*?```/,                     // ```code block```
+    /`[^`\n]+`/,                          // `inline code`
+    /\[.+?\]\((?:https?:\/\/|\/|\.?\/)[^\s)]+\)/, // [link](url)
+    /(?:^|\n)\s*(?:---|\*\*\*|___)\s*(?:\n|$)/     // Horizontal rule
+  ];
+  return mdPatterns.some(pattern => pattern.test(text));
+}
+window.isMarkdownText = isMarkdownText;
+
+function parseInlineMarkdown(text) {
+  if (!text) return '';
+  let res = escapeHtml(text);
+
+  // 1. Code inline: `code`
+  const inlineCodes = [];
+  res = res.replace(/`([^`\n]+)`/g, (_m, code) => {
+    const idx = inlineCodes.length;
+    inlineCodes.push(`<code>${code}</code>`);
+    return `@@INLINECODE${idx}@@`;
+  });
+
+  // 2. Markdown Links: [text](url)
+  const links = [];
+  res = res.replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/|\.?\/)[^\s)]+)\)/g, (_m, linkText, url) => {
+    const idx = links.length;
+    links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`);
+    return `@@MDLINK${idx}@@`;
+  });
+
+  // 3. Bold + Italic: ***text*** or ___text___
+  res = res.replace(/\*\*\*([^*]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  res = res.replace(/___([^_]+?)___/g, '<strong><em>$1</em></strong>');
+
+  // 4. Bold: **text** or __text__
+  res = res.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+  res = res.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+
+  // 5. Italic: *text* or _text_
+  res = res.replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  res = res.replace(/(^|[^_])_([^_]+?)_(?!_)/g, '$1<em>$2</em>');
+
+  // 6. Strikethrough: ~~text~~
+  res = res.replace(/~~([^~]+?)~~/g, '<del>$1</del>');
+
+  // 7. Auto-link bare URLs (nếu chưa nằm trong <a>)
+  res = res.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)(?=[)\s]|$)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+
+  // 8. Khôi phục Links & Inline Code
+  res = res.replace(/@@MDLINK(\d+)@@/g, (_m, idx) => links[Number(idx)] || '');
+  res = res.replace(/@@INLINECODE(\d+)@@/g, (_m, idx) => inlineCodes[Number(idx)] || '');
+
+  return res;
+}
+window.parseInlineMarkdown = parseInlineMarkdown;
+
+function convertMarkdownToEditorHtml(md) {
+  if (!md || typeof md !== 'string') return '<p></p>';
+
+  const normalized = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  const codeBlocks = [];
+  const text = normalized.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre class="note-code-block" data-lang="${escapeHtml(lang)}"><code>${escapeHtml(code.trim())}</code></pre>`);
+    return `@@CODEBLOCK${idx}@@`;
+  });
+
+  const lines = text.split('\n');
+  const out = [];
+
+  let inUl = false;
+  let inOl = false;
+  let inQuote = false;
+  let quoteLines = [];
+
+  function closeLists() {
+    if (inUl) { out.push('</ul>'); inUl = false; }
+    if (inOl) { out.push('</ol>'); inOl = false; }
+  }
+
+  function flushQuote() {
+    if (inQuote) {
+      out.push(`<blockquote>${quoteLines.join('<br>')}</blockquote>`);
+      inQuote = false;
+      quoteLines = [];
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      closeLists();
+      flushQuote();
+      continue;
+    }
+
+    const cbMatch = trimmed.match(/^@@CODEBLOCK(\d+)@@$/);
+    if (cbMatch) {
+      closeLists();
+      flushQuote();
+      out.push(codeBlocks[Number(cbMatch[1])]);
+      continue;
+    }
+
+    if (/^(?:[-*_]\s*){3,}$/.test(trimmed)) {
+      closeLists();
+      flushQuote();
+      out.push('<hr>');
+      continue;
+    }
+
+    const quoteMatch = line.match(/^\s*>\s?(.*)$/);
+    if (quoteMatch) {
+      closeLists();
+      inQuote = true;
+      quoteLines.push(parseInlineMarkdown(quoteMatch[1]));
+      continue;
+    } else {
+      flushQuote();
+    }
+
+    const hMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (hMatch) {
+      closeLists();
+      const level = Math.min(hMatch[1].length, 3);
+      out.push(`<h${level}>${parseInlineMarkdown(hMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    const todoMatch = line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/);
+    if (todoMatch) {
+      closeLists();
+      const isDone = todoMatch[1].toLowerCase() === 'x';
+      const checkedAttr = isDone ? ' checked="checked"' : '';
+      const doneClass = isDone ? ' is-done' : '';
+      out.push(`<div class="note-todo-item${doneClass}"><input type="checkbox" class="note-checkbox"${checkedAttr}><span class="note-todo-text">${parseInlineMarkdown(todoMatch[2])}</span></div>`);
+      continue;
+    }
+
+    const ulMatch = line.match(/^\s*[-*+]\s+(.*)$/);
+    if (ulMatch) {
+      if (inOl) { out.push('</ol>'); inOl = false; }
+      if (!inUl) { out.push('<ul>'); inUl = true; }
+      out.push(`<li>${parseInlineMarkdown(ulMatch[1])}</li>`);
+      continue;
+    }
+
+    const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
+    if (olMatch) {
+      if (inUl) { out.push('</ul>'); inUl = false; }
+      if (!inOl) { out.push('<ol>'); inOl = true; }
+      out.push(`<li>${parseInlineMarkdown(olMatch[2])}</li>`);
+      continue;
+    }
+
+    closeLists();
+    out.push(`<p>${parseInlineMarkdown(trimmed)}</p>`);
+  }
+
+  closeLists();
+  flushQuote();
+
+  return out.join('') || '<p></p>';
+}
+window.convertMarkdownToEditorHtml = convertMarkdownToEditorHtml;
+
+function formatMarkdownInActiveEditor() {
+  const editor = document.getElementById('focus-notes-tab-editor') || document.getElementById('focus-notes-editor') || document.querySelector('.notes-editor');
+  if (!editor) return;
+
+  const sel = window.getSelection();
+  const hasSelection = sel && !sel.isCollapsed && sel.toString().trim().length > 0;
+
+  if (hasSelection) {
+    const text = sel.toString();
+    if (!isMarkdownText(text)) {
+      if (typeof showToast === 'function') {
+        showToast('ℹ️ Đoạn văn bản bôi đen không chứa cú pháp Markdown.', 'info');
+      }
+      return;
+    }
+    const isSingleLine = !text.includes('\n') && !/^\s*(?:#{1,6}|[-*+]|\d+\.|>|---)\s+/m.test(text);
+    const converted = isSingleLine ? parseInlineMarkdown(text) : convertMarkdownToEditorHtml(text);
+    document.execCommand('insertHTML', false, converted);
+    handleNotesInput();
+    if (typeof showToast === 'function') {
+      showToast('✨ Đã định dạng đoạn Markdown đã chọn!', 'success');
+    }
+    return;
+  }
+
+  let text = '';
+  if (typeof editor.innerText === 'string' && editor.innerText.trim()) {
+    text = editor.innerText;
+  } else {
+    const temp = document.createElement('div');
+    temp.innerHTML = editor.innerHTML
+      .replace(/<br\s*[\/]?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/li>/gi, '\n');
+    text = temp.textContent || temp.innerText || '';
+  }
+
+  if (!text.trim()) {
+    if (typeof showToast === 'function') {
+      showToast('ℹ️ Ghi chú đang trống, hãy nhập nội dung trước.', 'info');
+    }
+    return;
+  }
+
+  if (!isMarkdownText(text)) {
+    if (typeof showToast === 'function') {
+      showToast('ℹ️ Ghi chú hiện tại không phát hiện cú pháp Markdown.', 'info');
+    }
+    return;
+  }
+
+  const converted = convertMarkdownToEditorHtml(text);
+  if (converted) {
+    editor.innerHTML = converted;
+    handleNotesInput();
+    if (typeof showToast === 'function') {
+      showToast('✨ Đã tự động nhận diện và chuyển đổi toàn bộ Markdown thành định dạng!', 'success');
+    }
+  }
+}
+window.formatMarkdownInActiveEditor = formatMarkdownInActiveEditor;
+
 // 18. Lắng nghe phím Enter trong Checklist & Clean Paste
 function setupNotesEditorListeners() {
   try {
@@ -14722,6 +14965,13 @@ function setupNotesEditorListeners() {
         }
       }
 
+      // Phím tắt Ctrl+Shift+M / Cmd+Shift+M: Nhận diện & định dạng Markdown
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        formatMarkdownInActiveEditor();
+        return;
+      }
+
       // Phím Tab: thụt đầu dòng
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -14730,12 +14980,34 @@ function setupNotesEditorListeners() {
       }
     });
 
-    // Lọc sạch mã rác khi Paste (Clean Paste Sanitizer)
+    // Lọc sạch rác khi Paste & Tự động nhận diện Markdown (Smart Markdown & Clean Paste)
     el.addEventListener('paste', (e) => {
       e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      const clipboard = e.clipboardData || window.clipboardData;
+      if (!clipboard) return;
+
+      const text = (clipboard.getData('text/plain') || '').trim();
+
+      if (isMarkdownText(text)) {
+        const isSingleLine = !text.includes('\n') && !/^\s*(?:#{1,6}|[-*+]|\d+\.|>|---)\s+/m.test(text);
+        const formatted = isSingleLine ? parseInlineMarkdown(text) : convertMarkdownToEditorHtml(text);
+        if (formatted) {
+          document.execCommand('insertHTML', false, formatted);
+          handleNotesInput();
+          if (typeof showToast === 'function') {
+            showToast('✨ Đã tự động nhận diện và chuyển đổi cú pháp Markdown!', 'success');
+          }
+          return;
+        }
+      }
+
       if (text) {
-        document.execCommand('insertText', false, text);
+        if (text.includes('\n')) {
+          const formatted = convertMarkdownToEditorHtml(text);
+          document.execCommand('insertHTML', false, formatted);
+        } else {
+          document.execCommand('insertText', false, text);
+        }
         handleNotesInput();
       }
     });
@@ -14929,16 +15201,18 @@ window.toggleNoteFullscreen = toggleNoteFullscreen;
 function appendClipToNotes(text, sourceUrl = '', pageTitle = '') {
   if (!text) return;
   const notes = getAllNotes();
-  const cleanSnippet = escapeHtml(text.trim());
+  const trimmed = text.trim();
+  const cleanSnippet = isMarkdownText(trimmed)
+    ? convertMarkdownToEditorHtml(trimmed)
+    : `<p class="my-1.5 text-xs text-slate-700 dark:text-slate-300">${escapeHtml(trimmed)}</p>`;
   const sourceLabel = pageTitle ? escapeHtml(pageTitle) : (sourceUrl || 'Web');
-  const linkHtml = sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-500 underline text-xs">[Nguồn: ${sourceLabel}]</a>` : '';
+  const linkHtml = sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="text-indigo-500 underline text-xs">[Nguồn: ${sourceLabel}]</a>` : '';
 
   const clipHtml = `
-    <p class="my-1.5 text-xs text-slate-700 dark:text-slate-300">
+    <div class="my-2">
       ${cleanSnippet}
-      ${linkHtml ? `<span class="ml-1 opacity-90">${linkHtml}</span>` : ''}
-    </p>
-    <p></p>
+      ${linkHtml ? `<p class="mt-1 text-xs opacity-90">${linkHtml}</p>` : ''}
+    </div>
   `;
 
   // Thêm vào ghi chú đang mở
@@ -14976,14 +15250,19 @@ function createNoteFromExtension(data = {}) {
   const notes = getAllNotes();
 
   let formattedContent = '';
-  if (body) {
-    formattedContent += `<p>${escapeHtml(body.trim()).replace(/\n/g, '<br>')}</p>`;
+  if (body && body.trim()) {
+    const trimmedBody = body.trim();
+    if (isMarkdownText(trimmedBody)) {
+      formattedContent += convertMarkdownToEditorHtml(trimmedBody);
+    } else {
+      formattedContent += `<p>${escapeHtml(trimmedBody).replace(/\n/g, '<br>')}</p>`;
+    }
   }
   if (sourceUrl) {
     const sourceLabel = sourceTitle ? escapeHtml(sourceTitle) : escapeHtml(sourceUrl);
     formattedContent += `
       <p class="my-1.5 text-xs">
-        <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-600 dark:text-indigo-400 underline font-medium">🔗 ${sourceLabel}</a>
+        <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline font-medium">🔗 ${sourceLabel}</a>
       </p>
       <p></p>
     `;
