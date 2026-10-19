@@ -150,6 +150,10 @@ assert(capsuleCode.includes('blocked-card-center'), 'capsule.js phải có thẻ
 assert(capsuleCode.includes('gentleBobbing'), 'capsule.js phải có animation nảy lên xuống nhẹ nhàng (gentleBobbing)');
 assert(capsuleCode.includes('btn-overlay-shrink'), 'capsule.js phải có nút kích hoạt thu nhỏ khiên (btn-overlay-shrink)');
 assert(capsuleCode.includes('backdrop-filter'), 'capsule.js phải có hiệu ứng blur kính cho con nhộng thời gian');
+assert(capsuleCode.includes('startCapsuleFlight'), 'capsule.js phải có hàm startCapsuleFlight kích hoạt bay ngẫu nhiên khi bị chặn');
+assert(capsuleCode.includes('getRandomFlightTarget'), 'capsule.js phải có thuật toán tính toán toạ độ bay ngẫu nhiên toàn màn hình');
+assert(capsuleCode.includes('pauseCapsuleFlight') && capsuleCode.includes('resumeCapsuleFlight'), 'capsule.js phải có cơ chế tạm dừng khi hover/drag và tiếp tục bay nhẹ nhàng');
+assert(capsuleCode.includes('is-flying'), 'capsule.js phải có class .is-flying phục vụ hiệu ứng lượn êm ái');
 
 // Kiểm tra trang blocked.html và blocked.css giữ trọn vẹn hiệu ứng Motion yêu thích
 const blockedHtmlPath = path.join(extDir, 'blocked/blocked.html');
@@ -161,7 +165,7 @@ assert(blockedHtmlCode.includes('glow-orb'), 'blocked.html phải giữ hiệu �
 assert(blockedHtmlCode.includes('animate-pulse'), 'blocked.html phải giữ hiệu ứng motion animate-pulse');
 assert(blockedHtmlCode.includes('animate-ping'), 'blocked.html phải giữ hiệu ứng motion animate-ping');
 assert(blockedCssCode.includes('cardRumble'), 'blocked.css phải có animation rung rung (cardRumble) khi xuất hiện');
-console.log('✓ Test 7: Cảnh báo lớn nảy lên xuống nhẹ nhàng (gentleBobbing), con nhộng trong suốt blur kính, rung rung và nút × hover đóng tab khi ở trang bị chặn hoạt động chuẩn xác.');
+console.log('✓ Test 7: Cảnh báo lớn nảy lên xuống nhẹ nhàng (gentleBobbing), con nhộng trong suốt blur kính rung rung và bay lượn ngẫu nhiên toàn màn hình (is-flying) khi ở trạng thái bị chặn.');
 
 // Test 8: Kiểm tra cấu hình, truyền tin hoàn thành phiên Focus và đóng tab phân tâm khi quay về LevelUp
 const bgPath = path.join(extDir, 'background.js');
@@ -218,5 +222,39 @@ assert(modalSrc.includes('#modal-shield-gate'), '15-modal.js phải cho phép t�
 assert(modalSrc.includes('enforceMandatoryShieldGateOnStartup'), '15-modal.js phải kích hoạt shield gate sau khi đăng nhập Google thành công');
 console.log('✓ Test 10: Xung đột giữa Google Login và Shield Gate đã được giải quyết triệt để (đúng thứ tự và không bị capture chặn click).');
 
+// Test 11: Kiểm tra cơ chế phát hiện phiên bản extension và ép buộc cập nhật (Forced Update)
+assert(timerSrc.includes('REQUIRED_EXTENSION_VERSION'), '06-timer.js phải khai báo REQUIRED_EXTENSION_VERSION');
+assert(timerSrc.includes('compareExtensionVersions'), '06-timer.js phải có hàm compareExtensionVersions');
+assert(timerSrc.includes('isLevelUpExtensionOutdated'), '06-timer.js phải có hàm isLevelUpExtensionOutdated kiểm tra bản cũ');
+assert(timerSrc.includes('isLevelUpExtensionReady'), '06-timer.js phải có hàm isLevelUpExtensionReady');
+assert(timerSrc.includes('!isLevelUpExtensionReady()'), 'startFocusTimer phải chặn phiên và mở Shield Gate khi extension là bản cũ');
+assert(contentJsCode.includes('broadcastExtensionVersion'), 'content.js phải có hàm broadcastExtensionVersion');
+assert(contentJsCode.includes('chrome.runtime?.getManifest?.()?.version'), 'content.js phải lấy version động từ manifest');
+
+// Kiểm tra thuật toán so khớp semver
+function testSemverCompare(v1, v2) {
+  if (!v1 || !v2) return 0;
+  const p1 = String(v1).split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = String(v2).split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(p1.length, p2.length);
+  for (let i = 0; i < len; i++) {
+    const a = p1[i] || 0;
+    const b = p2[i] || 0;
+    if (a > b) return 1;
+    if (a < b) return -1;
+  }
+  return 0;
+}
+
+assert(testSemverCompare('1.0.0', '1.2.0') < 0, '1.0.0 phải nhỏ hơn 1.2.0 (outdated)');
+assert(testSemverCompare('1.1.9', '1.2.0') < 0, '1.1.9 phải nhỏ hơn 1.2.0 (outdated)');
+assert(testSemverCompare('1.2.0', '1.2.0') === 0, '1.2.0 phải bằng 1.2.0 (ready)');
+assert(testSemverCompare('1.3.0', '1.2.0') > 0, '1.3.0 phải lớn hơn 1.2.0 (ready)');
+
+assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'public/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
+assert(appJs.includes('isLevelUpExtensionOutdated'), 'public/app.js bundle phải chứa isLevelUpExtensionOutdated');
+console.log('✓ Test 11: Cơ chế kiểm tra phiên bản extension và ép buộc nâng cấp (Forced Update) hoạt động chính xác 100%.');
+
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.2.0 thành công 100%!');
+
 

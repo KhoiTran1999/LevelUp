@@ -264,6 +264,144 @@ export function calculateNetWorth(profile = {}) {
 }
 
 /**
+ * Tính thông tin đếm ngược nhận lãi và số tiền sẽ nhận cho sổ tiết kiệm
+ * @param {Object} dep - Sổ tiết kiệm ({ amount, interest, termDays, createdAt, lastAccruedAt, maturityAt, status })
+ * @param {Object} rates - { depositRate }
+ * @param {number|Object} discipline - Hệ số kỷ luật streak (số hoặc object { multiplier })
+ * @param {number} now - Timestamp hiện tại
+ */
+export function calculateDepositPayoutInfo(dep, rates = {}, discipline = 1.0, now = Date.now()) {
+  if (!dep || typeof dep !== 'object') return null;
+  const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
+  if (amount <= 0) return null;
+
+  const termDays = parseInt(dep.termDays, 10) || 0;
+  const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+  const termMult = termConfig.rateMultiplier || 1.0;
+
+  const discMult = typeof discipline === 'object' && discipline !== null
+    ? (Number(discipline.multiplier) || 1.0)
+    : (Number(discipline) || 1.0);
+
+  const rawBase = Number(rates?.depositRate) || 0.0015;
+  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
+  const effectiveBase = calculateEffectiveDepositBase(amount);
+  const dailyRate = baseRate * termMult * discMult;
+  const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
+
+  const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
+
+  // 1. Sổ có kỳ hạn (termDays > 0)
+  if (termDays > 0 && dep.maturityAt) {
+    const maturityAt = parseInt(dep.maturityAt, 10);
+    const msUntilMaturity = Math.max(0, maturityAt - now);
+    const isMatured = dep.status === 'matured' || now >= maturityAt || msUntilMaturity <= 5000;
+
+    // Tổng lãi dự kiến khi đáo hạn
+    const totalExpectedInterest = Math.max(
+      parseInt(dep.interest, 10) || 0,
+      Math.floor(cappedDailyInterest * termDays)
+    );
+
+    return {
+      type: 'term',
+      termDays,
+      termLabel: termConfig.label,
+      targetTimestamp: maturityAt,
+      msRemaining: isMatured ? 0 : msUntilMaturity,
+      isMatured,
+      expectedPayoutAmount: isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest,
+      totalWithPrincipal: amount + (isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest),
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest
+    };
+  }
+
+  // 2. Sổ linh hoạt (termDays === 0)
+  if (cappedDailyInterest <= 0) {
+    return {
+      type: 'flex',
+      termDays: 0,
+      termLabel: termConfig.label,
+      targetTimestamp: 0,
+      msRemaining: 0,
+      isMatured: false,
+      expectedPayoutAmount: 0,
+      totalWithPrincipal: amount,
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest: 0
+    };
+  }
+
+  const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
+  const currentEarnedCoins = Math.floor(cappedDailyInterest * elapsedDays);
+  const nextTargetCoinCount = currentEarnedCoins + 1;
+  const daysNeededTotal = nextTargetCoinCount / cappedDailyInterest;
+  const targetTimestamp = lastAcc + Math.ceil(daysNeededTotal * 24 * 60 * 60 * 1000);
+  const msRemaining = Math.max(0, targetTimestamp - now);
+
+  return {
+    type: 'flex',
+    termDays: 0,
+    termLabel: termConfig.label,
+    targetTimestamp,
+    msRemaining,
+    isMatured: false,
+    expectedPayoutAmount: 1,
+    totalWithPrincipal: amount + (parseInt(dep.interest, 10) || 0) + 1,
+    currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+    cappedDailyInterest
+  };
+}
+
+/**
+ * Tính thông tin đếm ngược cho khoản vay:
+ * 1) Thời gian sẽ tính lãi của lần tiếp theo & số tiền lãi
+ * 2) Thời gian hết kỳ hạn vay & trạng thái quá hạn
+ * @param {Object} loan - { principal, debt, termDays, borrowRate, borrowedAt, lastAccruedAt, isOverdue }
+ * @param {Object} rates - { borrowRate }
+ * @param {number} now - Timestamp hiện tại
+ */
+export function calculateLoanCountdownInfo(loan, rates = {}, now = Date.now()) {
+  if (!loan || typeof loan !== 'object' || (parseInt(loan.debt, 10) || 0) <= 0) {
+    return null;
+  }
+
+  const debt = Math.max(0, parseInt(loan.debt, 10) || 0);
+  const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
+  const termDays = Math.max(1, parseInt(loan.termDays, 10) || 7);
+  const borrowRate = Number(loan.borrowRate) || Number(rates?.borrowRate) || 0.05;
+
+  const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
+  const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
+
+  // 1. Đếm ngược tính lãi lần tiếp theo (chu kỳ 24h từ lastAccruedAt)
+  const nextAccrualTimestamp = lastAcc + (24 * 60 * 60 * 1000);
+  const msUntilNextAccrual = Math.max(0, nextAccrualTimestamp - now);
+  const nextInterestAmount = Math.ceil(debt * borrowRate);
+
+  // 2. Đếm ngược hết kỳ hạn vay
+  const expireTimestamp = borrowedAt + (termDays * 24 * 60 * 60 * 1000);
+  const msUntilExpire = expireTimestamp - now;
+  const isOverdue = Boolean(loan.isOverdue) || msUntilExpire <= 0;
+
+  return {
+    debt,
+    principal,
+    termDays,
+    borrowRate,
+    nextAccrualTimestamp,
+    msUntilNextAccrual,
+    nextInterestAmount,
+    isAccrualDue: msUntilNextAccrual === 0,
+    expireTimestamp,
+    msUntilExpire: Math.max(0, msUntilExpire),
+    isOverdue,
+    overdueDays: isOverdue ? Math.max(1, Math.floor(Math.abs(now - expireTimestamp) / (24 * 60 * 60 * 1000))) : 0
+  };
+}
+
+/**
  * Accrue user bank interest (deposit yield & loan debt interest)
  * Hỗ trợ A (Lãi suất cân bằng, không floor ảo), B (Bậc thang, trần ngày), C (Kỷ luật streak), D (Đa kỳ hạn)
  * Enforce 7-day overdue freeze rule

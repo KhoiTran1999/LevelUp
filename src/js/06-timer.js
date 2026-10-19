@@ -988,6 +988,8 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
+const REQUIRED_EXTENSION_VERSION = '1.2.0';
+
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
   return Boolean(
@@ -996,19 +998,91 @@ function isLevelUpExtensionInstalled() {
   );
 }
 
+function getInstalledExtensionVersion() {
+  if (typeof window === 'undefined') return null;
+  return (
+    document.documentElement?.dataset?.levelupExtensionVersion ||
+    window.__LEVELUP_EXTENSION_VERSION__ ||
+    null
+  );
+}
+
+function compareExtensionVersions(v1, v2) {
+  if (!v1 || !v2) return 0;
+  const p1 = String(v1).split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = String(v2).split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(p1.length, p2.length);
+  for (let i = 0; i < len; i++) {
+    const a = p1[i] || 0;
+    const b = p2[i] || 0;
+    if (a > b) return 1;
+    if (a < b) return -1;
+  }
+  return 0;
+}
+
+function isLevelUpExtensionOutdated() {
+  if (!isLevelUpExtensionInstalled()) return false;
+  const ver = getInstalledExtensionVersion();
+  // Nếu đã cài extension nhưng không báo phiên bản hoặc bản thấp hơn bản yêu cầu -> Đã cũ!
+  if (!ver) return true;
+  return compareExtensionVersions(ver, REQUIRED_EXTENSION_VERSION) < 0;
+}
+
+function isLevelUpExtensionReady() {
+  return isLevelUpExtensionInstalled() && !isLevelUpExtensionOutdated();
+}
+
 function isMobileUserDevice() {
   if (typeof navigator === 'undefined') return false;
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-function updateShieldGateStatus(installed) {
+function updateShieldGateStatus(installedOverride = null) {
+  const modal = document.getElementById('modal-shield-gate');
+  if (!modal) return;
+
+  const header = document.getElementById('shield-gate-header');
+  const icon = document.getElementById('shield-gate-icon');
+  const badge = document.getElementById('shield-gate-badge');
+  const title = document.getElementById('shield-gate-title');
+  const desc = document.getElementById('shield-gate-desc');
+  const step1Title = document.getElementById('shield-gate-step1-title');
+  const step1Desc = document.getElementById('shield-gate-step1-desc');
+  const step2Title = document.getElementById('shield-gate-step2-title');
+  const stepText1 = document.getElementById('shield-gate-step-text-1');
+  const stepText3 = document.getElementById('shield-gate-step-text-3');
+  const stepText4 = document.getElementById('shield-gate-step-text-4');
   const statusBox = document.getElementById('shield-gate-status-box');
   const spinner = document.getElementById('shield-gate-spinner');
   const statusText = document.getElementById('shield-gate-status-text');
   const btnSuccess = document.getElementById('btn-shield-gate-success');
   const btnCheckNow = document.getElementById('btn-shield-check-now');
+  const footerNote = document.getElementById('shield-gate-footer-note');
 
-  if (installed) {
+  const installed = installedOverride !== null ? Boolean(installedOverride) : isLevelUpExtensionInstalled();
+  const currentVer = getInstalledExtensionVersion();
+  const outdated = installed && isLevelUpExtensionOutdated();
+  const ready = installed && !outdated;
+
+  if (ready) {
+    if (header) {
+      header.className = 'bg-emerald-50/80 dark:bg-emerald-950/40 px-6 py-6 border-b border-emerald-100 dark:border-emerald-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-emerald-600/30 ring-4 ring-emerald-500/20';
+      icon.textContent = '🛡️';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>✅ ĐÃ TRANG BỊ BẢN MỚI NHẤT (v${currentVer || REQUIRED_EXTENSION_VERSION})</span>`;
+    }
+    if (title) {
+      title.textContent = 'KHIÊN KỶ LUẬT ĐÃ SẴN SÀNG';
+    }
+    if (desc) {
+      desc.textContent = `Tiện ích đã được kết nối và xác thực phiên bản v${currentVer || REQUIRED_EXTENSION_VERSION}. Tất cả tính năng Pomodoro và con nhộng bay đã sẵn sàng!`;
+    }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
     }
@@ -1017,11 +1091,109 @@ function updateShieldGateStatus(installed) {
     }
     if (statusText) {
       statusText.className = 'text-xs font-bold text-emerald-950 dark:text-emerald-100 truncate';
-      statusText.textContent = '✅ Đã phát hiện Khiên Kỷ Luật sẵn sàng!';
+      statusText.textContent = `✅ Đã phát hiện Khiên Kỷ Luật v${currentVer || REQUIRED_EXTENSION_VERSION} sẵn sàng!`;
     }
-    if (btnSuccess) btnSuccess.classList.remove('hidden');
-    if (btnCheckNow) btnCheckNow.classList.add('hidden');
+    if (btnSuccess) {
+      btnSuccess.classList.remove('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.add('hidden');
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-emerald-500">verified</span><span>Khiên Kỷ Luật phiên bản mới nhất đang hoạt động bảo vệ bạn.</span>';
+    }
+  } else if (outdated) {
+    if (header) {
+      header.className = 'bg-rose-50/80 dark:bg-rose-950/40 px-6 py-6 border-b border-rose-100 dark:border-rose-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-rose-600/30 ring-4 ring-rose-500/20 animate-pulse';
+      icon.textContent = '🚀';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/80 border border-rose-200 dark:border-rose-700/60 text-rose-800 dark:text-rose-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>⚠️ BẮT BUỘC CẬP NHẬT LÊN BẢN v${REQUIRED_EXTENSION_VERSION}</span>`;
+    }
+    if (title) {
+      title.textContent = 'NÂNG CẤP KHIÊN KỶ LUẬT';
+    }
+    if (desc) {
+      desc.textContent = `Bạn đang sử dụng phiên bản Khiên cũ (v${currentVer || '1.0.0'}). Bắt buộc cập nhật lên phiên bản mới nhất v${REQUIRED_EXTENSION_VERSION} để tiếp tục sử dụng app và trải nghiệm tính năng con nhộng bay ngẫu nhiên.`;
+    }
+    if (step1Title) {
+      step1Title.textContent = `Bước 1: Tải Bản Cập Nhật v${REQUIRED_EXTENSION_VERSION}`;
+    }
+    if (step1Desc) {
+      step1Desc.textContent = `levelup-shield.zip (Phiên bản v${REQUIRED_EXTENSION_VERSION})`;
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Bước 2: Cập nhật tiện ích trong 15 giây';
+    }
+    if (stepText1) {
+      stepText1.innerHTML = `Giải nén file <strong class="text-rose-600 dark:text-rose-400 font-bold">levelup-shield.zip</strong> ghi đè vào thư mục extension cũ.`;
+    }
+    if (stepText3) {
+      stepText3.innerHTML = `Tìm tiện ích <strong class="text-amber-700 dark:text-amber-400 font-bold">LevelUp — Khiên Chặn Xao Nhãng</strong>.`;
+    }
+    if (stepText4) {
+      stepText4.innerHTML = `Bấm nút <strong class="text-rose-600 dark:text-rose-400 font-bold">🔄 Làm Mới (Reload)</strong> trên thẻ tiện ích (hoặc Load unpacked lại).`;
+    }
+    if (statusBox) {
+      statusBox.className = 'p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
+    }
+    if (spinner) {
+      spinner.className = 'w-4 h-4 border-2 border-rose-600 dark:border-rose-400 border-t-transparent rounded-full animate-spin shrink-0';
+    }
+    if (statusText) {
+      statusText.className = 'text-xs font-bold text-rose-950 dark:text-rose-100 truncate';
+      statusText.textContent = `⚠️ Đang dùng bản cũ (v${currentVer || '1.0.0'}). Đang đợi bản v${REQUIRED_EXTENSION_VERSION}...`;
+    }
+    if (btnSuccess) {
+      btnSuccess.classList.add('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.remove('hidden');
+      btnCheckNow.textContent = 'Quét Lại Bản Mới';
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-rose-500">warning</span><span>Bắt buộc cập nhật phiên bản mới nhất để mở khóa app. Điện thoại được miễn trừ.</span>';
+    }
   } else {
+    if (header) {
+      header.className = 'bg-indigo-50/80 dark:bg-indigo-950/40 px-6 py-6 border-b border-indigo-100 dark:border-indigo-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-indigo-600/30 ring-4 ring-indigo-500/20';
+      icon.textContent = '🛡️';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700/60 text-indigo-800 dark:text-indigo-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>🔒 TRANG BỊ BẮT BUỘC ĐỂ SỬ DỤNG</span>`;
+    }
+    if (title) {
+      title.textContent = 'KHIÊN CHẶN XAO NHÃNG';
+    }
+    if (desc) {
+      desc.textContent = 'Để bắt đầu hành trình và bảo vệ kỷ luật, Hiệp sĩ cần trang bị tiện ích Chrome để phong ấn các trang mạng xã hội gây xao nhãng.';
+    }
+    if (step1Title) {
+      step1Title.textContent = 'Bước 1: Tải Tiện Ích LevelUp';
+    }
+    if (step1Desc) {
+      step1Desc.textContent = 'File nén .ZIP (~42 KB)';
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Bước 2: Cài vào Chrome trong 15 giây';
+    }
+    if (stepText1) {
+      stepText1.innerHTML = `Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.`;
+    }
+    if (stepText3) {
+      stepText3.innerHTML = `Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).`;
+    }
+    if (stepText4) {
+      stepText4.innerHTML = `Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.`;
+    }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
     }
@@ -1032,8 +1204,16 @@ function updateShieldGateStatus(installed) {
       statusText.className = 'text-xs font-bold text-amber-950 dark:text-amber-100 truncate';
       statusText.textContent = 'Đang đợi phát hiện Khiên từ Chrome...';
     }
-    if (btnSuccess) btnSuccess.classList.add('hidden');
-    if (btnCheckNow) btnCheckNow.classList.remove('hidden');
+    if (btnSuccess) {
+      btnSuccess.classList.add('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.remove('hidden');
+      btnCheckNow.textContent = 'Quét Lại';
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-slate-400">shield</span><span>Bắt buộc cài Khiên để mở khóa app. Điện thoại được tự động miễn trừ.</span>';
+    }
   }
 }
 
@@ -1043,10 +1223,19 @@ function openShieldGateModal(quest = null) {
   if (!modal) return;
   modal.classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
-  updateShieldGateStatus(isLevelUpExtensionInstalled());
+  updateShieldGateStatus();
 }
 
 function closeShieldGateModal() {
+  if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
+    if (typeof showToast === 'function') {
+      const msg = isLevelUpExtensionOutdated()
+        ? `⚠️ Bắt buộc cập nhật tiện ích lên v${REQUIRED_EXTENSION_VERSION} để sử dụng!`
+        : '⚠️ Bắt buộc trang bị Khiên Kỷ Luật để sử dụng!';
+      showToast(msg, 'warning');
+    }
+    return;
+  }
   const modal = document.getElementById('modal-shield-gate');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
@@ -1060,13 +1249,13 @@ function enforceMandatoryShieldGateOnStartup() {
   // Nếu người dùng chưa đăng nhập Google, ưu tiên hoàn tất đăng nhập trước, không mở đè modal
   if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
 
-  // Nếu đã cài Khiên từ trước, không hiện modal
-  if (isLevelUpExtensionInstalled()) return;
+  // Nếu đã cài Khiên bản mới nhất, không hiện modal
+  if (isLevelUpExtensionReady()) return;
 
   // Cho content script 350ms tự nạp nếu vừa mở tab
   setTimeout(() => {
     if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
-    if (!isLevelUpExtensionInstalled()) {
+    if (!isLevelUpExtensionReady()) {
       openShieldGateModal(null);
     }
   }, 350);
@@ -1078,15 +1267,20 @@ function initShieldGateListeners() {
   // 1. Tự động kiểm tra và khóa ngay khi vừa vào trang web trên Desktop
   enforceMandatoryShieldGateOnStartup();
 
-  // 2. Lắng nghe tín hiệu khi extension vừa được cài xong trong thời gian thực
-  window.addEventListener('levelup:extension-installed', () => {
+  // 2. Lắng nghe tín hiệu khi extension vừa được cài xong hoặc báo phiên bản
+  window.addEventListener('levelup:extension-installed', (e) => {
+    if (e.detail?.version) {
+      document.documentElement.dataset.levelupExtensionVersion = e.detail.version;
+      window.__LEVELUP_EXTENSION_VERSION__ = e.detail.version;
+    }
     const modal = document.getElementById('modal-shield-gate');
     const isModalOpen = modal && !modal.classList.contains('hidden');
+    const isReady = isLevelUpExtensionReady();
 
-    updateShieldGateStatus(true);
+    updateShieldGateStatus();
 
-    // Chỉ kích hoạt hiệu ứng nếu người dùng thực sự đang mở màn hình Shield Gate để cài đặt
-    if (isModalOpen) {
+    // Chỉ kích hoạt hiệu ứng nếu người dùng thực sự đang mở màn hình Shield Gate để cài đặt/cập nhật và đạt chuẩn mới
+    if (isReady && isModalOpen) {
       try {
         if (typeof confetti === 'function') {
           confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
@@ -1095,10 +1289,40 @@ function initShieldGateListeners() {
     }
   });
 
+  // Lắng nghe postMessage báo phiên bản từ content script
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data) return;
+    if (event.data.type === 'LEVELUP_EXTENSION_VERSION_REPORT') {
+      if (event.data.version) {
+        document.documentElement.dataset.levelupExtensionVersion = event.data.version;
+        window.__LEVELUP_EXTENSION_VERSION__ = event.data.version;
+      }
+      updateShieldGateStatus();
+    }
+  });
+
+  // Lắng nghe focus tab để phát hiện ngay khi user vừa reload extension từ tab chrome://extensions/
+  window.addEventListener('focus', () => {
+    if (!isMobileUserDevice()) {
+      window.postMessage({ type: 'LEVELUP_CHECK_EXTENSION_VERSION' }, '*');
+      setTimeout(() => {
+        if (isLevelUpExtensionInstalled() && isLevelUpExtensionOutdated()) {
+          openShieldGateModal(null);
+        } else if (isLevelUpExtensionReady()) {
+          updateShieldGateStatus();
+        }
+      }, 200);
+    }
+  });
+
   // 3. Nút mở khóa và bắt đầu dùng app
   const btnSuccess = document.getElementById('btn-shield-gate-success');
   if (btnSuccess) {
     btnSuccess.addEventListener('click', () => {
+      if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
+        updateShieldGateStatus();
+        return;
+      }
       closeShieldGateModal();
       if (pendingShieldGateQuest) {
         const q = pendingShieldGateQuest;
@@ -1133,13 +1357,20 @@ function initShieldGateListeners() {
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   if (btnCheckNow) {
     btnCheckNow.addEventListener('click', () => {
-      const ok = isLevelUpExtensionInstalled();
-      updateShieldGateStatus(ok);
-      if (ok) {
-        if (typeof showToast === 'function') showToast('✅ Đã phát hiện Khiên Kỷ Luật!', 'success');
-      } else {
-        if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
-      }
+      window.postMessage({ type: 'LEVELUP_CHECK_EXTENSION_VERSION' }, '*');
+      setTimeout(() => {
+        const ready = isLevelUpExtensionReady();
+        const installed = isLevelUpExtensionInstalled();
+        const ver = getInstalledExtensionVersion();
+        updateShieldGateStatus();
+        if (ready) {
+          if (typeof showToast === 'function') showToast(`✅ Đã phát hiện Khiên Kỷ Luật v${ver || REQUIRED_EXTENSION_VERSION} mới nhất!`, 'success');
+        } else if (installed) {
+          if (typeof showToast === 'function') showToast(`⚠️ Tiện ích hiện tại là bản cũ (v${ver || '1.0.0'}). Hãy giải nén bản mới và bấm 🔄 Làm Mới trên chrome://extensions/!`, 'warning');
+        } else {
+          if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
+        }
+      }, 150);
     });
   }
 
@@ -1197,9 +1428,12 @@ async function startFocusTimer(quest) {
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
 
-  // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng trên máy tính
-  if (!isMobileUserDevice() && !isLevelUpExtensionInstalled()) {
+  // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng bản mới nhất trên máy tính
+  if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
     openShieldGateModal(quest);
+    if (isLevelUpExtensionInstalled() && isLevelUpExtensionOutdated()) {
+      showToast(`⚠️ Bạn đang dùng Khiên bản cũ. Vui lòng cập nhật lên v${REQUIRED_EXTENSION_VERSION} để bắt đầu phiên!`, 'warning');
+    }
     return;
   }
 

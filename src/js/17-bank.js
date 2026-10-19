@@ -110,6 +110,319 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
+let bankCountdownTimer = null;
+
+function formatBankCountdown(ms) {
+  if (ms <= 0) return '00:00:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  if (days > 0) {
+    return `${days} ngày ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+function calculateDepositPayoutInfo(dep, rates = {}, discipline = 1.0, now = Date.now()) {
+  if (!dep || typeof dep !== 'object') return null;
+  const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
+  if (amount <= 0) return null;
+
+  const termDays = parseInt(dep.termDays, 10) || 0;
+  const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+  const termMult = termConfig.rateMultiplier || 1.0;
+
+  const discMult = typeof discipline === 'object' && discipline !== null
+    ? (Number(discipline.multiplier) || 1.0)
+    : (Number(discipline) || 1.0);
+
+  const rawBase = Number(rates?.depositRate) || 0.0015;
+  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
+  const effectiveBase = calculateEffectiveDepositBase(amount);
+  const dailyRate = baseRate * termMult * discMult;
+  const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
+
+  const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
+
+  // 1. Sổ có kỳ hạn (termDays > 0)
+  if (termDays > 0 && dep.maturityAt) {
+    const maturityAt = parseInt(dep.maturityAt, 10);
+    const msUntilMaturity = Math.max(0, maturityAt - now);
+    const isMatured = dep.status === 'matured' || now >= maturityAt || msUntilMaturity <= 5000;
+
+    const totalExpectedInterest = Math.max(
+      parseInt(dep.interest, 10) || 0,
+      Math.floor(cappedDailyInterest * termDays)
+    );
+
+    return {
+      type: 'term',
+      termDays,
+      termLabel: termConfig.label,
+      targetTimestamp: maturityAt,
+      msRemaining: isMatured ? 0 : msUntilMaturity,
+      isMatured,
+      expectedPayoutAmount: isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest,
+      totalWithPrincipal: amount + (isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest),
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest
+    };
+  }
+
+  // 2. Sổ linh hoạt (termDays === 0)
+  if (cappedDailyInterest <= 0) {
+    return {
+      type: 'flex',
+      termDays: 0,
+      termLabel: termConfig.label,
+      targetTimestamp: 0,
+      msRemaining: 0,
+      isMatured: false,
+      expectedPayoutAmount: 0,
+      totalWithPrincipal: amount,
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest: 0
+    };
+  }
+
+  const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
+  const currentEarnedCoins = Math.floor(cappedDailyInterest * elapsedDays);
+  const nextTargetCoinCount = currentEarnedCoins + 1;
+  const daysNeededTotal = nextTargetCoinCount / cappedDailyInterest;
+  const targetTimestamp = lastAcc + Math.ceil(daysNeededTotal * 24 * 60 * 60 * 1000);
+  const msRemaining = Math.max(0, targetTimestamp - now);
+
+  return {
+    type: 'flex',
+    termDays: 0,
+    termLabel: termConfig.label,
+    targetTimestamp,
+    msRemaining,
+    isMatured: false,
+    expectedPayoutAmount: 1,
+    totalWithPrincipal: amount + (parseInt(dep.interest, 10) || 0) + 1,
+    currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+    cappedDailyInterest
+  };
+}
+
+function calculateLoanCountdownInfo(loan, rates = {}, now = Date.now()) {
+  if (!loan || typeof loan !== 'object' || (parseInt(loan.debt, 10) || 0) <= 0) {
+    return null;
+  }
+
+  const debt = Math.max(0, parseInt(loan.debt, 10) || 0);
+  const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
+  const termDays = Math.max(1, parseInt(loan.termDays, 10) || 7);
+  const borrowRate = Number(loan.borrowRate) || Number(rates?.borrowRate) || 0.05;
+
+  const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
+  const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
+
+  // 1. Đếm ngược tính lãi lần tiếp theo (chu kỳ 24h từ lastAccruedAt)
+  const nextAccrualTimestamp = lastAcc + (24 * 60 * 60 * 1000);
+  const msUntilNextAccrual = Math.max(0, nextAccrualTimestamp - now);
+  const nextInterestAmount = Math.ceil(debt * borrowRate);
+
+  // 2. Đếm ngược hết kỳ hạn vay
+  const expireTimestamp = borrowedAt + (termDays * 24 * 60 * 60 * 1000);
+  const msUntilExpire = expireTimestamp - now;
+  const isOverdue = Boolean(loan.isOverdue) || msUntilExpire <= 0;
+
+  return {
+    debt,
+    principal,
+    termDays,
+    borrowRate,
+    nextAccrualTimestamp,
+    msUntilNextAccrual,
+    nextInterestAmount,
+    isAccrualDue: msUntilNextAccrual === 0,
+    expireTimestamp,
+    msUntilExpire: Math.max(0, msUntilExpire),
+    isOverdue,
+    overdueDays: isOverdue ? Math.max(1, Math.floor(Math.abs(now - expireTimestamp) / (24 * 60 * 60 * 1000))) : 0
+  };
+}
+
+function updateBankCountdowns() {
+  const tabBank = document.getElementById('tab-bank');
+  if (!tabBank || tabBank.classList.contains('hidden')) {
+    return;
+  }
+
+  const now = Date.now();
+  const pool = currentBankPool || {};
+  const rates = pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  const userBank = appState.profile?.bank || {};
+  const profile = appState.profile || {};
+  const disc = calculateDisciplineMultiplier(profile);
+
+  // 1. TIỀN GỬI (DEPOSIT COUNTDOWN)
+  const deposits = Array.isArray(userBank.deposits) ? userBank.deposits : [];
+  const activeDeposits = deposits.filter(d => (parseInt(d.amount, 10) || 0) > 0 || (parseInt(d.interest, 10) || 0) > 0);
+
+  const elDepCard = document.getElementById('bank-deposit-countdown-card');
+  const elDepTimer = document.getElementById('bank-deposit-countdown-timer');
+  const elDepAmount = document.getElementById('bank-deposit-countdown-amount');
+  const elDepSource = document.getElementById('bank-deposit-countdown-source');
+  const elDepSubtext = document.getElementById('bank-deposit-countdown-subtext');
+
+  let earliestPayout = null;
+  let hasDueDeposit = false;
+
+  for (const dep of activeDeposits) {
+    const info = calculateDepositPayoutInfo(dep, rates, disc.multiplier, now);
+    if (!info) continue;
+
+    const itemTimerEl = document.querySelector(`.bank-deposit-item-timer[data-dep-id="${dep.id}"]`);
+    if (itemTimerEl) {
+      if (info.isMatured) {
+        itemTimerEl.textContent = '00:00:00';
+      } else {
+        itemTimerEl.textContent = formatBankCountdown(info.msRemaining);
+      }
+    }
+
+    if (info.msRemaining === 0 && !info.isMatured && info.type === 'flex') {
+      hasDueDeposit = true;
+    }
+
+    if (!earliestPayout || info.msRemaining < earliestPayout.msRemaining) {
+      earliestPayout = { ...info, dep };
+    }
+  }
+
+  if (hasDueDeposit) {
+    accrueLocalUserBank(userBank, rates, now, profile);
+    const elUserDep = document.getElementById('bank-user-deposited');
+    if (elUserDep) elUserDep.textContent = (userBank?.deposited || 0).toLocaleString('vi-VN');
+    const elUserInt = document.getElementById('bank-user-interest');
+    if (elUserInt) elUserInt.textContent = '+' + (userBank?.depositInterest || 0).toLocaleString('vi-VN');
+    renderBankDepositsList(userBank);
+  }
+
+  if (elDepCard) {
+    if (activeDeposits.length === 0 || !earliestPayout) {
+      if (elDepTimer) elDepTimer.textContent = '--:--:--';
+      if (elDepAmount) elDepAmount.innerHTML = `+0 ${COIN_ICON_HTML}`;
+      if (elDepSource) elDepSource.textContent = 'Chưa Gửi';
+      if (elDepSubtext) elDepSubtext.textContent = 'Gửi Vàng để bắt đầu nhận lãi';
+    } else {
+      if (earliestPayout.isMatured) {
+        if (elDepTimer) elDepTimer.textContent = '🎉 Đã đáo hạn!';
+        if (elDepAmount) elDepAmount.innerHTML = `+${earliestPayout.expectedPayoutAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        if (elDepSource) elDepSource.textContent = earliestPayout.termLabel;
+        if (elDepSubtext) elDepSubtext.textContent = 'Sẵn sàng tất toán nhận trọn vẹn gốc & lãi';
+      } else {
+        if (elDepTimer) elDepTimer.textContent = formatBankCountdown(earliestPayout.msRemaining);
+        if (elDepAmount) elDepAmount.innerHTML = `+${earliestPayout.expectedPayoutAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        if (elDepSource) {
+          const countBadge = activeDeposits.length > 1 ? ` (${activeDeposits.length} sổ)` : '';
+          elDepSource.textContent = `${earliestPayout.termLabel}${countBadge}`;
+        }
+        if (elDepSubtext) {
+          elDepSubtext.textContent = earliestPayout.type === 'term'
+            ? `Đáo hạn sau ${formatBankCountdown(earliestPayout.msRemaining)}`
+            : `Đợt cộng +1 Vàng tiếp theo`;
+        }
+      }
+    }
+  }
+
+  // 2. ĐI VAY (LOAN COUNTDOWN)
+  const loan = userBank.loan;
+  if (loan && (parseInt(loan.debt, 10) || 0) > 0) {
+    const loanInfo = calculateLoanCountdownInfo(loan, rates, now);
+    if (loanInfo) {
+      // 1) Đếm ngược tính lãi lần tiếp theo
+      const elNextAccrual = document.getElementById('bank-loan-next-accrual-countdown');
+      const elNextInterestAmt = document.getElementById('bank-loan-next-interest-amount');
+      if (elNextAccrual) {
+        elNextAccrual.textContent = formatBankCountdown(loanInfo.msUntilNextAccrual);
+      }
+      if (elNextInterestAmt) {
+        elNextInterestAmt.innerHTML = `+${loanInfo.nextInterestAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+      }
+
+      // 2) Đếm ngược hết kỳ hạn vay
+      const elExpire = document.getElementById('bank-loan-expire-countdown');
+      const elExpireStatus = document.getElementById('bank-loan-expire-status');
+      const elTermBadge = document.getElementById('bank-loan-term-badge');
+
+      if (elTermBadge) {
+        elTermBadge.textContent = `${loanInfo.termDays} ngày`;
+      }
+
+      if (elExpire) {
+        if (loanInfo.isOverdue) {
+          elExpire.textContent = 'ĐÃ QUÁ HẠN ⚠️';
+          elExpire.className = 'text-sm font-mono font-black text-rose-600 dark:text-rose-400 tracking-wider animate-pulse';
+        } else {
+          elExpire.textContent = formatBankCountdown(loanInfo.msUntilExpire);
+          elExpire.className = loanInfo.msUntilExpire < 86400000
+            ? 'text-sm font-mono font-black text-rose-600 dark:text-rose-400 tracking-wider animate-pulse'
+            : 'text-sm font-mono font-black text-amber-600 dark:text-amber-400 tracking-wider';
+        }
+      }
+
+      if (elExpireStatus) {
+        if (loanInfo.isOverdue) {
+          elExpireStatus.textContent = `Quá hạn ${loanInfo.overdueDays} ngày`;
+          elExpireStatus.className = 'text-[10px] text-rose-600 font-bold';
+        } else if (loanInfo.msUntilExpire < 86400000) {
+          elExpireStatus.textContent = 'Sắp hết hạn (<24h)';
+          elExpireStatus.className = 'text-[10px] text-rose-500 font-bold animate-pulse';
+        } else {
+          elExpireStatus.textContent = 'Trong hạn';
+          elExpireStatus.className = 'text-[10px] text-amber-600 font-medium';
+        }
+      }
+
+      const elDaysLeft = document.getElementById('bank-loan-days-left');
+      if (elDaysLeft) {
+        if (loanInfo.isOverdue) {
+          elDaysLeft.textContent = 'Đã quá hạn ⚠️';
+          elDaysLeft.className = 'font-bold text-rose-600';
+        } else {
+          const daysLeft = Math.ceil(loanInfo.msUntilExpire / 86400000);
+          elDaysLeft.textContent = `${daysLeft} / ${loanInfo.termDays} ngày`;
+          elDaysLeft.className = 'font-semibold text-amber-600';
+        }
+      }
+
+      if (loanInfo.isAccrualDue || (now >= loanInfo.expireTimestamp && !loan.isOverdue)) {
+        accrueLocalUserBank(userBank, rates, now, profile);
+        const elDebt = document.getElementById('bank-current-debt');
+        if (elDebt) elDebt.innerHTML = `${(userBank.loan?.debt || 0).toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        const principal = Math.max(0, parseInt(userBank.loan?.principal, 10) || 0);
+        const debt = Math.max(0, parseInt(userBank.loan?.debt, 10) || 0);
+        const accruedInterest = Math.max(0, debt - principal);
+        const elAccrued = document.getElementById('bank-loan-accrued-interest');
+        if (elAccrued) elAccrued.innerHTML = `+${accruedInterest.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+      }
+    }
+  }
+}
+
+function startBankCountdownLoop() {
+  if (bankCountdownTimer) return;
+  updateBankCountdowns();
+  bankCountdownTimer = setInterval(updateBankCountdowns, 1000);
+}
+
+function stopBankCountdownLoop() {
+  if (bankCountdownTimer) {
+    clearInterval(bankCountdownTimer);
+    bankCountdownTimer = null;
+  }
+}
+
 function accrueLocalUserBank(bank, pool, now = Date.now(), profile = appState.profile) {
   if (!bank || typeof bank !== 'object') return bank;
 
@@ -481,6 +794,13 @@ function renderBankUI(pool, userBank, creditLimit) {
 
   // 5. Cập nhật bảng đo lường vĩ mô AMM chi tiết trong Admin Dashboard (nếu có)
   renderAdminBankTelemetry(pool, rates);
+
+  // 6. Cập nhật đếm ngược thời gian thực cho Tiền Gửi & Đi Vay
+  updateBankCountdowns();
+  const tabBank = document.getElementById('tab-bank');
+  if (tabBank && !tabBank.classList.contains('hidden')) {
+    startBankCountdownLoop();
+  }
 }
 
 function renderAdminBankTelemetry(pool, rates) {
@@ -1178,35 +1498,49 @@ function renderBankDepositsList(userBank) {
   }
 
   const now = Date.now();
+  const pool = currentBankPool || {};
+  const rates = pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  const disc = calculateDisciplineMultiplier(appState.profile || {});
+
   let html = '<div class="space-y-2">';
 
   for (const dep of deposits) {
     const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
     const isTerm = dep.termDays > 0;
     const isMatured = isTerm && (dep.status === 'matured' || now >= dep.maturityAt || (dep.maturityAt - now) <= 5000);
-    const msLeft = isTerm ? Math.max(0, dep.maturityAt - now) : 0;
-
-    let timeLeftStr = '';
-    if (msLeft > 0 && !isMatured) {
-      const days = Math.floor(msLeft / 86400000);
-      const hours = Math.floor((msLeft % 86400000) / 3600000);
-      const minutes = Math.floor((msLeft % 3600000) / 60000);
-      if (days >= 1) {
-        timeLeftStr = `Còn ${days} ngày ${hours > 0 ? `${hours}h` : ''}`;
-      } else if (hours >= 1) {
-        timeLeftStr = `Còn ${hours} giờ ${minutes}p`;
-      } else {
-        timeLeftStr = `Còn ${Math.max(1, minutes)} phút`;
-      }
-    }
+    const payoutInfo = calculateDepositPayoutInfo(dep, rates, disc.multiplier, now);
 
     let statusBadge = '';
+    let countdownRow = '';
+
     if (!isTerm) {
       statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/30">🍃 Linh Hoạt</span>';
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+          <span>⏱️ Nhận lãi:</span>
+          <span class="font-mono font-bold bank-deposit-item-timer" data-dep-id="${dep.id}">${formatBankCountdown(payoutInfo ? payoutInfo.msRemaining : 0)}</span>
+          <span class="text-amber-600 dark:text-amber-400 font-mono font-bold">(+1 ${COIN_ICON_HTML})</span>
+        </div>
+      `;
     } else if (isMatured) {
       statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 animate-pulse">🎉 Đã Đáo Hạn</span>';
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 animate-pulse">
+          <span>🎉 Đã đến hạn:</span>
+          <span class="font-mono">+${(dep.interest || 0).toLocaleString('vi-VN')} ${COIN_ICON_HTML} lãi</span>
+          <span class="text-slate-400 font-normal text-[10px]">(Tổng: ${(dep.amount + dep.interest).toLocaleString('vi-VN')} 🪙)</span>
+        </div>
+      `;
     } else {
-      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">⏳ ${timeLeftStr}</span>`;
+      const msLeft = Math.max(0, dep.maturityAt - now);
+      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 font-mono bank-deposit-item-timer" data-dep-id="${dep.id}">⏳ ${formatBankCountdown(msLeft)}</span>`;
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1">
+          <span>⏳ Đáo hạn nhận:</span>
+          <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">+${payoutInfo ? payoutInfo.expectedPayoutAmount.toLocaleString('vi-VN') : 0} ${COIN_ICON_HTML} lãi</span>
+          <span class="text-slate-400 text-[10px]">(Tổng: ${(dep.amount + (payoutInfo ? payoutInfo.expectedPayoutAmount : 0)).toLocaleString('vi-VN')} 🪙)</span>
+        </div>
+      `;
     }
 
     const actionBtnText = (!isTerm || isMatured) ? 'Tất Toán 📤' : 'Rút Sớm ⚠️';
@@ -1227,6 +1561,7 @@ function renderBankDepositsList(userBank) {
               <span>Gốc: <strong class="text-slate-700 dark:text-slate-300 font-mono">${(dep.amount || 0).toLocaleString('vi-VN')}</strong></span>
               <span>Lãi: <strong class="text-emerald-600 dark:text-emerald-400 font-mono">+${(dep.interest || 0).toLocaleString('vi-VN')}</strong></span>
             </div>
+            ${countdownRow}
           </div>
         </div>
         <button type="button" onclick="withdrawSingleDeposit('${dep.id}')" class="${actionBtnClass} shrink-0">
@@ -2471,4 +2806,10 @@ window.updateBorrowCalculator = updateBorrowCalculator;
 window.setBorrowAmount = setBorrowAmount;
 window.setBorrowMax = setBorrowMax;
 window.renderBankUI = renderBankUI;
+window.calculateDepositPayoutInfo = calculateDepositPayoutInfo;
+window.calculateLoanCountdownInfo = calculateLoanCountdownInfo;
+window.formatBankCountdown = formatBankCountdown;
+window.updateBankCountdowns = updateBankCountdowns;
+window.startBankCountdownLoop = startBankCountdownLoop;
+window.stopBankCountdownLoop = stopBankCountdownLoop;
 

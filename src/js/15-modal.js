@@ -347,11 +347,16 @@ function switchTab(tabId) {
     fetchAdminUsers();
   } else if (tabId === 'bank') {
     loadBankState();
+    if (typeof startBankCountdownLoop === 'function') startBankCountdownLoop();
   } else if (tabId === 'ledger') {
     if (typeof renderLedger === 'function') renderLedger();
     if (typeof renderProofPhotos === 'function') renderProofPhotos();
   } else if (tabId === 'tracker') {
     if (typeof renderTracker === 'function') renderTracker();
+  }
+
+  if (tabId !== 'bank' && typeof stopBankCountdownLoop === 'function') {
+    stopBankCountdownLoop();
   }
 
   if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {
@@ -502,6 +507,11 @@ window.openAboutModal = openAboutModal;
 function closeModal(id, immediate = false) {
   if (id === 'modal-welcome') {
     if (!checkIsOnboarded()) return;
+  }
+  if (id === 'modal-shield-gate') {
+    if (typeof isMobileUserDevice === 'function' && typeof isLevelUpExtensionReady === 'function') {
+      if (!isMobileUserDevice() && !isLevelUpExtensionReady()) return;
+    }
   }
   const modal = document.getElementById(id);
   if (!modal) return;

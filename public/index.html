@@ -902,6 +902,36 @@
               </div>
             </div>
 
+            <!-- Đếm Ngược Nhận Lãi Tiền Gửi -->
+            <div id="bank-deposit-countdown-card" class="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 mb-3 shadow-xs">
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  <span class="text-sm">⏱️</span>
+                  <span>Đếm Ngược Nhận Lãi:</span>
+                </div>
+                <span id="bank-deposit-countdown-source" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                  Đang tính...
+                </span>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-baseline gap-1.5">
+                  <span id="bank-deposit-countdown-timer" class="text-base sm:text-lg font-mono font-black text-emerald-600 dark:text-emerald-400 tracking-wider">
+                    --:--:--
+                  </span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400 block leading-tight">Số tiền sẽ nhận:</span>
+                  <span id="bank-deposit-countdown-amount" class="text-xs sm:text-sm font-mono font-bold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+                    +0 <span class="coin-icon"></span>
+                  </span>
+                </div>
+              </div>
+              <div id="bank-deposit-countdown-note" class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 pt-1.5 border-t border-emerald-500/15 flex items-center justify-between">
+                <span>Trạng thái: Tích lũy tự động</span>
+                <span id="bank-deposit-countdown-subtext">Gửi Vàng để bắt đầu nhận lãi</span>
+              </div>
+            </div>
+
             <!-- Danh sách các sổ tiết kiệm đang hoạt động -->
             <div class="mb-4">
               <div class="flex items-center justify-between mb-1.5">
@@ -1056,6 +1086,38 @@
                   <span id="bank-loan-accrued-interest" class="font-semibold text-rose-600 dark:text-rose-400 font-mono">+0 <span class="coin-icon"></span></span>
                 </div>
               </div>
+
+              <!-- Hai đồng hồ đếm ngược cho khoản vay: Tính lãi lần tới & Hết kỳ hạn vay -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2.5">
+                <!-- 1. Đếm ngược tính lãi của lần tiếp theo -->
+                <div class="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex flex-col justify-between">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                      <span>⏱️</span> <span>Tính lãi lần tới:</span>
+                    </span>
+                    <span id="bank-loan-next-interest-amount" class="text-[11px] font-mono font-bold text-rose-600 dark:text-rose-400">+0 🪙</span>
+                  </div>
+                  <div class="mt-1 flex items-baseline justify-between">
+                    <span id="bank-loan-next-accrual-countdown" class="text-sm font-mono font-black text-indigo-600 dark:text-indigo-400 tracking-wider">--:--:--</span>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 font-normal">chu kỳ 24h</span>
+                  </div>
+                </div>
+
+                <!-- 2. Đếm ngược hết kỳ hạn vay -->
+                <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 flex flex-col justify-between">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                      <span>⏳</span> <span>Hết kỳ hạn vay:</span>
+                    </span>
+                    <span id="bank-loan-term-badge" class="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">7 ngày</span>
+                  </div>
+                  <div class="mt-1 flex items-baseline justify-between">
+                    <span id="bank-loan-expire-countdown" class="text-sm font-mono font-black text-amber-600 dark:text-amber-400 tracking-wider">--:--:--</span>
+                    <span id="bank-loan-expire-status" class="text-[10px] text-amber-600 font-medium">Trong hạn</span>
+                  </div>
+                </div>
+              </div>
+
               <div class="flex items-center justify-between text-[11px] text-slate-500">
                 <span>Lãi suất:</span>
                 <span id="bank-active-borrow-rate" class="font-semibold text-indigo-600 dark:text-indigo-400 font-mono">5.0%/ngày</span>
@@ -3284,17 +3346,17 @@
     <div class="shield-gate-dialog rounded-3xl w-full max-w-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col text-center relative transition-colors">
       
       <!-- Header Banner -->
-      <div class="bg-indigo-50/80 dark:bg-indigo-950/40 px-6 py-6 border-b border-indigo-100 dark:border-indigo-900/60 text-center relative">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-indigo-600/30 ring-4 ring-indigo-500/20">
+      <div id="shield-gate-header" class="bg-indigo-50/80 dark:bg-indigo-950/40 px-6 py-6 border-b border-indigo-100 dark:border-indigo-900/60 text-center relative">
+        <div id="shield-gate-icon" class="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-indigo-600/30 ring-4 ring-indigo-500/20">
           🛡️
         </div>
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700/60 text-indigo-800 dark:text-indigo-200 text-[11px] font-black uppercase tracking-wider mb-2">
+        <div id="shield-gate-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700/60 text-indigo-800 dark:text-indigo-200 text-[11px] font-black uppercase tracking-wider mb-2">
           <span>🔒 TRANG BỊ BẮT BUỘC ĐỂ SỬ DỤNG</span>
         </div>
         <h3 id="shield-gate-title" class="font-rpg-title font-black text-xl text-slate-900 dark:text-white uppercase tracking-wide">
           KHIÊN CHẶN XAO NHÃNG
         </h3>
-        <p class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 max-w-sm mx-auto leading-relaxed">
+        <p id="shield-gate-desc" class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 max-w-sm mx-auto leading-relaxed">
           Để bắt đầu hành trình và bảo vệ kỷ luật, Hiệp sĩ cần trang bị tiện ích Chrome để phong ấn các trang mạng xã hội gây xao nhãng.
         </p>
       </div>
@@ -3305,12 +3367,12 @@
         <!-- Step 1: Download ZIP -->
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-xs">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
+            <div id="shield-gate-step1-num" class="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
               1
             </div>
             <div class="min-w-0">
-              <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">Bước 1: Tải Tiện Ích LevelUp</div>
-              <div class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">File nén .ZIP (~42 KB)</div>
+              <div id="shield-gate-step1-title" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">Bước 1: Tải Tiện Ích LevelUp</div>
+              <div id="shield-gate-step1-desc" class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">File nén .ZIP (~42 KB)</div>
             </div>
           </div>
           <a href="/download/levelup-shield.zip" download="levelup-shield.zip" target="_blank" rel="noopener noreferrer" id="btn-download-shield-zip" class="py-2 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition active:scale-95 shrink-0 flex items-center gap-1.5 shadow-md shadow-indigo-600/25 cursor-pointer">
@@ -3322,18 +3384,18 @@
         <!-- Step 2: 3-step Instructions -->
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2.5 shadow-xs text-xs">
           <div class="flex items-center gap-2.5 text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
-            <span class="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">2</span>
-            <span>Bước 2: Cài vào Chrome trong 15 giây</span>
+            <span id="shield-gate-step2-num" class="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">2</span>
+            <span id="shield-gate-step2-title">Bước 2: Cài vào Chrome trong 15 giây</span>
           </div>
-          <ol class="space-y-2 text-xs text-slate-700 dark:text-slate-300 pl-1 list-none leading-relaxed">
+          <ol id="shield-gate-steps-list" class="space-y-2 text-xs text-slate-700 dark:text-slate-300 pl-1 list-none leading-relaxed">
             <li class="flex items-start gap-2">
               <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">1.</span>
-              <span>Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.</span>
+              <span id="shield-gate-step-text-1">Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">2.</span>
               <div class="flex-1 min-w-0">
-                <span>Mở tab mới và dán:</span>
+                <span id="shield-gate-step-text-2">Mở tab mới và dán:</span>
                 <button id="copy-chrome-url-btn" type="button" class="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 font-mono text-xs font-bold hover:bg-indigo-200 dark:hover:bg-indigo-900 transition cursor-pointer select-all" title="Bấm để sao chép đường dẫn">
                   <span>chrome://extensions/</span>
                   <span class="material-symbols-outlined text-[13px] opacity-75">content_copy</span>
@@ -3342,11 +3404,11 @@
             </li>
             <li class="flex items-start gap-2">
               <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">3.</span>
-              <span>Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).</span>
+              <span id="shield-gate-step-text-3">Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">4.</span>
-              <span>Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.</span>
+              <span id="shield-gate-step-text-4">Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.</span>
             </li>
           </ol>
         </div>
@@ -3369,7 +3431,7 @@
           </button>
 
           <div class="pt-1 text-center">
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal flex items-center justify-center gap-1">
+            <p id="shield-gate-footer-note" class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal flex items-center justify-center gap-1">
               <span class="material-symbols-outlined text-[14px] text-slate-400">shield</span>
               <span>Bắt buộc cài Khiên để mở khóa app. Điện thoại được tự động miễn trừ.</span>
             </p>

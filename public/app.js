@@ -3296,6 +3296,8 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
+const REQUIRED_EXTENSION_VERSION = '1.2.0';
+
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
   return Boolean(
@@ -3304,19 +3306,91 @@ function isLevelUpExtensionInstalled() {
   );
 }
 
+function getInstalledExtensionVersion() {
+  if (typeof window === 'undefined') return null;
+  return (
+    document.documentElement?.dataset?.levelupExtensionVersion ||
+    window.__LEVELUP_EXTENSION_VERSION__ ||
+    null
+  );
+}
+
+function compareExtensionVersions(v1, v2) {
+  if (!v1 || !v2) return 0;
+  const p1 = String(v1).split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = String(v2).split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(p1.length, p2.length);
+  for (let i = 0; i < len; i++) {
+    const a = p1[i] || 0;
+    const b = p2[i] || 0;
+    if (a > b) return 1;
+    if (a < b) return -1;
+  }
+  return 0;
+}
+
+function isLevelUpExtensionOutdated() {
+  if (!isLevelUpExtensionInstalled()) return false;
+  const ver = getInstalledExtensionVersion();
+  // Nếu đã cài extension nhưng không báo phiên bản hoặc bản thấp hơn bản yêu cầu -> Đã cũ!
+  if (!ver) return true;
+  return compareExtensionVersions(ver, REQUIRED_EXTENSION_VERSION) < 0;
+}
+
+function isLevelUpExtensionReady() {
+  return isLevelUpExtensionInstalled() && !isLevelUpExtensionOutdated();
+}
+
 function isMobileUserDevice() {
   if (typeof navigator === 'undefined') return false;
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-function updateShieldGateStatus(installed) {
+function updateShieldGateStatus(installedOverride = null) {
+  const modal = document.getElementById('modal-shield-gate');
+  if (!modal) return;
+
+  const header = document.getElementById('shield-gate-header');
+  const icon = document.getElementById('shield-gate-icon');
+  const badge = document.getElementById('shield-gate-badge');
+  const title = document.getElementById('shield-gate-title');
+  const desc = document.getElementById('shield-gate-desc');
+  const step1Title = document.getElementById('shield-gate-step1-title');
+  const step1Desc = document.getElementById('shield-gate-step1-desc');
+  const step2Title = document.getElementById('shield-gate-step2-title');
+  const stepText1 = document.getElementById('shield-gate-step-text-1');
+  const stepText3 = document.getElementById('shield-gate-step-text-3');
+  const stepText4 = document.getElementById('shield-gate-step-text-4');
   const statusBox = document.getElementById('shield-gate-status-box');
   const spinner = document.getElementById('shield-gate-spinner');
   const statusText = document.getElementById('shield-gate-status-text');
   const btnSuccess = document.getElementById('btn-shield-gate-success');
   const btnCheckNow = document.getElementById('btn-shield-check-now');
+  const footerNote = document.getElementById('shield-gate-footer-note');
 
-  if (installed) {
+  const installed = installedOverride !== null ? Boolean(installedOverride) : isLevelUpExtensionInstalled();
+  const currentVer = getInstalledExtensionVersion();
+  const outdated = installed && isLevelUpExtensionOutdated();
+  const ready = installed && !outdated;
+
+  if (ready) {
+    if (header) {
+      header.className = 'bg-emerald-50/80 dark:bg-emerald-950/40 px-6 py-6 border-b border-emerald-100 dark:border-emerald-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-emerald-600/30 ring-4 ring-emerald-500/20';
+      icon.textContent = '🛡️';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>✅ ĐÃ TRANG BỊ BẢN MỚI NHẤT (v${currentVer || REQUIRED_EXTENSION_VERSION})</span>`;
+    }
+    if (title) {
+      title.textContent = 'KHIÊN KỶ LUẬT ĐÃ SẴN SÀNG';
+    }
+    if (desc) {
+      desc.textContent = `Tiện ích đã được kết nối và xác thực phiên bản v${currentVer || REQUIRED_EXTENSION_VERSION}. Tất cả tính năng Pomodoro và con nhộng bay đã sẵn sàng!`;
+    }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
     }
@@ -3325,11 +3399,109 @@ function updateShieldGateStatus(installed) {
     }
     if (statusText) {
       statusText.className = 'text-xs font-bold text-emerald-950 dark:text-emerald-100 truncate';
-      statusText.textContent = '✅ Đã phát hiện Khiên Kỷ Luật sẵn sàng!';
+      statusText.textContent = `✅ Đã phát hiện Khiên Kỷ Luật v${currentVer || REQUIRED_EXTENSION_VERSION} sẵn sàng!`;
     }
-    if (btnSuccess) btnSuccess.classList.remove('hidden');
-    if (btnCheckNow) btnCheckNow.classList.add('hidden');
+    if (btnSuccess) {
+      btnSuccess.classList.remove('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.add('hidden');
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-emerald-500">verified</span><span>Khiên Kỷ Luật phiên bản mới nhất đang hoạt động bảo vệ bạn.</span>';
+    }
+  } else if (outdated) {
+    if (header) {
+      header.className = 'bg-rose-50/80 dark:bg-rose-950/40 px-6 py-6 border-b border-rose-100 dark:border-rose-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-rose-600/30 ring-4 ring-rose-500/20 animate-pulse';
+      icon.textContent = '🚀';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/80 border border-rose-200 dark:border-rose-700/60 text-rose-800 dark:text-rose-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>⚠️ BẮT BUỘC CẬP NHẬT LÊN BẢN v${REQUIRED_EXTENSION_VERSION}</span>`;
+    }
+    if (title) {
+      title.textContent = 'NÂNG CẤP KHIÊN KỶ LUẬT';
+    }
+    if (desc) {
+      desc.textContent = `Bạn đang sử dụng phiên bản Khiên cũ (v${currentVer || '1.0.0'}). Bắt buộc cập nhật lên phiên bản mới nhất v${REQUIRED_EXTENSION_VERSION} để tiếp tục sử dụng app và trải nghiệm tính năng con nhộng bay ngẫu nhiên.`;
+    }
+    if (step1Title) {
+      step1Title.textContent = `Bước 1: Tải Bản Cập Nhật v${REQUIRED_EXTENSION_VERSION}`;
+    }
+    if (step1Desc) {
+      step1Desc.textContent = `levelup-shield.zip (Phiên bản v${REQUIRED_EXTENSION_VERSION})`;
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Bước 2: Cập nhật tiện ích trong 15 giây';
+    }
+    if (stepText1) {
+      stepText1.innerHTML = `Giải nén file <strong class="text-rose-600 dark:text-rose-400 font-bold">levelup-shield.zip</strong> ghi đè vào thư mục extension cũ.`;
+    }
+    if (stepText3) {
+      stepText3.innerHTML = `Tìm tiện ích <strong class="text-amber-700 dark:text-amber-400 font-bold">LevelUp — Khiên Chặn Xao Nhãng</strong>.`;
+    }
+    if (stepText4) {
+      stepText4.innerHTML = `Bấm nút <strong class="text-rose-600 dark:text-rose-400 font-bold">🔄 Làm Mới (Reload)</strong> trên thẻ tiện ích (hoặc Load unpacked lại).`;
+    }
+    if (statusBox) {
+      statusBox.className = 'p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
+    }
+    if (spinner) {
+      spinner.className = 'w-4 h-4 border-2 border-rose-600 dark:border-rose-400 border-t-transparent rounded-full animate-spin shrink-0';
+    }
+    if (statusText) {
+      statusText.className = 'text-xs font-bold text-rose-950 dark:text-rose-100 truncate';
+      statusText.textContent = `⚠️ Đang dùng bản cũ (v${currentVer || '1.0.0'}). Đang đợi bản v${REQUIRED_EXTENSION_VERSION}...`;
+    }
+    if (btnSuccess) {
+      btnSuccess.classList.add('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.remove('hidden');
+      btnCheckNow.textContent = 'Quét Lại Bản Mới';
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-rose-500">warning</span><span>Bắt buộc cập nhật phiên bản mới nhất để mở khóa app. Điện thoại được miễn trừ.</span>';
+    }
   } else {
+    if (header) {
+      header.className = 'bg-indigo-50/80 dark:bg-indigo-950/40 px-6 py-6 border-b border-indigo-100 dark:border-indigo-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-indigo-600/30 ring-4 ring-indigo-500/20';
+      icon.textContent = '🛡️';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700/60 text-indigo-800 dark:text-indigo-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.innerHTML = `<span>🔒 TRANG BỊ BẮT BUỘC ĐỂ SỬ DỤNG</span>`;
+    }
+    if (title) {
+      title.textContent = 'KHIÊN CHẶN XAO NHÃNG';
+    }
+    if (desc) {
+      desc.textContent = 'Để bắt đầu hành trình và bảo vệ kỷ luật, Hiệp sĩ cần trang bị tiện ích Chrome để phong ấn các trang mạng xã hội gây xao nhãng.';
+    }
+    if (step1Title) {
+      step1Title.textContent = 'Bước 1: Tải Tiện Ích LevelUp';
+    }
+    if (step1Desc) {
+      step1Desc.textContent = 'File nén .ZIP (~42 KB)';
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Bước 2: Cài vào Chrome trong 15 giây';
+    }
+    if (stepText1) {
+      stepText1.innerHTML = `Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.`;
+    }
+    if (stepText3) {
+      stepText3.innerHTML = `Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).`;
+    }
+    if (stepText4) {
+      stepText4.innerHTML = `Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.`;
+    }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
     }
@@ -3340,8 +3512,16 @@ function updateShieldGateStatus(installed) {
       statusText.className = 'text-xs font-bold text-amber-950 dark:text-amber-100 truncate';
       statusText.textContent = 'Đang đợi phát hiện Khiên từ Chrome...';
     }
-    if (btnSuccess) btnSuccess.classList.add('hidden');
-    if (btnCheckNow) btnCheckNow.classList.remove('hidden');
+    if (btnSuccess) {
+      btnSuccess.classList.add('hidden');
+    }
+    if (btnCheckNow) {
+      btnCheckNow.classList.remove('hidden');
+      btnCheckNow.textContent = 'Quét Lại';
+    }
+    if (footerNote) {
+      footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-slate-400">shield</span><span>Bắt buộc cài Khiên để mở khóa app. Điện thoại được tự động miễn trừ.</span>';
+    }
   }
 }
 
@@ -3351,10 +3531,19 @@ function openShieldGateModal(quest = null) {
   if (!modal) return;
   modal.classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
-  updateShieldGateStatus(isLevelUpExtensionInstalled());
+  updateShieldGateStatus();
 }
 
 function closeShieldGateModal() {
+  if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
+    if (typeof showToast === 'function') {
+      const msg = isLevelUpExtensionOutdated()
+        ? `⚠️ Bắt buộc cập nhật tiện ích lên v${REQUIRED_EXTENSION_VERSION} để sử dụng!`
+        : '⚠️ Bắt buộc trang bị Khiên Kỷ Luật để sử dụng!';
+      showToast(msg, 'warning');
+    }
+    return;
+  }
   const modal = document.getElementById('modal-shield-gate');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
@@ -3368,13 +3557,13 @@ function enforceMandatoryShieldGateOnStartup() {
   // Nếu người dùng chưa đăng nhập Google, ưu tiên hoàn tất đăng nhập trước, không mở đè modal
   if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
 
-  // Nếu đã cài Khiên từ trước, không hiện modal
-  if (isLevelUpExtensionInstalled()) return;
+  // Nếu đã cài Khiên bản mới nhất, không hiện modal
+  if (isLevelUpExtensionReady()) return;
 
   // Cho content script 350ms tự nạp nếu vừa mở tab
   setTimeout(() => {
     if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
-    if (!isLevelUpExtensionInstalled()) {
+    if (!isLevelUpExtensionReady()) {
       openShieldGateModal(null);
     }
   }, 350);
@@ -3386,15 +3575,20 @@ function initShieldGateListeners() {
   // 1. Tự động kiểm tra và khóa ngay khi vừa vào trang web trên Desktop
   enforceMandatoryShieldGateOnStartup();
 
-  // 2. Lắng nghe tín hiệu khi extension vừa được cài xong trong thời gian thực
-  window.addEventListener('levelup:extension-installed', () => {
+  // 2. Lắng nghe tín hiệu khi extension vừa được cài xong hoặc báo phiên bản
+  window.addEventListener('levelup:extension-installed', (e) => {
+    if (e.detail?.version) {
+      document.documentElement.dataset.levelupExtensionVersion = e.detail.version;
+      window.__LEVELUP_EXTENSION_VERSION__ = e.detail.version;
+    }
     const modal = document.getElementById('modal-shield-gate');
     const isModalOpen = modal && !modal.classList.contains('hidden');
+    const isReady = isLevelUpExtensionReady();
 
-    updateShieldGateStatus(true);
+    updateShieldGateStatus();
 
-    // Chỉ kích hoạt hiệu ứng nếu người dùng thực sự đang mở màn hình Shield Gate để cài đặt
-    if (isModalOpen) {
+    // Chỉ kích hoạt hiệu ứng nếu người dùng thực sự đang mở màn hình Shield Gate để cài đặt/cập nhật và đạt chuẩn mới
+    if (isReady && isModalOpen) {
       try {
         if (typeof confetti === 'function') {
           confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
@@ -3403,10 +3597,40 @@ function initShieldGateListeners() {
     }
   });
 
+  // Lắng nghe postMessage báo phiên bản từ content script
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data) return;
+    if (event.data.type === 'LEVELUP_EXTENSION_VERSION_REPORT') {
+      if (event.data.version) {
+        document.documentElement.dataset.levelupExtensionVersion = event.data.version;
+        window.__LEVELUP_EXTENSION_VERSION__ = event.data.version;
+      }
+      updateShieldGateStatus();
+    }
+  });
+
+  // Lắng nghe focus tab để phát hiện ngay khi user vừa reload extension từ tab chrome://extensions/
+  window.addEventListener('focus', () => {
+    if (!isMobileUserDevice()) {
+      window.postMessage({ type: 'LEVELUP_CHECK_EXTENSION_VERSION' }, '*');
+      setTimeout(() => {
+        if (isLevelUpExtensionInstalled() && isLevelUpExtensionOutdated()) {
+          openShieldGateModal(null);
+        } else if (isLevelUpExtensionReady()) {
+          updateShieldGateStatus();
+        }
+      }, 200);
+    }
+  });
+
   // 3. Nút mở khóa và bắt đầu dùng app
   const btnSuccess = document.getElementById('btn-shield-gate-success');
   if (btnSuccess) {
     btnSuccess.addEventListener('click', () => {
+      if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
+        updateShieldGateStatus();
+        return;
+      }
       closeShieldGateModal();
       if (pendingShieldGateQuest) {
         const q = pendingShieldGateQuest;
@@ -3441,13 +3665,20 @@ function initShieldGateListeners() {
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   if (btnCheckNow) {
     btnCheckNow.addEventListener('click', () => {
-      const ok = isLevelUpExtensionInstalled();
-      updateShieldGateStatus(ok);
-      if (ok) {
-        if (typeof showToast === 'function') showToast('✅ Đã phát hiện Khiên Kỷ Luật!', 'success');
-      } else {
-        if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
-      }
+      window.postMessage({ type: 'LEVELUP_CHECK_EXTENSION_VERSION' }, '*');
+      setTimeout(() => {
+        const ready = isLevelUpExtensionReady();
+        const installed = isLevelUpExtensionInstalled();
+        const ver = getInstalledExtensionVersion();
+        updateShieldGateStatus();
+        if (ready) {
+          if (typeof showToast === 'function') showToast(`✅ Đã phát hiện Khiên Kỷ Luật v${ver || REQUIRED_EXTENSION_VERSION} mới nhất!`, 'success');
+        } else if (installed) {
+          if (typeof showToast === 'function') showToast(`⚠️ Tiện ích hiện tại là bản cũ (v${ver || '1.0.0'}). Hãy giải nén bản mới và bấm 🔄 Làm Mới trên chrome://extensions/!`, 'warning');
+        } else {
+          if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
+        }
+      }, 150);
     });
   }
 
@@ -3505,9 +3736,12 @@ async function startFocusTimer(quest) {
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
 
-  // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng trên máy tính
-  if (!isMobileUserDevice() && !isLevelUpExtensionInstalled()) {
+  // Edge case 0: Bắt buộc trang bị Khiên Chặn Xao Nhãng bản mới nhất trên máy tính
+  if (!isMobileUserDevice() && !isLevelUpExtensionReady()) {
     openShieldGateModal(quest);
+    if (isLevelUpExtensionInstalled() && isLevelUpExtensionOutdated()) {
+      showToast(`⚠️ Bạn đang dùng Khiên bản cũ. Vui lòng cập nhật lên v${REQUIRED_EXTENSION_VERSION} để bắt đầu phiên!`, 'warning');
+    }
     return;
   }
 
@@ -12887,11 +13121,16 @@ function switchTab(tabId) {
     fetchAdminUsers();
   } else if (tabId === 'bank') {
     loadBankState();
+    if (typeof startBankCountdownLoop === 'function') startBankCountdownLoop();
   } else if (tabId === 'ledger') {
     if (typeof renderLedger === 'function') renderLedger();
     if (typeof renderProofPhotos === 'function') renderProofPhotos();
   } else if (tabId === 'tracker') {
     if (typeof renderTracker === 'function') renderTracker();
+  }
+
+  if (tabId !== 'bank' && typeof stopBankCountdownLoop === 'function') {
+    stopBankCountdownLoop();
   }
 
   if (['quests', 'shop'].includes(tabId) || tabId === 'ledger') {
@@ -13042,6 +13281,11 @@ window.openAboutModal = openAboutModal;
 function closeModal(id, immediate = false) {
   if (id === 'modal-welcome') {
     if (!checkIsOnboarded()) return;
+  }
+  if (id === 'modal-shield-gate') {
+    if (typeof isMobileUserDevice === 'function' && typeof isLevelUpExtensionReady === 'function') {
+      if (!isMobileUserDevice() && !isLevelUpExtensionReady()) return;
+    }
   }
   const modal = document.getElementById(id);
   if (!modal) return;
@@ -14050,6 +14294,319 @@ function calculateLocalCreditLimit(profile, autoDeductPercent = 0.50) {
   return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
+let bankCountdownTimer = null;
+
+function formatBankCountdown(ms) {
+  if (ms <= 0) return '00:00:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  if (days > 0) {
+    return `${days} ngày ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+function calculateDepositPayoutInfo(dep, rates = {}, discipline = 1.0, now = Date.now()) {
+  if (!dep || typeof dep !== 'object') return null;
+  const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
+  if (amount <= 0) return null;
+
+  const termDays = parseInt(dep.termDays, 10) || 0;
+  const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
+  const termMult = termConfig.rateMultiplier || 1.0;
+
+  const discMult = typeof discipline === 'object' && discipline !== null
+    ? (Number(discipline.multiplier) || 1.0)
+    : (Number(discipline) || 1.0);
+
+  const rawBase = Number(rates?.depositRate) || 0.0015;
+  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
+  const effectiveBase = calculateEffectiveDepositBase(amount);
+  const dailyRate = baseRate * termMult * discMult;
+  const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
+
+  const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
+
+  // 1. Sổ có kỳ hạn (termDays > 0)
+  if (termDays > 0 && dep.maturityAt) {
+    const maturityAt = parseInt(dep.maturityAt, 10);
+    const msUntilMaturity = Math.max(0, maturityAt - now);
+    const isMatured = dep.status === 'matured' || now >= maturityAt || msUntilMaturity <= 5000;
+
+    const totalExpectedInterest = Math.max(
+      parseInt(dep.interest, 10) || 0,
+      Math.floor(cappedDailyInterest * termDays)
+    );
+
+    return {
+      type: 'term',
+      termDays,
+      termLabel: termConfig.label,
+      targetTimestamp: maturityAt,
+      msRemaining: isMatured ? 0 : msUntilMaturity,
+      isMatured,
+      expectedPayoutAmount: isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest,
+      totalWithPrincipal: amount + (isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest),
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest
+    };
+  }
+
+  // 2. Sổ linh hoạt (termDays === 0)
+  if (cappedDailyInterest <= 0) {
+    return {
+      type: 'flex',
+      termDays: 0,
+      termLabel: termConfig.label,
+      targetTimestamp: 0,
+      msRemaining: 0,
+      isMatured: false,
+      expectedPayoutAmount: 0,
+      totalWithPrincipal: amount,
+      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+      cappedDailyInterest: 0
+    };
+  }
+
+  const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
+  const currentEarnedCoins = Math.floor(cappedDailyInterest * elapsedDays);
+  const nextTargetCoinCount = currentEarnedCoins + 1;
+  const daysNeededTotal = nextTargetCoinCount / cappedDailyInterest;
+  const targetTimestamp = lastAcc + Math.ceil(daysNeededTotal * 24 * 60 * 60 * 1000);
+  const msRemaining = Math.max(0, targetTimestamp - now);
+
+  return {
+    type: 'flex',
+    termDays: 0,
+    termLabel: termConfig.label,
+    targetTimestamp,
+    msRemaining,
+    isMatured: false,
+    expectedPayoutAmount: 1,
+    totalWithPrincipal: amount + (parseInt(dep.interest, 10) || 0) + 1,
+    currentAccruedInterest: parseInt(dep.interest, 10) || 0,
+    cappedDailyInterest
+  };
+}
+
+function calculateLoanCountdownInfo(loan, rates = {}, now = Date.now()) {
+  if (!loan || typeof loan !== 'object' || (parseInt(loan.debt, 10) || 0) <= 0) {
+    return null;
+  }
+
+  const debt = Math.max(0, parseInt(loan.debt, 10) || 0);
+  const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
+  const termDays = Math.max(1, parseInt(loan.termDays, 10) || 7);
+  const borrowRate = Number(loan.borrowRate) || Number(rates?.borrowRate) || 0.05;
+
+  const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
+  const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
+
+  // 1. Đếm ngược tính lãi lần tiếp theo (chu kỳ 24h từ lastAccruedAt)
+  const nextAccrualTimestamp = lastAcc + (24 * 60 * 60 * 1000);
+  const msUntilNextAccrual = Math.max(0, nextAccrualTimestamp - now);
+  const nextInterestAmount = Math.ceil(debt * borrowRate);
+
+  // 2. Đếm ngược hết kỳ hạn vay
+  const expireTimestamp = borrowedAt + (termDays * 24 * 60 * 60 * 1000);
+  const msUntilExpire = expireTimestamp - now;
+  const isOverdue = Boolean(loan.isOverdue) || msUntilExpire <= 0;
+
+  return {
+    debt,
+    principal,
+    termDays,
+    borrowRate,
+    nextAccrualTimestamp,
+    msUntilNextAccrual,
+    nextInterestAmount,
+    isAccrualDue: msUntilNextAccrual === 0,
+    expireTimestamp,
+    msUntilExpire: Math.max(0, msUntilExpire),
+    isOverdue,
+    overdueDays: isOverdue ? Math.max(1, Math.floor(Math.abs(now - expireTimestamp) / (24 * 60 * 60 * 1000))) : 0
+  };
+}
+
+function updateBankCountdowns() {
+  const tabBank = document.getElementById('tab-bank');
+  if (!tabBank || tabBank.classList.contains('hidden')) {
+    return;
+  }
+
+  const now = Date.now();
+  const pool = currentBankPool || {};
+  const rates = pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  const userBank = appState.profile?.bank || {};
+  const profile = appState.profile || {};
+  const disc = calculateDisciplineMultiplier(profile);
+
+  // 1. TIỀN GỬI (DEPOSIT COUNTDOWN)
+  const deposits = Array.isArray(userBank.deposits) ? userBank.deposits : [];
+  const activeDeposits = deposits.filter(d => (parseInt(d.amount, 10) || 0) > 0 || (parseInt(d.interest, 10) || 0) > 0);
+
+  const elDepCard = document.getElementById('bank-deposit-countdown-card');
+  const elDepTimer = document.getElementById('bank-deposit-countdown-timer');
+  const elDepAmount = document.getElementById('bank-deposit-countdown-amount');
+  const elDepSource = document.getElementById('bank-deposit-countdown-source');
+  const elDepSubtext = document.getElementById('bank-deposit-countdown-subtext');
+
+  let earliestPayout = null;
+  let hasDueDeposit = false;
+
+  for (const dep of activeDeposits) {
+    const info = calculateDepositPayoutInfo(dep, rates, disc.multiplier, now);
+    if (!info) continue;
+
+    const itemTimerEl = document.querySelector(`.bank-deposit-item-timer[data-dep-id="${dep.id}"]`);
+    if (itemTimerEl) {
+      if (info.isMatured) {
+        itemTimerEl.textContent = '00:00:00';
+      } else {
+        itemTimerEl.textContent = formatBankCountdown(info.msRemaining);
+      }
+    }
+
+    if (info.msRemaining === 0 && !info.isMatured && info.type === 'flex') {
+      hasDueDeposit = true;
+    }
+
+    if (!earliestPayout || info.msRemaining < earliestPayout.msRemaining) {
+      earliestPayout = { ...info, dep };
+    }
+  }
+
+  if (hasDueDeposit) {
+    accrueLocalUserBank(userBank, rates, now, profile);
+    const elUserDep = document.getElementById('bank-user-deposited');
+    if (elUserDep) elUserDep.textContent = (userBank?.deposited || 0).toLocaleString('vi-VN');
+    const elUserInt = document.getElementById('bank-user-interest');
+    if (elUserInt) elUserInt.textContent = '+' + (userBank?.depositInterest || 0).toLocaleString('vi-VN');
+    renderBankDepositsList(userBank);
+  }
+
+  if (elDepCard) {
+    if (activeDeposits.length === 0 || !earliestPayout) {
+      if (elDepTimer) elDepTimer.textContent = '--:--:--';
+      if (elDepAmount) elDepAmount.innerHTML = `+0 ${COIN_ICON_HTML}`;
+      if (elDepSource) elDepSource.textContent = 'Chưa Gửi';
+      if (elDepSubtext) elDepSubtext.textContent = 'Gửi Vàng để bắt đầu nhận lãi';
+    } else {
+      if (earliestPayout.isMatured) {
+        if (elDepTimer) elDepTimer.textContent = '🎉 Đã đáo hạn!';
+        if (elDepAmount) elDepAmount.innerHTML = `+${earliestPayout.expectedPayoutAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        if (elDepSource) elDepSource.textContent = earliestPayout.termLabel;
+        if (elDepSubtext) elDepSubtext.textContent = 'Sẵn sàng tất toán nhận trọn vẹn gốc & lãi';
+      } else {
+        if (elDepTimer) elDepTimer.textContent = formatBankCountdown(earliestPayout.msRemaining);
+        if (elDepAmount) elDepAmount.innerHTML = `+${earliestPayout.expectedPayoutAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        if (elDepSource) {
+          const countBadge = activeDeposits.length > 1 ? ` (${activeDeposits.length} sổ)` : '';
+          elDepSource.textContent = `${earliestPayout.termLabel}${countBadge}`;
+        }
+        if (elDepSubtext) {
+          elDepSubtext.textContent = earliestPayout.type === 'term'
+            ? `Đáo hạn sau ${formatBankCountdown(earliestPayout.msRemaining)}`
+            : `Đợt cộng +1 Vàng tiếp theo`;
+        }
+      }
+    }
+  }
+
+  // 2. ĐI VAY (LOAN COUNTDOWN)
+  const loan = userBank.loan;
+  if (loan && (parseInt(loan.debt, 10) || 0) > 0) {
+    const loanInfo = calculateLoanCountdownInfo(loan, rates, now);
+    if (loanInfo) {
+      // 1) Đếm ngược tính lãi lần tiếp theo
+      const elNextAccrual = document.getElementById('bank-loan-next-accrual-countdown');
+      const elNextInterestAmt = document.getElementById('bank-loan-next-interest-amount');
+      if (elNextAccrual) {
+        elNextAccrual.textContent = formatBankCountdown(loanInfo.msUntilNextAccrual);
+      }
+      if (elNextInterestAmt) {
+        elNextInterestAmt.innerHTML = `+${loanInfo.nextInterestAmount.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+      }
+
+      // 2) Đếm ngược hết kỳ hạn vay
+      const elExpire = document.getElementById('bank-loan-expire-countdown');
+      const elExpireStatus = document.getElementById('bank-loan-expire-status');
+      const elTermBadge = document.getElementById('bank-loan-term-badge');
+
+      if (elTermBadge) {
+        elTermBadge.textContent = `${loanInfo.termDays} ngày`;
+      }
+
+      if (elExpire) {
+        if (loanInfo.isOverdue) {
+          elExpire.textContent = 'ĐÃ QUÁ HẠN ⚠️';
+          elExpire.className = 'text-sm font-mono font-black text-rose-600 dark:text-rose-400 tracking-wider animate-pulse';
+        } else {
+          elExpire.textContent = formatBankCountdown(loanInfo.msUntilExpire);
+          elExpire.className = loanInfo.msUntilExpire < 86400000
+            ? 'text-sm font-mono font-black text-rose-600 dark:text-rose-400 tracking-wider animate-pulse'
+            : 'text-sm font-mono font-black text-amber-600 dark:text-amber-400 tracking-wider';
+        }
+      }
+
+      if (elExpireStatus) {
+        if (loanInfo.isOverdue) {
+          elExpireStatus.textContent = `Quá hạn ${loanInfo.overdueDays} ngày`;
+          elExpireStatus.className = 'text-[10px] text-rose-600 font-bold';
+        } else if (loanInfo.msUntilExpire < 86400000) {
+          elExpireStatus.textContent = 'Sắp hết hạn (<24h)';
+          elExpireStatus.className = 'text-[10px] text-rose-500 font-bold animate-pulse';
+        } else {
+          elExpireStatus.textContent = 'Trong hạn';
+          elExpireStatus.className = 'text-[10px] text-amber-600 font-medium';
+        }
+      }
+
+      const elDaysLeft = document.getElementById('bank-loan-days-left');
+      if (elDaysLeft) {
+        if (loanInfo.isOverdue) {
+          elDaysLeft.textContent = 'Đã quá hạn ⚠️';
+          elDaysLeft.className = 'font-bold text-rose-600';
+        } else {
+          const daysLeft = Math.ceil(loanInfo.msUntilExpire / 86400000);
+          elDaysLeft.textContent = `${daysLeft} / ${loanInfo.termDays} ngày`;
+          elDaysLeft.className = 'font-semibold text-amber-600';
+        }
+      }
+
+      if (loanInfo.isAccrualDue || (now >= loanInfo.expireTimestamp && !loan.isOverdue)) {
+        accrueLocalUserBank(userBank, rates, now, profile);
+        const elDebt = document.getElementById('bank-current-debt');
+        if (elDebt) elDebt.innerHTML = `${(userBank.loan?.debt || 0).toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+        const principal = Math.max(0, parseInt(userBank.loan?.principal, 10) || 0);
+        const debt = Math.max(0, parseInt(userBank.loan?.debt, 10) || 0);
+        const accruedInterest = Math.max(0, debt - principal);
+        const elAccrued = document.getElementById('bank-loan-accrued-interest');
+        if (elAccrued) elAccrued.innerHTML = `+${accruedInterest.toLocaleString('vi-VN')} ${COIN_ICON_HTML}`;
+      }
+    }
+  }
+}
+
+function startBankCountdownLoop() {
+  if (bankCountdownTimer) return;
+  updateBankCountdowns();
+  bankCountdownTimer = setInterval(updateBankCountdowns, 1000);
+}
+
+function stopBankCountdownLoop() {
+  if (bankCountdownTimer) {
+    clearInterval(bankCountdownTimer);
+    bankCountdownTimer = null;
+  }
+}
+
 function accrueLocalUserBank(bank, pool, now = Date.now(), profile = appState.profile) {
   if (!bank || typeof bank !== 'object') return bank;
 
@@ -14421,6 +14978,13 @@ function renderBankUI(pool, userBank, creditLimit) {
 
   // 5. Cập nhật bảng đo lường vĩ mô AMM chi tiết trong Admin Dashboard (nếu có)
   renderAdminBankTelemetry(pool, rates);
+
+  // 6. Cập nhật đếm ngược thời gian thực cho Tiền Gửi & Đi Vay
+  updateBankCountdowns();
+  const tabBank = document.getElementById('tab-bank');
+  if (tabBank && !tabBank.classList.contains('hidden')) {
+    startBankCountdownLoop();
+  }
 }
 
 function renderAdminBankTelemetry(pool, rates) {
@@ -15118,35 +15682,49 @@ function renderBankDepositsList(userBank) {
   }
 
   const now = Date.now();
+  const pool = currentBankPool || {};
+  const rates = pool.depositRate !== undefined ? pool : calculateLocalBankRates(pool);
+  const disc = calculateDisciplineMultiplier(appState.profile || {});
+
   let html = '<div class="space-y-2">';
 
   for (const dep of deposits) {
     const termConfig = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
     const isTerm = dep.termDays > 0;
     const isMatured = isTerm && (dep.status === 'matured' || now >= dep.maturityAt || (dep.maturityAt - now) <= 5000);
-    const msLeft = isTerm ? Math.max(0, dep.maturityAt - now) : 0;
-
-    let timeLeftStr = '';
-    if (msLeft > 0 && !isMatured) {
-      const days = Math.floor(msLeft / 86400000);
-      const hours = Math.floor((msLeft % 86400000) / 3600000);
-      const minutes = Math.floor((msLeft % 3600000) / 60000);
-      if (days >= 1) {
-        timeLeftStr = `Còn ${days} ngày ${hours > 0 ? `${hours}h` : ''}`;
-      } else if (hours >= 1) {
-        timeLeftStr = `Còn ${hours} giờ ${minutes}p`;
-      } else {
-        timeLeftStr = `Còn ${Math.max(1, minutes)} phút`;
-      }
-    }
+    const payoutInfo = calculateDepositPayoutInfo(dep, rates, disc.multiplier, now);
 
     let statusBadge = '';
+    let countdownRow = '';
+
     if (!isTerm) {
       statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/30">🍃 Linh Hoạt</span>';
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+          <span>⏱️ Nhận lãi:</span>
+          <span class="font-mono font-bold bank-deposit-item-timer" data-dep-id="${dep.id}">${formatBankCountdown(payoutInfo ? payoutInfo.msRemaining : 0)}</span>
+          <span class="text-amber-600 dark:text-amber-400 font-mono font-bold">(+1 ${COIN_ICON_HTML})</span>
+        </div>
+      `;
     } else if (isMatured) {
       statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 animate-pulse">🎉 Đã Đáo Hạn</span>';
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 animate-pulse">
+          <span>🎉 Đã đến hạn:</span>
+          <span class="font-mono">+${(dep.interest || 0).toLocaleString('vi-VN')} ${COIN_ICON_HTML} lãi</span>
+          <span class="text-slate-400 font-normal text-[10px]">(Tổng: ${(dep.amount + dep.interest).toLocaleString('vi-VN')} 🪙)</span>
+        </div>
+      `;
     } else {
-      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">⏳ ${timeLeftStr}</span>`;
+      const msLeft = Math.max(0, dep.maturityAt - now);
+      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 font-mono bank-deposit-item-timer" data-dep-id="${dep.id}">⏳ ${formatBankCountdown(msLeft)}</span>`;
+      countdownRow = `
+        <div class="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1">
+          <span>⏳ Đáo hạn nhận:</span>
+          <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">+${payoutInfo ? payoutInfo.expectedPayoutAmount.toLocaleString('vi-VN') : 0} ${COIN_ICON_HTML} lãi</span>
+          <span class="text-slate-400 text-[10px]">(Tổng: ${(dep.amount + (payoutInfo ? payoutInfo.expectedPayoutAmount : 0)).toLocaleString('vi-VN')} 🪙)</span>
+        </div>
+      `;
     }
 
     const actionBtnText = (!isTerm || isMatured) ? 'Tất Toán 📤' : 'Rút Sớm ⚠️';
@@ -15167,6 +15745,7 @@ function renderBankDepositsList(userBank) {
               <span>Gốc: <strong class="text-slate-700 dark:text-slate-300 font-mono">${(dep.amount || 0).toLocaleString('vi-VN')}</strong></span>
               <span>Lãi: <strong class="text-emerald-600 dark:text-emerald-400 font-mono">+${(dep.interest || 0).toLocaleString('vi-VN')}</strong></span>
             </div>
+            ${countdownRow}
           </div>
         </div>
         <button type="button" onclick="withdrawSingleDeposit('${dep.id}')" class="${actionBtnClass} shrink-0">
@@ -16411,6 +16990,12 @@ window.updateBorrowCalculator = updateBorrowCalculator;
 window.setBorrowAmount = setBorrowAmount;
 window.setBorrowMax = setBorrowMax;
 window.renderBankUI = renderBankUI;
+window.calculateDepositPayoutInfo = calculateDepositPayoutInfo;
+window.calculateLoanCountdownInfo = calculateLoanCountdownInfo;
+window.formatBankCountdown = formatBankCountdown;
+window.updateBankCountdowns = updateBankCountdowns;
+window.startBankCountdownLoop = startBankCountdownLoop;
+window.stopBankCountdownLoop = stopBankCountdownLoop;
 
 // =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT

@@ -6,11 +6,26 @@
 (() => {
   console.log('[LevelUp Shield] Content script initialized on LevelUp web app.');
 
+  function broadcastExtensionVersion() {
+    try {
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.2.0';
+      document.documentElement.dataset.levelupExtensionInstalled = 'true';
+      document.documentElement.dataset.levelupExtensionVersion = extVersion;
+      window.__LEVELUP_EXTENSION_INSTALLED__ = true;
+      window.__LEVELUP_EXTENSION_VERSION__ = extVersion;
+      window.dispatchEvent(new CustomEvent('levelup:extension-installed', { detail: { installed: true, version: extVersion } }));
+      document.dispatchEvent(new CustomEvent('levelup:extension-installed', { detail: { installed: true, version: extVersion } }));
+      window.postMessage({
+        type: 'LEVELUP_EXTENSION_VERSION_REPORT',
+        installed: true,
+        version: extVersion
+      }, '*');
+    } catch (_) {}
+  }
+
+  broadcastExtensionVersion();
+
   try {
-    document.documentElement.dataset.levelupExtensionInstalled = 'true';
-    window.__LEVELUP_EXTENSION_INSTALLED__ = true;
-    window.dispatchEvent(new CustomEvent('levelup:extension-installed', { detail: { installed: true, version: '1.0.0' } }));
-    document.dispatchEvent(new CustomEvent('levelup:extension-installed', { detail: { installed: true, version: '1.0.0' } }));
     if (chrome.runtime?.id && typeof window !== 'undefined' && window.location?.origin) {
       chrome.runtime.sendMessage({
         type: 'REGISTER_WEBAPP_URL',
@@ -92,7 +107,9 @@
   // 2. Direct postMessage broadcast from Web App
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
-    if (event.data && event.data.type === 'LEVELUP_TIMER_STATE_BROADCAST') {
+    if (event.data && event.data.type === 'LEVELUP_CHECK_EXTENSION_VERSION') {
+      broadcastExtensionVersion();
+    } else if (event.data && event.data.type === 'LEVELUP_TIMER_STATE_BROADCAST') {
       const state = event.data.state || readCurrentTimer();
       syncTimerToExtension(state);
     } else if (event.data && event.data.type === 'LEVELUP_FOCUS_COMPLETED') {

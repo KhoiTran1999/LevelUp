@@ -45,6 +45,12 @@
   let initialTop = 0;
   let hasMoved = false;
 
+  // Flight state for random gentle floating on blocked pages
+  let isFlyingActive = false;
+  let isFlightPaused = false;
+  let flightTimeout = null;
+  let resumeFlightTimeout = null;
+
   // Clear legacy dismissal on fresh navigation
   try {
     sessionStorage.removeItem('levelup_capsule_dismissed');
@@ -171,8 +177,191 @@
       if (pill) {
         pill.style.display = 'inline-flex';
         pill.classList.add('is-distraction');
+        startCapsuleFlight();
       }
     }, 200);
+  }
+
+  // =============================================================================
+  // RANDOM GENTLE FLIGHT ENGINE (For Blocked / Distraction Pages)
+  // Con nhộng đếm thời gian bay nhẹ nhàng trên toàn bộ màn hình theo lộ trình ngẫu nhiên
+  // Giúp người dùng luôn chú ý đến Pomodoro đang chạy để nhanh chóng tập trung lại
+  // =============================================================================
+  const SAFE_MARGIN_X = 24;
+  const SAFE_MARGIN_Y = 24;
+
+  function getRandomFlightTarget(currX = null, currY = null, pillW = 100, pillH = 36) {
+    const winW = window.innerWidth || document.documentElement?.clientWidth || 1024;
+    const winH = window.innerHeight || document.documentElement?.clientHeight || 768;
+
+    const minX = SAFE_MARGIN_X;
+    const maxX = Math.max(minX, winW - pillW - SAFE_MARGIN_X);
+    const minY = SAFE_MARGIN_Y;
+    const maxY = Math.max(minY, winH - pillH - SAFE_MARGIN_Y);
+
+    if (maxX <= minX || maxY <= minY) {
+      return { x: minX, y: minY };
+    }
+
+    if (currX === null || currY === null) {
+      return {
+        x: Math.round(minX + Math.random() * (maxX - minX)),
+        y: Math.round(minY + Math.random() * (maxY - minY))
+      };
+    }
+
+    // Chọn điểm ngẫu nhiên tạo quãng bay rõ ràng, thư thái trên màn hình
+    const diag = Math.hypot(maxX - minX, maxY - minY);
+    const minDesiredDist = Math.min(320, Math.max(160, diag * 0.35));
+
+    let bestTarget = { x: minX, y: minY };
+    let bestDist = 0;
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const candX = Math.round(minX + Math.random() * (maxX - minX));
+      const candY = Math.round(minY + Math.random() * (maxY - minY));
+      const dist = Math.hypot(candX - currX, candY - currY);
+
+      if (dist >= minDesiredDist) {
+        return { x: candX, y: candY };
+      }
+      if (dist > bestDist) {
+        bestDist = dist;
+        bestTarget = { x: candX, y: candY };
+      }
+    }
+
+    return bestTarget;
+  }
+
+  function flyToNextRandomWaypoint() {
+    if (!isFlyingActive || isFlightPaused) return;
+    if (!shadowRoot) return;
+    const pill = shadowRoot.getElementById('capsule-pill');
+    if (!pill || pill.style.display === 'none') return;
+
+    if (flightTimeout) {
+      clearTimeout(flightTimeout);
+      flightTimeout = null;
+    }
+
+    const rect = pill.getBoundingClientRect();
+    const currX = rect.left;
+    const currY = rect.top;
+    const pillW = rect.width || 100;
+    const pillH = rect.height || 36;
+
+    // Đảm bảo pill có toạ độ pixel trước khi áp dụng CSS transition
+    applyCapsulePosition(currX, currY);
+
+    const target = getRandomFlightTarget(currX, currY, pillW, pillH);
+    const dist = Math.hypot(target.x - currX, target.y - currY);
+
+    // Tốc độ bay nhẹ nhàng (~105-120 px/s) mang lại cảm giác lượn êm ái
+    const speed = 105 + Math.random() * 15;
+    const duration = Math.max(4.0, Math.min(8.2, dist / speed));
+
+    // Kích hoạt reflow để chuyển động xuất phát từ vị trí hiện tại
+    void pill.offsetWidth;
+
+    pill.style.transition = `left ${duration.toFixed(2)}s cubic-bezier(0.4, 0, 0.2, 1), top ${duration.toFixed(2)}s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease`;
+    applyCapsulePosition(target.x, target.y);
+
+    const nextDelayMs = Math.round((duration + 0.4) * 1000);
+    flightTimeout = setTimeout(() => {
+      flyToNextRandomWaypoint();
+    }, nextDelayMs);
+  }
+
+  function startCapsuleFlight() {
+    if (isFlyingActive) return;
+    if (!shadowRoot) return;
+    const pill = shadowRoot.getElementById('capsule-pill');
+    if (!pill || pill.style.display === 'none') return;
+
+    isFlyingActive = true;
+    isFlightPaused = false;
+    pill.classList.add('is-flying');
+
+    // Chuyển vị trí từ right/bottom sang pixel cố định trước khi bay
+    const rect = pill.getBoundingClientRect();
+    pill.style.transition = 'none';
+    applyCapsulePosition(rect.left, rect.top);
+    void pill.offsetWidth;
+
+    flightTimeout = setTimeout(() => {
+      if (isFlyingActive && !isFlightPaused) {
+        flyToNextRandomWaypoint();
+      }
+    }, 280);
+  }
+
+  function pauseCapsuleFlight() {
+    if (!isFlyingActive) return;
+    isFlightPaused = true;
+    if (flightTimeout) {
+      clearTimeout(flightTimeout);
+      flightTimeout = null;
+    }
+    if (resumeFlightTimeout) {
+      clearTimeout(resumeFlightTimeout);
+      resumeFlightTimeout = null;
+    }
+    if (!shadowRoot) return;
+    const pill = shadowRoot.getElementById('capsule-pill');
+    if (!pill) return;
+
+    // Đóng băng vị trí tức thời khi hover hoặc drag
+    const rect = pill.getBoundingClientRect();
+    pill.style.transition = 'none';
+    applyCapsulePosition(rect.left, rect.top);
+  }
+
+  function resumeCapsuleFlight(delayMs = 0) {
+    if (!isFlyingActive) return;
+    if (resumeFlightTimeout) {
+      clearTimeout(resumeFlightTimeout);
+    }
+    resumeFlightTimeout = setTimeout(() => {
+      resumeFlightTimeout = null;
+      if (!isFlyingActive || isDragging) return;
+      isFlightPaused = false;
+      flyToNextRandomWaypoint();
+    }, delayMs);
+  }
+
+  function stopCapsuleFlight() {
+    isFlyingActive = false;
+    isFlightPaused = false;
+    if (flightTimeout) {
+      clearTimeout(flightTimeout);
+      flightTimeout = null;
+    }
+    if (resumeFlightTimeout) {
+      clearTimeout(resumeFlightTimeout);
+      resumeFlightTimeout = null;
+    }
+    if (!shadowRoot) return;
+    const pill = shadowRoot.getElementById('capsule-pill');
+    if (pill) {
+      pill.classList.remove('is-flying');
+      pill.style.removeProperty('transition');
+      const isDistraction = checkIsCurrentPageDistraction();
+      if (!isDistraction) {
+        let savedPos = null;
+        try {
+          const raw = sessionStorage.getItem('levelup_capsule_pos');
+          if (raw) savedPos = JSON.parse(raw);
+        } catch (_) {}
+        if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
+          const clampedX = Math.max(8, Math.min(window.innerWidth - 110, savedPos.x));
+          const clampedY = Math.max(8, Math.min(window.innerHeight - 50, savedPos.y));
+          applyCapsulePosition(clampedX, clampedY);
+        } else {
+          applyCapsulePosition();
+        }
+      }
+    }
   }
 
   // =============================================================================
@@ -505,6 +694,17 @@
           100% { transform: translate(1.5px, 1.5px) rotate(0.5deg); }
         }
 
+        /* Con nhộng bay ngẫu nhiên nhẹ nhàng trên màn hình khi ở trạng thái bị chặn */
+        .capsule-pill.is-distraction.is-flying {
+          will-change: left, top, transform;
+          box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.35), 0 0 22px rgba(239, 68, 68, 0.5) !important;
+          cursor: grab;
+        }
+
+        .capsule-pill.is-distraction.is-flying:active {
+          cursor: grabbing;
+        }
+
         /* Dấu x ở trang bị chặn: Hiện khi hover, màu đỏ cảnh báo, bấm vào sẽ đóng tab */
         .capsule-pill.is-distraction .btn-dismiss {
           background: rgba(239, 68, 68, 0.28);
@@ -761,6 +961,17 @@
     }
 
     if (pill) {
+      // Khi hover chuột vào: Tạm dừng bay nhẹ nhàng để user dễ bấm nút × đóng tab hoặc bấm quay về LevelUp
+      pill.addEventListener('mouseenter', () => {
+        if (!isFlyingActive) return;
+        pauseCapsuleFlight();
+      });
+
+      pill.addEventListener('mouseleave', () => {
+        if (!isFlyingActive || isDragging) return;
+        resumeCapsuleFlight(800);
+      });
+
       pill.addEventListener('mousedown', (e) => {
         if (e.target === dismissBtn || (dismissBtn && dismissBtn.contains(e.target))) return;
 
@@ -768,6 +979,10 @@
         hasMoved = false;
         dragStartX = e.clientX;
         dragStartY = e.clientY;
+
+        if (isFlyingActive) {
+          pauseCapsuleFlight();
+        }
 
         const rect = pill.getBoundingClientRect();
         initialLeft = rect.left;
@@ -808,6 +1023,10 @@
             // Clicked without dragging: return to LevelUp tab
             returnToLevelUp(false);
           }
+
+          if (isFlyingActive) {
+            resumeCapsuleFlight(1500);
+          }
         };
 
         window.addEventListener('mousemove', onMouseMove);
@@ -817,6 +1036,7 @@
   }
 
   function removeCapsuleDOM() {
+    stopCapsuleFlight();
     if (hostEl) {
       hostEl.remove();
       hostEl = null;
@@ -929,6 +1149,7 @@
   // =============================================================================
   function updateCapsuleDisplay() {
     if (!mascotEnabled) {
+      stopCapsuleFlight();
       removeCapsuleDOM();
       return;
     }
@@ -936,6 +1157,7 @@
     const isRunning = Boolean(currentFocusState && currentFocusState.isRunning && !currentFocusState.isBreakMode);
 
     if (!isRunning) {
+      stopCapsuleFlight();
       wasDismissedThisSession = false;
       try {
         sessionStorage.removeItem('levelup_blocked_center_shrunk');
@@ -945,6 +1167,7 @@
     }
 
     if (wasDismissedThisSession) {
+      stopCapsuleFlight();
       removeCapsuleDOM();
       return;
     }
@@ -996,12 +1219,13 @@
 
       if (!isShrunk) {
         // Display center warning with gentle bobbing, hide corner pill
+        stopCapsuleFlight();
         if (overlay) {
           overlay.style.display = 'flex';
         }
         if (pill) pill.style.display = 'none';
       } else {
-        // Shrunk: Hide center warning, show corner pill with red alert
+        // Shrunk: Hide center warning, show corner pill with red alert and gentle random flight
         if (overlay) overlay.style.display = 'none';
         if (pill) {
           pill.style.display = 'inline-flex';
@@ -1012,9 +1236,11 @@
           dismissBtn.style.removeProperty('display');
           dismissBtn.title = 'Đóng trang này và quay về LevelUp';
         }
+        startCapsuleFlight();
       }
     } else {
-      // Normal focusing page: Hide center warning, show green dot capsule
+      // Normal focusing page: Hide center warning, show green dot capsule in docked position
+      stopCapsuleFlight();
       if (overlay) overlay.style.display = 'none';
       if (pill) {
         pill.style.display = 'inline-flex';
@@ -1033,6 +1259,7 @@
     if (overlayTimer) overlayTimer.textContent = formattedTime;
 
     if (currentRemaining <= 0) {
+      stopCapsuleFlight();
       trigger8BitFireworks();
       setTimeout(() => {
         removeCapsuleDOM();
@@ -1134,6 +1361,30 @@
     } else if (message.type === 'RESTORE_CAPSULE' || message.type === 'SHOW_CAPSULE_NOW') {
       wasDismissedThisSession = false;
       updateCapsuleDisplay();
+    }
+  });
+
+  // Handle viewport resize: keep capsule bounded during flight
+  window.addEventListener('resize', () => {
+    if (isFlyingActive && shadowRoot) {
+      const pill = shadowRoot.getElementById('capsule-pill');
+      if (pill) {
+        const rect = pill.getBoundingClientRect();
+        const maxL = Math.max(24, window.innerWidth - (rect.width || 100) - 24);
+        const maxT = Math.max(24, window.innerHeight - (rect.height || 36) - 24);
+        if (rect.left > maxL || rect.top > maxT) {
+          applyCapsulePosition(Math.min(rect.left, maxL), Math.min(rect.top, maxT));
+        }
+      }
+    }
+  });
+
+  // Pause flight when tab is in background to save resources, resume when active
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (isFlyingActive) pauseCapsuleFlight();
+    } else {
+      if (isFlyingActive) resumeCapsuleFlight(300);
     }
   });
 })();
