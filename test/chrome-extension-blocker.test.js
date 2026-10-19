@@ -154,6 +154,7 @@ assert(capsuleCode.includes('startCapsuleFlight'), 'capsule.js phải có hàm s
 assert(capsuleCode.includes('getRandomFlightTarget'), 'capsule.js phải có thuật toán tính toán toạ độ bay ngẫu nhiên toàn màn hình');
 assert(capsuleCode.includes('pauseCapsuleFlight') && capsuleCode.includes('resumeCapsuleFlight'), 'capsule.js phải có cơ chế tạm dừng khi hover/drag và tiếp tục bay nhẹ nhàng');
 assert(capsuleCode.includes('is-flying'), 'capsule.js phải có class .is-flying phục vụ hiệu ứng lượn êm ái');
+assert(capsuleCode.includes('.capsule-pill.is-distraction.is-flying') && capsuleCode.includes('animation: none !important;'), 'capsule.js phải tắt rung lắc (animation: none) trong lúc di chuyển');
 
 // Kiểm tra trang blocked.html và blocked.css giữ trọn vẹn hiệu ứng Motion yêu thích
 const blockedHtmlPath = path.join(extDir, 'blocked/blocked.html');

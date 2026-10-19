@@ -183,55 +183,70 @@
   }
 
   // =============================================================================
-  // RANDOM GENTLE FLIGHT ENGINE (For Blocked / Distraction Pages)
-  // Con nhộng đếm thời gian bay nhẹ nhàng trên toàn bộ màn hình theo lộ trình ngẫu nhiên
-  // Giúp người dùng luôn chú ý đến Pomodoro đang chạy để nhanh chóng tập trung lại
+  // CONTINUOUS BORDER-TO-BORDER FLIGHT ENGINE (For Blocked / Distraction Pages)
+  // Con nhộng đếm thời gian di chuyển chậm rãi, liên tục từ viền này sang viền khác,
+  // không dừng lại giữa màn hình và không rung lắc trong lúc bay.
   // =============================================================================
-  const SAFE_MARGIN_X = 24;
-  const SAFE_MARGIN_Y = 24;
+  const SAFE_BORDER_PADDING = 16;
+  let lastBorderEdge = -1;
 
   function getRandomFlightTarget(currX = null, currY = null, pillW = 100, pillH = 36) {
     const winW = window.innerWidth || document.documentElement?.clientWidth || 1024;
     const winH = window.innerHeight || document.documentElement?.clientHeight || 768;
 
-    const minX = SAFE_MARGIN_X;
-    const maxX = Math.max(minX, winW - pillW - SAFE_MARGIN_X);
-    const minY = SAFE_MARGIN_Y;
-    const maxY = Math.max(minY, winH - pillH - SAFE_MARGIN_Y);
+    const minX = SAFE_BORDER_PADDING;
+    const maxX = Math.max(minX, winW - pillW - SAFE_BORDER_PADDING);
+    const minY = SAFE_BORDER_PADDING;
+    const maxY = Math.max(minY, winH - pillH - SAFE_BORDER_PADDING);
 
     if (maxX <= minX || maxY <= minY) {
       return { x: minX, y: minY };
     }
 
-    if (currX === null || currY === null) {
-      return {
-        x: Math.round(minX + Math.random() * (maxX - minX)),
-        y: Math.round(minY + Math.random() * (maxY - minY))
-      };
+    // Xác định xem hiện tại con nhộng đang ở gần viền nào (0=Top, 1=Right, 2=Bottom, 3=Left)
+    const currentEdges = [];
+    if (currX !== null && currY !== null) {
+      if (Math.abs(currY - minY) <= 36) currentEdges.push(0); // Top
+      if (Math.abs(currX - maxX) <= 36) currentEdges.push(1); // Right
+      if (Math.abs(currY - maxY) <= 36) currentEdges.push(2); // Bottom
+      if (Math.abs(currX - minX) <= 36) currentEdges.push(3); // Left
     }
 
-    // Chọn điểm ngẫu nhiên tạo quãng bay rõ ràng, thư thái trên màn hình
-    const diag = Math.hypot(maxX - minX, maxY - minY);
-    const minDesiredDist = Math.min(320, Math.max(160, diag * 0.35));
-
-    let bestTarget = { x: minX, y: minY };
-    let bestDist = 0;
-
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const candX = Math.round(minX + Math.random() * (maxX - minX));
-      const candY = Math.round(minY + Math.random() * (maxY - minY));
-      const dist = Math.hypot(candX - currX, candY - currY);
-
-      if (dist >= minDesiredDist) {
-        return { x: candX, y: candY };
-      }
-      if (dist > bestDist) {
-        bestDist = dist;
-        bestTarget = { x: candX, y: candY };
-      }
+    // Luôn chọn đích đến là một trong các viền màn hình (không dừng giữa chừng)
+    // và khác với viền hiện tại để băng qua màn hình
+    let candidateEdges = [0, 1, 2, 3].filter(edge => !currentEdges.includes(edge) && edge !== lastBorderEdge);
+    if (candidateEdges.length === 0) {
+      candidateEdges = [0, 1, 2, 3].filter(edge => !currentEdges.includes(edge));
+    }
+    if (candidateEdges.length === 0) {
+      candidateEdges = [0, 1, 2, 3];
     }
 
-    return bestTarget;
+    const chosenEdge = candidateEdges[Math.floor(Math.random() * candidateEdges.length)];
+    lastBorderEdge = chosenEdge;
+
+    let targetX = minX;
+    let targetY = minY;
+
+    if (chosenEdge === 0) {
+      // Đích đến: Chạm viền trên cùng (Top)
+      targetY = minY;
+      targetX = Math.round(minX + Math.random() * (maxX - minX));
+    } else if (chosenEdge === 1) {
+      // Đích đến: Chạm viền bên phải (Right)
+      targetX = maxX;
+      targetY = Math.round(minY + Math.random() * (maxY - minY));
+    } else if (chosenEdge === 2) {
+      // Đích đến: Chạm viền dưới cùng (Bottom)
+      targetY = maxY;
+      targetX = Math.round(minX + Math.random() * (maxX - minX));
+    } else {
+      // Đích đến: Chạm viền bên trái (Left)
+      targetX = minX;
+      targetY = Math.round(minY + Math.random() * (maxY - minY));
+    }
+
+    return { x: targetX, y: targetY };
   }
 
   function flyToNextRandomWaypoint() {
@@ -257,17 +272,19 @@
     const target = getRandomFlightTarget(currX, currY, pillW, pillH);
     const dist = Math.hypot(target.x - currX, target.y - currY);
 
-    // Tốc độ bay nhẹ nhàng (~105-120 px/s) mang lại cảm giác lượn êm ái
-    const speed = 105 + Math.random() * 15;
-    const duration = Math.max(4.0, Math.min(8.2, dist / speed));
+    // Di chuyển chậm rãi (~52-58 px/s), êm ái và hoàn toàn liên tục
+    const speed = 55;
+    const duration = Math.max(4.0, dist / speed);
 
-    // Kích hoạt reflow để chuyển động xuất phát từ vị trí hiện tại
+    // Kích hoạt reflow để chuyển động xuất phát mượt mà từ vị trí hiện tại
     void pill.offsetWidth;
 
-    pill.style.transition = `left ${duration.toFixed(2)}s cubic-bezier(0.4, 0, 0.2, 1), top ${duration.toFixed(2)}s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease`;
+    // Sử dụng transition linear để chuyển động đều đặn, không bị khựng hay giật
+    pill.style.transition = `left ${duration.toFixed(2)}s linear, top ${duration.toFixed(2)}s linear, box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease`;
     applyCapsulePosition(target.x, target.y);
 
-    const nextDelayMs = Math.round((duration + 0.4) * 1000);
+    // Bay liên tục không nghỉ: Vừa chạm tới viền là lập tức chuyển hướng sang viền tiếp theo
+    const nextDelayMs = Math.round(duration * 1000);
     flightTimeout = setTimeout(() => {
       flyToNextRandomWaypoint();
     }, nextDelayMs);
@@ -694,10 +711,12 @@
           100% { transform: translate(1.5px, 1.5px) rotate(0.5deg); }
         }
 
-        /* Con nhộng bay ngẫu nhiên nhẹ nhàng trên màn hình khi ở trạng thái bị chặn */
+        /* Trong lúc di chuyển bay lượn: KHÔNG RUNG, lướt êm ái, phát sáng dịu */
         .capsule-pill.is-distraction.is-flying {
-          will-change: left, top, transform;
-          box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.35), 0 0 22px rgba(239, 68, 68, 0.5) !important;
+          animation: none !important;
+          transform: none !important;
+          will-change: left, top;
+          box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.35), 0 0 20px rgba(239, 68, 68, 0.45) !important;
           cursor: grab;
         }
 
