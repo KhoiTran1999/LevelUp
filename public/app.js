@@ -13904,7 +13904,7 @@ function renderNotesSidebar() {
         class="note-card-item p-3 rounded-2xl border transition cursor-pointer select-none relative group ${
           isActive
             ? 'active bg-amber-500/10 dark:bg-amber-950/30 border-amber-500/50 shadow-sm'
-            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'
         }"
         onclick="switchActiveNote('${note.id}')"
         data-note-id="${note.id}"
@@ -21029,7 +21029,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Universal Material 3 Ripple (Buttons, Cards, Chips, Tabs, List Items)
     document.addEventListener('pointerdown', (e) => {
       const target = e.target.closest(
-        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
+        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, .note-card-item, [data-ripple]'
       );
       if (!target || target.disabled || target.classList.contains('no-ripple')) return;
 

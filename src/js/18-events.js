@@ -1950,7 +1950,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Universal Material 3 Ripple (Buttons, Cards, Chips, Tabs, List Items)
     document.addEventListener('pointerdown', (e) => {
       const target = e.target.closest(
-        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, [data-ripple]'
+        'button, .btn, .nav-tab, .mobile-nav-btn, .quest-filter, .quest-dropdown-item, .nav-more-item, .mobile-more-item, .rpg-card, .quest-card-compact, .proof-photo-card, .avatar-opt, .tracker-period-btn, .modal-freq-btn, .btn-action-quest, .note-card-item, [data-ripple]'
       );
       if (!target || target.disabled || target.classList.contains('no-ripple')) return;
 

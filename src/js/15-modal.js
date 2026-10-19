@@ -896,7 +896,7 @@ function renderNotesSidebar() {
         class="note-card-item p-3 rounded-2xl border transition cursor-pointer select-none relative group ${
           isActive
             ? 'active bg-amber-500/10 dark:bg-amber-950/30 border-amber-500/50 shadow-sm'
-            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'
         }"
         onclick="switchActiveNote('${note.id}')"
         data-note-id="${note.id}"

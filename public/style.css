@@ -3395,14 +3395,16 @@ html.dark #active-focus-banner {
 /* 12. Apple-Style Fluid Tactile Feedback & Card Springs */
 .rpg-card .md-ripple,
 .quest-card-compact .md-ripple,
-.proof-photo-card .md-ripple {
+.proof-photo-card .md-ripple,
+.note-card-item .md-ripple {
   background-color: var(--md-sys-color-primary, #4f46e5);
   opacity: 0.12;
 }
 
 .quest-card-compact,
 .proof-photo-card,
-.rpg-card {
+.rpg-card,
+.note-card-item {
   transition: transform 0.24s cubic-bezier(0.25, 1, 0.5, 1),
               box-shadow 0.24s cubic-bezier(0.25, 1, 0.5, 1) !important;
   will-change: transform;
@@ -3410,7 +3412,8 @@ html.dark #active-focus-banner {
 
 .quest-card-compact:active,
 .proof-photo-card:active,
-.rpg-card:not(.modal-fade):not([role="dialog"] *):active {
+.rpg-card:not(.modal-fade):not([role="dialog"] *):active,
+.note-card-item:active {
   transform: scale(0.975) translate3d(0, 0, 0) !important;
   transition-duration: 0.12s !important;
 }
@@ -3446,7 +3449,8 @@ html.dark #active-focus-banner {
 
 /* 14. Material 3 Staggered List Entrance for Cards */
 .quest-card-compact,
-.proof-photo-card {
+.proof-photo-card,
+.note-card-item {
   animation: m3CardEntrance 0.26s cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
 }
 
@@ -4763,22 +4767,31 @@ html.dark .notes-editor a:hover {
 
 /* Note Cards in Sidebar */
 .note-card-item {
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s, border-color 0.18s, background-color 0.18s;
-  will-change: transform;
+  position: relative;
+  overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-}
-
-.note-card-item:hover {
-  transform: translateY(-1px);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .note-card-actions {
   transition: opacity 0.15s ease;
 }
 
-/* Desktop fine pointer: Chỉ hiện nút thao tác khi hover chuột */
+/* Desktop fine pointer: Chỉ bật hiệu ứng màu hover và nâng thẻ khi dùng chuột máy tính */
 @media (hover: hover) and (pointer: fine) {
+  .note-card-item:not(.active):hover {
+    border-color: rgba(245, 158, 11, 0.35);
+    background-color: rgba(248, 250, 252, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
+  }
+  html.dark .note-card-item:not(.active):hover {
+    border-color: rgba(245, 158, 11, 0.35);
+    background-color: rgba(30, 41, 59, 0.5);
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  }
   .note-card-actions {
     opacity: 0;
     pointer-events: none;
@@ -4789,8 +4802,37 @@ html.dark .notes-editor a:hover {
   }
 }
 
-/* Touchscreens / Mobile: Luôn hiện nút thao tác mờ dịu, triệt tiêu lỗi chạm 2 lần */
+/* Touchscreens / Mobile: BỎ HOÀN TOÀN MÀU HOVER NHƯ TRÊN MÁY TÍNH, loại bỏ triệt để dính màu khi chạm */
 @media (hover: none), (pointer: coarse) {
+  .note-card-item,
+  .note-card-item:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .note-card-item:not(.active),
+  .note-card-item:not(.active):hover {
+    border-color: rgba(226, 232, 240, 0.8);
+    background-color: #ffffff;
+  }
+  html.dark .note-card-item:not(.active),
+  html.dark .note-card-item:not(.active):hover {
+    border-color: rgba(30, 41, 59, 1);
+    background-color: #0f172a;
+  }
+  .note-card-item.active,
+  .note-card-item.active:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+    background-color: rgba(245, 158, 11, 0.1);
+  }
+  html.dark .note-card-item.active,
+  html.dark .note-card-item.active:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+    background-color: rgba(69, 26, 3, 0.3);
+  }
+  .note-card-item:active {
+    transform: scale(0.975) translate3d(0, 0, 0) !important;
+    transition-duration: 0.12s !important;
+  }
   .note-card-actions {
     opacity: 0.75;
     pointer-events: auto;
