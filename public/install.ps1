@@ -63,26 +63,39 @@ if (Test-Path $chromeUserData) {
     } catch {}
 }
 
+# Tự động mở tab chrome://extensions để người dùng không phải tự gõ URL
+try {
+    Start-Process "chrome.exe" "chrome://extensions" -ErrorAction SilentlyContinue
+} catch {
+    try { Start-Process "chrome://extensions" -ErrorAction SilentlyContinue } catch {}
+}
+
 Write-Host ""
 if ($isAlreadyInstalled) {
     Write-Host "========================================================" -ForegroundColor Green
-    Write-Host " [OK] HOÀN TẤT CẬP NHẬT THÀNH CÔNG!" -ForegroundColor Green
+    Write-Host " [OK] ĐÃ CẬP NHẬT FILE BẢN MỚI THÀNH CÔNG!" -ForegroundColor Green
     Write-Host "========================================================" -ForegroundColor Green
     Write-Host "Toàn bộ file tiện ích trong thư mục đã được cập nhật bản mới nhất." -ForegroundColor White
-    Write-Host ">> Bạn chỉ cần quay lại tab LevelUp trên Chrome và F5 (reload) là xong!" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host ">> BƯỚC CUỐI ĐỂ HOÀN TẤT (Script đã tự mở tab chrome://extensions):" -ForegroundColor Cyan
+    Write-Host "   👉 Tại ô tiện ích [LevelUp Focus Shield]:" -ForegroundColor White
+    Write-Host "      Bấm nút 🔄 [Làm mới] (Reload) để nạp lại bản mới vào Chrome." -ForegroundColor Yellow
+    Write-Host "   (Lưu ý: Do Chrome lưu tiện ích trong RAM, bắt buộc cần bấm nút 🔄" -ForegroundColor Gray
+    Write-Host "    để Chrome đọc lại toàn bộ mã mới vừa cập nhật từ máy tính)." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "🎉 Tab LevelUp sẽ TỰ ĐỘNG nhận diện bản mới ngay khi bạn bấm 🔄!" -ForegroundColor Green
 } else {
     Write-Host "========================================================" -ForegroundColor Green
     Write-Host " [OK] ĐÃ TẢI TIỆN ÍCH VÀO MÁY THÀNH CÔNG!" -ForegroundColor Green
     Write-Host "========================================================" -ForegroundColor Green
     Write-Host "Đường dẫn thư mục đã được copy sẵn vào bộ nhớ tạm (Clipboard)." -ForegroundColor White
     Write-Host ""
-    Write-Host ">> CHỈ CÒN 1 BƯỚC NẠP VÀO CHROME (Mất 5 giây - Chỉ làm 1 lần duy nhất):" -ForegroundColor Yellow
-    Write-Host "   1. Mở tab mới trên Google Chrome, gõ: chrome://extensions" -ForegroundColor White
-    Write-Host "   2. Bật công tắc [Chế độ cho nhà phát triển] (Developer mode) ở góc trên bên phải." -ForegroundColor White
-    Write-Host "   3. Bấm nút [Tải tiện ích đã giải nén] (Load unpacked) ở góc trên bên trái." -ForegroundColor White
-    Write-Host "   4. Bấm Ctrl + V rồi nhấn Enter để chọn thư mục LevelUpShield -> Bấm Select Folder." -ForegroundColor Cyan
+    Write-Host ">> CÁC BƯỚC NẠP VÀO CHROME (Script đã tự mở tab chrome://extensions cho bạn):" -ForegroundColor Yellow
+    Write-Host "   1. Bật công tắc [Chế độ cho nhà phát triển] (Developer mode) ở góc trên bên phải." -ForegroundColor White
+    Write-Host "   2. Bấm nút [Tải tiện ích đã giải nén] (Load unpacked) ở góc trên bên trái." -ForegroundColor White
+    Write-Host "   3. Bấm Ctrl + V rồi nhấn Enter để chọn thư mục LevelUpShield -> Bấm Select Folder." -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "[OK] Tab LevelUp sẽ TỰ ĐỘNG nhận diện và mở khóa ngay lập tức!" -ForegroundColor Green
-    Write-Host "(i) Từ các lần cập nhật sau, chỉ cần chạy lại lệnh này là tự động 100%!" -ForegroundColor Gray
+    Write-Host "🎉 Tab LevelUp sẽ TỰ ĐỘNG nhận diện và mở khóa ngay lập tức!" -ForegroundColor Green
+    Write-Host "💡 Từ các lần cập nhật sau, chỉ cần chạy lại lệnh này và bấm 🔄 là xong!" -ForegroundColor Gray
 }
 Write-Host ""

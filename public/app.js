@@ -3418,6 +3418,10 @@ function updateShieldGateStatus(installedOverride = null) {
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   const footerNote = document.getElementById('shield-gate-footer-note');
 
+  const step2Title = document.getElementById('shield-gate-step-2-title');
+  const step2Body = document.getElementById('shield-gate-step-2-body');
+  const step2Folder = document.getElementById('shield-gate-step-2-folder');
+
   const installed = installedOverride !== null ? Boolean(installedOverride) : isLevelUpExtensionInstalled();
   const currentVer = getInstalledExtensionVersion();
   const outdated = installed && isLevelUpExtensionOutdated();
@@ -3460,6 +3464,9 @@ function updateShieldGateStatus(installedOverride = null) {
     if (footerNote) {
       footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-emerald-500">verified</span><span>Khiên Kỷ Luật phiên bản mới nhất đang hoạt động bảo vệ bạn.</span>';
     }
+    if (step2Folder) {
+      step2Folder.classList.remove('hidden');
+    }
   } else if (outdated) {
     if (header) {
       header.className = 'bg-rose-50/80 dark:bg-rose-950/40 px-6 py-6 border-b border-rose-100 dark:border-rose-900/60 text-center relative';
@@ -3476,7 +3483,41 @@ function updateShieldGateStatus(installedOverride = null) {
       title.textContent = 'NÂNG CẤP KHIÊN KỶ LUẬT';
     }
     if (desc) {
-      desc.textContent = `Bạn đang dùng Khiên bản cũ (v${currentVer || '1.0.0'}). Hãy copy và chạy lệnh PowerShell bên dưới để tự động cập nhật lên v${REQUIRED_EXTENSION_VERSION} ngay lập tức.`;
+      desc.textContent = `Bạn đang dùng Khiên bản cũ (v${currentVer || '1.0.0'}). Chạy lệnh bên dưới ➔ Bấm nút 🔄 (Làm mới) tại ô LevelUp Focus Shield trên chrome://extensions để hoàn tất.`;
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Hoàn tất trên Chrome (Mất đúng 1 giây):';
+    }
+    if (step2Body) {
+      step2Body.innerHTML = `
+        <div class="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-rose-600 dark:text-rose-400">①</span>
+            <span>Mở tab:</span>
+            <code class="font-mono bg-slate-200 dark:bg-slate-900 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-bold select-all">chrome://extensions</code>
+            <button id="copy-chrome-url-btn-outdated" type="button" class="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold ml-0.5 cursor-pointer">Copy</button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-rose-600 dark:text-rose-400">②</span>
+            <span>Tại ô <b>LevelUp Focus Shield</b> ➔ Bấm nút <b>🔄 Làm mới</b> (Reload).</span>
+          </div>
+          <div class="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300/90 leading-tight">
+            💡 Do Chrome lưu tiện ích trong RAM, cần bấm 🔄 để Chrome nạp lại file mới vừa tải về máy.
+          </div>
+        </div>
+      `;
+      const btnCopy2 = document.getElementById('copy-chrome-url-btn-outdated');
+      if (btnCopy2) {
+        btnCopy2.onclick = () => {
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText('chrome://extensions');
+            if (typeof showToast === 'function') showToast('📋 Đã sao chép chrome://extensions', 'success');
+          }
+        };
+      }
+    }
+    if (step2Folder) {
+      step2Folder.classList.add('hidden');
     }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
@@ -3486,7 +3527,7 @@ function updateShieldGateStatus(installedOverride = null) {
     }
     if (statusText) {
       statusText.className = 'text-xs font-bold text-rose-950 dark:text-rose-100 truncate';
-      statusText.textContent = `⚠️ Đang dùng bản cũ (v${currentVer || '1.0.0'}). Đang đợi bản v${REQUIRED_EXTENSION_VERSION}...`;
+      statusText.textContent = `⚠️ Đang dùng bản cũ (v${currentVer || '1.0.0'}). Đang đợi bạn bấm 🔄 trên Chrome...`;
     }
     if (btnSuccess) {
       btnSuccess.classList.add('hidden');
@@ -3515,6 +3556,39 @@ function updateShieldGateStatus(installedOverride = null) {
     }
     if (desc) {
       desc.textContent = 'Để bảo vệ kỷ luật, hãy copy và chạy lệnh PowerShell bên dưới để tự động cài đặt và kết nối Khiên với Chrome trong 5 giây.';
+    }
+    if (step2Title) {
+      step2Title.textContent = 'Nạp vào Chrome (Chỉ 1 lần duy nhất):';
+    }
+    if (step2Body) {
+      step2Body.innerHTML = `
+        <div class="flex items-center gap-1.5">
+          <span class="font-bold text-indigo-600 dark:text-indigo-400">①</span>
+          <span>Mở tab mới:</span>
+          <code class="font-mono bg-slate-200 dark:bg-slate-900 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-bold select-all">chrome://extensions</code>
+          <button id="copy-chrome-url-btn" type="button" class="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold ml-0.5 cursor-pointer">Copy</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="font-bold text-indigo-600 dark:text-indigo-400">②</span>
+          <span>Bật công tắc <b>Chế độ cho nhà phát triển</b> (góc trên bên phải).</span>
+        </div>
+        <div class="flex items-start gap-1.5">
+          <span class="font-bold text-indigo-600 dark:text-indigo-400">③</span>
+          <span>Bấm <b>Tải tiện ích đã giải nén</b> (góc trái) ➔ Chọn thư mục:</span>
+        </div>
+      `;
+      const btnCopy1 = document.getElementById('copy-chrome-url-btn');
+      if (btnCopy1) {
+        btnCopy1.onclick = () => {
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText('chrome://extensions');
+            if (typeof showToast === 'function') showToast('📋 Đã sao chép chrome://extensions', 'success');
+          }
+        };
+      }
+    }
+    if (step2Folder) {
+      step2Folder.classList.remove('hidden');
     }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
