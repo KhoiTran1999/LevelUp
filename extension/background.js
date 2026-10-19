@@ -211,6 +211,53 @@ async function handleSaveClip(text, sourceUrl = '', sourceTitle = '') {
   }
 }
 
+// Handle saving a Keep-style note from extension
+async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Chép', sourceUrl = '', sourceTitle = '' }) {
+  const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+  const notePayload = {
+    title: (title || '').trim(),
+    body: (body || '').trim(),
+    topic: (topic || '').trim() || 'Ghi Chép',
+    sourceUrl: sourceUrl || '',
+    sourceTitle: sourceTitle || ''
+  };
+
+  if (tabs.length > 0) {
+    const targetTabId = tabs[0].id;
+    chrome.tabs.sendMessage(targetTabId, {
+      type: 'CREATE_NOTE',
+      ...notePayload
+    }).catch(() => {});
+  } else {
+    // Save to pendingNotes queue so content.js delivers it upon web app load
+    const storage = await chrome.storage.local.get(['pendingNotes']);
+    const pendingNotes = Array.isArray(storage.pendingNotes) ? storage.pendingNotes : [];
+    pendingNotes.push({
+      id: 'note_' + Date.now(),
+      ...notePayload,
+      timestamp: Date.now()
+    });
+    await chrome.storage.local.set({ pendingNotes });
+  }
+
+  // Also maintain local history in extension storage
+  try {
+    const historyData = await chrome.storage.local.get(['recentExtensionNotes']);
+    const recentList = Array.isArray(historyData.recentExtensionNotes) ? historyData.recentExtensionNotes : [];
+    recentList.unshift({
+      id: 'note_' + Date.now(),
+      title: notePayload.title || 'Ghi Chú Mới',
+      body: notePayload.body,
+      topic: notePayload.topic,
+      sourceUrl: notePayload.sourceUrl,
+      sourceTitle: notePayload.sourceTitle,
+      createdAt: Date.now()
+    });
+    if (recentList.length > 20) recentList.pop();
+    await chrome.storage.local.set({ recentExtensionNotes: recentList });
+  } catch (_) {}
+}
+
 // Listen for context menu clicks
 if (chrome.contextMenus && chrome.contextMenus.onClicked) {
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -625,6 +672,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         case 'APPEND_CLIP_TO_NOTES': {
           await handleSaveClip(message.text, message.source, message.title);
+          sendResponse({ success: true });
+          break;
+        }
+
+        case 'CREATE_EXTENSION_NOTE': {
+          await handleSaveExtensionNote(message);
           sendResponse({ success: true });
           break;
         }

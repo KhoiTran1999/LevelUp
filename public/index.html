@@ -606,33 +606,33 @@
 
     <!-- ==================== TAB: SỔ TAY GHI CHÚ & PHÂN LOẠI CHỦ ĐỀ ==================== -->
     <section id="tab-notes" class="tab-pane hidden">
-      <!-- 1. Header Banner & Actions -->
-      <div class="rpg-panel rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-transparent to-yellow-500/5">
+      <!-- 1. Header Banner & Actions (Tự động ẩn trên mobile khi mở editor) -->
+      <div id="notes-header-banner" class="rpg-panel rounded-2xl p-3 sm:p-5 mb-3 sm:mb-6 border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-transparent to-yellow-500/5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-amber-500/20 dark:bg-amber-400/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0 shadow-xs">
+          <div class="flex items-center gap-2.5 sm:gap-3">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-500/20 dark:bg-amber-400/20 border border-amber-500/40 flex items-center justify-center text-lg sm:text-xl shrink-0 shadow-xs">
               📝
             </div>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="font-rpg-title font-black text-base sm:text-lg text-amber-700 dark:text-amber-300">
+                <h2 class="font-rpg-title font-black text-sm sm:text-lg text-amber-700 dark:text-amber-300">
                   SỔ TAY GHI CHÚ &amp; PHÂN LOẠI
                 </h2>
                 <span id="notes-total-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-mono">
                   1 Ghi Chú
                 </span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tự do đặt tên chủ đề, soạn thảo văn bản, lập checklist công việc và phân loại ghi chép khoa học.</p>
+              <p class="hidden sm:block text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tự do đặt tên chủ đề, soạn thảo văn bản, lập checklist công việc và phân loại ghi chép khoa học.</p>
             </div>
           </div>
-          <div class="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <div class="flex items-center gap-2 self-stretch sm:self-auto">
             <!-- Search notes input -->
-            <div class="relative">
+            <div class="relative flex-1 sm:flex-none">
               <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-              <input id="notes-search-input" type="text" placeholder="Tìm ghi chú..." oninput="handleNotesSearch(this.value)" class="pl-8 pr-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40 w-36 sm:w-48 shadow-2xs">
+              <input id="notes-search-input" type="text" placeholder="Tìm ghi chú..." oninput="handleNotesSearch(this.value)" class="w-full sm:w-48 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shadow-2xs">
             </div>
             <!-- Create new note button -->
-            <button id="btn-create-new-note" type="button" onclick="createNewNotePrompt()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition shadow-sm cursor-pointer active:scale-95">
+            <button id="btn-create-new-note" type="button" onclick="createNewNotePrompt()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
               <span class="material-symbols-outlined text-[18px] leading-none">note_add</span>
               <span>+ Ghi Chú Mới</span>
             </button>
@@ -641,186 +641,190 @@
       </div>
 
       <!-- 2. Dynamic Custom Topics Filter Bar -->
-      <div class="mb-4 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar" id="notes-topics-bar">
+      <div class="mb-3 sm:mb-4 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar no-scrollbar" id="notes-topics-bar">
         <!-- Generated dynamically by renderTopicsBar() -->
       </div>
 
       <!-- 3. Master-Detail Workspace: Note List + Active Editor -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start" id="notes-workspace-container">
         
-        <!-- Left: Notes Sidebar List (4 cols on lg) -->
+        <!-- Left: Notes Sidebar List (4 cols on lg, toàn màn hình trên mobile khi ở list mode) -->
         <div class="col-span-12 lg:col-span-4 flex flex-col gap-2" id="notes-sidebar-column">
           <div class="flex items-center justify-between px-1 text-xs font-bold text-slate-500 dark:text-slate-400 font-mono uppercase tracking-wider">
             <span id="notes-list-header-label">Danh Sách Ghi Chú</span>
             <span id="notes-list-count" class="text-[11px] font-normal text-slate-400">1 mục</span>
           </div>
 
-          <div id="notes-card-list" class="flex flex-col gap-2 max-h-[620px] overflow-y-auto custom-scrollbar pr-0.5">
+          <div id="notes-card-list" class="flex flex-col gap-2 max-h-[calc(100vh-270px)] lg:max-h-[620px] overflow-y-auto custom-scrollbar pr-0.5">
             <!-- Dynamic note cards inserted here -->
           </div>
         </div>
 
-        <!-- Right: Active Note Editor (8 cols on lg) -->
-        <div class="col-span-12 lg:col-span-8 flex flex-col" id="notes-editor-column">
+        <!-- Right: Active Note Editor (8 cols on lg, toàn màn hình trên mobile khi mở editor) -->
+        <div class="col-span-12 lg:col-span-8 flex flex-col hidden lg:flex" id="notes-editor-column">
           <div class="rpg-panel rounded-2xl sm:rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl flex flex-col bg-white dark:bg-slate-900" id="active-note-card">
             
             <!-- Note Header: Title, Custom Topic, Pin, Tools -->
-            <div class="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
+            <div class="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
               <div class="flex items-center gap-2 flex-1 min-w-0">
-                <button type="button" onclick="showNotesListMobile()" class="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer shrink-0" title="Quay lại danh sách">
-                  <span class="material-symbols-outlined text-lg leading-none">arrow_back</span>
+                <button type="button" onclick="showNotesListMobile()" class="lg:hidden px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center gap-1 cursor-pointer shrink-0 transition shadow-2xs" title="Quay lại danh sách">
+                  <span class="material-symbols-outlined text-[17px] leading-none">arrow_back</span>
+                  <span>Danh Sách</span>
                 </button>
                 <div class="flex-1 min-w-0">
                   <input id="active-note-title" type="text" placeholder="Tiêu đề ghi chú..." oninput="handleActiveNoteTitleInput(this.value)" class="w-full text-base sm:text-lg font-bold bg-transparent border-0 focus:outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 truncate px-1">
                 </div>
               </div>
 
-              <!-- Topic Selector / Creator -->
-              <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                <div class="flex items-center gap-1.5 bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 rounded-xl px-2.5 py-1">
-                  <span class="material-symbols-outlined text-[15px] leading-none text-amber-500">label</span>
-                  <input id="active-note-topic-input" list="notes-topics-datalist" type="text" placeholder="Tự đặt chủ đề..." onchange="handleActiveNoteTopicChange(this.value)" onblur="handleActiveNoteTopicChange(this.value)" class="text-xs font-semibold bg-transparent text-amber-700 dark:text-amber-300 focus:outline-none w-28 sm:w-36">
+              <!-- Topic Selector / Creator & Tools -->
+              <div class="flex items-center justify-between sm:justify-end gap-1.5 shrink-0 flex-wrap">
+                <div class="flex items-center gap-1.5 bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 rounded-xl px-2 sm:px-2.5 py-1">
+                  <span class="material-symbols-outlined text-[14px] leading-none text-amber-500">label</span>
+                  <input id="active-note-topic-input" list="notes-topics-datalist" type="text" placeholder="Tự đặt chủ đề..." onchange="handleActiveNoteTopicChange(this.value)" onblur="handleActiveNoteTopicChange(this.value)" class="text-xs font-semibold bg-transparent text-amber-700 dark:text-amber-300 focus:outline-none w-20 sm:w-32">
                   <datalist id="notes-topics-datalist"></datalist>
                 </div>
 
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-0.5 sm:gap-1">
                   <!-- Pin Button -->
-                  <button id="btn-pin-note" type="button" onclick="toggleActiveNotePin()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition cursor-pointer" title="Ghim ghi chú lên đầu">
-                    <span id="pin-icon" class="material-symbols-outlined text-[18px] leading-none">push_pin</span>
+                  <button id="btn-pin-note" type="button" onclick="toggleActiveNotePin()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition cursor-pointer shrink-0" title="Ghim ghi chú lên đầu">
+                    <span id="pin-icon" class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">push_pin</span>
                   </button>
                   <!-- Copy Note -->
-                  <button type="button" onclick="copyActiveNote()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Sao chép toàn bộ văn bản">
-                    <span class="material-symbols-outlined text-[18px] leading-none">content_copy</span>
+                  <button type="button" onclick="copyActiveNote()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Sao chép toàn bộ văn bản">
+                    <span class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">content_copy</span>
                   </button>
                   <!-- Export Markdown / Text -->
-                  <button type="button" onclick="exportActiveNote('md')" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Tải về file Markdown (.md)">
-                    <span class="material-symbols-outlined text-[18px] leading-none">download</span>
+                  <button type="button" onclick="exportActiveNote('md')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Tải về file Markdown (.md)">
+                    <span class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">download</span>
                   </button>
                   <!-- Fullscreen Focus Mode -->
-                  <button type="button" onclick="toggleNoteFullscreen()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer" title="Chế độ tập trung toàn màn hình">
-                    <span class="material-symbols-outlined text-[18px] leading-none">fullscreen</span>
+                  <button type="button" onclick="toggleNoteFullscreen()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer shrink-0" title="Chế độ tập trung toàn màn hình">
+                    <span class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">fullscreen</span>
                   </button>
                   <!-- Delete Note -->
-                  <button type="button" onclick="deleteActiveNotePrompt()" class="w-8 h-8 rounded-lg flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition cursor-pointer" title="Xóa ghi chú này">
-                    <span class="material-symbols-outlined text-[18px] leading-none">delete</span>
+                  <button type="button" onclick="deleteActiveNotePrompt()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition cursor-pointer shrink-0" title="Xóa ghi chú này">
+                    <span class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">delete</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- Rich Text Formatting Toolbar -->
-            <div class="px-3 sm:px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center gap-1 flex-wrap shrink-0">
+            <!-- Rich Text Formatting Toolbar (1 hàng cuộn ngang mượt mà trên mobile, không gãy 2 hàng) -->
+            <div class="notes-toolbar px-2 sm:px-4 py-1.5 sm:py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center gap-1 overflow-x-auto no-scrollbar flex-nowrap shrink-0 select-none">
               <!-- Paragraph / Headings -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('p')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-bold text-xs" title="Đoạn văn thường (P)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('p')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-bold text-xs shrink-0" title="Đoạn văn thường (P)">
                 P
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h1')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-extrabold text-xs" title="Tiêu đề lớn (H1)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h1')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-extrabold text-xs shrink-0" title="Tiêu đề lớn (H1)">
                 H1
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h2')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-bold text-xs" title="Tiêu đề vừa (H2)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h2')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-bold text-xs shrink-0" title="Tiêu đề vừa (H2)">
                 H2
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h3')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-semibold text-xs" title="Tiêu đề nhỏ (H3)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteHeading('h3')" class="px-2 h-7 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-semibold text-xs shrink-0" title="Tiêu đề nhỏ (H3)">
                 H3
               </button>
 
-              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
 
               <!-- Styles: Bold, Italic, Underline, Strikethrough, Code -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('bold')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="In đậm (Ctrl+B)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('bold')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="In đậm (Ctrl+B)">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_bold</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('italic')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="In nghiêng (Ctrl+I)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('italic')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="In nghiêng (Ctrl+I)">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_italic</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('underline')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Gạch chân (Ctrl+U)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('underline')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Gạch chân (Ctrl+U)">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_underlined</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('strikeThrough')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Gạch ngang">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('strikeThrough')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Gạch ngang">
                 <span class="material-symbols-outlined text-[18px] leading-none">strikethrough_s</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteCode()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-mono text-xs font-bold" title="Code inline">
+              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteCode()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-mono text-xs font-bold shrink-0" title="Code inline">
                 &lt;/&gt;
               </button>
 
-              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
 
               <!-- Lists & Checklists -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteChecklist()" class="px-2 h-7 sm:h-8 rounded-lg flex items-center gap-1 text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition cursor-pointer text-xs font-bold" title="Danh sách công việc (To-Do Checklist)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteChecklist()" class="px-2 h-7 sm:h-8 rounded-lg flex items-center gap-1 text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition cursor-pointer text-xs font-bold shrink-0" title="Danh sách công việc (To-Do Checklist)">
                 <span class="material-symbols-outlined text-[17px] leading-none">checklist</span>
-                <span class="hidden sm:inline">To-Do</span>
+                <span class="inline">To-Do</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('insertUnorderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Gạch đầu dòng">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('insertUnorderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Gạch đầu dòng">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_list_bulleted</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('insertOrderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Danh sách số">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('insertOrderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Danh sách số">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_list_numbered</span>
               </button>
 
-              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
 
               <!-- Blocks: Quote, Callout, Divider, Timestamp -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteCallout()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 transition cursor-pointer" title="Khối lưu ý (Callout Tip)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteCallout()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 transition cursor-pointer shrink-0" title="Khối lưu ý (Callout Tip)">
                 <span class="material-symbols-outlined text-[18px] leading-none">lightbulb</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('formatBlock', '<blockquote>')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Trích dẫn">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('formatBlock', '<blockquote>')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Trích dẫn">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_quote</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteDivider()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Đường kẻ ngang phân cách">
+              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteDivider()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Đường kẻ ngang phân cách">
                 <span class="material-symbols-outlined text-[18px] leading-none">horizontal_rule</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteTimestamp()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Chèn ngày giờ hiện tại">
+              <button type="button" onmousedown="event.preventDefault()" onclick="insertNoteTimestamp()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Chèn ngày giờ hiện tại">
                 <span class="material-symbols-outlined text-[18px] leading-none">today</span>
               </button>
 
-              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
 
               <!-- Highlight & Clear -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="toggleNoteHighlight()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 transition cursor-pointer" title="Đánh dấu màu vàng">
+              <button type="button" onmousedown="event.preventDefault()" onclick="toggleNoteHighlight()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 transition cursor-pointer shrink-0" title="Đánh dấu màu vàng">
                 <span class="material-symbols-outlined text-[18px] leading-none">ink_highlighter</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('removeFormat')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Xóa định dạng">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('removeFormat')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Xóa định dạng">
                 <span class="material-symbols-outlined text-[18px] leading-none">format_clear</span>
               </button>
 
-              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1 shrink-0"></div>
 
               <!-- Undo / Redo -->
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('undo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Hoàn tác (Ctrl+Z)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('undo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Hoàn tác (Ctrl+Z)">
                 <span class="material-symbols-outlined text-[18px] leading-none">undo</span>
               </button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('redo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Làm lại (Ctrl+Y)">
+              <button type="button" onmousedown="event.preventDefault()" onclick="formatNoteDoc('redo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer shrink-0" title="Làm lại (Ctrl+Y)">
                 <span class="material-symbols-outlined text-[18px] leading-none">redo</span>
               </button>
             </div>
 
             <!-- Contenteditable Editor Area -->
-            <div class="flex-1 min-h-[380px] max-h-[62vh] overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-white dark:bg-slate-900 select-text">
+            <div class="flex-1 min-h-[350px] max-h-[calc(100vh-280px)] lg:max-h-[62vh] overflow-y-auto custom-scrollbar p-3.5 sm:p-6 bg-white dark:bg-slate-900 select-text">
               <div
                 id="focus-notes-tab-editor"
                 contenteditable="true"
                 spellcheck="false"
-                class="notes-editor w-full min-h-[340px] text-sm leading-relaxed text-slate-800 dark:text-slate-100 focus:outline-none select-text"
+                class="notes-editor w-full min-h-[300px] text-sm sm:text-base leading-relaxed text-slate-800 dark:text-slate-100 focus:outline-none select-text"
                 data-placeholder="Bắt đầu gõ ghi chú, checklist hoặc nội dung chủ đề của bạn tại đây... (Nhấn Ctrl+S để lưu nhanh)"
               ></div>
             </div>
 
             <!-- Footer Stats & Save Status -->
-            <div class="p-3 sm:p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between gap-3 shrink-0 flex-wrap">
-              <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono flex-wrap">
+            <div class="p-2.5 sm:p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+              <div class="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono flex-wrap">
                 <span id="tab-notes-word-count">0 từ</span>
                 <span>•</span>
                 <span id="tab-notes-char-count">0 ký tự</span>
+                <span class="hidden sm:inline">•</span>
+                <span id="tab-notes-read-time" class="hidden sm:inline">~0 phút đọc</span>
                 <span>•</span>
-                <span id="tab-notes-read-time">~0 phút đọc</span>
-                <span>•</span>
-                <span id="tab-notes-save-status" class="text-emerald-600 dark:text-emerald-400 font-medium font-sans">✓ Đã lưu tự động</span>
+                <span id="tab-notes-save-status" class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium font-sans">
+                  <span class="save-status-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>✓ Đã lưu tự động</span>
+                </span>
               </div>
               <div class="flex items-center gap-1.5 sm:gap-2">
                 <button
                   type="button"
                   onclick="copyActiveNote()"
-                  class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                  class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                   title="Sao chép toàn bộ văn bản vào clipboard"
                 >
                   <span class="material-symbols-outlined text-[16px] leading-none">content_copy</span>
@@ -829,7 +833,7 @@
                 <button
                   type="button"
                   onclick="clearActiveNoteContent()"
-                  class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                  class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                   title="Xóa toàn bộ nội dung trong trang ghi chú này"
                 >
                   <span class="material-symbols-outlined text-[16px] leading-none">delete_sweep</span>

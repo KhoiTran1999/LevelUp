@@ -1924,6 +1924,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof appendClipToNotes === 'function') {
         appendClipToNotes(e.data.text || '', e.data.source || '', e.data.title || '');
       }
+    } else if (e.data.type === 'LEVELUP_CREATE_NOTE') {
+      if (typeof createNoteFromExtension === 'function') {
+        createNoteFromExtension(e.data);
+      }
     }
   });
 

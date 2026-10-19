@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LevelUp Shield</title>
+  <title>LevelUp — Sổ Ghi Chú & Khiên Kỷ Luật</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -12,113 +12,197 @@
     <!-- Header -->
     <header class="popup-header">
       <div class="header-brand">
-        <img src="../icons/icon-48.png" alt="LevelUp Logo" class="brand-avatar" style="width: 32px; height: 32px; object-fit: contain; border-radius: 8px;">
+        <img src="../icons/icon-48.png" alt="LevelUp Logo" class="brand-avatar">
         <div class="brand-text">
-          <h1 class="brand-title">LevelUp <span class="highlight">Shield</span></h1>
-          <span class="brand-subtitle">Khiên Kỷ Luật <span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; padding: 1px 6px; border-radius: 9999px; margin-left: 4px; font-weight: 700;">v1.4.0</span></span>
+          <h1 id="header-brand-title" class="brand-title">LevelUp <span class="highlight">Ghi Chú</span></h1>
+          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.0</span></span>
         </div>
       </div>
 
-      <button id="btn-open-options" class="btn-icon" title="Cài đặt danh sách chặn" type="button">
-        ⚙️
-      </button>
+      <div class="header-actions">
+        <!-- Settings Gear Button (Toggles between Note View and Shield/Settings View) -->
+        <button id="btn-toggle-settings" class="btn-icon" title="Cài đặt & Khiên bảo vệ" type="button" aria-label="Cài đặt">
+          ⚙️
+        </button>
+      </div>
     </header>
 
-    <!-- Status Card -->
-    <section id="status-card" class="status-card status-idle">
-      <div class="status-header">
-        <span class="status-label">TRẠNG THÁI KHIÊN</span>
-        <div id="status-badge" class="badge-status">
-          <span class="badge-dot"></span>
-          <span class="badge-text">Nghỉ Ngơi</span>
+    <!-- =========================================================================
+         VIEW 1: GOOGLE KEEP STYLE NOTE VIEW (HIỆN MẶC ĐỊNH KHI BẤM EXTENSION)
+         ========================================================================= -->
+    <main id="view-notes" class="view-panel active">
+      <!-- Webpage Reference / Citation Snippet Card -->
+      <div id="keep-webpage-card" class="keep-web-card" title="Trang web hiện tại">
+        <div class="keep-web-icon-wrap" id="keep-web-favicon-wrap">
+          <img id="keep-web-favicon" class="keep-web-favicon hidden" src="" alt="Favicon">
+          <span id="keep-web-fallback-icon" class="keep-web-fallback-icon">🌐</span>
+        </div>
+        <div class="keep-web-info">
+          <div id="keep-web-title" class="keep-web-title">Đang nạp trang...</div>
+          <div id="keep-web-domain" class="keep-web-domain">...</div>
+        </div>
+        <a id="keep-web-link" class="keep-web-link-btn" href="#" target="_blank" rel="noopener" title="Mở trang gốc">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Keep Note Card -->
+      <div class="keep-card">
+        <!-- Title Input -->
+        <input 
+          type="text" 
+          id="keep-note-title" 
+          class="keep-input-title" 
+          placeholder="Tiêu đề..." 
+          autocomplete="off" 
+          spellcheck="false"
+        >
+
+        <!-- Body Textarea (Auto-expanding) -->
+        <textarea 
+          id="keep-note-body" 
+          class="keep-input-body" 
+          placeholder="Tạo ghi chú..." 
+          rows="4" 
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="keep-footer">
+        <button id="btn-open-notes" type="button" class="btn-keep-icon-action" title="Mở Sổ Ghi Chú đầy đủ trên LevelUp">
+          <span>📖</span>
+          <span class="btn-text-label">Sổ Ghi Chú</span>
+        </button>
+
+        <div class="keep-footer-right">
+          <button id="btn-cancel-keep-note" type="button" class="btn-keep-secondary">
+            Hủy
+          </button>
+          <button id="btn-save-keep-note" type="button" class="btn-keep-primary">
+            <span id="save-note-icon">💾</span>
+            <span id="save-note-text">Lưu Ghi Chú</span>
+          </button>
         </div>
       </div>
 
-      <!-- Active Quest HUD (visible when running) -->
-      <div id="quest-hud" class="quest-hud hidden">
-        <div class="quest-info">
-          <div id="popup-quest-icon" class="quest-icon">📖</div>
-          <div class="quest-meta">
-            <div id="popup-quest-title" class="quest-title">Đọc 1 chương sách</div>
-            <div id="popup-quest-reward" class="quest-reward">+12 Vàng</div>
+      <!-- Save Feedback Toast Notification -->
+      <div id="keep-save-toast" class="keep-save-toast hidden">
+        ✓ Đã lưu vào Sổ Ghi Chú LevelUp!
+      </div>
+    </main>
+
+    <!-- =========================================================================
+         VIEW 2: SHIELD & SETTINGS VIEW (BẬT KHI NHẤN ICON BÁNH RĂNG ⚙️)
+         ========================================================================= -->
+    <div id="view-shield-settings" class="view-panel hidden">
+      <div class="shield-view-header">
+        <button id="btn-back-to-notes" type="button" class="btn-back-link">
+          ← Quay lại Ghi Chú
+        </button>
+        <span class="shield-view-badge">Cài Đặt & Khiên</span>
+      </div>
+
+      <!-- Status Card -->
+      <section id="status-card" class="status-card status-idle">
+        <div class="status-header">
+          <span class="status-label">TRẠNG THÁI KHIÊN</span>
+          <div id="status-badge" class="badge-status">
+            <span class="badge-dot"></span>
+            <span class="badge-text">Nghỉ Ngơi</span>
           </div>
         </div>
 
-        <div class="timer-row">
-          <span class="timer-label">Thời gian còn lại:</span>
-          <span id="popup-countdown" class="timer-countdown">25:00</span>
+        <!-- Active Quest HUD (visible when running) -->
+        <div id="quest-hud" class="quest-hud hidden">
+          <div class="quest-info">
+            <div id="popup-quest-icon" class="quest-icon">📖</div>
+            <div class="quest-meta">
+              <div id="popup-quest-title" class="quest-title">Đọc 1 chương sách</div>
+              <div id="popup-quest-reward" class="quest-reward">+12 Vàng</div>
+            </div>
+          </div>
+
+          <div class="timer-row">
+            <span class="timer-label">Thời gian còn lại:</span>
+            <span id="popup-countdown" class="timer-countdown">25:00</span>
+          </div>
+
+          <button id="btn-restore-capsule" class="btn-restore-capsule" type="button" title="Hiển thị lại đồng hồ mini trên các trang web nếu bạn đã bấm ẩn">
+            👁️ Hiện Lại Đồng Hồ Mini Trên Web
+          </button>
         </div>
 
-        <button id="btn-restore-capsule" class="btn-restore-capsule" type="button" title="Hiển thị lại đồng hồ mini trên các trang web nếu bạn đã bấm ẩn">
-          👁️ Hiện Lại Đồng Hồ Mini Trên Web
+        <!-- Mini Capsule HUD Switch -->
+        <div class="switch-row">
+          <span class="switch-label">⏱️ Đồng Hồ Nổi Mini (HUD)</span>
+          <label class="switch-control">
+            <input type="checkbox" id="mascot-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Manual Shield Switch -->
+        <div class="switch-row">
+          <span class="switch-label">Bật Khiên Thủ Công</span>
+          <label class="switch-control">
+            <input type="checkbox" id="shield-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Test Fireworks Button -->
+        <button id="btn-test-fireworks" class="btn-restore-capsule" type="button" style="margin-top: 6px; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;" title="Kích hoạt hiệu ứng pháo hoa 8-bit ăn mừng trên tab đang mở">
+          🎆 Bắn Pháo Hoa 8-Bit Thử Nghiệm
+        </button>
+      </section>
+
+      <!-- Quick Add Domain -->
+      <section class="quick-add-section">
+        <label class="section-label" for="input-quick-domain">THÊM NHANH WEB CẦN CHẶN</label>
+        <form id="form-quick-add" class="add-form">
+          <input type="text" id="input-quick-domain" placeholder="vd: youtube.com" class="input-domain" autocomplete="off" spellcheck="false">
+          <button type="submit" class="btn-add" title="Thêm vào danh sách">
+            + Thêm
+          </button>
+        </form>
+      </section>
+
+      <!-- Popular Presets (Chips) -->
+      <section class="chips-section">
+        <div class="section-label-row">
+          <span class="section-label">TRANG ĐANG PHONG ẤN</span>
+          <span id="chips-count" class="chips-count">0</span>
+        </div>
+        <div id="blacklist-chips" class="chips-container">
+          <!-- Chips inserted by JS -->
+        </div>
+      </section>
+
+      <!-- Bottom CTA: Actions -->
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="btn-open-options" type="button" class="btn-secondary-cta" style="flex: 1;" title="Cài đặt danh sách chặn nâng cao">
+          <span>⚙️ Tùy Chọn Thêm</span>
+        </button>
+        <button id="btn-open-levelup" type="button" class="btn-primary-cta" style="flex: 1;" title="Quay về LevelUp">
+          <span>⚔️ Vào LevelUp</span>
         </button>
       </div>
 
-      <!-- Mini Capsule HUD Switch -->
-      <div class="switch-row">
-        <span class="switch-label">⏱️ Đồng Hồ Nổi Mini (HUD)</span>
-        <label class="switch-control">
-          <input type="checkbox" id="mascot-toggle">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <!-- Manual Shield Switch -->
-      <div class="switch-row">
-        <span class="switch-label">Bật Khiên Thủ Công</span>
-        <label class="switch-control">
-          <input type="checkbox" id="shield-toggle">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <!-- Test Fireworks Button -->
-      <button id="btn-test-fireworks" class="btn-restore-capsule" type="button" style="margin-top: 6px; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;" title="Kích hoạt hiệu ứng pháo hoa 8-bit ăn mừng trên tab đang mở">
-        🎆 Bắn Pháo Hoa 8-Bit Thử Nghiệm
-      </button>
-    </section>
-
-    <!-- Quick Add Domain -->
-    <section class="quick-add-section">
-      <label class="section-label" for="input-quick-domain">THÊM NHANH WEB CẦN CHẶN</label>
-      <form id="form-quick-add" class="add-form">
-        <input type="text" id="input-quick-domain" placeholder="vd: youtube.com" class="input-domain" autocomplete="off" spellcheck="false">
-        <button type="submit" class="btn-add" title="Thêm vào danh sách">
-          + Thêm
-        </button>
-      </form>
-    </section>
-
-    <!-- Popular Presets (Chips) -->
-    <section class="chips-section">
-      <div class="section-label-row">
-        <span class="section-label">TRANG ĐANG PHONG ẤN</span>
-        <span id="chips-count" class="chips-count">0</span>
-      </div>
-      <div id="blacklist-chips" class="chips-container">
-        <!-- Chips inserted by JS -->
-      </div>
-    </section>
-
-    <!-- Bottom CTA: Actions -->
-    <div style="display: flex; gap: 8px; margin-top: 10px;">
-      <button id="btn-open-notes" type="button" class="btn-primary-cta" style="background: linear-gradient(135deg, #d97706, #b45309); border-color: #f59e0b; flex: 1;" title="Mở Sổ Ghi Chú LevelUp">
-        <span>📝 Sổ Ghi Chú</span>
-      </button>
-      <button id="btn-open-levelup" type="button" class="btn-primary-cta" style="flex: 1;" title="Quay về LevelUp">
-        <span>⚔️ LevelUp</span>
-      </button>
+      <!-- Footer Info -->
+      <footer class="popup-footer">
+        <div class="footer-left">
+          🛡️ Đã chặn: <strong id="popup-blocked-count" class="blocked-count-val">0</strong> lần
+        </div>
+        <div class="footer-right">
+          ⚡ Pomodoro Auto-Sync
+        </div>
+      </footer>
     </div>
-
-    <!-- Footer Info -->
-    <footer class="popup-footer">
-      <div class="footer-left">
-        🛡️ Đã chặn: <strong id="popup-blocked-count" class="blocked-count-val">0</strong> lần
-      </div>
-      <div class="footer-right">
-        ⚡ Pomodoro Auto-Sync
-      </div>
-    </footer>
   </div>
 
   <script src="popup.js"></script>

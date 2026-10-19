@@ -8,7 +8,7 @@
 
   function broadcastExtensionVersion() {
     try {
-      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.4.0';
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.0';
       document.documentElement.dataset.levelupExtensionInstalled = 'true';
       document.documentElement.dataset.levelupExtensionVersion = extVersion;
       window.__LEVELUP_EXTENSION_INSTALLED__ = true;
@@ -182,14 +182,24 @@
           title: message.title || ''
         }, '*');
         sendResponse?.({ received: true });
+      } else if (message.type === 'CREATE_NOTE') {
+        window.postMessage({
+          type: 'LEVELUP_CREATE_NOTE',
+          title: message.title || '',
+          body: message.body || '',
+          topic: message.topic || '',
+          sourceUrl: message.sourceUrl || '',
+          sourceTitle: message.sourceTitle || ''
+        }, '*');
+        sendResponse?.({ received: true });
       }
     });
   }
 
-  // 7. Kiểm tra clip chờ xử lý được lưu khi LevelUp chưa mở
+  // 7. Kiểm tra clip và ghi chú chờ xử lý được lưu khi LevelUp chưa mở
   try {
     if (chrome.storage?.local) {
-      chrome.storage.local.get(['pendingClips'], (res) => {
+      chrome.storage.local.get(['pendingClips', 'pendingNotes'], (res) => {
         if (res && Array.isArray(res.pendingClips) && res.pendingClips.length > 0) {
           setTimeout(() => {
             res.pendingClips.forEach(clip => {
@@ -202,6 +212,22 @@
             });
             chrome.storage.local.remove(['pendingClips']);
           }, 600);
+        }
+
+        if (res && Array.isArray(res.pendingNotes) && res.pendingNotes.length > 0) {
+          setTimeout(() => {
+            res.pendingNotes.forEach(note => {
+              window.postMessage({
+                type: 'LEVELUP_CREATE_NOTE',
+                title: note.title || '',
+                body: note.body || '',
+                topic: note.topic || '',
+                sourceUrl: note.sourceUrl || '',
+                sourceTitle: note.sourceTitle || ''
+              }, '*');
+            });
+            chrome.storage.local.remove(['pendingNotes']);
+          }, 800);
         }
       });
     }
