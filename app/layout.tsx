@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import { Be_Vietnam_Pro, Roboto_Flex } from 'next/font/google';
+import '@/src/tailwind.css';
+
+const beVietnamPro = Be_Vietnam_Pro({
+  weight: ['400', '500', '600', '700', '800', '900'],
+  subsets: ['latin', 'vietnamese'],
+  display: 'swap',
+  variable: '--font-be-vietnam-pro',
+});
+
+const robotoFlex = Roboto_Flex({
+  subsets: ['latin', 'vietnamese'],
+  display: 'swap',
+  variable: '--font-roboto-flex',
+});
 
 export const metadata: Metadata = {
   title: 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi',
@@ -45,27 +60,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning className={`${beVietnamPro.variable} ${robotoFlex.variable}`}>
       <head>
-        {/* Preconnect to Google Fonts for Fast Typography */}
+        {/* Preconnect & Material Symbols Outlined font */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
-        />
-        {/* Material Symbols Outlined font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
           rel="stylesheet"
         />
 
-        {/* Compiled Tailwind CSS & Custom Stylesheet */}
-        <link rel="stylesheet" href="/tailwind.min.css" />
+        {/* Global Custom Stylesheet */}
         <link rel="stylesheet" href="/style.css?v=1.0.3" />
 
         {/* Critical Anti-FOUT: lock icon dimensions and hide ligature text until font is active */}

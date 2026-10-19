@@ -1,8 +1,8 @@
 :root {
   /* Material Design 3 Typography System */
-  --font-main: 'Roboto Flex', 'Roboto', 'Google Sans', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --md-sys-typescale-font-brand: 'Google Sans', 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --md-sys-typescale-font-plain: 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-main: var(--font-roboto-flex), var(--font-be-vietnam-pro), 'Roboto Flex', 'Roboto', 'Google Sans', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --md-sys-typescale-font-brand: var(--font-roboto-flex), var(--font-be-vietnam-pro), 'Google Sans', 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --md-sys-typescale-font-plain: var(--font-roboto-flex), var(--font-be-vietnam-pro), 'Roboto Flex', 'Roboto', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 
   /* Display (Large screens, Hero numerals & stats) */
   --md-sys-typescale-display-large-size: 3.5625rem;   /* 57px */

@@ -2,14 +2,16 @@
 export default {
   darkMode: 'class',
   content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
     './public/index.html',
     './public/vendor/**/*.js',
-    './src/**/*.{html,js}',
+    './src/**/*.{html,js,ts,tsx}',
   ],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Roboto Flex"', '"Roboto"', '"Be Vietnam Pro"', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-roboto-flex)', 'var(--font-be-vietnam-pro)', '"Roboto Flex"', '"Roboto"', '"Be Vietnam Pro"', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         guild: {
