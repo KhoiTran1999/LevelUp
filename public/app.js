@@ -19146,14 +19146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Button triggers for Sổ Ghi Chú & Dopamine Guide
-  const btnOpenBrainDump = document.getElementById('btn-open-brain-dump');
-  if (btnOpenBrainDump) {
-    btnOpenBrainDump.addEventListener('click', () => {
-      openBrainDumpModal();
-    });
-  }
-
+  // Button triggers for Sổ Ghi Chú & Dopamine Guide in Zen Mode
   const btnZenBrainDump = document.getElementById('btn-zen-brain-dump');
   if (btnZenBrainDump) {
     btnZenBrainDump.addEventListener('click', () => {
@@ -19161,9 +19154,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnFocusDopamineGuide = document.getElementById('btn-focus-dopamine-guide');
-  if (btnFocusDopamineGuide) {
-    btnFocusDopamineGuide.addEventListener('click', () => {
+  const btnZenDopamineGuide = document.getElementById('btn-zen-dopamine-guide');
+  if (btnZenDopamineGuide) {
+    btnZenDopamineGuide.addEventListener('click', () => {
       openDopamineGuideModal();
     });
   }

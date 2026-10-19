@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 
-console.log('=== Bắt đầu kiểm thử: Cẩm Nang Ngắt Mạch Dopamine & Sổ Tay Ghi Chú (Focus Notes) ===\n');
+console.log('=== Bắt đầu kiểm thử: Cẩm Nang Ngắt Mạch Dopamine & Sổ Tay Ghi Chú (Chỉ trong Chế Độ Toàn Màn Hình) ===\n');
 
 const htmlPath = path.resolve('public/index.html');
 const appJsPath = path.resolve('public/app.js');
@@ -10,25 +10,43 @@ const appJsPath = path.resolve('public/app.js');
 const html = fs.readFileSync(htmlPath, 'utf8');
 const js = fs.readFileSync(appJsPath, 'utf8');
 
-// 1. Kiểm tra HTML: Sự hiện diện của các điểm chạm và Modal Cẩm Nang 5 Bước
-console.log('Test 1: Kiểm tra cấu trúc HTML của Cẩm Nang Ngắt Mạch Dopamine (#modal-dopamine-guide)');
+// 1. Kiểm tra HTML: Cẩm Nang Dopamine và Sổ Ghi Chú CHỈ có trong Chế độ toàn màn hình (#focus-zen-overlay)
+console.log('Test 1: Kiểm tra cấu trúc Cẩm Nang Dopamine & Sổ Ghi Chú trong Chế độ Toàn màn hình (#focus-zen-overlay)');
 assert.ok(html.includes('id="modal-dopamine-guide"'), 'index.html phải có dialog #modal-dopamine-guide');
-assert.ok(html.includes('id="btn-nav-dopamine"'), 'index.html phải có nút #btn-nav-dopamine trong menu desktop');
-assert.ok(html.includes('id="btn-mobile-dopamine"'), 'index.html phải có nút #btn-mobile-dopamine trong menu mobile');
-assert.ok(html.includes('id="btn-focus-dopamine-guide"'), 'index.html phải có nút #btn-focus-dopamine-guide trên Focus Banner');
+assert.ok(html.includes('id="focus-zen-overlay"'), 'index.html phải có overlay #focus-zen-overlay');
+assert.ok(html.includes('id="btn-zen-brain-dump"'), 'Chế độ toàn màn hình phải có nút #btn-zen-brain-dump');
+assert.ok(html.includes('id="btn-zen-dopamine-guide"'), 'Chế độ toàn màn hình phải có nút #btn-zen-dopamine-guide');
+assert.ok(html.includes('id="zen-brain-dump-badge"'), 'Chế độ toàn màn hình phải có badge #zen-brain-dump-badge');
+
+// Đảm bảo đã gỡ bỏ hoàn toàn khỏi các vị trí bên ngoài Chế độ toàn màn hình theo yêu cầu
+assert.ok(!html.includes('id="btn-nav-dopamine"'), 'Đã gỡ #btn-nav-dopamine khỏi menu desktop');
+assert.ok(!html.includes('id="btn-mobile-dopamine"'), 'Đã gỡ #btn-mobile-dopamine khỏi menu mobile');
+assert.ok(!html.includes('id="btn-focus-dopamine-guide"'), 'Đã gỡ #btn-focus-dopamine-guide khỏi Focus Banner');
+assert.ok(!html.includes('id="btn-open-brain-dump"'), 'Đã gỡ #btn-open-brain-dump khỏi Focus Banner');
+assert.ok(!html.includes('id="focus-complete-brain-dump-banner"'), 'Đã gỡ banner nhắc nhở khỏi Modal hoàn thành');
 
 // Kiểm tra 5 bước thần kinh học trong nội dung cẩm nang
 assert.ok(html.includes('Xóa Bộ Nhớ Đệm Thể Chất'), 'Cẩm nang phải chứa Bước 1: Xóa bộ nhớ đệm thể chất');
 assert.ok(html.includes('Thiết Lập Môi Trường Cách Ly'), 'Cẩm nang phải chứa Bước 2: Thiết lập môi trường cách ly');
 assert.ok(html.includes('Bắt Đầu Siêu Nhỏ'), 'Cẩm nang phải chứa Bước 3: Bắt đầu siêu nhỏ 5 phút');
 assert.ok(html.includes('Kích Hoạt Chu Kỳ Tập Trung Ngắn'), 'Cẩm nang phải chứa Bước 4: Chu kỳ tập trung ngắn 25/5');
-assert.ok(html.includes('Sổ Tay Ghi Chú'), 'Cẩm nang phải chứa Bước 5 cập nhật: Sổ Tay Ghi Chú cạnh tay');
+assert.ok(html.includes('Sổ Tay Ghi Chú'), 'Cẩm nang phải chứa Bước 5: Sổ Tay Ghi Chú cạnh tay');
 assert.ok(html.includes('lái xe 100km/h mà bóp phanh gấp'), 'Cẩm nang phải giải thích cơ chế tương phản dopamine');
-console.log('  -> Cấu trúc Cẩm Nang Ngắt Mạch Dopamine và 5 bước đạt chuẩn 100%: OK\n');
+console.log('  -> Điểm chạm duy nhất trong Chế độ Toàn màn hình & 5 bước đạt chuẩn: OK\n');
 
-// 2. Kiểm tra HTML: Sự hiện diện của Sổ Tay Ghi Chú (#modal-brain-dump) và trình soạn thảo Rich Text
-console.log('Test 2: Kiểm tra cấu trúc HTML của Sổ Tay Ghi Chú Rich Text (#modal-brain-dump)');
-assert.ok(html.includes('id="modal-brain-dump"'), 'index.html phải có dialog #modal-brain-dump');
+// 2. Kiểm tra HTML: Sửa lỗi không bật được Sổ Ghi Chú trong Chế độ toàn màn hình (Z-Index fix)
+console.log('Test 2: Kiểm tra Z-Index của Modal Sổ Ghi Chú và Cẩm Nang để hiển thị đè lên Zen Overlay (z-[90])');
+// Kiểm tra modal-brain-dump và modal-dopamine-guide có z-[100] (cao hơn focus-zen-overlay z-[90])
+assert.ok(
+  html.includes('id="modal-brain-dump" class="fixed inset-0 z-[100]'),
+  '#modal-brain-dump phải có z-[100] để hiển thị đè lên #focus-zen-overlay (z-[90])'
+);
+assert.ok(
+  html.includes('id="modal-dopamine-guide" class="fixed inset-0 z-[100]'),
+  '#modal-dopamine-guide phải có z-[100] để hiển thị đè lên #focus-zen-overlay (z-[90])'
+);
+
+// Kiểm tra cấu trúc Rich Text Editor trong Sổ Tay Ghi Chú
 assert.ok(html.includes('id="focus-notes-editor"'), 'index.html phải có trình soạn thảo contenteditable #focus-notes-editor');
 assert.ok(html.includes('contenteditable="true"'), 'Trình soạn thảo phải có thuộc tính contenteditable="true"');
 assert.ok(html.includes('id="notes-word-count"'), 'index.html phải có phần tử hiển thị số từ #notes-word-count');
@@ -51,20 +69,10 @@ assert.ok(html.includes("clearFocusNotes()"), 'Thanh công cụ phải có nút 
 // Xác nhận ĐÃ XÓA tính năng tạo Quest trong Sổ Ghi Chú
 assert.ok(!html.includes('id="input-brain-dump"'), 'Đã xóa hoàn toàn input đơn hàng dòng cũ #input-brain-dump');
 assert.ok(!html.includes('convertBrainDumpToQuest'), 'Đã xóa hoàn toàn tính năng convertBrainDumpToQuest khỏi HTML');
-
-// Các nút mở và badge hiển thị
-assert.ok(html.includes('id="btn-open-brain-dump"'), 'index.html phải có nút #btn-open-brain-dump trên Focus Banner');
-assert.ok(html.includes('id="brain-dump-badge"'), 'index.html phải có badge đếm #brain-dump-badge trên banner');
-assert.ok(html.includes('id="btn-zen-brain-dump"'), 'index.html phải có nút #btn-zen-brain-dump trong Chế độ Zen');
-assert.ok(html.includes('id="zen-brain-dump-badge"'), 'index.html phải có badge đếm #zen-brain-dump-badge trong Zen Mode');
-
-// Banner nhắc nhở sau khi hoàn thành phiên Pomodoro
-assert.ok(html.includes('id="focus-complete-brain-dump-banner"'), 'Modal hoàn thành Pomodoro phải có banner nhắc mở Sổ Tay Ghi Chú');
-assert.ok(html.includes('id="focus-complete-brain-dump-count"'), 'Banner nhắc hoàn thành phải có element đếm thống kê');
-console.log('  -> Cấu trúc HTML Sổ Tay Ghi Chú và thanh công cụ soạn thảo phong phú đạt chuẩn: OK\n');
+console.log('  -> Z-Index fix z-[100] & Thanh công cụ soạn thảo phong phú đạt chuẩn: OK\n');
 
 // 3. Kiểm tra mã nguồn JS trong public/app.js
-console.log('Test 3: Kiểm tra các hàm nghiệp vụ Focus Notes và phím tắt trong app.js');
+console.log('Test 3: Kiểm tra các hàm nghiệp vụ Focus Notes, Cẩm nang Dopamine và phím tắt trong app.js');
 assert.ok(js.includes('function openDopamineGuideModal'), 'app.js phải định nghĩa openDopamineGuideModal');
 assert.ok(js.includes('function closeDopamineGuideModal'), 'app.js phải định nghĩa closeDopamineGuideModal');
 assert.ok(js.includes('function getFocusNotesContent'), 'app.js phải định nghĩa getFocusNotesContent');

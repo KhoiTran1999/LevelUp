@@ -256,11 +256,7 @@
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-purple-500">admin_panel_settings</span>
               <span>Quản Trị</span>
             </button>
-            <button id="btn-nav-dopamine" type="button" onclick="openDopamineGuideModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
-              <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-amber-500">psychology</span>
-              <span class="font-bold">Bí Kíp Ngắt Dopamine</span>
-            </button>
-            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer">
+            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-indigo-500">auto_stories</span>
               <span class="font-bold">Giới Thiệu Dự Án</span>
             </button>
@@ -328,14 +324,6 @@
             <button id="btn-timer-hold" class="m3-btn m3-btn-sm m3-btn-tonal px-3 py-2 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 cursor-pointer" title="Bảo lưu thời gian còn lại để làm việc khác">
               <span class="material-symbols-outlined text-[16px] leading-none">pause_circle</span>
               <span class="hidden sm:inline">Bảo Lưu</span>
-            </button>
-            <button id="btn-open-brain-dump" type="button" class="m3-btn m3-btn-sm m3-btn-tonal px-2.5 sm:px-3 py-2 rounded-full text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer" title="Sổ Tay Ghi Chú (Phím tắt: Alt+D)">
-              <span class="material-symbols-outlined text-[16px] leading-none">edit_note</span>
-              <span class="hidden sm:inline">Sổ Ghi Chú</span>
-              <span id="brain-dump-badge" class="hidden ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-amber-500 text-slate-950">0</span>
-            </button>
-            <button id="btn-focus-dopamine-guide" type="button" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 transition flex items-center justify-center cursor-pointer" title="Bí Kíp Ngắt Mạch Dopamine & Vào Deep Work">
-              <span class="material-symbols-outlined text-[16px] leading-none">psychology</span>
             </button>
             <button id="btn-timer-zen" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center cursor-pointer" title="Chế độ Toàn màn hình (Tập trung tối đa)">
               <span class="material-symbols-outlined text-[16px] leading-none">fullscreen</span>
@@ -1674,18 +1662,6 @@
         </div>
       </div>
       <span class="material-symbols-outlined text-base text-purple-300 dark:text-purple-600 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-    </button>
-    <button id="btn-mobile-dopamine" type="button" onclick="openDopamineGuideModal()" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
-      <div class="flex items-center gap-3 min-w-0 flex-1">
-        <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-          <span class="material-symbols-outlined text-[20px] leading-none">psychology</span>
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="text-xs font-bold text-amber-700 dark:text-amber-300 truncate">Bí Kíp Ngắt Dopamine</div>
-          <div class="text-[10px] text-amber-500/80 truncate font-normal">5 bước đưa não vào Deep Work</div>
-        </div>
-      </div>
-      <span class="material-symbols-outlined text-base text-amber-300 dark:text-amber-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
     </button>
     <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
       <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -3293,22 +3269,6 @@
         </div>
       </div>
 
-      <!-- Focus Notes Review Banner if there are notes -->
-      <div id="focus-complete-brain-dump-banner" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-1.5">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-            <span>📝</span>
-            <span>Sổ Tay Ghi Chú</span>
-          </span>
-          <span id="focus-complete-brain-dump-count" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">Có ghi chú</span>
-        </div>
-        <p class="text-[11px] text-slate-600 dark:text-slate-400">Bạn đã có bản thảo trong Sổ Ghi Chú. Nhấn vào đây để xem lại hoặc sao chép nhé!</p>
-        <button id="btn-focus-complete-view-dump" type="button" onclick="openBrainDumpModal()" class="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/40 transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
-          <span>Mở Sổ Tay Ghi Chú</span>
-          <span class="material-symbols-outlined text-sm leading-none">arrow_forward</span>
-        </button>
-      </div>
-
       <div class="space-y-2 pt-2">
         <button id="btn-focus-complete-break" type="button" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95">
           <span>☕</span>
@@ -3348,10 +3308,14 @@
         <button id="btn-zen-toggle" type="button" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
           Tạm Dừng
         </button>
-        <button id="btn-zen-brain-dump" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Sổ Tay Ghi Chú (Alt+D)">
+        <button id="btn-zen-brain-dump" type="button" onclick="openBrainDumpModal()" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Sổ Tay Ghi Chú (Alt+D)">
           <span>📝</span>
           <span>Sổ Ghi Chú</span>
           <span id="zen-brain-dump-badge" class="hidden font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black">0</span>
+        </button>
+        <button id="btn-zen-dopamine-guide" type="button" onclick="openDopamineGuideModal()" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Cẩm Nang Ngắt Mạch Dopamine">
+          <span>🧠</span>
+          <span>Cẩm Nang Dopamine</span>
         </button>
         <button id="btn-zen-hold" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-sky-600/30 border border-sky-500/50 text-sky-300 hover:bg-sky-600/50 transition active:scale-95 cursor-pointer" title="Bảo lưu thời gian còn lại">
           ⏸️ Bảo Lưu
@@ -4469,7 +4433,7 @@
   <!-- ======================================================================= -->
   <!-- MODAL: CẨM NANG NGẮT MẠCH DOPAMINE & CHUYỂN TRẠNG THÁI DEEP WORK       -->
   <!-- ======================================================================= -->
-  <div id="modal-dopamine-guide" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-dopamine-guide-title">
+  <div id="modal-dopamine-guide" class="fixed inset-0 z-[100] hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-dopamine-guide-title" data-sheet-dismiss="true">
     <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
       <!-- Modal Header -->
       <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-amber-500/20 flex justify-between items-center shrink-0">
@@ -4635,7 +4599,7 @@
   <!-- ======================================================================= -->
   <!-- MODAL: SỔ TAY GHI CHÚ (FOCUS NOTES & SCRATCHPAD)                        -->
   <!-- ======================================================================= -->
-  <div id="modal-brain-dump" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title">
+  <div id="modal-brain-dump" class="fixed inset-0 z-[100] hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title" data-sheet-dismiss="true">
     <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-white dark:bg-slate-900">
       <!-- Modal Header -->
       <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 border-b border-amber-500/20 flex justify-between items-center shrink-0">
