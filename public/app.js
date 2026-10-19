@@ -3383,7 +3383,7 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
-const REQUIRED_EXTENSION_VERSION = '1.5.0';
+const REQUIRED_EXTENSION_VERSION = '1.5.1';
 
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;

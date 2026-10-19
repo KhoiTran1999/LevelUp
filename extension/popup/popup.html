@@ -15,7 +15,7 @@
         <img src="../icons/icon-48.png" alt="LevelUp Logo" class="brand-avatar">
         <div class="brand-text">
           <h1 id="header-brand-title" class="brand-title">LevelUp <span class="highlight">Ghi Chú</span></h1>
-          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.0</span></span>
+          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.1</span></span>
         </div>
       </div>
 
@@ -52,6 +52,31 @@
 
       <!-- Keep Note Card -->
       <div class="keep-card">
+        <!-- Topic Selection Row: Chọn chủ đề hiện có sẵn để ghi chú tiếp -->
+        <div class="keep-topic-row">
+          <label for="keep-topic-select" class="keep-topic-label" title="Chọn chủ đề hiện có sẵn">
+            <span class="topic-icon">📁</span>
+            <span>Chủ đề:</span>
+          </label>
+          <div class="keep-topic-select-wrap">
+            <select id="keep-topic-select" class="keep-topic-select" title="Chọn chủ đề hiện có sẵn để ghi chú tiếp">
+              <!-- Được nạp tự động từ danh sách chủ đề LevelUp -->
+              <option value="Ghi Chép Nhanh">Ghi Chép Nhanh</option>
+              <option value="Ý Tưởng">Ý Tưởng</option>
+              <option value="Học Tập">Học Tập</option>
+              <option value="Công Việc">Công Việc</option>
+              <option value="Nghiên Cứu">Nghiên Cứu</option>
+              <option value="__new__">+ Tạo chủ đề mới...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom Topic Input (Chỉ hiện khi chọn '+ Tạo chủ đề mới...') -->
+        <div id="keep-custom-topic-row" class="keep-custom-topic-row hidden">
+          <input type="text" id="keep-custom-topic-input" class="keep-input-custom-topic" placeholder="Tên chủ đề mới..." maxlength="30">
+          <button type="button" id="btn-cancel-custom-topic" class="btn-topic-cancel" title="Hủy">✕</button>
+        </div>
+
         <!-- Title Input -->
         <input 
           type="text" 

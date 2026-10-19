@@ -255,6 +255,18 @@ async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Ch�
     });
     if (recentList.length > 20) recentList.pop();
     await chrome.storage.local.set({ recentExtensionNotes: recentList });
+
+    // Cập nhật danh sách chủ đề nếu có chủ đề mới
+    if (notePayload.topic) {
+      const topStorage = await chrome.storage.local.get(['levelupTopics']);
+      const currentTopics = Array.isArray(topStorage.levelupTopics) && topStorage.levelupTopics.length > 0
+        ? topStorage.levelupTopics
+        : ['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu'];
+      if (!currentTopics.includes(notePayload.topic)) {
+        currentTopics.push(notePayload.topic);
+        await chrome.storage.local.set({ levelupTopics: currentTopics });
+      }
+    }
   } catch (_) {}
 }
 

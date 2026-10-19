@@ -12,7 +12,7 @@ describe('Chrome Extension — Google Keep Style Note Taker & Settings Toggle', 
   const contentJs = fs.readFileSync(path.join(rootDir, 'extension/content.js'), 'utf-8');
   const appJs = fs.readFileSync(path.join(rootDir, 'public/app.js'), 'utf-8');
 
-  it('1. Mặc định mở extension hiển thị ngay giao diện Sổ Ghi Chú phong cách Google Keep (Đã bỏ tag, chỉ giữ Title & Nội dung)', () => {
+  it('1. Mặc định mở extension hiển thị ngay giao diện Sổ Ghi Chú với mục chọn chủ đề hiện có sẵn', () => {
     // 1. View panel Note đang active mặc định
     assert.ok(popupHtml.includes('id="view-notes" class="view-panel active"'), 'popup.html phải đặt #view-notes là panel active mặc định');
     assert.ok(popupHtml.includes('id="view-shield-settings" class="view-panel hidden"'), 'popup.html phải ẩn #view-shield-settings mặc định');
@@ -23,12 +23,12 @@ describe('Chrome Extension — Google Keep Style Note Taker & Settings Toggle', 
     assert.ok(popupHtml.includes('id="keep-web-domain"'), 'popup.html phải có tên miền trang web #keep-web-domain');
     assert.ok(popupHtml.includes('id="keep-web-link"'), 'popup.html phải có link trỏ về trang web #keep-web-link');
 
-    // 3. Keep Note Card (Chỉ giữ lại Title và Thân ghi chú, đã loại bỏ hoàn toàn hệ thống tag rườm rà)
+    // 3. Keep Note Card (Mục chọn chủ đề hiện có sẵn, ô Title, ô Nội dung; không dùng tag rườm rà)
+    assert.ok(popupHtml.includes('id="keep-topic-select"'), 'popup.html phải có dropdown chọn chủ đề có sẵn #keep-topic-select');
     assert.ok(popupHtml.includes('id="keep-note-title"'), 'popup.html phải có ô nhập tiêu đề #keep-note-title');
     assert.ok(popupHtml.includes('id="keep-note-body"'), 'popup.html phải có ô soạn thảo nội dung #keep-note-body');
     assert.ok(!popupHtml.includes('id="keep-active-tag"'), 'popup.html đã loại bỏ chip tag #keep-active-tag');
     assert.ok(!popupHtml.includes('keep-preset-chips'), 'popup.html đã loại bỏ hệ thống chip tag preset');
-    assert.ok(!popupHtml.includes('custom-topic-box'), 'popup.html đã loại bỏ custom topic box');
 
     // 4. Action buttons
     assert.ok(popupHtml.includes('id="btn-open-notes"'), 'popup.html phải có nút #btn-open-notes');
@@ -63,32 +63,31 @@ describe('Chrome Extension — Google Keep Style Note Taker & Settings Toggle', 
     assert.ok(popupJs.includes('autoResizeTextarea('), 'popup.js phải tự động co giãn textarea');
   });
 
-  it('4. Lưu Ghi Chú gửi thông điệp CREATE_EXTENSION_NOTE tới Background và chuyển tiếp tới Web App LevelUp', () => {
-    // popup.js gửi thông điệp
-    assert.ok(popupJs.includes("type: 'CREATE_EXTENSION_NOTE'"), 'popup.js phải gửi CREATE_EXTENSION_NOTE');
-    assert.ok(popupJs.includes('handleSaveKeepNote'), 'popup.js phải có hàm handleSaveKeepNote');
+  it('4. Chọn chủ đề có sẵn và ghi nhớ chủ đề để ghi chú tiếp trong các lần sau', () => {
+    // popup.js tự nạp chủ đề từ storage và ghi nhớ lastSelectedTopic
+    assert.ok(popupJs.includes('levelupTopics'), 'popup.js phải truy vấn levelupTopics từ storage');
+    assert.ok(popupJs.includes('lastSelectedTopic'), 'popup.js phải lưu và nạp lastSelectedTopic');
+    assert.ok(popupJs.includes('selectedTopic'), 'popup.js phải lấy chủ đề đang chọn khi lưu');
 
-    // background.js tiếp nhận và xử lý
+    // content.js đồng bộ chủ đề từ app sang storage
+    assert.ok(contentJs.includes('syncTopicsToExtension'), 'content.js phải có hàm syncTopicsToExtension');
+
+    // background.js lưu chủ đề kèm theo ghi chú
     assert.ok(bgJs.includes("case 'CREATE_EXTENSION_NOTE':"), 'background.js phải tiếp nhận CREATE_EXTENSION_NOTE');
     assert.ok(bgJs.includes('handleSaveExtensionNote'), 'background.js phải có hàm handleSaveExtensionNote');
-    assert.ok(bgJs.includes('pendingNotes'), 'background.js phải lưu pendingNotes nếu web app chưa mở');
+    assert.ok(bgJs.includes('notePayload.topic'), 'background.js phải lưu topic vào notePayload');
 
-    // content.js làm cầu nối nhận và chuyển tiếp
-    assert.ok(contentJs.includes("message.type === 'CREATE_NOTE'"), 'content.js phải nhận message CREATE_NOTE');
-    assert.ok(contentJs.includes("type: 'LEVELUP_CREATE_NOTE'"), 'content.js phải dispatch LEVELUP_CREATE_NOTE');
-    assert.ok(contentJs.includes('pendingNotes'), 'content.js phải tự động xả hàng đợi pendingNotes khi vào app');
-
-    // app.js (Web App) xử lý và lưu vào Sổ Ghi Chú
+    // app.js (Web App) xử lý và lưu vào đúng chủ đề
     assert.ok(appJs.includes('LEVELUP_CREATE_NOTE'), 'app.js phải lắng nghe sự kiện LEVELUP_CREATE_NOTE');
     assert.ok(appJs.includes('createNoteFromExtension'), 'app.js phải có hàm createNoteFromExtension');
   });
 
-  it('5. Trải nghiệm người dùng đạt chuẩn Google Keep (CSS gọn gàng, không còn tag, checkmark animation)', () => {
+  it('5. Trải nghiệm người dùng đạt chuẩn Google Keep (CSS dropdown chủ đề, không tag, checkmark animation)', () => {
     assert.ok(popupCss.includes('width: 380px'), 'popup.css phải đặt chiều rộng 380px thoáng đẹp');
     assert.ok(popupCss.includes('.keep-card'), 'popup.css phải có class .keep-card');
+    assert.ok(popupCss.includes('.keep-topic-select'), 'popup.css phải có class .keep-topic-select');
     assert.ok(popupCss.includes('.keep-input-title'), 'popup.css phải có class .keep-input-title');
     assert.ok(popupCss.includes('.keep-input-body'), 'popup.css phải có class .keep-input-body');
-    assert.ok(!popupCss.includes('.keep-tag-section'), 'popup.css đã dọn dẹp các class tag thừa');
     assert.ok(popupCss.includes('.btn-keep-primary.saved'), 'popup.css phải có animation checkmark xanh khi lưu thành công');
     assert.ok(popupCss.includes('.keep-save-toast'), 'popup.css phải có toast thông báo lưu');
   });

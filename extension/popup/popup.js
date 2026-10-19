@@ -115,6 +115,39 @@ async function initKeepNoteView() {
     console.warn('[LevelUp Note] Error querying active tab:', err);
   }
 
+  // Nạp danh sách các chủ đề hiện có sẵn để người dùng chọn ghi chú tiếp
+  const topicSelect = document.getElementById('keep-topic-select');
+  if (topicSelect) {
+    try {
+      const storage = await chrome.storage.local.get(['levelupTopics', 'lastSelectedTopic']);
+      const defaultTopics = ['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu'];
+      const userTopics = Array.isArray(storage.levelupTopics) && storage.levelupTopics.length > 0 
+        ? storage.levelupTopics 
+        : defaultTopics;
+      
+      const uniqueTopics = Array.from(new Set([...userTopics, ...defaultTopics]));
+      
+      topicSelect.innerHTML = '';
+      uniqueTopics.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        topicSelect.appendChild(opt);
+      });
+
+      const customOpt = document.createElement('option');
+      customOpt.value = '__new__';
+      customOpt.textContent = '+ Tạo chủ đề mới...';
+      topicSelect.appendChild(customOpt);
+
+      if (storage.lastSelectedTopic && uniqueTopics.includes(storage.lastSelectedTopic)) {
+        topicSelect.value = storage.lastSelectedTopic;
+      } else {
+        topicSelect.value = uniqueTopics[0];
+      }
+    } catch (_) {}
+  }
+
   // Auto-focus title input
   if (titleInput) {
     setTimeout(() => titleInput.focus(), 80);
@@ -136,7 +169,7 @@ function switchView(targetView) {
     if (viewNotes) viewNotes.classList.add('hidden');
     if (viewSettings) viewSettings.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight" style="color: #818cf8;">Shield</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.0</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.1</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Quay lại Ghi Chú';
       toggleBtn.innerHTML = '📝';
@@ -146,7 +179,7 @@ function switchView(targetView) {
     if (viewSettings) viewSettings.classList.add('hidden');
     if (viewNotes) viewNotes.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight">Ghi Chú</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.0</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.1</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Cài đặt & Khiên bảo vệ';
       toggleBtn.innerHTML = '⚙️';
@@ -300,11 +333,28 @@ async function handleSaveKeepNote() {
     if (saveIcon) saveIcon.textContent = '⏳';
     if (saveText) saveText.textContent = 'Đang lưu...';
 
+    // Xác định chủ đề được chọn để ghi chú tiếp
+    const topicSelect = document.getElementById('keep-topic-select');
+    const customInput = document.getElementById('keep-custom-topic-input');
+    let selectedTopic = 'Ghi Chép Nhanh';
+
+    if (topicSelect) {
+      if (topicSelect.value === '__new__' && customInput && customInput.value.trim()) {
+        selectedTopic = customInput.value.trim();
+      } else if (topicSelect.value && topicSelect.value !== '__new__') {
+        selectedTopic = topicSelect.value;
+      }
+    }
+
+    // Ghi nhớ chủ đề vừa chọn để lần sau mở popup ghi chú tiếp luôn
+    await chrome.storage.local.set({ lastSelectedTopic: selectedTopic });
+
     // Send note creation command to background service worker
     await chrome.runtime.sendMessage({
       type: 'CREATE_EXTENSION_NOTE',
       title: title || (currentTabTitle ? `Ghi Chép: ${currentTabTitle}` : 'Ghi Chú Mới'),
       body: body,
+      topic: selectedTopic,
       sourceUrl: currentTabUrl,
       sourceTitle: currentTabTitle
     });
@@ -341,6 +391,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const bodyInput = document.getElementById('keep-note-body');
   if (bodyInput) {
     bodyInput.addEventListener('input', () => autoResizeTextarea(bodyInput));
+  }
+
+  // Topic Select change listener & Custom Topic toggling
+  const topicSelect = document.getElementById('keep-topic-select');
+  const customRow = document.getElementById('keep-custom-topic-row');
+  const customInput = document.getElementById('keep-custom-topic-input');
+  const btnCancelCustom = document.getElementById('btn-cancel-custom-topic');
+
+  if (topicSelect && customRow) {
+    topicSelect.addEventListener('change', async () => {
+      if (topicSelect.value === '__new__') {
+        customRow.classList.remove('hidden');
+        if (customInput) customInput.focus();
+      } else {
+        customRow.classList.add('hidden');
+        await chrome.storage.local.set({ lastSelectedTopic: topicSelect.value });
+      }
+    });
+  }
+
+  if (btnCancelCustom && customRow && topicSelect) {
+    btnCancelCustom.addEventListener('click', () => {
+      customRow.classList.add('hidden');
+      if (customInput) customInput.value = '';
+      topicSelect.selectedIndex = 0;
+    });
   }
 
   // Save Note Button

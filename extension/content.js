@@ -8,7 +8,7 @@
 
   function broadcastExtensionVersion() {
     try {
-      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.0';
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.1';
       document.documentElement.dataset.levelupExtensionInstalled = 'true';
       document.documentElement.dataset.levelupExtensionVersion = extVersion;
       window.__LEVELUP_EXTENSION_INSTALLED__ = true;
@@ -232,5 +232,32 @@
       });
     }
   } catch (_) {}
+
+  // 8. Tự động đồng bộ các chủ đề có sẵn sang Extension Storage để ghi chú tiếp
+  function syncTopicsToExtension() {
+    try {
+      if (!chrome.storage?.local) return;
+      const raw = localStorage.getItem('levelup_notes_v1');
+      if (raw) {
+        const notes = JSON.parse(raw);
+        if (Array.isArray(notes)) {
+          const set = new Set(['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu']);
+          notes.forEach(n => {
+            const t = (n.topic || '').trim();
+            if (t) set.add(t);
+          });
+          chrome.storage.local.set({ levelupTopics: Array.from(set) });
+        }
+      }
+    } catch (_) {}
+  }
+
+  syncTopicsToExtension();
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'levelup_notes_v1') syncTopicsToExtension();
+  });
+  window.addEventListener('message', (event) => {
+    if (event.data?.type === 'LEVELUP_NOTES_UPDATED') syncTopicsToExtension();
+  });
 })();
 
