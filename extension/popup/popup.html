@@ -15,7 +15,7 @@
         <img src="../icons/icon-48.png" alt="LevelUp Logo" class="brand-avatar">
         <div class="brand-text">
           <h1 id="header-brand-title" class="brand-title">LevelUp <span class="highlight">Ghi Chú</span></h1>
-          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.1</span></span>
+          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.2</span></span>
         </div>
       </div>
 
@@ -52,21 +52,16 @@
 
       <!-- Keep Note Card -->
       <div class="keep-card">
-        <!-- Topic Selection Row: Chọn chủ đề hiện có sẵn để ghi chú tiếp -->
+        <!-- Topic Selection Row: Chọn ghi chú theo Title để thêm tiếp hoặc tạo mới -->
         <div class="keep-topic-row">
-          <label for="keep-topic-select" class="keep-topic-label" title="Chọn chủ đề hiện có sẵn">
-            <span class="topic-icon">📁</span>
-            <span>Chủ đề:</span>
+          <label for="keep-topic-select" class="keep-topic-label" title="Chọn ghi chú theo tiêu đề hoặc tạo mới">
+            <span class="topic-icon">📝</span>
+            <span>Ghi chú:</span>
           </label>
           <div class="keep-topic-select-wrap">
-            <select id="keep-topic-select" class="keep-topic-select" title="Chọn chủ đề hiện có sẵn để ghi chú tiếp">
-              <!-- Được nạp tự động từ danh sách chủ đề LevelUp -->
-              <option value="Ghi Chép Nhanh">Ghi Chép Nhanh</option>
-              <option value="Ý Tưởng">Ý Tưởng</option>
-              <option value="Học Tập">Học Tập</option>
-              <option value="Công Việc">Công Việc</option>
-              <option value="Nghiên Cứu">Nghiên Cứu</option>
-              <option value="__new__">+ Tạo chủ đề mới...</option>
+            <select id="keep-topic-select" class="keep-topic-select" title="Chọn ghi chú theo tiêu đề hoặc tạo mới">
+              <!-- Được nạp tự động từ danh sách tiêu đề ghi chú LevelUp -->
+              <option value="__new__">+ Tạo ghi chú mới...</option>
             </select>
           </div>
         </div>

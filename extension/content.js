@@ -8,7 +8,7 @@
 
   function broadcastExtensionVersion() {
     try {
-      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.1';
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.2';
       document.documentElement.dataset.levelupExtensionInstalled = 'true';
       document.documentElement.dataset.levelupExtensionVersion = extVersion;
       window.__LEVELUP_EXTENSION_INSTALLED__ = true;
@@ -189,7 +189,9 @@
           body: message.body || '',
           topic: message.topic || '',
           sourceUrl: message.sourceUrl || '',
-          sourceTitle: message.sourceTitle || ''
+          sourceTitle: message.sourceTitle || '',
+          noteId: message.noteId || '',
+          isNewNote: message.isNewNote !== false
         }, '*');
         sendResponse?.({ received: true });
       }
@@ -223,7 +225,9 @@
                 body: note.body || '',
                 topic: note.topic || '',
                 sourceUrl: note.sourceUrl || '',
-                sourceTitle: note.sourceTitle || ''
+                sourceTitle: note.sourceTitle || '',
+                noteId: note.noteId || '',
+                isNewNote: note.isNewNote !== false
               }, '*');
             });
             chrome.storage.local.remove(['pendingNotes']);
@@ -233,7 +237,7 @@
     }
   } catch (_) {}
 
-  // 8. Tự động đồng bộ các chủ đề có sẵn sang Extension Storage để ghi chú tiếp
+  // 8. Tự động đồng bộ các ghi chú & chủ đề có sẵn sang Extension Storage
   function syncTopicsToExtension() {
     try {
       if (!chrome.storage?.local) return;
@@ -242,11 +246,19 @@
         const notes = JSON.parse(raw);
         if (Array.isArray(notes)) {
           const set = new Set(['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu']);
+          const noteList = [];
           notes.forEach(n => {
             const t = (n.topic || '').trim();
             if (t) set.add(t);
+            noteList.push({
+              id: n.id,
+              title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
+            });
           });
-          chrome.storage.local.set({ levelupTopics: Array.from(set) });
+          chrome.storage.local.set({
+            levelupTopics: Array.from(set),
+            levelupNotes: noteList
+          });
         }
       }
     } catch (_) {}

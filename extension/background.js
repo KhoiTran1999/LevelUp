@@ -212,14 +212,16 @@ async function handleSaveClip(text, sourceUrl = '', sourceTitle = '') {
 }
 
 // Handle saving a Keep-style note from extension
-async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Chép', sourceUrl = '', sourceTitle = '' }) {
+async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Chép', sourceUrl = '', sourceTitle = '', noteId = '', isNewNote = true }) {
   const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
   const notePayload = {
     title: (title || '').trim(),
     body: (body || '').trim(),
     topic: (topic || '').trim() || 'Ghi Chép',
     sourceUrl: sourceUrl || '',
-    sourceTitle: sourceTitle || ''
+    sourceTitle: sourceTitle || '',
+    noteId: noteId || '',
+    isNewNote: Boolean(isNewNote)
   };
 
   if (tabs.length > 0) {
@@ -233,7 +235,7 @@ async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Ch�
     const storage = await chrome.storage.local.get(['pendingNotes']);
     const pendingNotes = Array.isArray(storage.pendingNotes) ? storage.pendingNotes : [];
     pendingNotes.push({
-      id: 'note_' + Date.now(),
+      id: notePayload.noteId || ('note_' + Date.now()),
       ...notePayload,
       timestamp: Date.now()
     });
