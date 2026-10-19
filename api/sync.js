@@ -15,6 +15,26 @@ import {
   validateProfile,
   validateStateSync
 } from '../src/schemas/game.js';
+import { isDbConfigured, setDbClientForTesting } from '../src/db/index.js';
+import {
+  getUserById,
+  getUserByNickname,
+  isNicknameTaken,
+  upsertUser,
+  getLeaderboard as getDbLeaderboard,
+  getCheaters as getDbCheaters,
+  setCheaterStatus,
+  deleteUser as deleteDbUser
+} from '../src/db/repositories/userRepository.js';
+import {
+  getBankPoolState as getDbBankPoolState,
+  saveBankPoolState as saveDbBankPoolState
+} from '../src/db/repositories/bankRepository.js';
+import {
+  saveSession as saveDbSession,
+  getSession as getDbSession,
+  deleteSession as deleteDbSession
+} from '../src/db/repositories/sessionRepository.js';
 
 export {
   QuestSchema,
@@ -28,7 +48,8 @@ export {
   validateLoanOffer,
   validateBankAction,
   validateProfile,
-  validateStateSync
+  validateStateSync,
+  setDbClientForTesting
 };
 
 dotenv.config();
@@ -587,6 +608,19 @@ export async function getGlobalBankState(redis, autoReconcile = false) {
     lastAccruedAt: Date.now()
   };
 
+  // 1. Ưu tiên đọc từ Postgres (Drizzle ORM) nếu được cấu hình
+  if (isDbConfigured()) {
+    try {
+      const dbState = await getDbBankPoolState();
+      if (dbState) {
+        if (redis) {
+          try { await redis.set('levelup:bank:pool', JSON.stringify(dbState)); } catch (_) {}
+        }
+        return dbState;
+      }
+    } catch (_) {}
+  }
+
   if (!redis) return defaultBank;
   try {
     const raw = await redis.get('levelup:bank:pool');
@@ -611,7 +645,17 @@ export async function getGlobalBankState(redis, autoReconcile = false) {
 }
 
 export async function saveGlobalBankState(redis, bankState) {
-  if (!redis || !bankState) return;
+  if (!bankState) return;
+
+  // 1. Lưu bền vững vào Postgres (Drizzle ORM)
+  if (isDbConfigured()) {
+    try {
+      await saveDbBankPoolState(bankState);
+    } catch (_) {}
+  }
+
+  // 2. Lưu đồng thời vào Redis L1 cache
+  if (!redis) return;
   try {
     await redis.set('levelup:bank:pool', JSON.stringify(bankState));
   } catch (_) {}
@@ -825,6 +869,19 @@ export async function authenticateCaller(token, redis, adminConfig) {
     } catch (e) {}
   }
 
+  // 1.1 Kiểm tra session trong Postgres (Drizzle ORM bền vững)
+  if (isDbConfigured()) {
+    try {
+      const dbSession = await getDbSession(cleanToken);
+      if (dbSession && dbSession.sub) {
+        if (redis) {
+          try { await redis.set(`levelup:session:${cleanToken}`, JSON.stringify(dbSession), 'EX', 90 * 24 * 3600); } catch (_) {}
+        }
+        return dbSession;
+      }
+    } catch (e) {}
+  }
+
   // 2. Kiểm tra Google ID Token trực tiếp
   const googleUser = await verifyGoogleToken(cleanToken);
   if (googleUser) {
@@ -994,6 +1051,11 @@ export default async function handler(req, res) {
       // Cấp phát session token bền vững (90 ngày) để đồng bộ đa thiết bị không bị đứt quãng
       const sessionToken = crypto.randomUUID();
       await redis.set(`levelup:session:${sessionToken}`, JSON.stringify({ sub, email, name, picture }), 'EX', 90 * 24 * 3600);
+      if (isDbConfigured()) {
+        try {
+          await saveDbSession(sessionToken, { sub, email, name, picture }, 90 * 24 * 3600 * 1000);
+        } catch (_) {}
+      }
 
       const isProd = process.env.NODE_ENV === 'production';
       const cookieFlags = [
@@ -1014,6 +1076,13 @@ export default async function handler(req, res) {
         try {
           userState = JSON.parse(rawData);
         } catch (e) {}
+      } else if (isDbConfigured()) {
+        try {
+          const dbUser = await getUserById(sub);
+          if (dbUser) {
+            userState = dbUser;
+          }
+        } catch (_) {}
       }
 
       if (!userState) {
@@ -1066,6 +1135,11 @@ export default async function handler(req, res) {
 
         await redis.set(userKey, JSON.stringify(userState), 'EX', 180 * 24 * 3600);
         await redis.set(`levelup:google:email:${email}`, sub, 'EX', 180 * 24 * 3600);
+        if (isDbConfigured()) {
+          try {
+            await upsertUser(sub, userState);
+          } catch (_) {}
+        }
 
         const initialScore = 1020;
         await redis.zadd('levelup:leaderboard', initialScore, sub);
@@ -1088,6 +1162,11 @@ export default async function handler(req, res) {
           if (isAdmin) userState.profile.role = 'admin';
         }
         await redis.set(userKey, JSON.stringify(userState), 'EX', 180 * 24 * 3600);
+        if (isDbConfigured()) {
+          try {
+            await upsertUser(sub, userState);
+          } catch (_) {}
+        }
         if (userState.profile?.isCheater) {
           await redis.zrem('levelup:leaderboard', sub);
           await redis.zadd('levelup:cheaters', Date.now(), sub);
@@ -1344,10 +1423,18 @@ export default async function handler(req, res) {
         if (!ownerSub) {
           // Kiểm tra thêm key user legacy nếu có
           const legacyOwner = await redis.get(`levelup:user:${nickname}`);
-          if (!legacyOwner) {
-            return res.status(200).json({ available: true, isOwner: true });
+          if (legacyOwner) {
+            return res.status(200).json({ available: false, isOwner: false, message: 'Nickname đã có người sở hữu.' });
           }
-          return res.status(200).json({ available: false, isOwner: false, message: 'Nickname đã có người sở hữu.' });
+          if (isDbConfigured()) {
+            try {
+              const takenInDb = await isNicknameTaken(nickname, callerSub);
+              if (takenInDb) {
+                return res.status(200).json({ available: false, isOwner: false, message: 'Nickname đã có người sở hữu.' });
+              }
+            } catch (_) {}
+          }
+          return res.status(200).json({ available: true, isOwner: true });
         }
 
         const isOwner = Boolean(callerSub && ownerSub === callerSub);
@@ -1544,12 +1631,20 @@ export default async function handler(req, res) {
         userKey = `levelup:user:${targetSub}`;
         rawData = await redis.get(userKey);
       }
-      if (!rawData) {
-        return res.status(200).json({ found: false, googleId: targetSub });
-      }
 
       let data = null;
-      try { data = JSON.parse(rawData); } catch (_) {}
+      if (rawData) {
+        try { data = JSON.parse(rawData); } catch (_) {}
+      } else if (isDbConfigured()) {
+        try {
+          const dbUser = await getUserById(targetSub);
+          if (dbUser) {
+            data = dbUser;
+            try { await redis.set(userKey, JSON.stringify(dbUser), 'EX', 180 * 24 * 3600); } catch (_) {}
+          }
+        } catch (_) {}
+      }
+
       if (!data) {
         return res.status(200).json({ found: false, googleId: targetSub });
       }
@@ -1868,6 +1963,11 @@ export default async function handler(req, res) {
         const canonicalGoogleKey = `levelup:user:google:${canonicalSub}`;
         if (canonicalGoogleKey !== userKey) {
           await redis.set(canonicalGoogleKey, JSON.stringify(userData), 'EX', 180 * 24 * 3600);
+        }
+        if (isDbConfigured()) {
+          try {
+            await upsertUser(canonicalSub, userData);
+          } catch (_) {}
         }
 
         // Đồng bộ Bảng Xếp Hạng nếu không phải kẻ gian lận
@@ -2472,6 +2572,9 @@ export default async function handler(req, res) {
             }
           } catch (_) {}
           await redis.del(`levelup:session:${token}`);
+          if (isDbConfigured()) {
+            try { await deleteDbSession(token); } catch (_) {}
+          }
         }
         res.setHeader('Set-Cookie', 'levelup_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
         return res.status(200).json({ success: true });
@@ -2519,7 +2622,17 @@ export default async function handler(req, res) {
 
       // Kiểm tra tính duy nhất của nickname
       if (nickname) {
-        const currentOwnerSub = await redis.get(`levelup:nick_to_sub:${nickname}`);
+        let currentOwnerSub = await redis.get(`levelup:nick_to_sub:${nickname}`);
+        if (!currentOwnerSub && isDbConfigured()) {
+          try {
+            const taken = await isNicknameTaken(nickname, userSub);
+            if (taken) {
+              return res.status(409).json({
+                error: `Nickname "${rawNick || nickname}" đã có người sử dụng. Vui lòng chọn nickname khác!`
+              });
+            }
+          } catch (_) {}
+        }
         if (currentOwnerSub && currentOwnerSub !== userSub) {
           return res.status(409).json({
             error: `Nickname "${rawNick || nickname}" đã có người sử dụng. Vui lòng chọn nickname khác!`
@@ -2545,6 +2658,10 @@ export default async function handler(req, res) {
       const rawExisting = await redis.get(userKey);
       if (rawExisting) {
         try { existingState = JSON.parse(rawExisting); } catch (_) {}
+      } else if (isDbConfigured()) {
+        try {
+          existingState = await getUserById(userSub);
+        } catch (_) {}
       }
 
       const callerIsAdmin = await verifyIsAdmin(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS, nicks: ADMIN_NICKS });
@@ -3003,6 +3120,13 @@ export default async function handler(req, res) {
       await redis.set(userKey, JSON.stringify(payloadToSave), 'EX', 180 * 24 * 3600);
       if (typeof redis.sadd === 'function') {
         await redis.sadd('levelup:all_users', userSub);
+      }
+      if (isDbConfigured()) {
+        try {
+          await upsertUser(userSub, payloadToSave, payloadToSave.activeTimer);
+        } catch (dbErr) {
+          console.warn('[Sync] Postgres upsertUser warning:', dbErr.message);
+        }
       }
 
       // Cập nhật Sổ Đen Gian Lận:
