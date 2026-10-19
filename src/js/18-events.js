@@ -937,6 +937,98 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogoutGoogle.addEventListener('click', logoutGoogle);
   }
 
+  // Cleanup & Uninstall Handlers
+  const btnOpenCleanupFromProfile = document.getElementById('btn-open-cleanup-from-profile');
+  if (btnOpenCleanupFromProfile) {
+    btnOpenCleanupFromProfile.addEventListener('click', () => {
+      closeModal('modal-profile');
+      openModal('modal-cleanup');
+    });
+  }
+
+  const btnOpenCleanupFromGate = document.getElementById('btn-open-cleanup-from-gate');
+  if (btnOpenCleanupFromGate) {
+    btnOpenCleanupFromGate.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal('modal-cleanup');
+    });
+  }
+
+  const btnCloseCleanup = document.getElementById('btn-close-cleanup-modal');
+  if (btnCloseCleanup) {
+    btnCloseCleanup.addEventListener('click', () => {
+      closeModal('modal-cleanup');
+    });
+  }
+
+  const btnCancelCleanup = document.getElementById('btn-cancel-cleanup');
+  if (btnCancelCleanup) {
+    btnCancelCleanup.addEventListener('click', () => {
+      closeModal('modal-cleanup');
+    });
+  }
+
+  const btnPurgeAllData = document.getElementById('btn-purge-all-data');
+  if (btnPurgeAllData) {
+    btnPurgeAllData.addEventListener('click', () => {
+      if (typeof purgeAllDataAndLeave === 'function') {
+        purgeAllDataAndLeave();
+      }
+    });
+  }
+
+  const btnCopyUninstallCmd = document.getElementById('btn-copy-uninstall-cmd');
+  const codeUninstallCmd = document.getElementById('code-uninstall-cmd');
+  const containerUninstallCmd = document.getElementById('container-uninstall-cmd');
+
+  function copyUninstallCommand() {
+    const origin = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://level-up-seven-blue.vercel.app';
+    const cmd = `irm ${origin}/uninstall.ps1 | iex`;
+
+    if (codeUninstallCmd) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(codeUninstallCmd);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(cmd).then(() => {
+        const btnText = document.getElementById('btn-copy-uninstall-text');
+        if (btnText) {
+          btnText.textContent = 'Đã chép!';
+          setTimeout(() => { btnText.textContent = 'Copy Lệnh Gỡ'; }, 2000);
+        }
+        if (typeof showToast === 'function') {
+          showToast('📋 Đã sao chép lệnh gỡ bỏ! Mở PowerShell và nhấn Ctrl+V để chạy.', 'success');
+        }
+      }).catch(() => {
+        if (typeof showToast === 'function') {
+          showToast('📋 Hãy nhấn Ctrl + C trên bàn phím để sao chép dòng lệnh.', 'info');
+        }
+      });
+    }
+  }
+
+  if (codeUninstallCmd && typeof window !== 'undefined' && window.location?.origin) {
+    codeUninstallCmd.textContent = `irm ${window.location.origin}/uninstall.ps1 | iex`;
+  }
+  if (containerUninstallCmd) {
+    containerUninstallCmd.addEventListener('click', copyUninstallCommand);
+  }
+  if (btnCopyUninstallCmd) {
+    btnCopyUninstallCmd.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      copyUninstallCommand();
+    });
+  }
+
   document.querySelectorAll('.avatar-opt').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();

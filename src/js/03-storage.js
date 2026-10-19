@@ -1340,4 +1340,60 @@ async function switchGoogleAccount() {
   else renderGoogleSignInButton();
   showToast('Vui lòng đăng nhập tài khoản Google mới.', 'info');
 }
+
+async function purgeAllDataAndLeave() {
+  const ok = await confirmAction({
+    title: 'XÓA SẠCH VÀ RỜI ĐI',
+    message: 'Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu (nhiệm vụ, vàng, chuỗi, token) và rời khỏi LevelUp vĩnh viễn? Hành động này không thể hoàn tác.',
+    confirmText: 'Xác Nhận Xóa Hết',
+    icon: '🗑️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+  try {
+    await fetch('/api/sync?action=logout', {
+      method: 'POST',
+      credentials: 'include',
+      ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+    });
+  } catch (_) {}
+
+  if (window.google?.accounts?.id) {
+    try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
+  }
+
+  try { localStorage.clear(); } catch (_) {}
+  try { sessionStorage.clear(); } catch (_) {}
+  try {
+    if (typeof window !== 'undefined' && window.indexedDB && window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name) window.indexedDB.deleteDatabase(db.name);
+      }
+    }
+  } catch (_) {}
+
+  appState = { ...DEFAULT_STATE };
+
+  if (typeof closeModal === 'function') {
+    closeModal('modal-cleanup');
+    closeModal('modal-profile');
+    closeModal('modal-shield-gate');
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('🎉 Đã dọn dẹp sạch sẽ 100% dữ liệu. Cảm ơn bạn và chúc bạn thành công!', 'success');
+  }
+
+  setTimeout(() => {
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.href = window.location.origin + window.location.pathname;
+    }
+  }, 1000);
+}
 

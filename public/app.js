@@ -1602,6 +1602,62 @@ async function switchGoogleAccount() {
   showToast('Vui lòng đăng nhập tài khoản Google mới.', 'info');
 }
 
+async function purgeAllDataAndLeave() {
+  const ok = await confirmAction({
+    title: 'XÓA SẠCH VÀ RỜI ĐI',
+    message: 'Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu (nhiệm vụ, vàng, chuỗi, token) và rời khỏi LevelUp vĩnh viễn? Hành động này không thể hoàn tác.',
+    confirmText: 'Xác Nhận Xóa Hết',
+    icon: '🗑️',
+    btnColor: 'rose'
+  });
+  if (!ok) return;
+
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
+
+  const token = appState.profile?.sessionToken || appState.profile?.googleToken;
+  try {
+    await fetch('/api/sync?action=logout', {
+      method: 'POST',
+      credentials: 'include',
+      ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+    });
+  } catch (_) {}
+
+  if (window.google?.accounts?.id) {
+    try { window.google.accounts.id.disableAutoSelect(); } catch (_) {}
+  }
+
+  try { localStorage.clear(); } catch (_) {}
+  try { sessionStorage.clear(); } catch (_) {}
+  try {
+    if (typeof window !== 'undefined' && window.indexedDB && window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name) window.indexedDB.deleteDatabase(db.name);
+      }
+    }
+  } catch (_) {}
+
+  appState = { ...DEFAULT_STATE };
+
+  if (typeof closeModal === 'function') {
+    closeModal('modal-cleanup');
+    closeModal('modal-profile');
+    closeModal('modal-shield-gate');
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('🎉 Đã dọn dẹp sạch sẽ 100% dữ liệu. Cảm ơn bạn và chúc bạn thành công!', 'success');
+  }
+
+  setTimeout(() => {
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.href = window.location.origin + window.location.pathname;
+    }
+  }, 1000);
+}
+
 // =============================================================================
 // 4. TOAST NOTIFICATIONS & RPG HELPERS
 // =============================================================================
@@ -17987,6 +18043,98 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLogoutGoogle = document.getElementById('btn-logout-google');
   if (btnLogoutGoogle) {
     btnLogoutGoogle.addEventListener('click', logoutGoogle);
+  }
+
+  // Cleanup & Uninstall Handlers
+  const btnOpenCleanupFromProfile = document.getElementById('btn-open-cleanup-from-profile');
+  if (btnOpenCleanupFromProfile) {
+    btnOpenCleanupFromProfile.addEventListener('click', () => {
+      closeModal('modal-profile');
+      openModal('modal-cleanup');
+    });
+  }
+
+  const btnOpenCleanupFromGate = document.getElementById('btn-open-cleanup-from-gate');
+  if (btnOpenCleanupFromGate) {
+    btnOpenCleanupFromGate.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal('modal-cleanup');
+    });
+  }
+
+  const btnCloseCleanup = document.getElementById('btn-close-cleanup-modal');
+  if (btnCloseCleanup) {
+    btnCloseCleanup.addEventListener('click', () => {
+      closeModal('modal-cleanup');
+    });
+  }
+
+  const btnCancelCleanup = document.getElementById('btn-cancel-cleanup');
+  if (btnCancelCleanup) {
+    btnCancelCleanup.addEventListener('click', () => {
+      closeModal('modal-cleanup');
+    });
+  }
+
+  const btnPurgeAllData = document.getElementById('btn-purge-all-data');
+  if (btnPurgeAllData) {
+    btnPurgeAllData.addEventListener('click', () => {
+      if (typeof purgeAllDataAndLeave === 'function') {
+        purgeAllDataAndLeave();
+      }
+    });
+  }
+
+  const btnCopyUninstallCmd = document.getElementById('btn-copy-uninstall-cmd');
+  const codeUninstallCmd = document.getElementById('code-uninstall-cmd');
+  const containerUninstallCmd = document.getElementById('container-uninstall-cmd');
+
+  function copyUninstallCommand() {
+    const origin = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://level-up-seven-blue.vercel.app';
+    const cmd = `irm ${origin}/uninstall.ps1 | iex`;
+
+    if (codeUninstallCmd) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(codeUninstallCmd);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(cmd).then(() => {
+        const btnText = document.getElementById('btn-copy-uninstall-text');
+        if (btnText) {
+          btnText.textContent = 'Đã chép!';
+          setTimeout(() => { btnText.textContent = 'Copy Lệnh Gỡ'; }, 2000);
+        }
+        if (typeof showToast === 'function') {
+          showToast('📋 Đã sao chép lệnh gỡ bỏ! Mở PowerShell và nhấn Ctrl+V để chạy.', 'success');
+        }
+      }).catch(() => {
+        if (typeof showToast === 'function') {
+          showToast('📋 Hãy nhấn Ctrl + C trên bàn phím để sao chép dòng lệnh.', 'info');
+        }
+      });
+    }
+  }
+
+  if (codeUninstallCmd && typeof window !== 'undefined' && window.location?.origin) {
+    codeUninstallCmd.textContent = `irm ${window.location.origin}/uninstall.ps1 | iex`;
+  }
+  if (containerUninstallCmd) {
+    containerUninstallCmd.addEventListener('click', copyUninstallCommand);
+  }
+  if (btnCopyUninstallCmd) {
+    btnCopyUninstallCmd.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      copyUninstallCommand();
+    });
   }
 
   document.querySelectorAll('.avatar-opt').forEach(btn => {
