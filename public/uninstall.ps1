@@ -41,19 +41,13 @@ try {
     }
 } catch {}
 
-# Tự động mở tab chrome://extensions để người dùng không phải gõ thủ công
-try {
-    Start-Process "chrome.exe" "chrome://extensions" -ErrorAction SilentlyContinue
-} catch {
-    try { Start-Process "chrome://extensions" -ErrorAction SilentlyContinue } catch {}
-}
-
 Write-Host ""
-Write-Host ">> [2/2] BƯỚC CUỐI TRÊN CHROME (Script đã tự mở tab chrome://extensions cho bạn):" -ForegroundColor Cyan
-Write-Host "   -> Tại ô tiện ích [LevelUp Focus Shield]:" -ForegroundColor White
-Write-Host "      Bấm nút [Xóa] (Remove / biểu tượng thùng rác) để hoàn tất." -ForegroundColor Yellow
-Write-Host "   (Lưu ý: Theo chính sách bảo mật Sandbox của Chrome, bắt buộc người dùng" -ForegroundColor Gray
-Write-Host "    tự bấm nút Xóa, không một phần mềm nào được phép tự ý gỡ ngầm tiện ích)." -ForegroundColor Gray
+Write-Host ">> [2/2] BƯỚC CUỐI TRÊN TRÌNH DUYỆT CHROME (Mất 2 giây):" -ForegroundColor Cyan
+Write-Host "   1. Mở tab: chrome://extensions trên Chrome bạn đang dùng." -ForegroundColor White
+Write-Host "   2. Tìm ô [LevelUp Focus Shield] ➔ Bấm nút [Xóa] (Remove / biểu tượng thùng rác)." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "💡 Lý do: Theo bảo mật Sandbox của Chrome, người dùng bắt buộc tự bấm Xóa" -ForegroundColor Gray
+Write-Host "   để giải phóng tiện ích khỏi RAM, không phần mềm nào được phép gỡ ngầm." -ForegroundColor Gray
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host " [OK] ĐÃ DỌN DẸP SẠCH SẼ 100% CÁC TỆP TIN KHỎI MÁY TÍNH!" -ForegroundColor Green
