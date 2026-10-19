@@ -25,13 +25,14 @@ assert.ok(js.includes("modal.id === 'modal-brain-dump'"), 'app.js phải có cơ
 assert.ok(js.includes("openModal.id === 'modal-brain-dump'"), 'app.js phải có cơ chế chặn phím Escape đóng modal-brain-dump');
 console.log('  -> Quy tắc chỉ đóng bằng dấu "x" được đảm bảo tuyệt đối: OK\n');
 
-// 2. Kiểm tra: Sổ ghi chú có mặt trong phần "Xem thêm" (Desktop & Mobile)
-console.log('Test 2: Kiểm tra điểm chạm "Sổ Ghi Chú" trong menu "Xem thêm" và Chế độ toàn màn hình');
-assert.ok(html.includes('id="btn-nav-notes"'), 'index.html phải có nút #btn-nav-notes trong menu Xem thêm (Desktop)');
-assert.ok(html.includes('id="btn-mobile-notes"'), 'index.html phải có nút #btn-mobile-notes trong menu Xem thêm (Mobile)');
+// 2. Kiểm tra: Sổ ghi chú là tab chính cạnh Phần thưởng, không nằm dư thừa trong "Xem thêm", và có mặt trong Zen Mode
+console.log('Test 2: Kiểm tra điểm chạm "Sổ Ghi Chú" trên thanh điều hướng chính và Chế độ toàn màn hình');
+assert.ok(html.includes('data-tab="notes"'), 'index.html phải có tab data-tab="notes" trên thanh điều hướng');
+assert.ok(!html.includes('id="btn-nav-notes"'), 'Sổ ghi chú đã là tab chính, không được để dư thừa trong menu Xem thêm (Desktop)');
+assert.ok(!html.includes('id="btn-mobile-notes"'), 'Sổ ghi chú đã là tab chính, không được để dư thừa trong menu Xem thêm (Mobile)');
 assert.ok(html.includes('id="btn-zen-brain-dump"'), 'Chế độ toàn màn hình phải có nút #btn-zen-brain-dump');
 assert.ok(html.includes('id="btn-zen-dopamine-guide"'), 'Chế độ toàn màn hình phải có nút #btn-zen-dopamine-guide');
-console.log('  -> Điểm chạm trong menu Xem thêm và Zen Mode đạt chuẩn: OK\n');
+console.log('  -> Điểm chạm trên thanh điều hướng và Zen Mode đạt chuẩn: OK\n');
 
 // 3. Kiểm tra: Đồng bộ Sổ ghi chú lên Redis (Cloud State Sync)
 console.log('Test 3: Kiểm tra cấu trúc đồng bộ dữ liệu Sổ Ghi Chú lên Redis');

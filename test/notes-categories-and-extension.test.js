@@ -41,9 +41,9 @@ assert.ok(mobileNavContent.includes('data-tab="shop"'), 'Mobile nav phải có t
 assert.ok(mobileNavContent.includes('data-tab="notes"'), 'Mobile nav phải có tab Ghi Chú');
 assert.ok(mobileNavContent.includes('Ghi Chú'), 'Mobile nav hiển thị nhãn Ghi Chú');
 
-// Kiểm tra điểm chạm Xem Thêm
-assert.ok(/id="btn-nav-notes"[^>]*data-tab="notes"/.test(html), 'btn-nav-notes phải có data-tab="notes"');
-assert.ok(/id="btn-mobile-notes"[^>]*data-tab="notes"/.test(html), 'btn-mobile-notes phải có data-tab="notes"');
+// Đã dọn dẹp khỏi menu Xem Thêm để tránh dư thừa (do đã là tab chính)
+assert.ok(!html.includes('id="btn-nav-notes"'), 'btn-nav-notes không còn nằm trong menu Xem Thêm');
+assert.ok(!html.includes('id="btn-mobile-notes"'), 'btn-mobile-notes không còn nằm trong menu Xem Thêm');
 console.log('  -> Vị trí tab trên Desktop & Mobile Nav cạnh Phần Thưởng: ĐẠT CHUẨN ✅\n');
 
 // 2. Kiểm tra Master-Detail UI và Tránh Trang Trống
