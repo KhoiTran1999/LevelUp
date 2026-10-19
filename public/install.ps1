@@ -1,15 +1,20 @@
 # =============================================================================
-# LevelUp Shield — One-Line PowerShell Auto Installer & Updater
+# LevelUp Shield - One-Line PowerShell Auto Installer & Updater
 # Tự động tải, giải nén và chuẩn bị tiện ích LevelUp Focus Shield cho Google Chrome.
 # =============================================================================
 $ErrorActionPreference = 'Stop'
 
+# Cấu hình UTF-8 toàn diện cho PowerShell và Console Windows
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = "LevelUp Focus Shield — Auto Installer & Updater"
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
+
+$Host.UI.RawUI.WindowTitle = "LevelUp Focus Shield - Auto Installer & Updater"
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "   LEVELUP FOCUS SHIELD — TỰ ĐỘNG CÀI ĐẶT & CẬP NHẬT   " -ForegroundColor Cyan
+Write-Host "   LEVELUP FOCUS SHIELD - TỰ ĐỘNG CÀI ĐẶT & CẬP NHẬT   " -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -61,23 +66,23 @@ if (Test-Path $chromeUserData) {
 Write-Host ""
 if ($isAlreadyInstalled) {
     Write-Host "========================================================" -ForegroundColor Green
-    Write-Host " HOÀN TẤT CẬP NHẬT THÀNH CÔNG!" -ForegroundColor Green
+    Write-Host " [OK] HOÀN TẤT CẬP NHẬT THÀNH CÔNG!" -ForegroundColor Green
     Write-Host "========================================================" -ForegroundColor Green
     Write-Host "Toàn bộ file tiện ích trong thư mục đã được cập nhật bản mới nhất." -ForegroundColor White
-    Write-Host "👉 Bạn chỉ cần quay lại tab LevelUp trên Chrome và F5 (reload) là xong!" -ForegroundColor Yellow
+    Write-Host ">> Bạn chỉ cần quay lại tab LevelUp trên Chrome và F5 (reload) là xong!" -ForegroundColor Yellow
 } else {
     Write-Host "========================================================" -ForegroundColor Green
-    Write-Host " ĐÃ TẢI TIỆN ÍCH VÀO MÁY THÀNH CÔNG!" -ForegroundColor Green
+    Write-Host " [OK] ĐÃ TẢI TIỆN ÍCH VÀO MÁY THÀNH CÔNG!" -ForegroundColor Green
     Write-Host "========================================================" -ForegroundColor Green
     Write-Host "Đường dẫn thư mục đã được copy sẵn vào bộ nhớ tạm (Clipboard)." -ForegroundColor White
     Write-Host ""
-    Write-Host "👉 CHỈ CÒN 1 BƯỚC NẠP VÀO CHROME (Mất 5 giây - Chỉ làm 1 lần duy nhất):" -ForegroundColor Yellow
+    Write-Host ">> CHỈ CÒN 1 BƯỚC NẠP VÀO CHROME (Mất 5 giây - Chỉ làm 1 lần duy nhất):" -ForegroundColor Yellow
     Write-Host "   1. Mở tab mới trên Google Chrome, gõ: chrome://extensions" -ForegroundColor White
     Write-Host "   2. Bật công tắc [Chế độ cho nhà phát triển] (Developer mode) ở góc trên bên phải." -ForegroundColor White
     Write-Host "   3. Bấm nút [Tải tiện ích đã giải nén] (Load unpacked) ở góc trên bên trái." -ForegroundColor White
     Write-Host "   4. Bấm Ctrl + V rồi nhấn Enter để chọn thư mục LevelUpShield -> Bấm Select Folder." -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "🎉 Tab LevelUp sẽ TỰ ĐỘNG nhận diện và mở khóa ngay lập tức!" -ForegroundColor Green
-    Write-Host "💡 Từ các lần cập nhật sau, chỉ cần chạy lại lệnh này là tự động 100%!" -ForegroundColor Gray
+    Write-Host "[OK] Tab LevelUp sẽ TỰ ĐỘNG nhận diện và mở khóa ngay lập tức!" -ForegroundColor Green
+    Write-Host "(i) Từ các lần cập nhật sau, chỉ cần chạy lại lệnh này là tự động 100%!" -ForegroundColor Gray
 }
 Write-Host ""
