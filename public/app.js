@@ -1001,7 +1001,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
   const modalSyncState = document.getElementById('modal-sync-state');
   const modalSyncTime = document.getElementById('modal-sync-time');
 
-  if (typeof setGlobalProgress === 'function') setGlobalProgress(true);
+  if (isManual && typeof setGlobalProgress === 'function') setGlobalProgress(true);
   if (syncDot) {
     syncDot.className = 'inline-flex items-center justify-center shrink-0 w-2 h-2 text-amber-500';
     syncDot.innerHTML = '<span class="m3-loading-indicator-shape micro"></span>';
