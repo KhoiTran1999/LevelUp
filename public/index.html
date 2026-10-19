@@ -3363,77 +3363,51 @@
 
       <!-- Steps Body -->
       <div class="p-5 sm:p-6 space-y-4 text-left">
-        
-        <!-- Step 1: Download ZIP -->
-        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-xs">
-          <div class="flex items-center gap-3 min-w-0">
-            <div id="shield-gate-step1-num" class="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
-              1
-            </div>
-            <div class="min-w-0">
-              <div id="shield-gate-step1-title" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">Bước 1: Tải Tiện Ích LevelUp</div>
-              <div id="shield-gate-step1-desc" class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">File nén .ZIP (~42 KB)</div>
-            </div>
-          </div>
-          <a href="/download/levelup-shield.zip" download="levelup-shield.zip" target="_blank" rel="noopener noreferrer" id="btn-download-shield-zip" class="py-2 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition active:scale-95 shrink-0 flex items-center gap-1.5 shadow-md shadow-indigo-600/25 cursor-pointer">
-            <span class="material-symbols-outlined text-base">download</span>
-            <span>Tải ZIP</span>
-          </a>
-        </div>
 
-        <!-- Terminal 1-Line Quick Installer Box -->
-        <div class="p-3.5 rounded-2xl bg-slate-900 border border-indigo-500/40 shadow-xs text-white">
-          <div class="flex items-center justify-between gap-2 mb-2">
-            <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[15px] text-amber-400">terminal</span>
-              <span>⚡ Hoặc 1 Lệnh PowerShell Tự Động 100%</span>
-            </span>
-            <button id="btn-copy-install-cmd" type="button" class="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1 cursor-pointer active:scale-95">
-              <span class="material-symbols-outlined text-[13px]">content_copy</span>
+        <!-- Hero Automation Box: 1-Click PowerShell Installer -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-indigo-500/40 shadow-xl text-white space-y-3.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span class="text-xs font-black uppercase tracking-wider text-amber-400">
+                ⚡ TỰ ĐỘNG 100% QUA POWERSHELL
+              </span>
+            </div>
+            <button id="btn-copy-install-cmd" type="button" class="py-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer active:scale-95">
+              <span class="material-symbols-outlined text-[15px]">content_copy</span>
               <span id="btn-copy-install-text">Copy Lệnh</span>
             </button>
           </div>
-          <div class="bg-black/70 rounded-xl p-2 border border-slate-800 flex items-center justify-between gap-2">
-            <code id="code-install-cmd" class="text-[11px] font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
+
+          <!-- Code command snippet -->
+          <div class="bg-black/80 rounded-xl p-3 border border-slate-800 flex items-center justify-between">
+            <code id="code-install-cmd" class="text-xs font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none font-semibold">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
           </div>
-          <p class="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-            💡 Mở PowerShell, dán và Enter. Tự động tải, tự lưu cố định và tự làm mới Chrome mà không cần chọn thư mục.
+
+          <!-- 2 Simple Visual Steps -->
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <div class="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+              <div>
+                <div class="font-bold text-white text-[11.5px]">Mở PowerShell</div>
+                <div class="text-[10px] text-slate-400 leading-tight mt-0.5">Bấm phím Win &rarr; gõ PowerShell</div>
+              </div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+              <div>
+                <div class="font-bold text-white text-[11.5px]">Dán &amp; Enter</div>
+                <div class="text-[10px] text-slate-400 leading-tight mt-0.5">Bấm Ctrl+V rồi gõ Enter</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-400 text-center leading-relaxed">
+            ✨ Tự tải, tự lưu cố định và tự làm mới Chrome. Không cần chọn thư mục hay giải nén thủ công!
           </p>
         </div>
 
-        <!-- Step 2: 3-step Instructions -->
-        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2.5 shadow-xs text-xs">
-          <div class="flex items-center gap-2.5 text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
-            <span id="shield-gate-step2-num" class="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">2</span>
-            <span id="shield-gate-step2-title">Bước 2: Cài vào Chrome trong 15 giây</span>
-          </div>
-          <ol id="shield-gate-steps-list" class="space-y-2 text-xs text-slate-700 dark:text-slate-300 pl-1 list-none leading-relaxed">
-            <li class="flex items-start gap-2">
-              <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">1.</span>
-              <span id="shield-gate-step-text-1">Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">2.</span>
-              <div class="flex-1 min-w-0">
-                <span id="shield-gate-step-text-2">Mở tab mới và dán:</span>
-                <button id="copy-chrome-url-btn" type="button" class="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 font-mono text-xs font-bold hover:bg-indigo-200 dark:hover:bg-indigo-900 transition cursor-pointer select-all" title="Bấm để sao chép đường dẫn">
-                  <span>chrome://extensions/</span>
-                  <span class="material-symbols-outlined text-[13px] opacity-75">content_copy</span>
-                </button>
-              </div>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">3.</span>
-              <span id="shield-gate-step-text-3">Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="font-bold text-slate-400 dark:text-slate-500 shrink-0">4.</span>
-              <span id="shield-gate-step-text-4">Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.</span>
-            </li>
-          </ol>
-        </div>
-
-        <!-- Step 3: Realtime Status Radar -->
+        <!-- Realtime Status Radar -->
         <div id="shield-gate-status-box" class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs">
           <div class="flex items-center gap-2.5 min-w-0 flex-1">
             <span id="shield-gate-spinner" class="w-4 h-4 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0"></span>
@@ -3444,17 +3418,21 @@
           </button>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="pt-1 flex flex-col gap-2">
+        <!-- Action Buttons & Footer -->
+        <div class="pt-1 flex flex-col gap-2.5">
           <button id="btn-shield-gate-success" type="button" class="hidden w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm shadow-xl shadow-emerald-600/25 transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
             <span>⚔️ MỞ KHÓA &amp; BẮT ĐẦU SỬ DỤNG LEVELUP</span>
           </button>
 
-          <div class="pt-1 text-center">
+          <div class="pt-1 text-center space-y-1.5">
             <p id="shield-gate-footer-note" class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal flex items-center justify-center gap-1">
               <span class="material-symbols-outlined text-[14px] text-slate-400">shield</span>
               <span>Bắt buộc cài Khiên để mở khóa app. Điện thoại được tự động miễn trừ.</span>
             </p>
+            <div class="text-[10.5px] text-slate-400">
+              <span>Không dùng Windows?</span>
+              <a href="/download/levelup-shield.zip" download="levelup-shield.zip" id="btn-download-shield-zip" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium ml-1">Tải file ZIP thủ công</a>
+            </div>
           </div>
         </div>
 

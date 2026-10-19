@@ -3355,12 +3355,6 @@ function updateShieldGateStatus(installedOverride = null) {
   const badge = document.getElementById('shield-gate-badge');
   const title = document.getElementById('shield-gate-title');
   const desc = document.getElementById('shield-gate-desc');
-  const step1Title = document.getElementById('shield-gate-step1-title');
-  const step1Desc = document.getElementById('shield-gate-step1-desc');
-  const step2Title = document.getElementById('shield-gate-step2-title');
-  const stepText1 = document.getElementById('shield-gate-step-text-1');
-  const stepText3 = document.getElementById('shield-gate-step-text-3');
-  const stepText4 = document.getElementById('shield-gate-step-text-4');
   const statusBox = document.getElementById('shield-gate-status-box');
   const spinner = document.getElementById('shield-gate-spinner');
   const statusText = document.getElementById('shield-gate-status-text');
@@ -3426,25 +3420,7 @@ function updateShieldGateStatus(installedOverride = null) {
       title.textContent = 'NÂNG CẤP KHIÊN KỶ LUẬT';
     }
     if (desc) {
-      desc.textContent = `Bạn đang sử dụng phiên bản Khiên cũ (v${currentVer || '1.0.0'}). Bắt buộc cập nhật lên phiên bản mới nhất v${REQUIRED_EXTENSION_VERSION} để tiếp tục sử dụng app và trải nghiệm tính năng con nhộng bay ngẫu nhiên.`;
-    }
-    if (step1Title) {
-      step1Title.textContent = `Bước 1: Tải Bản Cập Nhật v${REQUIRED_EXTENSION_VERSION}`;
-    }
-    if (step1Desc) {
-      step1Desc.textContent = `levelup-shield.zip (Phiên bản v${REQUIRED_EXTENSION_VERSION})`;
-    }
-    if (step2Title) {
-      step2Title.textContent = 'Bước 2: Cập nhật tiện ích trong 15 giây';
-    }
-    if (stepText1) {
-      stepText1.innerHTML = `Giải nén file <strong class="text-rose-600 dark:text-rose-400 font-bold">levelup-shield.zip</strong> ghi đè vào thư mục extension cũ.`;
-    }
-    if (stepText3) {
-      stepText3.innerHTML = `Tìm tiện ích <strong class="text-amber-700 dark:text-amber-400 font-bold">LevelUp — Khiên Chặn Xao Nhãng</strong>.`;
-    }
-    if (stepText4) {
-      stepText4.innerHTML = `Bấm nút <strong class="text-rose-600 dark:text-rose-400 font-bold">🔄 Làm Mới (Reload)</strong> trên thẻ tiện ích (hoặc Load unpacked lại).`;
+      desc.textContent = `Bạn đang dùng Khiên bản cũ (v${currentVer || '1.0.0'}). Hãy copy và chạy lệnh PowerShell bên dưới để tự động cập nhật lên v${REQUIRED_EXTENSION_VERSION} ngay lập tức.`;
     }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
@@ -3482,25 +3458,7 @@ function updateShieldGateStatus(installedOverride = null) {
       title.textContent = 'KHIÊN CHẶN XAO NHÃNG';
     }
     if (desc) {
-      desc.textContent = 'Để bắt đầu hành trình và bảo vệ kỷ luật, Hiệp sĩ cần trang bị tiện ích Chrome để phong ấn các trang mạng xã hội gây xao nhãng.';
-    }
-    if (step1Title) {
-      step1Title.textContent = 'Bước 1: Tải Tiện Ích LevelUp';
-    }
-    if (step1Desc) {
-      step1Desc.textContent = 'File nén .ZIP (~42 KB)';
-    }
-    if (step2Title) {
-      step2Title.textContent = 'Bước 2: Cài vào Chrome trong 15 giây';
-    }
-    if (stepText1) {
-      stepText1.innerHTML = `Giải nén file <strong class="text-indigo-600 dark:text-indigo-400 font-bold">levelup-shield.zip</strong> vừa tải về.`;
-    }
-    if (stepText3) {
-      stepText3.innerHTML = `Gạt bật <strong class="text-amber-700 dark:text-amber-400 font-bold">Developer mode</strong> (góc trên bên phải).`;
-    }
-    if (stepText4) {
-      stepText4.innerHTML = `Bấm <strong class="text-indigo-600 dark:text-indigo-400 font-bold">Load unpacked</strong> &rarr; Chọn thư mục vừa giải nén.`;
+      desc.textContent = 'Để bảo vệ kỷ luật, hãy copy và chạy lệnh PowerShell bên dưới để tự động cài đặt và kết nối Khiên với Chrome trong 5 giây.';
     }
     if (statusBox) {
       statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs transition-all shadow-xs';
