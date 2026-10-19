@@ -83,38 +83,23 @@ assert.ok(css.includes('.note-todo-item'), 'style.css phải định dạng chec
 assert.ok(css.includes('.notes-editor'), 'style.css phải định dạng rich typography cho .notes-editor');
 console.log('  -> Công cụ soạn thảo và checklist mượt mà: ĐẠT CHUẨN ✅\n');
 
-// 5. Kiểm tra Capsule HUD Mini: Chỉ hiển thị nút 📝 khi hover chuột vào
-console.log('Test 5: Capsule HUD Mini chỉ hiển thị nút 📝 khi người dùng hover chuột vào con nhộng');
-assert.ok(capsule.includes('id="capsule-notes-btn"'), 'Capsule phải có nút #capsule-notes-btn');
-assert.ok(capsule.includes('class="btn-capsule-notes"'), 'Nút phải có class btn-capsule-notes');
-assert.ok(capsule.includes('📝'), 'Nút phải có icon 📝');
+// 5. Kiểm tra Capsule HUD Mini: Tối giản hóa và loại bỏ nút ghi chú khỏi con nhộng
+console.log('Test 5: Capsule HUD Mini được tối giản hóa, không còn nút ghi chú gây rối mắt');
+assert.ok(!capsule.includes('id="capsule-notes-btn"'), 'Capsule đã loại bỏ nút #capsule-notes-btn');
+assert.ok(!capsule.includes('class="btn-capsule-notes"'), 'Capsule đã loại bỏ class btn-capsule-notes');
+assert.ok(!capsule.includes('.btn-capsule-notes'), 'Capsule đã loại bỏ CSS .btn-capsule-notes');
+console.log('  -> Capsule HUD Mini tối giản, không còn nút ghi chú dư thừa: ĐẠT CHUẨN ✅\n');
 
-// Kiểm tra CSS: Mặc định ẩn (width: 0, opacity: 0, pointer-events: none)
-const btnCssMatch = capsule.match(/\.btn-capsule-notes\s*\{([^}]+)\}/);
-assert.ok(btnCssMatch, 'Phải có CSS .btn-capsule-notes');
-assert.ok(btnCssMatch[1].includes('width: 0'), 'Mặc định .btn-capsule-notes phải có width: 0');
-assert.ok(btnCssMatch[1].includes('opacity: 0'), 'Mặc định .btn-capsule-notes phải có opacity: 0');
-assert.ok(btnCssMatch[1].includes('pointer-events: none'), 'Mặc định .btn-capsule-notes không nhận sự kiện chuột');
-
-// Kiểm tra CSS: Khi hover vào .capsule-pill thì hiện ra (width: 18px, opacity: 1, pointer-events: auto)
-const hoverCssMatch = capsule.match(/\.capsule-pill:hover\s+\.btn-capsule-notes\s*\{([^}]+)\}/);
-assert.ok(hoverCssMatch, 'Phải có CSS .capsule-pill:hover .btn-capsule-notes');
-assert.ok(hoverCssMatch[1].includes('width: 18px'), 'Khi hover con nhộng, nút 📝 mở rộng width: 18px');
-assert.ok(hoverCssMatch[1].includes('opacity: 1'), 'Khi hover con nhộng, nút 📝 hiển thị opacity: 1');
-assert.ok(hoverCssMatch[1].includes('pointer-events: auto'), 'Khi hover con nhộng, nút 📝 nhận sự kiện click');
-console.log('  -> Capsule HUD Mini chỉ hiển thị nút 📝 khi hover: ĐẠT CHUẨN TUYỆT ĐỐI ✅\n');
-
-// 6. Kiểm tra Chrome Extension: Quyền hạn, Context Menu, Popup, Message Bridge
-console.log('Test 6: Tích hợp Chrome Extension mở Sổ Ghi Chú và Lưu Trích Dẫn Nhanh');
-assert.ok(manifest.permissions.includes('contextMenus'), 'manifest.json phải có quyền contextMenus');
-assert.ok(bg.includes("id: 'levelup-save-selection'"), 'background.js phải tạo menu "Lưu vào Sổ Ghi Chú LevelUp"');
-assert.ok(bg.includes("id: 'levelup-open-notes'"), 'background.js phải tạo menu "Mở Sổ Ghi Chú LevelUp"');
-assert.ok(bg.includes("case 'OPEN_LEVELUP_NOTES':"), 'background.js phải xử lý lệnh mở sổ ghi chú');
-assert.ok(bg.includes("case 'APPEND_CLIP_TO_NOTES':"), 'background.js phải xử lý lệnh chèn trích dẫn');
-assert.ok(content.includes('LEVELUP_SWITCH_TAB'), 'content.js phải chuyển tiếp lệnh LEVELUP_SWITCH_TAB');
-assert.ok(content.includes('LEVELUP_APPEND_CLIP'), 'content.js phải chuyển tiếp lệnh LEVELUP_APPEND_CLIP');
-assert.ok(popupHtml.includes('id="btn-open-notes"'), 'popup.html phải có nút #btn-open-notes');
-assert.ok(popupJs.includes("targetTab: 'notes'"), 'popup.js phải gửi tin nhắn mở tab notes');
-console.log('  -> Tích hợp Chrome Extension hoàn tất 100%: ĐẠT CHUẨN ✅\n');
+// 6. Kiểm tra Chrome Extension: Đã loại bỏ hoàn toàn tính năng ghi chú trong extension để đơn giản hóa
+console.log('Test 6: Đơn giản hóa Extension — Loại bỏ hoàn toàn ghi chú và contextMenus');
+assert.ok(!manifest.permissions.includes('contextMenus'), 'manifest.json đã loại bỏ quyền contextMenus');
+assert.ok(!bg.includes("id: 'levelup-save-selection'"), 'background.js không còn menu lưu selection');
+assert.ok(!bg.includes("id: 'levelup-open-notes'"), 'background.js không còn menu mở notes');
+assert.ok(!bg.includes("case 'OPEN_LEVELUP_NOTES':"), 'background.js không còn case OPEN_LEVELUP_NOTES');
+assert.ok(!bg.includes("case 'APPEND_CLIP_TO_NOTES':"), 'background.js không còn case APPEND_CLIP_TO_NOTES');
+assert.ok(!content.includes('LEVELUP_APPEND_CLIP'), 'content.js không còn chuyển tiếp lệnh LEVELUP_APPEND_CLIP');
+assert.ok(!popupHtml.includes('id="keep-note-title"'), 'popup.html không còn form ghi chú Google Keep');
+console.log('  -> Tối giản hóa Chrome Extension và loại bỏ ghi chú hoàn tất 100%: ĐẠT CHUẨN ✅\n');
 
 console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ SỔ GHI CHÚ ĐÃ VƯỢT QUA 100%!');
+

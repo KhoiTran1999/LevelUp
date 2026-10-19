@@ -167,150 +167,16 @@
     syncTimerToExtension(state);
   }, 1000);
 
-  // 6. Lắng nghe lệnh từ background script (chuyển tab hoặc chèn ghi chú)
+  // 6. Lắng nghe lệnh từ background script (chuyển tab)
   if (chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (!message || typeof message !== 'object') return;
       if (message.type === 'SWITCH_TO_TAB' && message.tab) {
         window.postMessage({ type: 'LEVELUP_SWITCH_TAB', tab: message.tab }, '*');
         sendResponse?.({ received: true });
-      } else if (message.type === 'APPEND_CLIP') {
-        window.postMessage({
-          type: 'LEVELUP_APPEND_CLIP',
-          text: message.text || '',
-          source: message.source || '',
-          title: message.title || ''
-        }, '*');
-        sendResponse?.({ received: true });
-      } else if (message.type === 'CREATE_NOTE') {
-        window.postMessage({
-          type: 'LEVELUP_CREATE_NOTE',
-          title: message.title || '',
-          body: message.body || '',
-          topic: message.topic || '',
-          sourceUrl: message.sourceUrl || '',
-          sourceTitle: message.sourceTitle || '',
-          noteId: message.noteId || '',
-          isNewNote: message.isNewNote !== false
-        }, '*');
-        sendResponse?.({ received: true });
-      } else if (message.type === 'REQUEST_NOTES_LIST') {
-        const notes = getLevelUpNotesFromPage();
-        const noteList = notes.map(n => ({
-          id: n.id,
-          title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
-        }));
-        syncTopicsToExtension();
-        sendResponse?.({ notes: noteList });
       }
     });
   }
-
-  // 7. Kiểm tra clip và ghi chú chờ xử lý được lưu khi LevelUp chưa mở
-  try {
-    if (chrome.storage?.local) {
-      chrome.storage.local.get(['pendingClips', 'pendingNotes'], (res) => {
-        if (res && Array.isArray(res.pendingClips) && res.pendingClips.length > 0) {
-          setTimeout(() => {
-            res.pendingClips.forEach(clip => {
-              window.postMessage({
-                type: 'LEVELUP_APPEND_CLIP',
-                text: clip.text || '',
-                source: clip.source || '',
-                title: clip.title || ''
-              }, '*');
-            });
-            chrome.storage.local.remove(['pendingClips']);
-          }, 600);
-        }
-
-        if (res && Array.isArray(res.pendingNotes) && res.pendingNotes.length > 0) {
-          setTimeout(() => {
-            res.pendingNotes.forEach(note => {
-              window.postMessage({
-                type: 'LEVELUP_CREATE_NOTE',
-                title: note.title || '',
-                body: note.body || '',
-                topic: note.topic || '',
-                sourceUrl: note.sourceUrl || '',
-                sourceTitle: note.sourceTitle || '',
-                noteId: note.noteId || '',
-                isNewNote: note.isNewNote !== false
-              }, '*');
-            });
-            chrome.storage.local.remove(['pendingNotes']);
-          }, 800);
-        }
-      });
-    }
-  } catch (_) {}
-
-  // Helper đọc danh sách ghi chú từ nhiều nguồn bộ nhớ khả dĩ của LevelUp
-  function getLevelUpNotesFromPage() {
-    try {
-      const rawVault = localStorage.getItem('levelup_notes_vault');
-      if (rawVault) {
-        const parsed = JSON.parse(rawVault);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      const rawV1 = localStorage.getItem('levelup_notes_v1');
-      if (rawV1) {
-        const parsed = JSON.parse(rawV1);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      const stateRaw = localStorage.getItem('levelup_state_v2') || localStorage.getItem('levelup_state_v1');
-      if (stateRaw) {
-        const stateObj = JSON.parse(stateRaw);
-        if (Array.isArray(stateObj.notes) && stateObj.notes.length > 0) return stateObj.notes;
-      }
-    } catch (_) {}
-    return [];
-  }
-
-  // 8. Tự động đồng bộ các ghi chú & chủ đề có sẵn sang Extension Storage
-  function syncTopicsToExtension() {
-    try {
-      if (!chrome.storage?.local) return;
-      const notes = getLevelUpNotesFromPage();
-      if (Array.isArray(notes)) {
-        const set = new Set(['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu']);
-        const noteList = [];
-        notes.forEach(n => {
-          const t = (n.topic || '').trim();
-          if (t) set.add(t);
-          noteList.push({
-            id: n.id,
-            title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
-          });
-        });
-        chrome.storage.local.set({
-          levelupTopics: Array.from(set),
-          levelupNotes: noteList
-        });
-      }
-    } catch (_) {}
-  }
-
-  syncTopicsToExtension();
-  window.addEventListener('storage', (event) => {
-    if (event.key === 'levelup_notes_vault' || event.key === 'levelup_notes_v1' || event.key === 'levelup_state_v2') {
-      syncTopicsToExtension();
-    }
-  });
-  window.addEventListener('message', (event) => {
-    if (event.data?.type === 'LEVELUP_NOTES_UPDATED' || event.data?.type === 'NOTES_UPDATED') {
-      syncTopicsToExtension();
-    }
-  });
-  if (typeof BroadcastChannel !== 'undefined') {
-    try {
-      const ch = new BroadcastChannel('levelup_sync_channel');
-      ch.onmessage = (event) => {
-        if (event.data?.type === 'NOTES_UPDATED' || event.data?.type === 'LEVELUP_NOTES_UPDATED') {
-          syncTopicsToExtension();
-        }
-      };
-    } catch (_) {}
-  }
 })();
+
 

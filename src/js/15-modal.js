@@ -557,34 +557,25 @@ window.closeDopamineGuideModal = closeDopamineGuideModal;
 // =============================================================================
 // SỔ TAY GHI CHÚ ĐA NĂNG, TỰ DO PHÂN LOẠI CHỦ ĐỀ & RICH TEXT WORKSPACE
 // =============================================================================
-const NOTES_VAULT_STORAGE_KEY = 'levelup_notes_vault';
-const ACTIVE_NOTE_ID_KEY = 'levelup_active_note_id';
-const FOCUS_NOTES_STORAGE_KEY = 'levelup_focus_notes';
-
 let notesSaveTimeout = null;
 let notesStatsRafId = null;
 let notesSearchTimeout = null;
 let currentTopicFilter = 'all';
 let currentNotesSearchQuery = '';
 
-// 1. Quản lý danh sách ghi chú (Multi-notes Vault)
+// 1. Quản lý danh sách ghi chú (Multi-notes Vault - Lưu trữ thuần túy trên Redis Cloud & appState)
 function getAllNotes() {
   let list = null;
   if (typeof appState !== 'undefined' && Array.isArray(appState.notes) && appState.notes.length > 0) {
     list = appState.notes;
-  } else {
-    try {
-      const raw = localStorage.getItem(NOTES_VAULT_STORAGE_KEY);
-      if (raw) list = JSON.parse(raw);
-    } catch (_) {}
   }
 
   // Tự động chuyển đổi ghi chú cũ nếu chưa có dữ liệu danh sách
   if (!Array.isArray(list) || list.length === 0) {
     let legacyContent = '';
-    try {
-      legacyContent = (typeof appState !== 'undefined' && appState.focusNotes) || localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
-    } catch (_) {}
+    if (typeof appState !== 'undefined' && appState.focusNotes) {
+      legacyContent = appState.focusNotes;
+    }
 
     if (legacyContent && legacyContent.trim()) {
       list = [{
@@ -611,11 +602,10 @@ function getAllNotes() {
     if (typeof appState !== 'undefined') {
       appState.notes = list;
       appState.activeNoteId = list[0].id;
+      if (typeof triggerSave === 'function') {
+        triggerSave(true, false, null, true);
+      }
     }
-    try {
-      localStorage.setItem(NOTES_VAULT_STORAGE_KEY, JSON.stringify(list));
-      localStorage.setItem(ACTIVE_NOTE_ID_KEY, list[0].id);
-    } catch (_) {}
   }
 
   return list;
@@ -627,10 +617,6 @@ function saveAllNotes(notesList) {
   if (typeof appState !== 'undefined') {
     appState.notes = notesList;
   }
-  try {
-    localStorage.setItem(NOTES_VAULT_STORAGE_KEY, JSON.stringify(notesList));
-    localStorage.setItem('levelup_notes_v1', JSON.stringify(notesList));
-  } catch (_) {}
 
   const active = getActiveNote();
   const activeContent = active ? active.content : '';
@@ -639,13 +625,6 @@ function saveAllNotes(notesList) {
     if (typeof triggerSave === 'function') {
       triggerSave(true, false, null, true);
     }
-  }
-  try {
-    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, activeContent);
-  } catch (_) {}
-
-  if (typeof window !== 'undefined') {
-    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED', notes: notesList }, '*');
   }
 
   if (typeof BroadcastChannel !== 'undefined') {
@@ -676,17 +655,11 @@ window.getAllTopics = getAllTopics;
 function getActiveNote() {
   const notes = getAllNotes();
   let id = (typeof appState !== 'undefined' && appState.activeNoteId) || null;
-  if (!id) {
-    try {
-      id = localStorage.getItem(ACTIVE_NOTE_ID_KEY);
-    } catch (_) {}
-  }
   let found = notes.find(n => n.id === id);
   if (!found) {
     found = notes[0];
-    if (found) {
-      if (typeof appState !== 'undefined') appState.activeNoteId = found.id;
-      try { localStorage.setItem(ACTIVE_NOTE_ID_KEY, found.id); } catch (_) {}
+    if (found && typeof appState !== 'undefined') {
+      appState.activeNoteId = found.id;
     }
   }
   return found;
@@ -718,35 +691,20 @@ function loadNotesWorkspace() {
   if (typeof initHorizontalScrollContainers === 'function') {
     initHorizontalScrollContainers();
   }
-  if (typeof window !== 'undefined') {
-    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED' }, '*');
-  }
 }
 window.loadNotesWorkspace = loadNotesWorkspace;
 
 // 4b. Làm mới và tái đồng bộ Sổ Ghi Chú
 function reloadNotesWorkspace(showToastNotice = false) {
-  try {
-    const raw = localStorage.getItem(NOTES_VAULT_STORAGE_KEY) || localStorage.getItem('levelup_notes_v1');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        if (typeof appState !== 'undefined') {
-          appState.notes = parsed;
-        }
-      }
-    }
-  } catch (_) {}
-
+  if (typeof hydrateFromCloud === 'function' && typeof appState !== 'undefined' && appState.profile?.googleId) {
+    hydrateFromCloud(false);
+  }
   const notes = getAllNotes();
   renderNotesSidebar();
   renderTopicsBar();
   loadActiveNoteIntoEditor();
   updateTotalNotesBadge();
 
-  if (typeof window !== 'undefined') {
-    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED', notes: notes }, '*');
-  }
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const ch = new BroadcastChannel('levelup_sync_channel');
@@ -942,8 +900,11 @@ function renderNotesSidebar() {
         }"
         onclick="switchActiveNote('${note.id}')"
         data-note-id="${note.id}"
+        role="button"
+        tabindex="0"
+        style="touch-action: manipulation;"
       >
-        <div class="flex items-start justify-between gap-2 mb-1">
+        <div class="flex items-start justify-between gap-2 mb-1 pointer-events-none">
           <div class="flex items-center gap-1.5 min-w-0 flex-1">
             ${note.pinned ? '<span class="material-symbols-outlined text-amber-500 text-[14px] shrink-0" title="Đã ghim">push_pin</span>' : ''}
             <h4 class="note-card-title text-xs font-bold text-slate-800 dark:text-slate-200 truncate ${isActive ? 'text-amber-700 dark:text-amber-400' : ''}">
@@ -953,16 +914,16 @@ function renderNotesSidebar() {
           <span class="note-card-time text-[10px] font-mono text-slate-400 shrink-0">${timeFormatted}</span>
         </div>
 
-        <p class="note-card-preview text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-1 font-normal">
+        <p class="note-card-preview text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-1 font-normal pointer-events-none">
           ${escapeHtml(preview)}
         </p>
 
         <div class="flex items-center justify-end gap-1">
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="note-card-actions flex items-center gap-1 transition-opacity">
             <button
               type="button"
               onclick="event.stopPropagation(); togglePinNote('${note.id}')"
-              class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-amber-500"
+              class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-amber-500 cursor-pointer"
               title="${note.pinned ? 'Bỏ ghim' : 'Ghim'}"
             >
               <span class="material-symbols-outlined text-[15px] leading-none">${note.pinned ? 'keep_off' : 'push_pin'}</span>
@@ -970,7 +931,7 @@ function renderNotesSidebar() {
             <button
               type="button"
               onclick="event.stopPropagation(); deleteNoteById('${note.id}')"
-              class="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-500"
+              class="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-500 cursor-pointer"
               title="Xóa ghi chú"
             >
               <span class="material-symbols-outlined text-[15px] leading-none">delete</span>
@@ -1100,9 +1061,6 @@ function switchActiveNote(noteId) {
   if (typeof appState !== 'undefined') {
     appState.activeNoteId = noteId;
   }
-  try {
-    localStorage.setItem(ACTIVE_NOTE_ID_KEY, noteId);
-  } catch (_) {}
 
   loadActiveNoteIntoEditor();
   updateActiveNoteCardHighlight(noteId);
@@ -2334,11 +2292,7 @@ window.createNoteFromExtension = createNoteFromExtension;
 function getFocusNotesContent() {
   const active = getActiveNote();
   if (active && active.content) return active.content;
-  try {
-    return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
-  } catch (_) {
-    return '';
-  }
+  return (typeof appState !== 'undefined' && appState.focusNotes) || '';
 }
 window.getFocusNotesContent = getFocusNotesContent;
 
@@ -2348,10 +2302,11 @@ function saveFocusNotesContent(htmlContent) {
     note.content = htmlContent || '';
     note.updatedAt = Date.now();
     saveAllNotes(getAllNotes());
-  } else {
-    try {
-      localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, htmlContent || '');
-    } catch (_) {}
+  } else if (typeof appState !== 'undefined') {
+    appState.focusNotes = htmlContent || '';
+    if (typeof triggerSave === 'function') {
+      triggerSave(true, false, null, true);
+    }
   }
   updateNotesStats();
 }

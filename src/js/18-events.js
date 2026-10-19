@@ -107,15 +107,21 @@ document.addEventListener('DOMContentLoaded', () => {
             renderHeader();
           }
         } else if (event.data?.type === 'NOTES_UPDATED') {
+          if (Array.isArray(event.data.notes)) {
+            appState.notes = event.data.notes;
+            if (typeof renderNotesSidebar === 'function') renderNotesSidebar();
+            if (typeof renderTopicsBar === 'function') renderTopicsBar();
+          }
           if (typeof event.data.content === 'string') {
             appState.focusNotes = event.data.content;
-            try {
-              localStorage.setItem('levelup_focus_notes', event.data.content);
-            } catch (_) {}
-            const editor = document.getElementById('focus-notes-editor');
-            if (editor && document.activeElement !== editor) {
-              editor.innerHTML = event.data.content;
-              if (typeof updateNotesStats === 'function') updateNotesStats();
+            if (typeof syncAllNoteEditors === 'function') {
+              syncAllNoteEditors(event.data.content);
+            } else {
+              const editor = document.getElementById('focus-notes-editor');
+              if (editor && document.activeElement !== editor) {
+                editor.innerHTML = event.data.content;
+                if (typeof updateNotesStats === 'function') updateNotesStats();
+              }
             }
           }
         }
@@ -1920,15 +1926,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!e.data || typeof e.data !== 'object') return;
     if (e.data.type === 'LEVELUP_SWITCH_TAB' && e.data.tab && typeof switchTab === 'function') {
       switchTab(e.data.tab);
-    } else if (e.data.type === 'LEVELUP_APPEND_CLIP') {
-      if (typeof appendClipToNotes === 'function') {
-        appendClipToNotes(e.data.text || '', e.data.source || '', e.data.title || '');
-      }
-    } else if (e.data.type === 'LEVELUP_CREATE_NOTE') {
-      if (typeof createNoteFromExtension === 'function') {
-        createNoteFromExtension(e.data);
-      }
     }
+  });
+
+  // Tương tác 1 chạm tức thì (Instant 1-tap) cho danh sách Ghi chú trên Mobile & Touchscreen
+  ['notes-card-list', 'modal-notes-card-list'].forEach(id => {
+    const listEl = document.getElementById(id);
+    if (!listEl) return;
+    listEl.addEventListener('click', (e) => {
+      // Nếu chạm vào nút pin/delete thì bỏ qua (đã có event.stopPropagation)
+      if (e.target.closest('button')) return;
+      const card = e.target.closest('.note-card-item');
+      if (card && card.dataset?.noteId) {
+        if (typeof switchActiveNote === 'function') {
+          switchActiveNote(card.dataset.noteId);
+        }
+      }
+    });
   });
 
   // Material Design 3 Interactions: Universal Ripple & Top App Bar Scroll Elevation

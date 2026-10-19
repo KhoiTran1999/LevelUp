@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LevelUp — Sổ Ghi Chú & Khiên Kỷ Luật</title>
+  <title>LevelUp — Khiên Chặn Xao Nhãng</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -14,120 +14,16 @@
       <div class="header-brand">
         <img src="../icons/icon-48.png" alt="LevelUp Logo" class="brand-avatar">
         <div class="brand-text">
-          <h1 id="header-brand-title" class="brand-title">LevelUp <span class="highlight">Ghi Chú</span></h1>
-          <span id="header-brand-subtitle" class="brand-subtitle">Google Keep Style <span class="version-tag">v1.5.4</span></span>
+          <h1 id="header-brand-title" class="brand-title">LevelUp <span class="highlight">Khiên Bảo Vệ</span></h1>
+          <span id="header-brand-subtitle" class="brand-subtitle">Focus Shield <span class="version-tag">v1.5.4</span></span>
         </div>
-      </div>
-
-      <div class="header-actions">
-        <!-- Settings Gear Button (Toggles between Note View and Shield/Settings View) -->
-        <button id="btn-toggle-settings" class="btn-icon" title="Cài đặt & Khiên bảo vệ" type="button" aria-label="Cài đặt">
-          ⚙️
-        </button>
       </div>
     </header>
 
     <!-- =========================================================================
-         VIEW 1: GOOGLE KEEP STYLE NOTE VIEW (HIỆN MẶC ĐỊNH KHI BẤM EXTENSION)
+         MAIN SHIELD VIEW
          ========================================================================= -->
-    <main id="view-notes" class="view-panel active">
-      <!-- Webpage Reference / Citation Snippet Card -->
-      <div id="keep-webpage-card" class="keep-web-card" title="Trang web hiện tại">
-        <div class="keep-web-icon-wrap" id="keep-web-favicon-wrap">
-          <img id="keep-web-favicon" class="keep-web-favicon hidden" src="" alt="Favicon">
-          <span id="keep-web-fallback-icon" class="keep-web-fallback-icon">🌐</span>
-        </div>
-        <div class="keep-web-info">
-          <div id="keep-web-title" class="keep-web-title">Đang nạp trang...</div>
-          <div id="keep-web-domain" class="keep-web-domain">...</div>
-        </div>
-        <a id="keep-web-link" class="keep-web-link-btn" href="#" target="_blank" rel="noopener" title="Mở trang gốc">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-        </a>
-      </div>
-
-      <!-- Keep Note Card -->
-      <div class="keep-card">
-        <!-- Topic Selection Row: Chọn ghi chú theo Title để thêm tiếp hoặc tạo mới -->
-        <div class="keep-topic-row">
-          <label for="keep-topic-select" class="keep-topic-label" title="Chọn ghi chú theo tiêu đề hoặc tạo mới">
-            <span class="topic-icon">📝</span>
-            <span>Ghi chú:</span>
-          </label>
-          <div class="keep-topic-select-wrap">
-            <select id="keep-topic-select" class="keep-topic-select" title="Chọn ghi chú theo tiêu đề hoặc tạo mới">
-              <!-- Được nạp tự động từ danh sách tiêu đề ghi chú LevelUp -->
-              <option value="__new__">+ Tạo ghi chú mới...</option>
-            </select>
-            <button type="button" id="btn-reload-extension-notes" class="btn-reload-notes" title="Tải lại & đồng bộ ghi chú">🔄</button>
-          </div>
-        </div>
-
-        <!-- Custom Topic Input (Chỉ hiện khi chọn '+ Tạo chủ đề mới...') -->
-        <div id="keep-custom-topic-row" class="keep-custom-topic-row hidden">
-          <input type="text" id="keep-custom-topic-input" class="keep-input-custom-topic" placeholder="Tên chủ đề mới..." maxlength="30">
-          <button type="button" id="btn-cancel-custom-topic" class="btn-topic-cancel" title="Hủy">✕</button>
-        </div>
-
-        <!-- Title Input -->
-        <input 
-          type="text" 
-          id="keep-note-title" 
-          class="keep-input-title" 
-          placeholder="Tiêu đề..." 
-          autocomplete="off" 
-          spellcheck="false"
-        >
-
-        <!-- Body Textarea (Auto-expanding) -->
-        <textarea 
-          id="keep-note-body" 
-          class="keep-input-body" 
-          placeholder="Tạo ghi chú..." 
-          rows="4" 
-          spellcheck="false"
-        ></textarea>
-      </div>
-
-      <!-- Action Footer -->
-      <div class="keep-footer">
-        <button id="btn-open-notes" type="button" class="btn-keep-icon-action" title="Mở Sổ Ghi Chú đầy đủ trên LevelUp">
-          <span>📖</span>
-          <span class="btn-text-label">Sổ Ghi Chú</span>
-        </button>
-
-        <div class="keep-footer-right">
-          <button id="btn-cancel-keep-note" type="button" class="btn-keep-secondary">
-            Hủy
-          </button>
-          <button id="btn-save-keep-note" type="button" class="btn-keep-primary">
-            <span id="save-note-icon">💾</span>
-            <span id="save-note-text">Lưu Ghi Chú</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Save Feedback Toast Notification -->
-      <div id="keep-save-toast" class="keep-save-toast hidden">
-        ✓ Đã lưu vào Sổ Ghi Chú LevelUp!
-      </div>
-    </main>
-
-    <!-- =========================================================================
-         VIEW 2: SHIELD & SETTINGS VIEW (BẬT KHI NHẤN ICON BÁNH RĂNG ⚙️)
-         ========================================================================= -->
-    <div id="view-shield-settings" class="view-panel hidden">
-      <div class="shield-view-header">
-        <button id="btn-back-to-notes" type="button" class="btn-back-link">
-          ← Quay lại Ghi Chú
-        </button>
-        <span class="shield-view-badge">Cài Đặt & Khiên</span>
-      </div>
-
+    <main id="view-shield" class="view-panel active">
       <!-- Status Card -->
       <section id="status-card" class="status-card status-idle">
         <div class="status-header">
@@ -223,7 +119,7 @@
           ⚡ Pomodoro Auto-Sync
         </div>
       </footer>
-    </div>
+    </main>
   </div>
 
   <script src="popup.js"></script>

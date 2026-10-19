@@ -4765,10 +4765,36 @@ html.dark .notes-editor a:hover {
 .note-card-item {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s, border-color 0.18s, background-color 0.18s;
   will-change: transform;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .note-card-item:hover {
   transform: translateY(-1px);
+}
+
+.note-card-actions {
+  transition: opacity 0.15s ease;
+}
+
+/* Desktop fine pointer: Chỉ hiện nút thao tác khi hover chuột */
+@media (hover: hover) and (pointer: fine) {
+  .note-card-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .note-card-item:hover .note-card-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Touchscreens / Mobile: Luôn hiện nút thao tác mờ dịu, triệt tiêu lỗi chạm 2 lần */
+@media (hover: none), (pointer: coarse) {
+  .note-card-actions {
+    opacity: 0.75;
+    pointer-events: auto;
+  }
 }
 
 .note-card-item.active {

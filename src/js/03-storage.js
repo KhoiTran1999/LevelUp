@@ -9,6 +9,10 @@ function clearLegacyLocalStorage() {
   try {
     localStorage.removeItem('levelup_state_v1');
     localStorage.removeItem('levelup_onboarded');
+    localStorage.removeItem('levelup_notes_vault');
+    localStorage.removeItem('levelup_notes_v1');
+    localStorage.removeItem('levelup_active_note_id');
+    localStorage.removeItem('levelup_focus_notes');
   } catch (e) {}
 }
 
@@ -27,6 +31,10 @@ function clearLocalCache() {
     localStorage.removeItem(CACHE_STORAGE_KEY);
     localStorage.removeItem('levelup_state_v1');
     localStorage.removeItem('levelup_onboarded');
+    localStorage.removeItem('levelup_notes_vault');
+    localStorage.removeItem('levelup_notes_v1');
+    localStorage.removeItem('levelup_active_note_id');
+    localStorage.removeItem('levelup_focus_notes');
   } catch (e) {}
 }
 
@@ -1175,18 +1183,12 @@ async function hydrateFromCloud(isManual = false) {
       applyTheme(resolvedTheme, false);
       if (Array.isArray(cloudData.notes)) {
         appState.notes = cloudData.notes;
-        try {
-          localStorage.setItem('levelup_notes_vault', JSON.stringify(cloudData.notes));
-        } catch (_) {}
       }
       if (typeof cloudData.activeNoteId === 'string' && cloudData.activeNoteId) {
         appState.activeNoteId = cloudData.activeNoteId;
       }
       if (typeof cloudData.focusNotes === 'string') {
         appState.focusNotes = cloudData.focusNotes;
-        try {
-          localStorage.setItem('levelup_focus_notes', cloudData.focusNotes);
-        } catch (_) {}
         if (typeof syncAllNoteEditors === 'function') {
           syncAllNoteEditors(cloudData.focusNotes);
         } else {
@@ -1196,6 +1198,9 @@ async function hydrateFromCloud(isManual = false) {
             if (typeof updateNotesStats === 'function') updateNotesStats();
           }
         }
+      }
+      if (typeof loadNotesWorkspace === 'function' && document.getElementById('tab-notes')?.classList.contains('hidden') === false) {
+        loadNotesWorkspace();
       }
       saveLocalCache();
       renderAll();
