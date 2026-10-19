@@ -6,7 +6,7 @@ let activeConfirmResolve = null;
 
 function confirmAction({
   title = 'Xác Nhận',
-  message = 'Bạn có chắc chắn muốn thực hiện hành động này?',
+  message = 'Xác nhận thực hiện hành động này?',
   detail = '',
   confirmText = 'Xác Nhận',
   cancelText = 'Hủy',

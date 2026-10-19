@@ -595,7 +595,7 @@ async function loadBankState() {
     if (fetchSuccess) {
       showToast('Đã cập nhật dữ liệu Ngân Hàng mới nhất!', 'info');
     } else {
-      showToast('Không thể kết nối máy chủ Ngân Hàng, đang sử dụng dữ liệu lưu tạm.', 'warning');
+      showToast('Không thể tải dữ liệu Ngân Hàng lúc này, đang dùng dữ liệu lưu tạm.', 'warning');
     }
   }
 }
@@ -1225,7 +1225,7 @@ async function executeBankDeposit() {
           showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm (${termConfig.label})!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Giao dịch thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Giao dịch không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -1754,7 +1754,7 @@ async function executeBankWithdraw() {
           showToast(data.message || `Đã rút thành công ${withdrawAmt} Vàng!`, 'gold');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Rút tiền thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Rút Vàng không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -2442,7 +2442,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingBankLoan = false;
     if (argInput) {
@@ -2502,10 +2502,10 @@ async function executeBankBorrow() {
       : '';
 
     const ok = await confirmAction({
-      title: 'Xác Nhận Vay Vàng Tức Thời?',
+      title: 'Xác Nhận Vay Vàng',
       message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
       detail: `⚡ Nhận ngay vào ví: +${borrowAmt} Vàng\n⏱️ Kỳ hạn vay: ${termConfig.label} (${termDays} ngày)\n📈 Lãi suất vay: ${(borrowRate * 100).toFixed(1)}%/ngày${negotiatedRateText} (~+${dailyInterestEst} Vàng/ngày)\n🧮 Tổng hoàn trả sau ${termDays} ngày: ~${simDebt} Vàng (nếu không làm nhiệm vụ trả sớm)\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ (miễn 100% phí phạt)\n⚠️ Sau ${termDays} ngày chưa tất toán: Tạm đóng băng Cửa Hàng để thu hồi nợ.\n💡 Phí phạt tất toán sớm: 5% nếu tự trả nợ bằng ví Vàng trước hạn (làm việc trả dần được miễn 100% phí phạt).`,
-      confirmText: 'Vay Ngay ⚡',
+      confirmText: 'Vay Ngay',
       cancelText: 'Hủy',
       icon: '⚡',
       btnColor: 'blue'
@@ -2556,7 +2556,7 @@ async function executeBankBorrow() {
           showToast(data.message || `Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Vay Vàng thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Vay Vàng không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -2714,7 +2714,7 @@ async function executeBankRepay() {
           showToast(data.message || `Đã thanh toán ${payAmt} Vàng nợ!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Thanh toán nợ thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Thanh toán nợ không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {

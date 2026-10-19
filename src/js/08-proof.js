@@ -400,30 +400,30 @@ async function submitQuestProofToAI() {
 
   if (currentProofMode === 'both') {
     if (!isMobilePhone()) {
-      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
       return;
     }
     if (!currentProofBase64) {
-      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      showToast('Chụp ảnh bằng chứng trước khi gửi duyệt.', 'warning');
       return;
     }
     if (workContent.length < 10) {
-      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả công việc đã làm.', 'warning');
       return;
     }
   } else if (currentProofMode === 'photo') {
     if (!isMobilePhone()) {
-      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
       return;
     }
     if (!currentProofBase64) {
-      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      showToast('Chụp ảnh bằng chứng trước khi gửi duyệt.', 'warning');
       return;
     }
   } else {
     // text mode
     if (workContent.length < 10) {
-      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả công việc đã làm.', 'warning');
       return;
     }
   }

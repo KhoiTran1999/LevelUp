@@ -1190,10 +1190,10 @@ async function deleteNoteById(noteId) {
 
   if (typeof confirmAction === 'function') {
     const ok = await confirmAction({
-      title: 'Xóa Ghi Chú Này?',
-      message: `Bạn có chắc chắn muốn xóa vĩnh viễn ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
-      confirmText: 'Xóa Ghi Chú 🗑️',
-      cancelText: 'Giữ Lại',
+      title: 'Xóa Ghi Chú',
+      message: `Xóa ghi chú "${note.title || 'Chưa đặt tiêu đề'}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa Ghi Chú',
+      cancelText: 'Hủy',
       icon: '🗑️',
       btnColor: 'rose'
     });
@@ -1222,7 +1222,7 @@ async function deleteNoteById(noteId) {
 
   if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
   if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa ghi chú thành công!', 'info');
+    showToast('Đã xóa ghi chú.', 'info');
   }
 }
 window.deleteNoteById = deleteNoteById;
@@ -2115,10 +2115,10 @@ async function clearActiveNoteContent() {
 
   if (typeof confirmAction === 'function') {
     const ok = await confirmAction({
-      title: 'Xóa Sạch Nội Dung?',
-      message: `Bạn có chắc chắn muốn xóa toàn bộ chữ trong ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
-      confirmText: 'Xóa Sạch 🗑️',
-      cancelText: 'Giữ Lại',
+      title: 'Xóa Nội Dung',
+      message: `Xóa toàn bộ nội dung trong ghi chú "${note.title || 'Chưa đặt tiêu đề'}"?`,
+      confirmText: 'Xóa Nội Dung',
+      cancelText: 'Hủy',
       icon: '🗑️',
       btnColor: 'rose'
     });
@@ -2134,7 +2134,7 @@ async function clearActiveNoteContent() {
 
   if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
   if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa sạch nội dung ghi chú!', 'info');
+    showToast('Đã xóa nội dung ghi chú.', 'info');
   }
 }
 window.clearActiveNoteContent = clearActiveNoteContent;
@@ -2657,7 +2657,7 @@ async function handleGoogleCredentialResponse(response) {
       errEl.textContent = 'Lỗi kết nối khi xác thực: ' + err.message;
       errEl.classList.remove('hidden');
     }
-    showToast('Lỗi kết nối: ' + err.message, 'error');
+    showToast('Không thể kết nối lúc này. Vui lòng thử lại sau.', 'error');
     if (loadingEl) loadingEl.classList.add('hidden');
   }
 }

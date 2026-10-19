@@ -1023,14 +1023,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnText = document.getElementById('btn-copy-uninstall-text');
         if (btnText) {
           btnText.textContent = 'Đã chép!';
-          setTimeout(() => { btnText.textContent = 'Copy Lệnh Gỡ'; }, 2000);
+          setTimeout(() => { btnText.textContent = 'Sao Chép Lệnh'; }, 2000);
         }
         if (typeof showToast === 'function') {
-          showToast('📋 Đã sao chép lệnh gỡ bỏ! Mở PowerShell và nhấn Ctrl+V để chạy.', 'success');
+          showToast('Đã sao chép lệnh gỡ bỏ.', 'success');
         }
       }).catch(() => {
         if (typeof showToast === 'function') {
-          showToast('📋 Hãy nhấn Ctrl + C trên bàn phím để sao chép dòng lệnh.', 'info');
+          showToast('Nhấn Ctrl + C để sao chép câu lệnh.', 'info');
         }
       });
     }
@@ -1064,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-profile').addEventListener('click', async () => {
     const nick = document.getElementById('input-hero-nickname').value.trim();
     if (!nick) {
-      showToast('Nickname không được để trống!', 'error');
+      showToast('Tên hiển thị không được để trống.', 'error');
       return;
     }
 
@@ -1078,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkRes.ok) {
           const checkData = await checkRes.json();
           if (!checkData.available) {
-            showToast(`Nickname "${nick}" đã có người sở hữu. Vui lòng chọn tên khác!`, 'error');
+            showToast(`Tên "${nick}" đã có người sử dụng. Vui lòng chọn tên khác.`, 'error');
             return;
           }
         }
@@ -1094,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     appState.profile.nickname = nick;
     closeModal('modal-profile');
-    showToast('Đã lưu hồ sơ và bắt đầu đồng bộ...', 'info');
+    showToast('Đã lưu hồ sơ và đồng bộ.', 'info');
     triggerSave(true);
   });
 
@@ -1123,10 +1123,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const titleEl = document.getElementById('modal-quest-title');
     const subEl = document.getElementById('modal-quest-subtitle');
-    if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)';
+    if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI';
     if (subEl) subEl.textContent = 'Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng';
     const acceptBtn = document.getElementById('btn-accept-verdict');
-    if (acceptBtn) acceptBtn.textContent = '✓ Đồng Ý & Thêm Nhiệm Vụ';
+    if (acceptBtn) acceptBtn.textContent = 'Thêm Nhiệm Vụ';
 
     const questFormStep = document.getElementById('quest-form-step');
     if (questFormStep) questFormStep.classList.remove('hidden');
@@ -1268,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnTriggerCamera && inputProofFile) {
     btnTriggerCamera.addEventListener('click', () => {
       if (!isMobilePhone()) {
-        showToast('Chỉ cho phép chụp ảnh trực tiếp bằng điện thoại (chống gian lận)!', 'warning');
+        showToast('Chỉ cho phép chụp ảnh trực tiếp bằng điện thoại.', 'warning');
         return;
       }
       sfx.playClick();
@@ -1280,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputProofFile.addEventListener('change', async (e) => {
       if (!isMobilePhone()) {
         e.target.value = '';
-        showToast('Không cho phép đính kèm ảnh từ máy tính! Vui lòng dùng điện thoại chụp ảnh.', 'error');
+        showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
         return;
       }
       const file = e.target.files?.[0];
@@ -1319,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnRetakePhoto) {
     btnRetakePhoto.addEventListener('click', () => {
       if (!isMobilePhone()) {
-        showToast('Chỉ hỗ trợ chụp ảnh trên điện thoại!', 'warning');
+        showToast('Vui lòng dùng điện thoại để chụp ảnh.', 'warning');
         return;
       }
       sfx.playClick();
@@ -1483,7 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (subEl) subEl.textContent = 'AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực';
 
     const saveBtn = document.getElementById('btn-save-reward');
-    if (saveBtn) saveBtn.textContent = '✓ Đồng Ý & Thêm Vào Cửa Hàng';
+    if (saveBtn) saveBtn.textContent = 'Thêm Vào Cửa Hàng';
 
     const rewardFormStep = document.getElementById('reward-form-step');
     if (rewardFormStep) rewardFormStep.classList.remove('hidden');

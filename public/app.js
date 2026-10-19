@@ -1137,7 +1137,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         }
-        if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+        if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
         showToast('Đã tự động cập nhật dữ liệu mới nhất từ thiết bị khác!', 'info');
         return;
@@ -1164,21 +1164,21 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         syncDot.innerHTML = '';
         syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       }
-      if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
-      if (isManual && !data.penalty) showToast('Đồng bộ Cloud thành công!', 'success');
+      if (isManual && !data.penalty) showToast('Đồng bộ dữ liệu thành công!', 'success');
     } else {
       const errData = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
+        if (modalSyncState) modalSyncState.textContent = 'Hết hạn phiên đăng nhập';
         if (syncDot) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
         }
-        if (isManual) showToast('Phiên đăng nhập Google đã hết hạn. Vui lòng đăng nhập lại!', 'error');
+        if (isManual) showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
       } else if (res.status === 409 || res.status === 403) {
-        showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
-        if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
+        showToast(errData.error || 'Tên đã tồn tại hoặc bạn không có quyền thay đổi.', 'error');
+        if (modalSyncState) modalSyncState.textContent = 'Không có quyền thao tác';
         if (syncDot) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
@@ -1193,7 +1193,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       syncDot.innerHTML = '';
       syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
     }
-    if (modalSyncState) modalSyncState.textContent = 'Chỉ lưu cục bộ (Offline)';
+    if (modalSyncState) modalSyncState.textContent = 'Đang ngoại tuyến';
   } finally {
     if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
   }
@@ -1337,7 +1337,7 @@ async function hydrateFromCloud(isManual = false) {
 
     const result = await res.json();
     if (!result.found || !result.data) {
-      if (isManual) showToast('Chưa có dữ liệu trên Cloud. Dữ liệu sẽ được lưu khi bạn thao tác!', 'info');
+      if (isManual) showToast('Chưa có dữ liệu đã lưu. Dữ liệu sẽ tự động lưu khi bạn thực hiện nhiệm vụ.', 'info');
       return;
     }
 
@@ -1491,7 +1491,7 @@ async function hydrateFromCloud(isManual = false) {
       }
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-      if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật từ Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật';
       if (modalSyncTime) modalSyncTime.textContent = new Date(cloudData.lastSyncedAt || Date.now()).toLocaleTimeString();
       if (isManual) showToast('Đã tải dữ liệu mới nhất từ thiết bị khác thành công!', 'success');
     } else {
@@ -1514,7 +1514,7 @@ async function hydrateFromCloud(isManual = false) {
         }
       }
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-      if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
       if (isManual) showToast('Dữ liệu đã ở trạng thái mới nhất!', 'info');
     }
@@ -1537,8 +1537,9 @@ async function loadFromCloud(tokenOverride = null) {
 async function logoutGoogle() {
   const ok = await confirmAction({
     title: 'ĐĂNG XUẤT TÀI KHOẢN',
-    message: 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Google này? Dữ liệu đã đồng bộ trên đám mây sẽ được bảo toàn nguyên vẹn.',
+    message: 'Đăng xuất tài khoản Google này? Dữ liệu đã lưu sẽ được bảo toàn nguyên vẹn.',
     confirmText: 'Đăng Xuất',
+    cancelText: 'Hủy',
     icon: '🚪',
     btnColor: 'rose'
   });
@@ -1587,8 +1588,9 @@ async function logoutGoogle() {
 async function switchGoogleAccount() {
   const ok = await confirmAction({
     title: 'ĐỔI TÀI KHOẢN GOOGLE',
-    message: 'Hệ thống sẽ đăng xuất tài khoản hiện tại và đưa bạn về màn hình đăng nhập Google để chọn tài khoản khác.',
+    message: 'Đăng xuất tài khoản hiện tại để chuyển sang tài khoản Google khác?',
     confirmText: 'Đổi Tài Khoản',
+    cancelText: 'Hủy',
     icon: '🔄',
     btnColor: 'amber'
   });
@@ -1636,9 +1638,10 @@ async function switchGoogleAccount() {
 
 async function purgeAllDataAndLeave() {
   const ok = await confirmAction({
-    title: 'XÓA SẠCH VÀ RỜI ĐI',
-    message: 'Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu (nhiệm vụ, vàng, chuỗi, token) và rời khỏi LevelUp vĩnh viễn? Hành động này không thể hoàn tác.',
-    confirmText: 'Xác Nhận Xóa Hết',
+    title: 'XÓA DỮ LIỆU & RỜI ĐI',
+    message: 'Xóa toàn bộ dữ liệu (nhiệm vụ, Vàng, chuỗi chăm chỉ) và đăng xuất khỏi LevelUp? Thao tác này không thể hoàn tác.',
+    confirmText: 'Xóa Dữ Liệu',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -1680,7 +1683,7 @@ async function purgeAllDataAndLeave() {
   }
 
   if (typeof showToast === 'function') {
-    showToast('🎉 Đã dọn dẹp sạch sẽ 100% dữ liệu. Cảm ơn bạn và chúc bạn thành công!', 'success');
+    showToast('Đã xóa dữ liệu thành công.', 'success');
   }
 
   setTimeout(() => {
@@ -1698,7 +1701,7 @@ let activeConfirmResolve = null;
 
 function confirmAction({
   title = 'Xác Nhận',
-  message = 'Bạn có chắc chắn muốn thực hiện hành động này?',
+  message = 'Xác nhận thực hiện hành động này?',
   detail = '',
   confirmText = 'Xác Nhận',
   cancelText = 'Hủy',
@@ -4860,7 +4863,7 @@ async function completeQuest(questId, skipConfirm = false) {
     const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
     if (cooldownRemaining > 0) {
       const mins = Math.ceil(cooldownRemaining / 60000);
-      showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
+      showToast(`Cần chờ thêm ${mins} phút trước khi làm lại nhiệm vụ này.`, 'warning');
       return;
     }
 
@@ -4872,7 +4875,7 @@ async function completeQuest(questId, skipConfirm = false) {
 
     // Nhiệm vụ focus có thời gian yêu cầu bắt buộc phải hoàn thành bấm giờ
     if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) > 0 && !quest.focusTimerCompleted && !skipConfirm) {
-      showToast(`Nhiệm vụ "${quest.title}" cần bấm giờ tập trung đủ ${quest.targetMinutes} phút trước khi hoàn thành!`, 'warning');
+      showToast(`Cần bấm giờ đủ ${quest.targetMinutes} phút trước khi hoàn thành.`, 'warning');
       return;
     }
 
@@ -4882,11 +4885,11 @@ async function completeQuest(questId, skipConfirm = false) {
       const streakBonusCoins = Math.floor(quest.rewardCoins * (streakBonusPct / 100));
       const totalAwarded = quest.rewardCoins + streakBonusCoins;
       const ok = await confirmAction({
-        title: 'Xác Nhận Hoàn Thành?',
-        message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''}`,
-        confirmText: 'Hoàn Thành ✓',
-        cancelText: 'Chưa Xong',
+        title: 'Hoàn Thành Nhiệm Vụ',
+        message: `Xác nhận bạn đã làm xong "${quest.title}"?`,
+        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (thưởng chuỗi +${streakBonusCoins} Vàng 🔥)` : ''}`,
+        confirmText: 'Hoàn Thành',
+        cancelText: 'Hủy',
         icon: '🎉',
         btnColor: 'emerald'
       });
@@ -5155,13 +5158,13 @@ async function undoCompleteQuest(questId) {
     }
 
     const ok = await confirmAction({
-      title: isRepeat ? 'Hoàn Tác Lần Nhận Thưởng?' : 'Hoàn Tác Nhiệm Vụ?',
+      title: isRepeat ? 'Hoàn Tác Nhận Thưởng' : 'Hoàn Tác Nhiệm Vụ',
       message: isRepeat
-        ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
-        : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
+        ? `Hoàn tác lần nhận thưởng gần nhất của "${quest.title}"?`
+        : `Đưa "${quest.title}" về trạng thái Chưa Xong?`,
       detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''}`,
-      confirmText: 'Hoàn Tác ↩️',
-      cancelText: 'Giữ Nguyên',
+      confirmText: 'Hoàn Tác',
+      cancelText: 'Hủy',
       icon: '↩️',
       btnColor: 'amber'
     });
@@ -5297,11 +5300,11 @@ async function restartQuest(questId) {
   if (!quest) return;
 
   const ok = await confirmAction({
-    title: 'Làm Lại Nhiệm Vụ?',
-    message: `Bạn muốn tạo lại nhiệm vụ "${quest.title}" để thực hiện một lần nữa?`,
-    detail: '💡 Hệ thống sẽ tạo một phiên bản nhiệm vụ mới vào danh sách làm việc của bạn.',
-    confirmText: 'Làm Lại 🔄',
-    cancelText: 'Giữ Nguyên',
+    title: 'Làm Lại Nhiệm Vụ',
+    message: `Tạo lại nhiệm vụ "${quest.title}" để làm tiếp?`,
+    detail: '💡 Hệ thống sẽ tạo một bản sao mới vào danh sách nhiệm vụ.',
+    confirmText: 'Làm Lại',
+    cancelText: 'Hủy',
     icon: '🔄',
     btnColor: 'amber'
   });
@@ -5364,11 +5367,11 @@ async function deleteQuest(questId) {
   if (!quest) return false;
 
   const ok = await confirmAction({
-    title: 'Xóa Nhiệm Vụ?',
-    message: `Bạn có chắc muốn xóa nhiệm vụ "${quest.title}"?`,
-    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
-    confirmText: 'Xóa 🗑️',
-    cancelText: 'Giữ Lại',
+    title: 'Xóa Nhiệm Vụ',
+    message: `Xóa nhiệm vụ "${quest.title}"?`,
+    detail: '💡 Bạn có thể bấm hoàn tác ngay sau khi xóa.',
+    confirmText: 'Xóa',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -5803,30 +5806,30 @@ async function submitQuestProofToAI() {
 
   if (currentProofMode === 'both') {
     if (!isMobilePhone()) {
-      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
       return;
     }
     if (!currentProofBase64) {
-      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      showToast('Chụp ảnh bằng chứng trước khi gửi duyệt.', 'warning');
       return;
     }
     if (workContent.length < 10) {
-      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả công việc đã làm.', 'warning');
       return;
     }
   } else if (currentProofMode === 'photo') {
     if (!isMobilePhone()) {
-      showToast('Chỉ cho phép chụp và nộp ảnh từ điện thoại để chống gian lận!', 'error');
+      showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
       return;
     }
     if (!currentProofBase64) {
-      showToast('Vui lòng chụp ảnh bằng chứng hoàn thành nhiệm vụ!', 'warning');
+      showToast('Chụp ảnh bằng chứng trước khi gửi duyệt.', 'warning');
       return;
     }
   } else {
     // text mode
     if (workContent.length < 10) {
-      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả cụ thể công việc đã làm!', 'warning');
+      showToast('Vui lòng nhập tối thiểu 10 ký tự mô tả công việc đã làm.', 'warning');
       return;
     }
   }
@@ -6140,7 +6143,7 @@ async function buyShopItem(itemId) {
 
   const itemPrice = Math.max(0, parseInt(item.price, 10) || 0);
   if ((parseInt(appState.profile.coins, 10) || 0) < itemPrice) {
-    showToast(`Chưa đủ vàng! Bạn cần thêm ${itemPrice - (parseInt(appState.profile.coins, 10) || 0)} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
+    showToast(`Chưa đủ Vàng! Bạn cần thêm ${itemPrice - (parseInt(appState.profile.coins, 10) || 0)} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
     return;
   }
 
@@ -6170,7 +6173,7 @@ async function buyShopItem(itemId) {
       ? `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại: ${Math.max(0, appState.profile.coins - itemPrice)}\n⏱️ Đồng hồ đếm ngược ${durationMinutes} phút sẽ kích hoạt ngay trên màn hình!`
       : `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${Math.max(0, appState.profile.coins - itemPrice)}`,
     confirmText: hasTimer ? `Đổi & Bấm Giờ (${durationMinutes}p) ⏱️` : 'Đổi Quà 🎁',
-    cancelText: 'Để Sau',
+    cancelText: 'Hủy',
     icon: item.icon || '🎁',
     btnColor: 'amber'
   });
@@ -6213,7 +6216,7 @@ async function buyShopItem(itemId) {
   });
 
   sfx.playFanfare();
-  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà.`, 'success', {
+  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Túi Đồ.`, 'success', {
     label: 'Hoàn tác',
     onClick: () => refundInventoryItem(newInvItem.id, true)
   });
@@ -6369,7 +6372,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
       const ok = await confirmAction({
         title: 'Đổi Phần Thưởng & Bảo Lưu?',
         message: `Bạn đang trong phiên dùng quà "${prevReward.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
-        detail: `✅ Phần thưởng hiện tại sẽ được BẢO LƯU thời gian trong Kho Quà!`,
+        detail: `✅ Phần thưởng hiện tại sẽ được BẢO LƯU thời gian trong Túi Đồ!`,
         confirmText: 'Bảo Lưu & Đổi Quà 🎁',
         cancelText: 'Giữ Quà Hiện Tại',
         icon: '🎁',
@@ -6390,7 +6393,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Tiếp tục sử dụng "${item.name}" với ${durationMinutes} phút còn lại?`,
         detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
         confirmText: `Tiếp Tục Dùng (${durationMinutes}p) ⏱️`,
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -6402,7 +6405,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
         detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
         confirmText: `Dùng & Bấm Giờ (${durationMinutes}p) ⏱️`,
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -6414,7 +6417,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Bạn muốn sử dụng phần thưởng "${item.name}" ngay bây giờ?`,
         detail: '🎉 Hãy tự thưởng cho bản thân sau những nỗ lực rèn luyện và làm việc chăm chỉ!',
         confirmText: 'Sử Dụng 🎁',
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -6566,11 +6569,11 @@ async function deleteInventoryItem(invId) {
   if (!item) return;
 
   const ok = await confirmAction({
-    title: 'Xóa Khỏi Kho Quà?',
-    message: `Bạn có chắc muốn xóa lịch sử phần thưởng "${item.name}"?`,
-    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
-    confirmText: 'Xóa 🗑️',
-    cancelText: 'Giữ Lại',
+    title: 'Xóa Khỏi Túi Đồ?',
+    message: `Xóa "${item.name}" khỏi Túi Đồ?`,
+    detail: '💡 Bạn có thể bấm hoàn tác ngay sau khi xóa.',
+    confirmText: 'Xóa',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -6586,7 +6589,7 @@ async function deleteInventoryItem(invId) {
   triggerSave(true);
   renderInventory();
 
-  showToast(`Đã xóa "${deletedItem.name}" khỏi Kho Quà.`, 'info', {
+  showToast(`Đã xóa "${deletedItem.name}" khỏi Túi Đồ.`, 'info', {
     label: 'Hoàn tác',
     onClick: () => {
       if (itemIndex >= 0 && itemIndex <= appState.inventory.length) {
@@ -6597,7 +6600,7 @@ async function deleteInventoryItem(invId) {
       triggerSave(true);
       renderInventory();
       sfx.playClick();
-      showToast(`Đã khôi phục "${deletedItem.name}" vào Kho Quà.`, 'success');
+      showToast(`Đã khôi phục "${deletedItem.name}" vào Túi Đồ.`, 'success');
     }
   });
 }
@@ -7353,7 +7356,7 @@ async function submitQuestToAI() {
     renderVerdictStep();
   } catch (err) {
     if (stopM3Progress) stopM3Progress();
-    showToast('Không thể kết nối với AI: ' + err.message, 'error');
+    showToast('Không thể kết nối với AI. Vui lòng thử lại sau.', 'error');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-form-step').classList.remove('hidden');
   }
@@ -7608,13 +7611,13 @@ async function acceptVerdictAndCreateQuest() {
     : '⚡ Không cần chụp ảnh';
 
   const ok = await confirmAction({
-    title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
+    title: isEditing ? 'Cập Nhật Nhiệm Vụ' : 'Nhận Nhiệm Vụ',
     message: isEditing
-      ? `Bạn có chắc muốn lưu các thay đổi cho nhiệm vụ "${questTitle}"?`
-      : `Bạn có chắc chắn muốn nhận nhiệm vụ "${questTitle}" vào danh sách?`,
+      ? `Lưu các thay đổi cho "${questTitle}"?`
+      : `Thêm nhiệm vụ "${questTitle}" vào danh sách?`,
     detail: `💰 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}\n📌 ${repeatText} • ${proofText}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Nhận Nhiệm Vụ',
-    cancelText: 'Xem Lại',
+    cancelText: 'Hủy',
     icon: '⚔️',
     btnColor: 'amber'
   });
@@ -8473,7 +8476,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingQuest = false;
     if (argInput) {
@@ -8678,7 +8681,7 @@ async function evaluateRewardItem() {
     renderRewardVerdictStep();
   } catch (err) {
     if (stopM3Progress) stopM3Progress();
-    showToast('Không thể kết nối với AI: ' + err.message, 'error');
+    showToast('Không thể kết nối với AI. Vui lòng thử lại sau.', 'error');
     document.getElementById('reward-evaluating-step').classList.add('hidden');
     document.getElementById('reward-form-step').classList.remove('hidden');
   }
@@ -8821,7 +8824,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingReward = false;
     if (argInput) {
@@ -8901,13 +8904,13 @@ async function savePendingReward() {
   const timeInfo = targetMinutes > 0 ? ` • ⏱️ ${targetMinutes} Phút` : ' • ⚡ Không bấm giờ';
 
   const ok = await confirmAction({
-    title: isEditing ? 'Xác Nhận Cập Nhật Phần Thưởng?' : 'Xác Nhận Thêm Phần Thưởng?',
+    title: isEditing ? 'Cập Nhật Phần Thưởng' : 'Thêm Phần Thưởng',
     message: isEditing
-      ? `Bạn có chắc muốn lưu các thay đổi cho phần thưởng "${rewardName}"?`
-      : `Bạn có chắc chắn muốn thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
+      ? `Lưu các thay đổi cho "${rewardName}"?`
+      : `Thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
     detail: `💰 Giá: ${rewardPrice} Vàng${timeInfo} • Biểu tượng: ${rewardIcon}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Thêm Vào Cửa Hàng',
-    cancelText: 'Xem Lại',
+    cancelText: 'Hủy',
     icon: rewardIcon,
     btnColor: 'amber'
   });
@@ -9186,11 +9189,11 @@ function renderLeaderboardTable(list) {
         const targetNick = btn.dataset.nick;
         const targetKey = btn.dataset.key || targetNick;
         const ok = await confirmAction({
-          title: 'Xóa Tài Khoản Leaderboard',
-          message: `Bạn có chắc chắn muốn xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
-          detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
+          title: 'Xóa Tài Khoản Bảng Xếp Hạng',
+          message: `Xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
+          detail: 'Hành động này có hiệu lực ngay lập tức.',
           confirmText: 'Xóa Vĩnh Viễn',
-          cancelText: 'Giữ Lại',
+          cancelText: 'Hủy',
           icon: '🗑️',
           btnColor: 'rose'
         });
@@ -9260,7 +9263,7 @@ async function fetchLeaderboard() {
 
     updateCheatersBadge();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể tải bảng xếp hạng lúc này. Vui lòng thử lại sau.</td></tr>`;
   }
 }
 
@@ -9993,8 +9996,8 @@ async function adminDeleteSelectedLedgerEntries() {
 
   const ok = await confirmAction({
     title: `Xóa ${count} Giao Dịch`,
-    message: `Bạn có chắc chắn muốn xóa đồng loạt ${count} bản ghi giao dịch đã chọn khỏi sổ cái?`,
-    detail: 'Hành động này sẽ xóa vĩnh viễn các bản ghi được chọn trên Redis Cloud.',
+    message: `Xóa đồng loạt ${count} bản ghi giao dịch đã chọn khỏi sổ cái?`,
+    detail: 'Hành động này sẽ xóa vĩnh viễn các bản ghi đã chọn.',
     confirmText: `Xóa ${count} Bản Ghi`,
     cancelText: 'Hủy',
     icon: '🗑️',
@@ -10129,8 +10132,8 @@ async function openAdminUserLedgerModal(sub) {
 async function adminDeleteLedgerEntry(sub, entryId) {
   const ok = await confirmAction({
     title: 'Xóa Giao Dịch',
-    message: 'Bạn có chắc chắn muốn xóa bản ghi giao dịch này khỏi sổ cái người chơi?',
-    detail: 'Hành động này sẽ được áp dụng trực tiếp lên Redis Cloud.',
+    message: 'Xóa bản ghi giao dịch này khỏi sổ cái người chơi?',
+    detail: 'Thay đổi sẽ được áp dụng ngay lập tức.',
     confirmText: 'Xóa Bản Ghi',
     cancelText: 'Hủy',
     icon: '🗑️',
@@ -10170,10 +10173,10 @@ async function adminPurgeUserLedger() {
 
   const ok = await confirmAction({
     title: 'Xóa Sạch Lịch Sử Thu Chi',
-    message: 'Bạn có chắc chắn muốn XÓA SẠCH toàn bộ lịch sử thu chi của người chơi này?',
+    message: 'Xóa toàn bộ lịch sử thu chi của người chơi này?',
     detail: 'Toàn bộ giao dịch sẽ bị xóa và thay thế bằng 1 bản ghi hệ thống mới.',
     confirmText: 'Xóa Sạch Ngay',
-    cancelText: 'Giữ Lại',
+    cancelText: 'Hủy',
     icon: '🧹',
     btnColor: 'rose'
   });
@@ -10208,8 +10211,8 @@ async function adminPurgeUserLedger() {
 async function adminDeleteUser(sub, nickname) {
   const ok = await confirmAction({
     title: 'Xóa Tài Khoản Khỏi Hệ Thống',
-    message: `Bạn có chắc chắn muốn XÓA HOÀN TOÀN tài khoản "${nickname}" khỏi hệ thống LevelUp?`,
-    detail: 'Hồ sơ người dùng, điểm Leaderboard và toàn bộ dữ liệu trên Redis sẽ bị xóa vĩnh viễn.',
+    message: `Xóa tài khoản "${nickname}" khỏi hệ thống LevelUp?`,
+    detail: 'Hồ sơ người dùng, điểm bảng xếp hạng và toàn bộ dữ liệu sẽ bị xóa vĩnh viễn.',
     confirmText: 'Xóa Vĩnh Viễn',
     cancelText: 'Hủy',
     icon: '🗑️',
@@ -12273,7 +12276,7 @@ function renderLedger() {
   });
   const paginationEl = document.getElementById('ledger-pagination');
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch vàng nào được ghi nhận.</div>';
+    list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch Vàng. Hãy hoàn thành nhiệm vụ hoặc đổi quà để ghi nhận.</div>';
     if (paginationEl) paginationEl.classList.add('hidden');
     return;
   }
@@ -14198,10 +14201,10 @@ async function deleteNoteById(noteId) {
 
   if (typeof confirmAction === 'function') {
     const ok = await confirmAction({
-      title: 'Xóa Ghi Chú Này?',
-      message: `Bạn có chắc chắn muốn xóa vĩnh viễn ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
-      confirmText: 'Xóa Ghi Chú 🗑️',
-      cancelText: 'Giữ Lại',
+      title: 'Xóa Ghi Chú',
+      message: `Xóa ghi chú "${note.title || 'Chưa đặt tiêu đề'}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa Ghi Chú',
+      cancelText: 'Hủy',
       icon: '🗑️',
       btnColor: 'rose'
     });
@@ -14230,7 +14233,7 @@ async function deleteNoteById(noteId) {
 
   if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
   if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa ghi chú thành công!', 'info');
+    showToast('Đã xóa ghi chú.', 'info');
   }
 }
 window.deleteNoteById = deleteNoteById;
@@ -15123,10 +15126,10 @@ async function clearActiveNoteContent() {
 
   if (typeof confirmAction === 'function') {
     const ok = await confirmAction({
-      title: 'Xóa Sạch Nội Dung?',
-      message: `Bạn có chắc chắn muốn xóa toàn bộ chữ trong ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
-      confirmText: 'Xóa Sạch 🗑️',
-      cancelText: 'Giữ Lại',
+      title: 'Xóa Nội Dung',
+      message: `Xóa toàn bộ nội dung trong ghi chú "${note.title || 'Chưa đặt tiêu đề'}"?`,
+      confirmText: 'Xóa Nội Dung',
+      cancelText: 'Hủy',
       icon: '🗑️',
       btnColor: 'rose'
     });
@@ -15142,7 +15145,7 @@ async function clearActiveNoteContent() {
 
   if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
   if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa sạch nội dung ghi chú!', 'info');
+    showToast('Đã xóa nội dung ghi chú.', 'info');
   }
 }
 window.clearActiveNoteContent = clearActiveNoteContent;
@@ -15665,7 +15668,7 @@ async function handleGoogleCredentialResponse(response) {
       errEl.textContent = 'Lỗi kết nối khi xác thực: ' + err.message;
       errEl.classList.remove('hidden');
     }
-    showToast('Lỗi kết nối: ' + err.message, 'error');
+    showToast('Không thể kết nối lúc này. Vui lòng thử lại sau.', 'error');
     if (loadingEl) loadingEl.classList.add('hidden');
   }
 }
@@ -16859,7 +16862,7 @@ async function loadBankState() {
     if (fetchSuccess) {
       showToast('Đã cập nhật dữ liệu Ngân Hàng mới nhất!', 'info');
     } else {
-      showToast('Không thể kết nối máy chủ Ngân Hàng, đang sử dụng dữ liệu lưu tạm.', 'warning');
+      showToast('Không thể tải dữ liệu Ngân Hàng lúc này, đang dùng dữ liệu lưu tạm.', 'warning');
     }
   }
 }
@@ -17489,7 +17492,7 @@ async function executeBankDeposit() {
           showToast(data.message || `Đã gửi ${amount} Vàng vào sổ tiết kiệm (${termConfig.label})!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Giao dịch thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Giao dịch không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -18018,7 +18021,7 @@ async function executeBankWithdraw() {
           showToast(data.message || `Đã rút thành công ${withdrawAmt} Vàng!`, 'gold');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Rút tiền thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Rút Vàng không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -18706,7 +18709,7 @@ async function sendBankDebateMessage(customArg = null, selectedOption = null) {
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingBankLoan = false;
     if (argInput) {
@@ -18766,10 +18769,10 @@ async function executeBankBorrow() {
       : '';
 
     const ok = await confirmAction({
-      title: 'Xác Nhận Vay Vàng Tức Thời?',
+      title: 'Xác Nhận Vay Vàng',
       message: `Vay ${borrowAmt} Vàng từ Ngân Hàng Hệ Thống?`,
       detail: `⚡ Nhận ngay vào ví: +${borrowAmt} Vàng\n⏱️ Kỳ hạn vay: ${termConfig.label} (${termDays} ngày)\n📈 Lãi suất vay: ${(borrowRate * 100).toFixed(1)}%/ngày${negotiatedRateText} (~+${dailyInterestEst} Vàng/ngày)\n🧮 Tổng hoàn trả sau ${termDays} ngày: ~${simDebt} Vàng (nếu không làm nhiệm vụ trả sớm)\n✂️ Tự động trích: ${deductPct}% Vàng thưởng mỗi khi hoàn thành nhiệm vụ (miễn 100% phí phạt)\n⚠️ Sau ${termDays} ngày chưa tất toán: Tạm đóng băng Cửa Hàng để thu hồi nợ.\n💡 Phí phạt tất toán sớm: 5% nếu tự trả nợ bằng ví Vàng trước hạn (làm việc trả dần được miễn 100% phí phạt).`,
-      confirmText: 'Vay Ngay ⚡',
+      confirmText: 'Vay Ngay',
       cancelText: 'Hủy',
       icon: '⚡',
       btnColor: 'blue'
@@ -18820,7 +18823,7 @@ async function executeBankBorrow() {
           showToast(data.message || `Giải ngân thành công ${borrowAmt} Vàng!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Vay Vàng thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Vay Vàng không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -18978,7 +18981,7 @@ async function executeBankRepay() {
           showToast(data.message || `Đã thanh toán ${payAmt} Vàng nợ!`, 'success');
         } else {
           const errData = await res.json().catch(() => ({}));
-          showToast(errData.error || 'Thanh toán nợ thất bại trên máy chủ!', 'error');
+          showToast(errData.error || 'Thanh toán nợ không thành công. Vui lòng thử lại.', 'error');
           return;
         }
       } catch (e) {
@@ -20102,14 +20105,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnText = document.getElementById('btn-copy-uninstall-text');
         if (btnText) {
           btnText.textContent = 'Đã chép!';
-          setTimeout(() => { btnText.textContent = 'Copy Lệnh Gỡ'; }, 2000);
+          setTimeout(() => { btnText.textContent = 'Sao Chép Lệnh'; }, 2000);
         }
         if (typeof showToast === 'function') {
-          showToast('📋 Đã sao chép lệnh gỡ bỏ! Mở PowerShell và nhấn Ctrl+V để chạy.', 'success');
+          showToast('Đã sao chép lệnh gỡ bỏ.', 'success');
         }
       }).catch(() => {
         if (typeof showToast === 'function') {
-          showToast('📋 Hãy nhấn Ctrl + C trên bàn phím để sao chép dòng lệnh.', 'info');
+          showToast('Nhấn Ctrl + C để sao chép câu lệnh.', 'info');
         }
       });
     }
@@ -20143,7 +20146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-profile').addEventListener('click', async () => {
     const nick = document.getElementById('input-hero-nickname').value.trim();
     if (!nick) {
-      showToast('Nickname không được để trống!', 'error');
+      showToast('Tên hiển thị không được để trống.', 'error');
       return;
     }
 
@@ -20157,7 +20160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkRes.ok) {
           const checkData = await checkRes.json();
           if (!checkData.available) {
-            showToast(`Nickname "${nick}" đã có người sở hữu. Vui lòng chọn tên khác!`, 'error');
+            showToast(`Tên "${nick}" đã có người sử dụng. Vui lòng chọn tên khác.`, 'error');
             return;
           }
         }
@@ -20173,7 +20176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     appState.profile.nickname = nick;
     closeModal('modal-profile');
-    showToast('Đã lưu hồ sơ và bắt đầu đồng bộ...', 'info');
+    showToast('Đã lưu hồ sơ và đồng bộ.', 'info');
     triggerSave(true);
   });
 
@@ -20202,10 +20205,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const titleEl = document.getElementById('modal-quest-title');
     const subEl = document.getElementById('modal-quest-subtitle');
-    if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI (AI TÍNH THƯỞNG)';
+    if (titleEl) titleEl.textContent = 'THÊM NHIỆM VỤ MỚI';
     if (subEl) subEl.textContent = 'Nhập việc cần làm, AI sẽ ước lượng độ khó và tính số Vàng thưởng công bằng';
     const acceptBtn = document.getElementById('btn-accept-verdict');
-    if (acceptBtn) acceptBtn.textContent = '✓ Đồng Ý & Thêm Nhiệm Vụ';
+    if (acceptBtn) acceptBtn.textContent = 'Thêm Nhiệm Vụ';
 
     const questFormStep = document.getElementById('quest-form-step');
     if (questFormStep) questFormStep.classList.remove('hidden');
@@ -20347,7 +20350,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnTriggerCamera && inputProofFile) {
     btnTriggerCamera.addEventListener('click', () => {
       if (!isMobilePhone()) {
-        showToast('Chỉ cho phép chụp ảnh trực tiếp bằng điện thoại (chống gian lận)!', 'warning');
+        showToast('Chỉ cho phép chụp ảnh trực tiếp bằng điện thoại.', 'warning');
         return;
       }
       sfx.playClick();
@@ -20359,7 +20362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputProofFile.addEventListener('change', async (e) => {
       if (!isMobilePhone()) {
         e.target.value = '';
-        showToast('Không cho phép đính kèm ảnh từ máy tính! Vui lòng dùng điện thoại chụp ảnh.', 'error');
+        showToast('Vui lòng mở LevelUp trên điện thoại để chụp ảnh.', 'error');
         return;
       }
       const file = e.target.files?.[0];
@@ -20398,7 +20401,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnRetakePhoto) {
     btnRetakePhoto.addEventListener('click', () => {
       if (!isMobilePhone()) {
-        showToast('Chỉ hỗ trợ chụp ảnh trên điện thoại!', 'warning');
+        showToast('Vui lòng dùng điện thoại để chụp ảnh.', 'warning');
         return;
       }
       sfx.playClick();
@@ -20562,7 +20565,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (subEl) subEl.textContent = 'AI tính giá Vàng tương xứng để bạn tự thưởng sau khi nỗ lực';
 
     const saveBtn = document.getElementById('btn-save-reward');
-    if (saveBtn) saveBtn.textContent = '✓ Đồng Ý & Thêm Vào Cửa Hàng';
+    if (saveBtn) saveBtn.textContent = 'Thêm Vào Cửa Hàng';
 
     const rewardFormStep = document.getElementById('reward-form-step');
     if (rewardFormStep) rewardFormStep.classList.remove('hidden');
@@ -21559,10 +21562,10 @@ function scrollAssistantToMessage(messageEl, smooth = true) {
 async function clearAssistantChat() {
   const confirmed = await confirmAction({
     title: 'Làm Mới Trò Chuyện',
-    message: 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này không?',
-    detail: 'Toàn bộ nội dung trò chuyện với Phù Thủy trong phiên này sẽ được đặt lại từ đầu.',
-    confirmText: 'Xóa & Làm Mới',
-    cancelText: 'Giữ Lại',
+    message: 'Xóa toàn bộ lịch sử cuộc trò chuyện này?',
+    detail: 'Toàn bộ nội dung trò chuyện với Phù Thủy AI trong phiên này sẽ được đặt lại từ đầu.',
+    confirmText: 'Làm Mới',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -22014,7 +22017,7 @@ async function sendAssistantMessage(userQuery) {
       chatLogs.insertAdjacentHTML('beforeend', errMsgHtml);
       scrollAssistantToBottom(true);
     }
-    showToast(err.message || 'Lỗi kết nối Phù Thủy', 'error');
+    showToast('Không thể kết nối với Phù Thủy AI lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     if (streamTimer) {
       clearTimeout(streamTimer);

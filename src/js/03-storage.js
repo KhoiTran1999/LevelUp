@@ -873,7 +873,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         }
-        if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+        if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
         if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
         showToast('Đã tự động cập nhật dữ liệu mới nhất từ thiết bị khác!', 'info');
         return;
@@ -900,21 +900,21 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         syncDot.innerHTML = '';
         syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
       }
-      if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt).toLocaleTimeString();
-      if (isManual && !data.penalty) showToast('Đồng bộ Cloud thành công!', 'success');
+      if (isManual && !data.penalty) showToast('Đồng bộ dữ liệu thành công!', 'success');
     } else {
       const errData = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        if (modalSyncState) modalSyncState.textContent = 'Hết hạn Google Session';
+        if (modalSyncState) modalSyncState.textContent = 'Hết hạn phiên đăng nhập';
         if (syncDot) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
         }
-        if (isManual) showToast('Phiên đăng nhập Google đã hết hạn. Vui lòng đăng nhập lại!', 'error');
+        if (isManual) showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
       } else if (res.status === 409 || res.status === 403) {
-        showToast(errData.error || 'Lỗi phân quyền hoặc trùng tên!', 'error');
-        if (modalSyncState) modalSyncState.textContent = 'Trùng tên / Không có quyền';
+        showToast(errData.error || 'Tên đã tồn tại hoặc bạn không có quyền thay đổi.', 'error');
+        if (modalSyncState) modalSyncState.textContent = 'Không có quyền thao tác';
         if (syncDot) {
           syncDot.innerHTML = '';
           syncDot.className = 'w-2 h-2 rounded-full bg-rose-500';
@@ -929,7 +929,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
       syncDot.innerHTML = '';
       syncDot.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
     }
-    if (modalSyncState) modalSyncState.textContent = 'Chỉ lưu cục bộ (Offline)';
+    if (modalSyncState) modalSyncState.textContent = 'Đang ngoại tuyến';
   } finally {
     if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
   }
@@ -1073,7 +1073,7 @@ async function hydrateFromCloud(isManual = false) {
 
     const result = await res.json();
     if (!result.found || !result.data) {
-      if (isManual) showToast('Chưa có dữ liệu trên Cloud. Dữ liệu sẽ được lưu khi bạn thao tác!', 'info');
+      if (isManual) showToast('Chưa có dữ liệu đã lưu. Dữ liệu sẽ tự động lưu khi bạn thực hiện nhiệm vụ.', 'info');
       return;
     }
 
@@ -1227,7 +1227,7 @@ async function hydrateFromCloud(isManual = false) {
       }
 
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-      if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật từ Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã cập nhật';
       if (modalSyncTime) modalSyncTime.textContent = new Date(cloudData.lastSyncedAt || Date.now()).toLocaleTimeString();
       if (isManual) showToast('Đã tải dữ liệu mới nhất từ thiết bị khác thành công!', 'success');
     } else {
@@ -1250,7 +1250,7 @@ async function hydrateFromCloud(isManual = false) {
         }
       }
       if (syncDot) syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-      if (modalSyncState) modalSyncState.textContent = 'Đã lưu trên Cloud';
+      if (modalSyncState) modalSyncState.textContent = 'Đã lưu';
       if (modalSyncTime) modalSyncTime.textContent = new Date(appState.lastSyncedAt || Date.now()).toLocaleTimeString();
       if (isManual) showToast('Dữ liệu đã ở trạng thái mới nhất!', 'info');
     }
@@ -1273,8 +1273,9 @@ async function loadFromCloud(tokenOverride = null) {
 async function logoutGoogle() {
   const ok = await confirmAction({
     title: 'ĐĂNG XUẤT TÀI KHOẢN',
-    message: 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Google này? Dữ liệu đã đồng bộ trên đám mây sẽ được bảo toàn nguyên vẹn.',
+    message: 'Đăng xuất tài khoản Google này? Dữ liệu đã lưu sẽ được bảo toàn nguyên vẹn.',
     confirmText: 'Đăng Xuất',
+    cancelText: 'Hủy',
     icon: '🚪',
     btnColor: 'rose'
   });
@@ -1323,8 +1324,9 @@ async function logoutGoogle() {
 async function switchGoogleAccount() {
   const ok = await confirmAction({
     title: 'ĐỔI TÀI KHOẢN GOOGLE',
-    message: 'Hệ thống sẽ đăng xuất tài khoản hiện tại và đưa bạn về màn hình đăng nhập Google để chọn tài khoản khác.',
+    message: 'Đăng xuất tài khoản hiện tại để chuyển sang tài khoản Google khác?',
     confirmText: 'Đổi Tài Khoản',
+    cancelText: 'Hủy',
     icon: '🔄',
     btnColor: 'amber'
   });
@@ -1372,9 +1374,10 @@ async function switchGoogleAccount() {
 
 async function purgeAllDataAndLeave() {
   const ok = await confirmAction({
-    title: 'XÓA SẠCH VÀ RỜI ĐI',
-    message: 'Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu (nhiệm vụ, vàng, chuỗi, token) và rời khỏi LevelUp vĩnh viễn? Hành động này không thể hoàn tác.',
-    confirmText: 'Xác Nhận Xóa Hết',
+    title: 'XÓA DỮ LIỆU & RỜI ĐI',
+    message: 'Xóa toàn bộ dữ liệu (nhiệm vụ, Vàng, chuỗi chăm chỉ) và đăng xuất khỏi LevelUp? Thao tác này không thể hoàn tác.',
+    confirmText: 'Xóa Dữ Liệu',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -1416,7 +1419,7 @@ async function purgeAllDataAndLeave() {
   }
 
   if (typeof showToast === 'function') {
-    showToast('🎉 Đã dọn dẹp sạch sẽ 100% dữ liệu. Cảm ơn bạn và chúc bạn thành công!', 'success');
+    showToast('Đã xóa dữ liệu thành công.', 'success');
   }
 
   setTimeout(() => {

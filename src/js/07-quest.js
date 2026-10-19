@@ -20,7 +20,7 @@ async function completeQuest(questId, skipConfirm = false) {
     const cooldownRemaining = getQuestRepeatCooldownRemaining(quest);
     if (cooldownRemaining > 0) {
       const mins = Math.ceil(cooldownRemaining / 60000);
-      showToast(`Nhiệm vụ lặp lại cần cách nhau tối thiểu 10 phút giữa mỗi lần hoàn thành. Vui lòng chờ thêm ${mins} phút!`, 'warning');
+      showToast(`Cần chờ thêm ${mins} phút trước khi làm lại nhiệm vụ này.`, 'warning');
       return;
     }
 
@@ -32,7 +32,7 @@ async function completeQuest(questId, skipConfirm = false) {
 
     // Nhiệm vụ focus có thời gian yêu cầu bắt buộc phải hoàn thành bấm giờ
     if (quest.type === 'focus' && (parseInt(quest.targetMinutes, 10) || 0) > 0 && !quest.focusTimerCompleted && !skipConfirm) {
-      showToast(`Nhiệm vụ "${quest.title}" cần bấm giờ tập trung đủ ${quest.targetMinutes} phút trước khi hoàn thành!`, 'warning');
+      showToast(`Cần bấm giờ đủ ${quest.targetMinutes} phút trước khi hoàn thành.`, 'warning');
       return;
     }
 
@@ -42,11 +42,11 @@ async function completeQuest(questId, skipConfirm = false) {
       const streakBonusCoins = Math.floor(quest.rewardCoins * (streakBonusPct / 100));
       const totalAwarded = quest.rewardCoins + streakBonusCoins;
       const ok = await confirmAction({
-        title: 'Xác Nhận Hoàn Thành?',
-        message: `Bạn đã thực hiện xong nhiệm vụ "${quest.title}"?`,
-        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (gồm +${streakBonusCoins} Vàng thưởng Streak 🔥)` : ''}`,
-        confirmText: 'Hoàn Thành ✓',
-        cancelText: 'Chưa Xong',
+        title: 'Hoàn Thành Nhiệm Vụ',
+        message: `Xác nhận bạn đã làm xong "${quest.title}"?`,
+        detail: `💰 Phần thưởng: +${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (thưởng chuỗi +${streakBonusCoins} Vàng 🔥)` : ''}`,
+        confirmText: 'Hoàn Thành',
+        cancelText: 'Hủy',
         icon: '🎉',
         btnColor: 'emerald'
       });
@@ -315,13 +315,13 @@ async function undoCompleteQuest(questId) {
     }
 
     const ok = await confirmAction({
-      title: isRepeat ? 'Hoàn Tác Lần Nhận Thưởng?' : 'Hoàn Tác Nhiệm Vụ?',
+      title: isRepeat ? 'Hoàn Tác Nhận Thưởng' : 'Hoàn Tác Nhiệm Vụ',
       message: isRepeat
-        ? `Bạn muốn hoàn tác lần làm gần nhất (Lần ${quest.completedCount}) của nhiệm vụ "${quest.title}"?`
-        : `Đưa nhiệm vụ "${quest.title}" về trạng thái Chưa Xong?`,
+        ? `Hoàn tác lần nhận thưởng gần nhất của "${quest.title}"?`
+        : `Đưa "${quest.title}" về trạng thái Chưa Xong?`,
       detail: `💰 Sẽ trừ ví: -${earnedCoinsToRevert} Vàng${deductedAmount > 0 ? ` | 🏦 Sẽ khôi phục nợ: +${deductedAmount} Vàng` : ''}`,
-      confirmText: 'Hoàn Tác ↩️',
-      cancelText: 'Giữ Nguyên',
+      confirmText: 'Hoàn Tác',
+      cancelText: 'Hủy',
       icon: '↩️',
       btnColor: 'amber'
     });
@@ -457,11 +457,11 @@ async function restartQuest(questId) {
   if (!quest) return;
 
   const ok = await confirmAction({
-    title: 'Làm Lại Nhiệm Vụ?',
-    message: `Bạn muốn tạo lại nhiệm vụ "${quest.title}" để thực hiện một lần nữa?`,
-    detail: '💡 Hệ thống sẽ tạo một phiên bản nhiệm vụ mới vào danh sách làm việc của bạn.',
-    confirmText: 'Làm Lại 🔄',
-    cancelText: 'Giữ Nguyên',
+    title: 'Làm Lại Nhiệm Vụ',
+    message: `Tạo lại nhiệm vụ "${quest.title}" để làm tiếp?`,
+    detail: '💡 Hệ thống sẽ tạo một bản sao mới vào danh sách nhiệm vụ.',
+    confirmText: 'Làm Lại',
+    cancelText: 'Hủy',
     icon: '🔄',
     btnColor: 'amber'
   });
@@ -524,11 +524,11 @@ async function deleteQuest(questId) {
   if (!quest) return false;
 
   const ok = await confirmAction({
-    title: 'Xóa Nhiệm Vụ?',
-    message: `Bạn có chắc muốn xóa nhiệm vụ "${quest.title}"?`,
-    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
-    confirmText: 'Xóa 🗑️',
-    cancelText: 'Giữ Lại',
+    title: 'Xóa Nhiệm Vụ',
+    message: `Xóa nhiệm vụ "${quest.title}"?`,
+    detail: '💡 Bạn có thể bấm hoàn tác ngay sau khi xóa.',
+    confirmText: 'Xóa',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });

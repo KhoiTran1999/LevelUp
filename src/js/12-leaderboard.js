@@ -231,11 +231,11 @@ function renderLeaderboardTable(list) {
         const targetNick = btn.dataset.nick;
         const targetKey = btn.dataset.key || targetNick;
         const ok = await confirmAction({
-          title: 'Xóa Tài Khoản Leaderboard',
-          message: `Bạn có chắc chắn muốn xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
-          detail: 'Hành động này có hiệu lực ngay lập tức trên Redis Cloud.',
+          title: 'Xóa Tài Khoản Bảng Xếp Hạng',
+          message: `Xóa tài khoản "${targetNick}" khỏi Bảng Xếp Hạng?`,
+          detail: 'Hành động này có hiệu lực ngay lập tức.',
           confirmText: 'Xóa Vĩnh Viễn',
-          cancelText: 'Giữ Lại',
+          cancelText: 'Hủy',
           icon: '🗑️',
           btnColor: 'rose'
         });
@@ -305,7 +305,7 @@ async function fetchLeaderboard() {
 
     updateCheatersBadge();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể kết nối với Redis Cloud (${err.message}). Bảng xếp hạng tạm thời offline.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Không thể tải bảng xếp hạng lúc này. Vui lòng thử lại sau.</td></tr>`;
   }
 }
 

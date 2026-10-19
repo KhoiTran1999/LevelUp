@@ -50,7 +50,7 @@ async function buyShopItem(itemId) {
 
   const itemPrice = Math.max(0, parseInt(item.price, 10) || 0);
   if ((parseInt(appState.profile.coins, 10) || 0) < itemPrice) {
-    showToast(`Chưa đủ vàng! Bạn cần thêm ${itemPrice - (parseInt(appState.profile.coins, 10) || 0)} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
+    showToast(`Chưa đủ Vàng! Bạn cần thêm ${itemPrice - (parseInt(appState.profile.coins, 10) || 0)} Vàng nữa. Hãy hoàn thành thêm nhiệm vụ nhé!`, 'error');
     return;
   }
 
@@ -80,7 +80,7 @@ async function buyShopItem(itemId) {
       ? `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại: ${Math.max(0, appState.profile.coins - itemPrice)}\n⏱️ Đồng hồ đếm ngược ${durationMinutes} phút sẽ kích hoạt ngay trên màn hình!`
       : `💰 Vàng hiện có: ${appState.profile.coins} | Còn lại sau khi đổi: ${Math.max(0, appState.profile.coins - itemPrice)}`,
     confirmText: hasTimer ? `Đổi & Bấm Giờ (${durationMinutes}p) ⏱️` : 'Đổi Quà 🎁',
-    cancelText: 'Để Sau',
+    cancelText: 'Hủy',
     icon: item.icon || '🎁',
     btnColor: 'amber'
   });
@@ -123,7 +123,7 @@ async function buyShopItem(itemId) {
   });
 
   sfx.playFanfare();
-  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Kho Quà.`, 'success', {
+  showToast(`Đổi quà thành công! "${item.name}" đã được chuyển vào Túi Đồ.`, 'success', {
     label: 'Hoàn tác',
     onClick: () => refundInventoryItem(newInvItem.id, true)
   });
@@ -279,7 +279,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
       const ok = await confirmAction({
         title: 'Đổi Phần Thưởng & Bảo Lưu?',
         message: `Bạn đang trong phiên dùng quà "${prevReward.name}" (${Math.ceil(focusRemainingSeconds / 60)} phút còn lại). Bạn có muốn chuyển sang dùng "${item.name}"?`,
-        detail: `✅ Phần thưởng hiện tại sẽ được BẢO LƯU thời gian trong Kho Quà!`,
+        detail: `✅ Phần thưởng hiện tại sẽ được BẢO LƯU thời gian trong Túi Đồ!`,
         confirmText: 'Bảo Lưu & Đổi Quà 🎁',
         cancelText: 'Giữ Quà Hiện Tại',
         icon: '🎁',
@@ -300,7 +300,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Tiếp tục sử dụng "${item.name}" với ${durationMinutes} phút còn lại?`,
         detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
         confirmText: `Tiếp Tục Dùng (${durationMinutes}p) ⏱️`,
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -312,7 +312,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Bắt đầu tận hưởng phần thưởng "${item.name}" trong ${durationMinutes} phút?`,
         detail: '🎉 Hãy thư giãn trọn vẹn và nạp lại năng lượng cho những thử thách tiếp theo!',
         confirmText: `Dùng & Bấm Giờ (${durationMinutes}p) ⏱️`,
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -324,7 +324,7 @@ async function useInventoryItem(invId, skipConfirm = false) {
         message: `Bạn muốn sử dụng phần thưởng "${item.name}" ngay bây giờ?`,
         detail: '🎉 Hãy tự thưởng cho bản thân sau những nỗ lực rèn luyện và làm việc chăm chỉ!',
         confirmText: 'Sử Dụng 🎁',
-        cancelText: 'Để Sau',
+        cancelText: 'Hủy',
         icon: item.icon || '🎁',
         btnColor: 'purple'
       });
@@ -476,11 +476,11 @@ async function deleteInventoryItem(invId) {
   if (!item) return;
 
   const ok = await confirmAction({
-    title: 'Xóa Khỏi Kho Quà?',
-    message: `Bạn có chắc muốn xóa lịch sử phần thưởng "${item.name}"?`,
-    detail: '💡 Bạn có thể hoàn tác lại ngay sau khi xóa.',
-    confirmText: 'Xóa 🗑️',
-    cancelText: 'Giữ Lại',
+    title: 'Xóa Khỏi Túi Đồ?',
+    message: `Xóa "${item.name}" khỏi Túi Đồ?`,
+    detail: '💡 Bạn có thể bấm hoàn tác ngay sau khi xóa.',
+    confirmText: 'Xóa',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -496,7 +496,7 @@ async function deleteInventoryItem(invId) {
   triggerSave(true);
   renderInventory();
 
-  showToast(`Đã xóa "${deletedItem.name}" khỏi Kho Quà.`, 'info', {
+  showToast(`Đã xóa "${deletedItem.name}" khỏi Túi Đồ.`, 'info', {
     label: 'Hoàn tác',
     onClick: () => {
       if (itemIndex >= 0 && itemIndex <= appState.inventory.length) {
@@ -507,7 +507,7 @@ async function deleteInventoryItem(invId) {
       triggerSave(true);
       renderInventory();
       sfx.playClick();
-      showToast(`Đã khôi phục "${deletedItem.name}" vào Kho Quà.`, 'success');
+      showToast(`Đã khôi phục "${deletedItem.name}" vào Túi Đồ.`, 'success');
     }
   });
 }

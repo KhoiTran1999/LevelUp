@@ -721,7 +721,7 @@ async function submitQuestToAI() {
     renderVerdictStep();
   } catch (err) {
     if (stopM3Progress) stopM3Progress();
-    showToast('Không thể kết nối với AI: ' + err.message, 'error');
+    showToast('Không thể kết nối với AI. Vui lòng thử lại sau.', 'error');
     document.getElementById('quest-evaluating-step').classList.add('hidden');
     document.getElementById('quest-form-step').classList.remove('hidden');
   }
@@ -976,13 +976,13 @@ async function acceptVerdictAndCreateQuest() {
     : '⚡ Không cần chụp ảnh';
 
   const ok = await confirmAction({
-    title: isEditing ? 'Xác Nhận Cập Nhật Nhiệm Vụ?' : 'Xác Nhận Nhận Nhiệm Vụ?',
+    title: isEditing ? 'Cập Nhật Nhiệm Vụ' : 'Nhận Nhiệm Vụ',
     message: isEditing
-      ? `Bạn có chắc muốn lưu các thay đổi cho nhiệm vụ "${questTitle}"?`
-      : `Bạn có chắc chắn muốn nhận nhiệm vụ "${questTitle}" vào danh sách?`,
+      ? `Lưu các thay đổi cho "${questTitle}"?`
+      : `Thêm nhiệm vụ "${questTitle}" vào danh sách?`,
     detail: `💰 Thưởng: ${questCoins} Vàng • ⏱️ ${questTime}\n📌 ${repeatText} • ${proofText}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Nhận Nhiệm Vụ',
-    cancelText: 'Xem Lại',
+    cancelText: 'Hủy',
     icon: '⚔️',
     btnColor: 'amber'
   });
@@ -1841,7 +1841,7 @@ async function sendDebateArgument(customArg = null, selectedOption = null) {
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingQuest = false;
     if (argInput) {

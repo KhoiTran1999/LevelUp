@@ -190,10 +190,10 @@ function scrollAssistantToMessage(messageEl, smooth = true) {
 async function clearAssistantChat() {
   const confirmed = await confirmAction({
     title: 'Làm Mới Trò Chuyện',
-    message: 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này không?',
-    detail: 'Toàn bộ nội dung trò chuyện với Phù Thủy trong phiên này sẽ được đặt lại từ đầu.',
-    confirmText: 'Xóa & Làm Mới',
-    cancelText: 'Giữ Lại',
+    message: 'Xóa toàn bộ lịch sử cuộc trò chuyện này?',
+    detail: 'Toàn bộ nội dung trò chuyện với Phù Thủy AI trong phiên này sẽ được đặt lại từ đầu.',
+    confirmText: 'Làm Mới',
+    cancelText: 'Hủy',
     icon: '🗑️',
     btnColor: 'rose'
   });
@@ -645,7 +645,7 @@ async function sendAssistantMessage(userQuery) {
       chatLogs.insertAdjacentHTML('beforeend', errMsgHtml);
       scrollAssistantToBottom(true);
     }
-    showToast(err.message || 'Lỗi kết nối Phù Thủy', 'error');
+    showToast('Không thể kết nối với Phù Thủy AI lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     if (streamTimer) {
       clearTimeout(streamTimer);

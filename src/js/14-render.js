@@ -2012,7 +2012,7 @@ function renderLedger() {
   });
   const paginationEl = document.getElementById('ledger-pagination');
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch vàng nào được ghi nhận.</div>';
+    list.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs">Chưa có giao dịch Vàng. Hãy hoàn thành nhiệm vụ hoặc đổi quà để ghi nhận.</div>';
     if (paginationEl) paginationEl.classList.add('hidden');
     return;
   }

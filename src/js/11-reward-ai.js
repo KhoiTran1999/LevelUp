@@ -189,7 +189,7 @@ async function evaluateRewardItem() {
     renderRewardVerdictStep();
   } catch (err) {
     if (stopM3Progress) stopM3Progress();
-    showToast('Không thể kết nối với AI: ' + err.message, 'error');
+    showToast('Không thể kết nối với AI. Vui lòng thử lại sau.', 'error');
     document.getElementById('reward-evaluating-step').classList.add('hidden');
     document.getElementById('reward-form-step').classList.remove('hidden');
   }
@@ -332,7 +332,7 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
     `;
     chatLogs.appendChild(errRow);
     chatLogs.scrollTo({ top: chatLogs.scrollHeight, behavior: 'smooth' });
-    showToast('Lỗi thương lượng: ' + (err.message || 'Vui lòng thử lại'), 'error');
+    showToast('Không thể thương lượng lúc này. Vui lòng thử lại sau.', 'error');
   } finally {
     isDebatingReward = false;
     if (argInput) {
@@ -412,13 +412,13 @@ async function savePendingReward() {
   const timeInfo = targetMinutes > 0 ? ` • ⏱️ ${targetMinutes} Phút` : ' • ⚡ Không bấm giờ';
 
   const ok = await confirmAction({
-    title: isEditing ? 'Xác Nhận Cập Nhật Phần Thưởng?' : 'Xác Nhận Thêm Phần Thưởng?',
+    title: isEditing ? 'Cập Nhật Phần Thưởng' : 'Thêm Phần Thưởng',
     message: isEditing
-      ? `Bạn có chắc muốn lưu các thay đổi cho phần thưởng "${rewardName}"?`
-      : `Bạn có chắc chắn muốn thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
+      ? `Lưu các thay đổi cho "${rewardName}"?`
+      : `Thêm phần thưởng "${rewardName}" vào Cửa Hàng?`,
     detail: `💰 Giá: ${rewardPrice} Vàng${timeInfo} • Biểu tượng: ${rewardIcon}`,
     confirmText: isEditing ? 'Cập Nhật' : 'Thêm Vào Cửa Hàng',
-    cancelText: 'Xem Lại',
+    cancelText: 'Hủy',
     icon: rewardIcon,
     btnColor: 'amber'
   });

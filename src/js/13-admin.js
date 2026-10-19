@@ -528,8 +528,8 @@ async function adminDeleteSelectedLedgerEntries() {
 
   const ok = await confirmAction({
     title: `Xóa ${count} Giao Dịch`,
-    message: `Bạn có chắc chắn muốn xóa đồng loạt ${count} bản ghi giao dịch đã chọn khỏi sổ cái?`,
-    detail: 'Hành động này sẽ xóa vĩnh viễn các bản ghi được chọn trên Redis Cloud.',
+    message: `Xóa đồng loạt ${count} bản ghi giao dịch đã chọn khỏi sổ cái?`,
+    detail: 'Hành động này sẽ xóa vĩnh viễn các bản ghi đã chọn.',
     confirmText: `Xóa ${count} Bản Ghi`,
     cancelText: 'Hủy',
     icon: '🗑️',
@@ -664,8 +664,8 @@ async function openAdminUserLedgerModal(sub) {
 async function adminDeleteLedgerEntry(sub, entryId) {
   const ok = await confirmAction({
     title: 'Xóa Giao Dịch',
-    message: 'Bạn có chắc chắn muốn xóa bản ghi giao dịch này khỏi sổ cái người chơi?',
-    detail: 'Hành động này sẽ được áp dụng trực tiếp lên Redis Cloud.',
+    message: 'Xóa bản ghi giao dịch này khỏi sổ cái người chơi?',
+    detail: 'Thay đổi sẽ được áp dụng ngay lập tức.',
     confirmText: 'Xóa Bản Ghi',
     cancelText: 'Hủy',
     icon: '🗑️',
@@ -705,10 +705,10 @@ async function adminPurgeUserLedger() {
 
   const ok = await confirmAction({
     title: 'Xóa Sạch Lịch Sử Thu Chi',
-    message: 'Bạn có chắc chắn muốn XÓA SẠCH toàn bộ lịch sử thu chi của người chơi này?',
+    message: 'Xóa toàn bộ lịch sử thu chi của người chơi này?',
     detail: 'Toàn bộ giao dịch sẽ bị xóa và thay thế bằng 1 bản ghi hệ thống mới.',
     confirmText: 'Xóa Sạch Ngay',
-    cancelText: 'Giữ Lại',
+    cancelText: 'Hủy',
     icon: '🧹',
     btnColor: 'rose'
   });
@@ -743,8 +743,8 @@ async function adminPurgeUserLedger() {
 async function adminDeleteUser(sub, nickname) {
   const ok = await confirmAction({
     title: 'Xóa Tài Khoản Khỏi Hệ Thống',
-    message: `Bạn có chắc chắn muốn XÓA HOÀN TOÀN tài khoản "${nickname}" khỏi hệ thống LevelUp?`,
-    detail: 'Hồ sơ người dùng, điểm Leaderboard và toàn bộ dữ liệu trên Redis sẽ bị xóa vĩnh viễn.',
+    message: `Xóa tài khoản "${nickname}" khỏi hệ thống LevelUp?`,
+    detail: 'Hồ sơ người dùng, điểm bảng xếp hạng và toàn bộ dữ liệu sẽ bị xóa vĩnh viễn.',
     confirmText: 'Xóa Vĩnh Viễn',
     cancelText: 'Hủy',
     icon: '🗑️',
