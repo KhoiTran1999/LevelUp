@@ -7,7 +7,7 @@ console.log('--- Bắt đầu kiểm thử Kiểm Tra Phiên Bản & Ép Buộc 
 // 1. Kiểm tra manifest.json và content.js
 const manifestPath = path.resolve('extension/manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-assert.strictEqual(manifest.version, '1.2.0', 'manifest.json phải có phiên bản 1.2.0');
+assert.strictEqual(manifest.version, '1.3.0', 'manifest.json phải có phiên bản 1.3.0');
 
 const contentJsPath = path.resolve('extension/content.js');
 const contentJs = fs.readFileSync(contentJsPath, 'utf8');
@@ -21,7 +21,7 @@ console.log('✓ Test 1: Extension manifest và content script đã cấu hình 
 const timerSrcPath = path.resolve('src/js/06-timer.js');
 const timerSrc = fs.readFileSync(timerSrcPath, 'utf8');
 
-assert(timerSrc.includes('const REQUIRED_EXTENSION_VERSION = \'1.2.0\';'), '06-timer.js phải quy định REQUIRED_EXTENSION_VERSION là 1.2.0');
+assert(timerSrc.includes('const REQUIRED_EXTENSION_VERSION = \'1.3.0\';'), '06-timer.js phải quy định REQUIRED_EXTENSION_VERSION là 1.3.0');
 assert(timerSrc.includes('compareExtensionVersions'), '06-timer.js phải chứa hàm compareExtensionVersions');
 assert(timerSrc.includes('isLevelUpExtensionOutdated'), '06-timer.js phải chứa hàm isLevelUpExtensionOutdated');
 assert(timerSrc.includes('isLevelUpExtensionReady'), '06-timer.js phải chứa hàm isLevelUpExtensionReady');
@@ -44,17 +44,18 @@ function compareExtensionVersions(v1, v2) {
   return 0;
 }
 
-const reqVer = '1.2.0';
+const reqVer = '1.3.0';
 // Bản cũ
 assert(compareExtensionVersions('0.9.0', reqVer) < 0, '0.9.0 phải là bản cũ');
 assert(compareExtensionVersions('1.0.0', reqVer) < 0, '1.0.0 phải là bản cũ');
 assert(compareExtensionVersions('1.1.0', reqVer) < 0, '1.1.0 phải là bản cũ');
-assert(compareExtensionVersions('1.1.9', reqVer) < 0, '1.1.9 phải là bản cũ');
+assert(compareExtensionVersions('1.2.0', reqVer) < 0, '1.2.0 phải là bản cũ');
+assert(compareExtensionVersions('1.2.9', reqVer) < 0, '1.2.9 phải là bản cũ');
 
 // Bản hiện tại hoặc mới hơn
-assert(compareExtensionVersions('1.2.0', reqVer) === 0, '1.2.0 phải là bản chuẩn');
-assert(compareExtensionVersions('1.2.1', reqVer) > 0, '1.2.1 phải là bản hợp lệ');
-assert(compareExtensionVersions('1.3.0', reqVer) > 0, '1.3.0 phải là bản hợp lệ');
+assert(compareExtensionVersions('1.3.0', reqVer) === 0, '1.3.0 phải là bản chuẩn');
+assert(compareExtensionVersions('1.3.1', reqVer) > 0, '1.3.1 phải là bản hợp lệ');
+assert(compareExtensionVersions('1.4.0', reqVer) > 0, '1.4.0 phải là bản hợp lệ');
 assert(compareExtensionVersions('2.0.0', reqVer) > 0, '2.0.0 phải là bản hợp lệ');
 console.log('✓ Test 3: Thuật toán so sánh semver hoạt động chính xác với mọi phiên bản.');
 
@@ -71,14 +72,14 @@ const notInstalled = simulateExtensionStatus(false, null);
 assert.strictEqual(notInstalled.isInstalled, false);
 assert.strictEqual(notInstalled.isReady, false);
 
-// Trường hợp cài bản cũ 1.0.0
-const oldInstalled = simulateExtensionStatus(true, '1.0.0');
+// Trường hợp cài bản cũ 1.2.0
+const oldInstalled = simulateExtensionStatus(true, '1.2.0');
 assert.strictEqual(oldInstalled.isInstalled, true);
 assert.strictEqual(oldInstalled.isOutdated, true);
 assert.strictEqual(oldInstalled.isReady, false);
 
-// Trường hợp cài bản mới 1.2.0
-const upToDateInstalled = simulateExtensionStatus(true, '1.2.0');
+// Trường hợp cài bản mới 1.3.0
+const upToDateInstalled = simulateExtensionStatus(true, '1.3.0');
 assert.strictEqual(upToDateInstalled.isInstalled, true);
 assert.strictEqual(upToDateInstalled.isOutdated, false);
 assert.strictEqual(upToDateInstalled.isReady, true);

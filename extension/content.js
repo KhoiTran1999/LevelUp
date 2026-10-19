@@ -8,7 +8,7 @@
 
   function broadcastExtensionVersion() {
     try {
-      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.2.0';
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.3.0';
       document.documentElement.dataset.levelupExtensionInstalled = 'true';
       document.documentElement.dataset.levelupExtensionVersion = extVersion;
       window.__LEVELUP_EXTENSION_INSTALLED__ = true;

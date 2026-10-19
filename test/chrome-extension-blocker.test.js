@@ -126,7 +126,7 @@ assert(fs.existsSync(storeDocPath), 'CHROMEWEBSTORE.md phải tồn tại');
 const storeDoc = fs.readFileSync(storeDocPath, 'utf8');
 assert(storeDoc.includes('Permissions Justification'), 'Thiếu phần Permissions Justification trong CHROMEWEBSTORE.md');
 assert(storeDoc.includes('Privacy & Data Use'), 'Thiếu phần Privacy & Data Use trong CHROMEWEBSTORE.md');
-assert(storeDoc.includes('1.2.0'), 'CHROMEWEBSTORE.md phải ghi nhận phiên bản 1.2.0');
+assert(storeDoc.includes('1.3.0'), 'CHROMEWEBSTORE.md phải ghi nhận phiên bản 1.3.0');
 console.log('✓ Test 6: Tài liệu chuẩn bị xuất bản Chrome Web Store (CHROMEWEBSTORE.md) đầy đủ.');
 
 // Test 7: Kiểm tra tính năng Mini Floating Capsule HUD (Chấm Xanh/Đỏ, Timer, Nút x, Shadow DOM, Pháo hoa 8-bit)
@@ -141,6 +141,7 @@ assert(capsuleCode.includes('capsule-dismiss'), 'capsule.js phải có nút × �
 assert(!capsuleCode.includes('arbiter-bubble'), 'capsule.js KHÔNG được chứa bong bóng thoại thẩm phán AI (đã lược bỏ theo yêu cầu)');
 assert(!capsuleCode.includes('mascot-svg'), 'capsule.js KHÔNG được chứa avatar hiệp sĩ (đã lược bỏ theo yêu cầu)');
 assert(capsuleCode.includes('capsuleRumble'), 'capsule.js phải có animation rung rung (capsuleRumble) khi ở trang bị chặn');
+assert(capsuleCode.includes('capsuleBorderWave'), 'capsule.js phải có animation tỏa sóng mượt mà xung quanh viền (capsuleBorderWave)');
 assert(capsuleCode.includes('.capsule-pill.is-distraction .btn-dismiss'), 'capsule.js phải có định kiểu cho nút × trên trang bị chặn');
 assert(capsuleCode.includes('returnToLevelUp(true)'), 'capsule.js phải gọi returnToLevelUp(true) khi bấm nút × ở trang bị chặn để đóng tab');
 assert(capsuleCode.includes('.capsule-pill:hover .btn-dismiss'), 'capsule.js phải hỗ trợ hiện nút × khi hover');
@@ -247,15 +248,15 @@ function testSemverCompare(v1, v2) {
   return 0;
 }
 
-assert(testSemverCompare('1.0.0', '1.2.0') < 0, '1.0.0 phải nhỏ hơn 1.2.0 (outdated)');
-assert(testSemverCompare('1.1.9', '1.2.0') < 0, '1.1.9 phải nhỏ hơn 1.2.0 (outdated)');
-assert(testSemverCompare('1.2.0', '1.2.0') === 0, '1.2.0 phải bằng 1.2.0 (ready)');
-assert(testSemverCompare('1.3.0', '1.2.0') > 0, '1.3.0 phải lớn hơn 1.2.0 (ready)');
+assert(testSemverCompare('1.0.0', '1.3.0') < 0, '1.0.0 phải nhỏ hơn 1.3.0 (outdated)');
+assert(testSemverCompare('1.2.0', '1.3.0') < 0, '1.2.0 phải nhỏ hơn 1.3.0 (outdated)');
+assert(testSemverCompare('1.3.0', '1.3.0') === 0, '1.3.0 phải bằng 1.3.0 (ready)');
+assert(testSemverCompare('1.4.0', '1.3.0') > 0, '1.4.0 phải lớn hơn 1.3.0 (ready)');
 
 assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'public/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
 assert(appJs.includes('isLevelUpExtensionOutdated'), 'public/app.js bundle phải chứa isLevelUpExtensionOutdated');
 console.log('✓ Test 11: Cơ chế kiểm tra phiên bản extension và ép buộc nâng cấp (Forced Update) hoạt động chính xác 100%.');
 
-console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.2.0 thành công 100%!');
+console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.3.0 thành công 100%!');
 
 

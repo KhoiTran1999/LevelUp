@@ -695,12 +695,43 @@
 
         /* Con nhộng ở trang bị chặn: Trong suốt mờ kính đỏ rượu + Rung rung cảnh báo */
         .capsule-pill.is-distraction {
-          border-color: rgba(239, 68, 68, 0.48) !important;
-          background: rgba(45, 10, 18, 0.28) !important;
+          border-color: rgba(239, 68, 68, 0.65) !important;
+          background: rgba(45, 10, 18, 0.32) !important;
           backdrop-filter: blur(16px) saturate(180%) !important;
           -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.2), 0 0 14px rgba(239, 68, 68, 0.3) !important;
+          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25), 0 0 16px rgba(239, 68, 68, 0.45) !important;
           animation: capsuleRumble 0.3s ease infinite alternate !important;
+        }
+
+        /* VIỀN CON NHỘNG ĐỎ TỎA SÓNG MƯỢT MÀ (Smooth Radiating Border Ripple Waves) */
+        .capsule-pill.is-distraction::before,
+        .capsule-pill.is-distraction::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 9999px;
+          pointer-events: none;
+          z-index: -1;
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 8px 1px rgba(239, 68, 68, 0.5);
+          animation: capsuleBorderWave 2.4s cubic-bezier(0.12, 0.4, 0.25, 1) infinite;
+        }
+
+        .capsule-pill.is-distraction::after {
+          animation-delay: 1.2s;
+        }
+
+        @keyframes capsuleBorderWave {
+          0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85), 0 0 6px 1px rgba(239, 68, 68, 0.6);
+            opacity: 1;
+          }
+          60% {
+            opacity: 0.55;
+          }
+          100% {
+            box-shadow: 0 0 0 20px rgba(239, 68, 68, 0), 0 0 16px 2px rgba(239, 68, 68, 0);
+            opacity: 0;
+          }
         }
 
         @keyframes capsuleRumble {
@@ -711,13 +742,22 @@
           100% { transform: translate(1.5px, 1.5px) rotate(0.5deg); }
         }
 
-        /* Trong lúc di chuyển bay lượn: KHÔNG RUNG, lướt êm ái, phát sáng dịu */
+        /* Trong lúc di chuyển bay lượn: KHÔNG RUNG, lướt êm ái, phát sáng dịu và sóng viền vẫn tỏa đều */
         .capsule-pill.is-distraction.is-flying {
           animation: none !important;
           transform: none !important;
           will-change: left, top;
           box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.35), 0 0 20px rgba(239, 68, 68, 0.45) !important;
           cursor: grab;
+        }
+
+        .capsule-pill.is-distraction.is-flying::before,
+        .capsule-pill.is-distraction.is-flying::after {
+          animation: capsuleBorderWave 2.4s cubic-bezier(0.12, 0.4, 0.25, 1) infinite !important;
+        }
+
+        .capsule-pill.is-distraction.is-flying::after {
+          animation-delay: 1.2s !important;
         }
 
         .capsule-pill.is-distraction.is-flying:active {

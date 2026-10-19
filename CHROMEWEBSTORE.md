@@ -85,6 +85,7 @@ Cần thiết để cơ chế Declarative Net Request và trình theo dõi đi�
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.3.0 | 2026-10-19 | Nâng cấp chuyển động & UI Khiên Kỷ Luật: Con nhộng bay viền màn hình chậm rãi liên tục (border-to-border), viền đỏ tỏa sóng mượt mà (smooth ripple wave aura), cơ chế tự động quét phiên bản và ép buộc cập nhật để đồng bộ tính năng mới nhất. |
 | 1.2.0 | 2026-10-19 | Mini RPG Floating HUD / Guild Mascot (Thú cưng đồng hành) — Linh vật pixel art 8-bit vung kiếm luyện công, Thẩm Phán AI nhắc nhở bong bóng thoại khi mở web xao nhãng, linh vật hóa đá xám xịt và pháo hoa 8-bit nổ chúc mừng kèm âm thanh chiptune khi hoàn thành Pomodoro! |
 | 1.1.0 | 2026-10-18 | Mini Floating Capsule Timer — Bong bóng đếm ngược Pomodoro siêu nhỏ gọn nổi trên mọi tab, kéo thả tự do, không chiếm diện tích màn hình & nút 1-click quay về tab LevelUp. |
 | 1.0.0 | 2026-10-18 | Initial release — Đồng bộ Pomodoro thời gian thực, DNR rule redirection, RPG blocked page, Popup HUD, Options manager. |
