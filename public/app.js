@@ -3661,6 +3661,35 @@ function initShieldGateListeners() {
     });
   }
 
+  // 4b. Nút copy lệnh cài đặt tự động bằng Terminal (PowerShell)
+  const btnCopyInstallCmd = document.getElementById('btn-copy-install-cmd');
+  const codeInstallCmd = document.getElementById('code-install-cmd');
+  if (codeInstallCmd && typeof window !== 'undefined' && window.location?.origin) {
+    codeInstallCmd.textContent = `irm ${window.location.origin}/install.ps1 | iex`;
+  }
+  if (btnCopyInstallCmd) {
+    btnCopyInstallCmd.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const origin = typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'https://level-up-seven-blue.vercel.app';
+      const cmd = `irm ${origin}/install.ps1 | iex`;
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(cmd).then(() => {
+          const btnText = document.getElementById('btn-copy-install-text');
+          if (btnText) {
+            btnText.textContent = 'Đã chép!';
+            setTimeout(() => { btnText.textContent = 'Copy Lệnh'; }, 2500);
+          }
+          if (typeof showToast === 'function') {
+            showToast('📋 Đã sao chép lệnh PowerShell! Mở Terminal và nhấn Ctrl+V để chạy.', 'success');
+          }
+        }).catch(() => {});
+      }
+    });
+  }
+
   // 5. Nút quét lại thủ công
   const btnCheckNow = document.getElementById('btn-shield-check-now');
   if (btnCheckNow) {

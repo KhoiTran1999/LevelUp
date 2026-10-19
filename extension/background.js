@@ -528,6 +528,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
+        case 'SELF_RELOAD_EXTENSION':
+        case 'RELOAD_EXTENSION': {
+          console.log('[LevelUp Shield] Reloading extension from disk via CLI trigger...');
+          sendResponse({ success: true });
+          setTimeout(() => {
+            try {
+              chrome.runtime.reload();
+            } catch (_) {}
+          }, 150);
+          break;
+        }
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }

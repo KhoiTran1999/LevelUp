@@ -55,6 +55,14 @@ app.get('/download/levelup-shield.zip', (req, res) => {
   });
 });
 
+// Serve PowerShell 1-line auto installer script
+app.get('/install.ps1', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'install.ps1');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(filePath);
+});
+
 // Serve static frontend
 // ponytail: static asset cache 1h default, 1d immutable for media/icons
 app.use(express.static(path.join(__dirname, 'public'), {

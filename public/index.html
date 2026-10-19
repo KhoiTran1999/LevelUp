@@ -3381,6 +3381,26 @@
           </a>
         </div>
 
+        <!-- Terminal 1-Line Quick Installer Box -->
+        <div class="p-3.5 rounded-2xl bg-slate-900 border border-indigo-500/40 shadow-xs text-white">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-amber-400">terminal</span>
+              <span>⚡ Hoặc 1 Lệnh PowerShell Tự Động 100%</span>
+            </span>
+            <button id="btn-copy-install-cmd" type="button" class="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1 cursor-pointer active:scale-95">
+              <span class="material-symbols-outlined text-[13px]">content_copy</span>
+              <span id="btn-copy-install-text">Copy Lệnh</span>
+            </button>
+          </div>
+          <div class="bg-black/70 rounded-xl p-2 border border-slate-800 flex items-center justify-between gap-2">
+            <code id="code-install-cmd" class="text-[11px] font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
+            💡 Mở PowerShell, dán và Enter. Tự động tải, tự lưu cố định và tự làm mới Chrome mà không cần chọn thư mục.
+          </p>
+        </div>
+
         <!-- Step 2: 3-step Instructions -->
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2.5 shadow-xs text-xs">
           <div class="flex items-center gap-2.5 text-slate-900 dark:text-white font-bold text-xs sm:text-sm">

@@ -25,6 +25,22 @@
 
   broadcastExtensionVersion();
 
+  // Tự động kích hoạt nạp lại extension khi được gọi từ script cài đặt tự động terminal (?reload_shield=1)
+  try {
+    if (typeof window !== 'undefined' && window.location?.search?.includes('reload_shield=1')) {
+      chrome.runtime?.sendMessage?.({ type: 'SELF_RELOAD_EXTENSION' }, () => {
+        if (!chrome.runtime.lastError) {
+          console.log('[LevelUp Shield] Triggered self reload from CLI installer.');
+          try {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('reload_shield');
+            window.history.replaceState({}, '', cleanUrl.toString());
+          } catch (_) {}
+        }
+      });
+    }
+  } catch (_) {}
+
   try {
     if (chrome.runtime?.id && typeof window !== 'undefined' && window.location?.origin) {
       chrome.runtime.sendMessage({
