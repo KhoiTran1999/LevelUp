@@ -126,21 +126,36 @@
     return false;
   }
 
+  let currentCapsuleX = null;
+  let currentCapsuleY = null;
+
   function applyCapsulePosition(x = null, y = null) {
     if (!shadowRoot) return;
     const pill = shadowRoot.getElementById('capsule-pill');
     if (!pill) return;
-    if (typeof x === 'number' && typeof y === 'number') {
-      pill.style.setProperty('left', `${x}px`, 'important');
-      pill.style.setProperty('top', `${y}px`, 'important');
-      pill.style.setProperty('right', 'auto', 'important');
-      pill.style.setProperty('bottom', 'auto', 'important');
-    } else {
-      pill.style.setProperty('right', '24px', 'important');
-      pill.style.setProperty('bottom', '24px', 'important');
-      pill.style.setProperty('left', 'auto', 'important');
-      pill.style.setProperty('top', 'auto', 'important');
+
+    const winW = window.innerWidth || document.documentElement?.clientWidth || 1024;
+    const winH = window.innerHeight || document.documentElement?.clientHeight || 768;
+    const rect = pill.getBoundingClientRect();
+    const pillW = rect.width || 100;
+    const pillH = rect.height || 36;
+
+    let targetX = x;
+    let targetY = y;
+
+    if (typeof targetX !== 'number' || typeof targetY !== 'number') {
+      targetX = Math.max(8, winW - pillW - 24);
+      targetY = Math.max(8, winH - pillH - 24);
     }
+
+    currentCapsuleX = targetX;
+    currentCapsuleY = targetY;
+
+    // Sử dụng translate3d trên GPU Compositor để KHÔNG GÂY REFLOW hay GIẬT LAG VIDEO
+    const roundedX = Math.round(targetX);
+    const roundedY = Math.round(targetY);
+    pill.style.setProperty('transform', `translate3d(${roundedX}px, ${roundedY}px, 0)`, 'important');
+    pill.style.setProperty('-webkit-transform', `translate3d(${roundedX}px, ${roundedY}px, 0)`, 'important');
   }
 
   function returnToLevelUp(closeCurrent = false) {
@@ -279,8 +294,8 @@
     // Kích hoạt reflow để chuyển động xuất phát mượt mà từ vị trí hiện tại
     void pill.offsetWidth;
 
-    // Sử dụng transition linear để chuyển động đều đặn, không bị khựng hay giật
-    pill.style.transition = `left ${duration.toFixed(2)}s linear, top ${duration.toFixed(2)}s linear, box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease`;
+    // Sử dụng transition transform chạy 100% trên GPU compositor, 0% CPU, 60fps mượt mà
+    pill.style.transition = `transform ${duration.toFixed(2)}s linear`;
     applyCapsulePosition(target.x, target.y);
 
     // Bay liên tục không nghỉ: Vừa chạm tới viền là lập tức chuyển hướng sang viền tiếp theo
@@ -661,58 +676,56 @@
         /* ------------------------------------------------------------- */
         .capsule-pill {
           position: fixed;
-          right: 24px;
-          bottom: 24px;
+          top: 0;
+          left: 0;
           display: inline-flex;
           align-items: center;
           gap: 9px;
           padding: 7px 14px 7px 12px;
-          background: rgba(15, 23, 42, 0.24);
+          background: rgba(15, 23, 42, 0.82);
           backdrop-filter: blur(16px) saturate(180%);
           -webkit-backdrop-filter: blur(16px) saturate(180%);
           border: 1.2px solid rgba(255, 255, 255, 0.24);
           border-radius: 9999px;
-          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.16), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25);
           color: #ffffff;
           cursor: grab;
-          transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.2s ease;
           animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           font-size: 13px;
           pointer-events: auto;
+          will-change: transform;
+          contain: layout style paint;
+          transform: translate3d(0, 0, 0);
+          -webkit-transform: translate3d(0, 0, 0);
         }
 
         .capsule-pill:hover {
-          transform: translateY(-2px) scale(1.03);
-          background: rgba(15, 23, 42, 0.38);
-          border-color: rgba(255, 255, 255, 0.4);
-          box-shadow: 0 12px 28px 0 rgba(0, 0, 0, 0.22), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
+          filter: brightness(1.12);
         }
 
         .capsule-pill:active {
           cursor: grabbing;
-          transform: scale(0.98);
         }
 
-        /* Con nhộng ở trang bị chặn: Trong suốt mờ kính đỏ rượu + Rung rung cảnh báo */
+        /* Con nhộng ở trang bị chặn: Nền đỏ rượu tối sang trọng, viền đỏ phát sáng */
         .capsule-pill.is-distraction {
-          border-color: rgba(239, 68, 68, 0.65) !important;
-          background: rgba(45, 10, 18, 0.32) !important;
-          backdrop-filter: blur(16px) saturate(180%) !important;
-          -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25), 0 0 16px rgba(239, 68, 68, 0.45) !important;
+          border-color: rgba(239, 68, 68, 0.8) !important;
+          background: rgba(28, 8, 14, 0.88) !important;
+          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.35), 0 0 16px rgba(239, 68, 68, 0.45) !important;
           animation: capsuleRumble 0.3s ease infinite alternate !important;
         }
 
-        /* VIỀN CON NHỘNG ĐỎ TỎA SÓNG MƯỢT MÀ (Smooth Radiating Border Ripple Waves) */
+        /* VIỀN CON NHỘNG ĐỎ TỎA SÓNG MƯỢT MÀ BẰNG GPU (Scale + Opacity, 0% CPU, Không lag video) */
         .capsule-pill.is-distraction::before,
         .capsule-pill.is-distraction::after {
           content: '';
           position: absolute;
-          inset: 0;
+          inset: -1px;
           border-radius: 9999px;
+          border: 1.5px solid rgba(239, 68, 68, 0.85);
           pointer-events: none;
           z-index: -1;
-          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 8px 1px rgba(239, 68, 68, 0.5);
+          will-change: transform, opacity;
           animation: capsuleBorderWave 2.4s cubic-bezier(0.12, 0.4, 0.25, 1) infinite;
         }
 
@@ -722,14 +735,11 @@
 
         @keyframes capsuleBorderWave {
           0% {
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85), 0 0 6px 1px rgba(239, 68, 68, 0.6);
-            opacity: 1;
-          }
-          60% {
-            opacity: 0.55;
+            transform: scale(1, 1);
+            opacity: 0.9;
           }
           100% {
-            box-shadow: 0 0 0 20px rgba(239, 68, 68, 0), 0 0 16px 2px rgba(239, 68, 68, 0);
+            transform: scale(1.28, 1.65);
             opacity: 0;
           }
         }
@@ -742,11 +752,12 @@
           100% { transform: translate(1.5px, 1.5px) rotate(0.5deg); }
         }
 
-        /* Trong lúc di chuyển bay lượn: KHÔNG RUNG, lướt êm ái, phát sáng dịu và sóng viền vẫn tỏa đều */
+        /* Trong lúc di chuyển bay lượn: KHÔNG RUNG, lướt êm ái, tắt blur nặng nề để video chạy 60fps mượt mà */
         .capsule-pill.is-distraction.is-flying {
           animation: none !important;
-          transform: none !important;
-          will-change: left, top;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          will-change: transform;
           box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.35), 0 0 20px rgba(239, 68, 68, 0.45) !important;
           cursor: grab;
         }
@@ -1065,6 +1076,7 @@
           const newLeft = Math.max(6, Math.min(maxLeft, initialLeft + dx));
           const newTop = Math.max(6, Math.min(maxTop, initialTop + dy));
 
+          pill.style.transition = 'none';
           applyCapsulePosition(newLeft, newTop);
         };
 
