@@ -149,33 +149,42 @@ function renderNotesDropdown(noteList, selectedId) {
   }
 }
 
-  // Nạp danh sách các ghi chú theo Tiêu Đề (Title) để người dùng chọn ghi chú tiếp hoặc tạo mới
-  const topicSelect = document.getElementById('keep-topic-select');
-  if (topicSelect) {
-    try {
-      const storage = await chrome.storage.local.get(['levelupNotes', 'levelupTopics', 'lastSelectedTopic', 'lastSelectedNoteId']);
-      const defaultTopics = ['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu'];
-      const userTopics = Array.isArray(storage.levelupTopics) && storage.levelupTopics.length > 0 
-        ? storage.levelupTopics 
-        : defaultTopics;
-      let noteList = Array.isArray(storage.levelupNotes) ? storage.levelupNotes : [];
-      
-      renderNotesDropdown(noteList, storage.lastSelectedNoteId);
+async function refreshExtensionNotes(buttonEl) {
+  if (buttonEl) buttonEl.classList.add('spinning');
+  try {
+    const storage = await chrome.storage.local.get(['levelupNotes', 'levelupTopics', 'lastSelectedTopic', 'lastSelectedNoteId']);
+    let noteList = Array.isArray(storage.levelupNotes) ? storage.levelupNotes : [];
 
-      // Thử truy vấn tab LevelUp đang mở (nếu có) để lấy danh sách ghi chú mới nhất realtime
-      try {
-        const levelUpTabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
-        if (levelUpTabs && levelUpTabs.length > 0) {
+    try {
+      const levelUpTabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+      if (levelUpTabs && levelUpTabs.length > 0) {
+        await new Promise((resolve) => {
           chrome.tabs.sendMessage(levelUpTabs[0].id, { type: 'REQUEST_NOTES_LIST' }, (response) => {
             if (!chrome.runtime.lastError && response && Array.isArray(response.notes) && response.notes.length > 0) {
               noteList = response.notes;
               chrome.storage.local.set({ levelupNotes: noteList });
-              renderNotesDropdown(noteList, storage.lastSelectedNoteId);
             }
+            resolve();
           });
-        }
-      } catch (_) {}
+          setTimeout(resolve, 600);
+        });
+      }
     } catch (_) {}
+
+    renderNotesDropdown(noteList, storage.lastSelectedNoteId);
+  } catch (err) {
+    console.warn('[LevelUp Note] Refresh notes error:', err);
+  } finally {
+    if (buttonEl) {
+      setTimeout(() => buttonEl.classList.remove('spinning'), 400);
+    }
+  }
+}
+
+  // Nạp danh sách các ghi chú theo Tiêu Đề (Title) để người dùng chọn ghi chú tiếp hoặc tạo mới
+  const topicSelect = document.getElementById('keep-topic-select');
+  if (topicSelect) {
+    refreshExtensionNotes(null);
   }
 
   // Auto-focus title input
@@ -199,7 +208,7 @@ function switchView(targetView) {
     if (viewNotes) viewNotes.classList.add('hidden');
     if (viewSettings) viewSettings.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight" style="color: #818cf8;">Shield</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.3</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.4</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Quay lại Ghi Chú';
       toggleBtn.innerHTML = '📝';
@@ -209,7 +218,7 @@ function switchView(targetView) {
     if (viewSettings) viewSettings.classList.add('hidden');
     if (viewNotes) viewNotes.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight">Ghi Chú</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.3</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.4</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Cài đặt & Khiên bảo vệ';
       toggleBtn.innerHTML = '⚙️';
@@ -469,6 +478,14 @@ document.addEventListener('DOMContentLoaded', () => {
       customRow.classList.add('hidden');
       if (customInput) customInput.value = '';
       topicSelect.selectedIndex = 0;
+    });
+  }
+
+  // Reload notes button
+  const btnReloadNotes = document.getElementById('btn-reload-extension-notes');
+  if (btnReloadNotes) {
+    btnReloadNotes.addEventListener('click', () => {
+      refreshExtensionNotes(btnReloadNotes);
     });
   }
 

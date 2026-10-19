@@ -306,10 +306,14 @@ body {
   position: relative;
   flex: 1;
   max-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .keep-topic-select {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -321,6 +325,44 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+}
+
+.btn-reload-notes {
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  color: #94a3b8;
+  border-radius: 8px;
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.btn-reload-notes:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  transform: scale(1.05);
+}
+
+.btn-reload-notes:active {
+  transform: scale(0.95);
+}
+
+.btn-reload-notes.spinning {
+  animation: spinNotes 0.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spinNotes {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .keep-topic-select:focus {

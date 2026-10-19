@@ -3383,7 +3383,7 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
-const REQUIRED_EXTENSION_VERSION = '1.5.3';
+const REQUIRED_EXTENSION_VERSION = '1.5.4';
 
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
@@ -13727,6 +13727,45 @@ function loadNotesWorkspace() {
 }
 window.loadNotesWorkspace = loadNotesWorkspace;
 
+// 4b. Làm mới và tái đồng bộ Sổ Ghi Chú
+function reloadNotesWorkspace(showToastNotice = false) {
+  try {
+    const raw = localStorage.getItem(NOTES_VAULT_STORAGE_KEY) || localStorage.getItem('levelup_notes_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (typeof appState !== 'undefined') {
+          appState.notes = parsed;
+        }
+      }
+    }
+  } catch (_) {}
+
+  const notes = getAllNotes();
+  renderNotesSidebar();
+  renderTopicsBar();
+  loadActiveNoteIntoEditor();
+  updateTotalNotesBadge();
+
+  if (typeof window !== 'undefined') {
+    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED', notes: notes }, '*');
+  }
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const ch = new BroadcastChannel('levelup_sync_channel');
+      ch.postMessage({ type: 'NOTES_UPDATED', notes: notes });
+      ch.close();
+    } catch (_) {}
+  }
+  if (typeof initHorizontalScrollContainers === 'function') {
+    initHorizontalScrollContainers();
+  }
+  if (showToastNotice && typeof showToast === 'function') {
+    showToast('🔄 Đã làm mới danh sách ghi chú!', 'info');
+  }
+}
+window.reloadNotesWorkspace = reloadNotesWorkspace;
+
 // 5. Vẽ thanh chip lọc chủ đề tự đặt tên
 function renderTopicsBar() {
   const containers = [
@@ -14559,6 +14598,24 @@ function setupNotesEditorListeners() {
   try {
     document.execCommand('defaultParagraphSeparator', false, 'p');
   } catch (_) {}
+
+  // Cho phép click mở link URL trực tiếp trong tab mới từ vùng soạn thảo contenteditable
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (!link) return;
+    const editor = link.closest('#focus-notes-tab-editor, #focus-notes-editor, .notes-editor');
+    if (editor) {
+      let href = (link.getAttribute('href') || link.href || '').trim();
+      if (href && href !== '#' && !href.startsWith('javascript:')) {
+        if (!/^https?:\/\//i.test(href) && !href.startsWith('//') && !href.startsWith('mailto:')) {
+          href = 'https://' + href;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+    }
+  });
 
   // Lắng nghe sự kiện tick chọn checkbox trong toàn bộ vùng soạn thảo
   document.addEventListener('change', (e) => {

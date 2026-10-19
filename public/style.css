@@ -4730,6 +4730,37 @@ html.dark .notes-editor code {
   align-items: flex-start;
 }
 
+/* Links in note editor */
+#focus-notes-editor a,
+#focus-notes-tab-editor a,
+.notes-editor a {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer !important;
+  transition: color 0.15s ease;
+  word-break: break-all;
+}
+
+#focus-notes-editor a:hover,
+#focus-notes-tab-editor a:hover,
+.notes-editor a:hover {
+  color: #3730a3;
+  text-decoration: underline;
+}
+
+html.dark #focus-notes-editor a,
+html.dark #focus-notes-tab-editor a,
+html.dark .notes-editor a {
+  color: #818cf8;
+}
+
+html.dark #focus-notes-editor a:hover,
+html.dark #focus-notes-tab-editor a:hover,
+html.dark .notes-editor a:hover {
+  color: #a5b4fc;
+}
+
 /* Note Cards in Sidebar */
 .note-card-item {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s, border-color 0.18s, background-color 0.18s;

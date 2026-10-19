@@ -631,6 +631,11 @@
               <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
               <input id="notes-search-input" type="text" placeholder="Tìm ghi chú..." oninput="handleNotesSearch(this.value)" class="w-full sm:w-48 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shadow-2xs">
             </div>
+            <!-- Reload notes button -->
+            <button id="btn-reload-notes" type="button" onclick="reloadNotesWorkspace(true)" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Tải lại & làm mới danh sách ghi chú">
+              <span class="material-symbols-outlined text-[17px] leading-none">refresh</span>
+              <span class="hidden sm:inline">Làm Mới</span>
+            </button>
             <!-- Create new note button -->
             <button id="btn-create-new-note" type="button" onclick="createNewNotePrompt()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
               <span class="material-symbols-outlined text-[18px] leading-none">note_add</span>
@@ -682,6 +687,10 @@
                 </div>
 
                 <div class="flex items-center gap-0.5 sm:gap-1">
+                  <!-- Reload Note -->
+                  <button type="button" onclick="reloadNotesWorkspace(true)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition cursor-pointer shrink-0" title="Làm mới & đồng bộ ghi chú">
+                    <span class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">refresh</span>
+                  </button>
                   <!-- Pin Button -->
                   <button id="btn-pin-note" type="button" onclick="toggleActiveNotePin()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition cursor-pointer shrink-0" title="Ghim ghi chú lên đầu">
                     <span id="pin-icon" class="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">push_pin</span>

@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit",
     "test": "node test/run-all.js",
     "reset-data": "node scripts/reset-data.js",
-    "package:extension": "powershell -Command \"Compress-Archive -Path 'extension/*' -DestinationPath 'levelup-shield-v1.5.3.zip' -Force; Copy-Item -Path 'levelup-shield-v1.5.3.zip' -Destination 'public/download/levelup-shield.zip' -Force\""
+    "package:extension": "powershell -Command \"Compress-Archive -Path 'extension/*' -DestinationPath 'levelup-shield-v1.5.4.zip' -Force; Copy-Item -Path 'levelup-shield-v1.5.4.zip' -Destination 'public/download/levelup-shield.zip' -Force\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",
