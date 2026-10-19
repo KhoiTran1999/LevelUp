@@ -19083,7 +19083,10 @@ window.stopBankCountdownLoop = stopBankCountdownLoop;
 // =============================================================================
 // 14. EVENT LISTENERS ATTACHMENT
 // =============================================================================
-document.addEventListener('DOMContentLoaded', () => {
+let isLevelUpAppInited = false;
+function initLevelUpApp() {
+  if (isLevelUpAppInited) return;
+  isLevelUpAppInited = true;
   initStartupFlow();
   if (typeof updateBrainDumpBadges === 'function') {
     updateBrainDumpBadges();
@@ -21101,7 +21104,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Material Design 3 Bottom Sheet Drag-to-Dismiss Gestures
   initBottomSheetGestures();
-});
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLevelUpApp);
+  } else {
+    initLevelUpApp();
+  }
+}
 
 // =============================================================================
 // 15. HORIZONTAL DRAG & WHEEL SCROLL FOR CHIPS & SUGGESTIONS (DESKTOP UX)

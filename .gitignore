@@ -7,3 +7,10 @@ node_modules
 .env*
 *.zip
 !public/download/*.zip
+!app/download/**
+
+# Next.js & Turbopack
+.next/
+out/
+.turbopack/
+tsconfig.tsbuildinfo
