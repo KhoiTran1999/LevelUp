@@ -2106,7 +2106,10 @@ function initHorizontalScrollContainers() {
     '#reward-suggest-chips',
     '#bank-suggest-chips',
     '#assistant-suggest-chips',
-    '.quick-suggest-chips'
+    '.quick-suggest-chips',
+    '.notes-toolbar',
+    '#focus-notes-toolbar',
+    '#modal-focus-notes-toolbar'
   ];
   const containers = document.querySelectorAll(selectors.join(', '));
   containers.forEach(el => makeHorizontalScrollable(el));

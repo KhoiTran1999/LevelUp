@@ -4770,10 +4770,18 @@ html.dark .notes-editor code {
   }
 }
 
-/* Horizontal scrollable toolbar on mobile */
+/* Horizontal scrollable toolbar on mobile & desktop */
 .notes-toolbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  cursor: grab;
+}
+.notes-toolbar.is-dragging {
+  cursor: grabbing !important;
+}
+.notes-toolbar.is-dragging * {
+  pointer-events: none !important;
 }
 .notes-toolbar::-webkit-scrollbar {
   display: none;

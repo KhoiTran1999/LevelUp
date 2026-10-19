@@ -258,7 +258,19 @@ async function handleSaveExtensionNote({ title = '', body = '', topic = 'Ghi Ch�
     if (recentList.length > 20) recentList.pop();
     await chrome.storage.local.set({ recentExtensionNotes: recentList });
 
-    // Cập nhật danh sách chủ đề nếu có chủ đề mới
+    // Cập nhật danh sách ghi chú & chủ đề nếu có ghi chú mới
+    try {
+      const noteStorage = await chrome.storage.local.get(['levelupNotes']);
+      const currentNotes = Array.isArray(noteStorage.levelupNotes) ? noteStorage.levelupNotes : [];
+      if (notePayload.isNewNote) {
+        currentNotes.unshift({
+          id: notePayload.noteId || ('note_' + Date.now()),
+          title: notePayload.title || 'Ghi Chú Mới'
+        });
+        await chrome.storage.local.set({ levelupNotes: currentNotes });
+      }
+    } catch (_) {}
+
     if (notePayload.topic) {
       const topStorage = await chrome.storage.local.get(['levelupTopics']);
       const currentTopics = Array.isArray(topStorage.levelupTopics) && topStorage.levelupTopics.length > 0

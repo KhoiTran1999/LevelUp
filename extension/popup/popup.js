@@ -115,6 +115,40 @@ async function initKeepNoteView() {
     console.warn('[LevelUp Note] Error querying active tab:', err);
   }
 
+function renderNotesDropdown(noteList, selectedId) {
+  const topicSelect = document.getElementById('keep-topic-select');
+  const titleInput = document.getElementById('keep-note-title');
+  if (!topicSelect) return;
+
+  topicSelect.innerHTML = '';
+
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = '✨ + Tạo ghi chú mới...';
+  topicSelect.appendChild(newOpt);
+
+  if (Array.isArray(noteList)) {
+    noteList.forEach(n => {
+      const titleStr = (n.title || '').trim() || 'Chưa đặt tiêu đề';
+      const opt = document.createElement('option');
+      opt.value = n.id;
+      opt.dataset.title = titleStr;
+      opt.textContent = `📝 ${titleStr}`;
+      topicSelect.appendChild(opt);
+    });
+  }
+
+  if (selectedId && selectedId !== '__new__' && Array.isArray(noteList) && noteList.some(n => n.id === selectedId)) {
+    topicSelect.value = selectedId;
+    const matched = noteList.find(n => n.id === selectedId);
+    if (matched && titleInput) {
+      titleInput.value = matched.title;
+    }
+  } else {
+    topicSelect.value = '__new__';
+  }
+}
+
   // Nạp danh sách các ghi chú theo Tiêu Đề (Title) để người dùng chọn ghi chú tiếp hoặc tạo mới
   const topicSelect = document.getElementById('keep-topic-select');
   if (topicSelect) {
@@ -124,34 +158,23 @@ async function initKeepNoteView() {
       const userTopics = Array.isArray(storage.levelupTopics) && storage.levelupTopics.length > 0 
         ? storage.levelupTopics 
         : defaultTopics;
-      const noteList = Array.isArray(storage.levelupNotes) ? storage.levelupNotes : [];
+      let noteList = Array.isArray(storage.levelupNotes) ? storage.levelupNotes : [];
       
-      topicSelect.innerHTML = '';
-      
-      const newOpt = document.createElement('option');
-      newOpt.value = '__new__';
-      newOpt.textContent = '✨ + Tạo ghi chú mới...';
-      topicSelect.appendChild(newOpt);
+      renderNotesDropdown(noteList, storage.lastSelectedNoteId);
 
-      noteList.forEach(n => {
-        const titleStr = (n.title || '').trim() || 'Chưa đặt tiêu đề';
-        const opt = document.createElement('option');
-        opt.value = n.id;
-        opt.dataset.title = titleStr;
-        opt.textContent = `📝 ${titleStr}`;
-        topicSelect.appendChild(opt);
-      });
-
-      // Nếu trước đó người dùng đã chọn ghi chú nào
-      if (storage.lastSelectedNoteId && noteList.some(n => n.id === storage.lastSelectedNoteId)) {
-        topicSelect.value = storage.lastSelectedNoteId;
-        const matched = noteList.find(n => n.id === storage.lastSelectedNoteId);
-        if (matched && titleInput) {
-          titleInput.value = matched.title;
+      // Thử truy vấn tab LevelUp đang mở (nếu có) để lấy danh sách ghi chú mới nhất realtime
+      try {
+        const levelUpTabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+        if (levelUpTabs && levelUpTabs.length > 0) {
+          chrome.tabs.sendMessage(levelUpTabs[0].id, { type: 'REQUEST_NOTES_LIST' }, (response) => {
+            if (!chrome.runtime.lastError && response && Array.isArray(response.notes) && response.notes.length > 0) {
+              noteList = response.notes;
+              chrome.storage.local.set({ levelupNotes: noteList });
+              renderNotesDropdown(noteList, storage.lastSelectedNoteId);
+            }
+          });
         }
-      } else {
-        topicSelect.value = '__new__';
-      }
+      } catch (_) {}
     } catch (_) {}
   }
 
@@ -176,7 +199,7 @@ function switchView(targetView) {
     if (viewNotes) viewNotes.classList.add('hidden');
     if (viewSettings) viewSettings.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight" style="color: #818cf8;">Shield</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.2</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Khiên Kỷ Luật <span class="version-tag">v1.5.3</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Quay lại Ghi Chú';
       toggleBtn.innerHTML = '📝';
@@ -186,7 +209,7 @@ function switchView(targetView) {
     if (viewSettings) viewSettings.classList.add('hidden');
     if (viewNotes) viewNotes.classList.remove('hidden');
     if (brandTitle) brandTitle.innerHTML = 'LevelUp <span class="highlight">Ghi Chú</span>';
-    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.2</span>';
+    if (brandSubtitle) brandSubtitle.innerHTML = 'Google Keep Style <span class="version-tag">v1.5.3</span>';
     if (toggleBtn) {
       toggleBtn.title = 'Cài đặt & Khiên bảo vệ';
       toggleBtn.innerHTML = '⚙️';

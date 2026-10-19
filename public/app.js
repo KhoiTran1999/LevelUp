@@ -3383,7 +3383,7 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
-const REQUIRED_EXTENSION_VERSION = '1.5.2';
+const REQUIRED_EXTENSION_VERSION = '1.5.3';
 
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
@@ -13632,6 +13632,7 @@ function saveAllNotes(notesList) {
   }
   try {
     localStorage.setItem(NOTES_VAULT_STORAGE_KEY, JSON.stringify(notesList));
+    localStorage.setItem('levelup_notes_v1', JSON.stringify(notesList));
   } catch (_) {}
 
   const active = getActiveNote();
@@ -13645,6 +13646,10 @@ function saveAllNotes(notesList) {
   try {
     localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, activeContent);
   } catch (_) {}
+
+  if (typeof window !== 'undefined') {
+    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED', notes: notesList }, '*');
+  }
 
   if (typeof BroadcastChannel !== 'undefined') {
     try {
@@ -13711,6 +13716,13 @@ function loadNotesWorkspace() {
       editorCol.classList.add('hidden');
       if (banner) banner.classList.remove('hidden');
     }
+  }
+
+  if (typeof initHorizontalScrollContainers === 'function') {
+    initHorizontalScrollContainers();
+  }
+  if (typeof window !== 'undefined') {
+    window.postMessage({ type: 'LEVELUP_NOTES_UPDATED' }, '*');
   }
 }
 window.loadNotesWorkspace = loadNotesWorkspace;
@@ -14865,10 +14877,10 @@ function appendClipToNotes(text, sourceUrl = '', pageTitle = '') {
   const linkHtml = sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-500 underline text-xs">[Nguồn: ${sourceLabel}]</a>` : '';
 
   const clipHtml = `
-    <blockquote class="my-2 p-2 border-l-4 border-amber-500 bg-amber-500/10 rounded-r-lg">
-      <p class="italic text-xs">${cleanSnippet}</p>
-      <div class="mt-1 text-[11px] opacity-75">${linkHtml} <span>(${new Date().toLocaleTimeString('vi-VN')})</span></div>
-    </blockquote>
+    <p class="my-1.5 text-xs text-slate-700 dark:text-slate-300">
+      ${cleanSnippet}
+      ${linkHtml ? `<span class="ml-1 opacity-90">${linkHtml}</span>` : ''}
+    </p>
     <p></p>
   `;
 
@@ -14913,10 +14925,9 @@ function createNoteFromExtension(data = {}) {
   if (sourceUrl) {
     const sourceLabel = sourceTitle ? escapeHtml(sourceTitle) : escapeHtml(sourceUrl);
     formattedContent += `
-      <blockquote class="my-2 p-2 border-l-4 border-amber-500 bg-amber-500/10 rounded-r-lg">
-        <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-500 underline text-xs font-semibold">🔗 ${sourceLabel}</a>
-        <div class="mt-1 text-[11px] opacity-75 font-mono">${escapeHtml(sourceUrl)}</div>
-      </blockquote>
+      <p class="my-1.5 text-xs">
+        <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-600 dark:text-indigo-400 underline font-medium">🔗 ${sourceLabel}</a>
+      </p>
       <p></p>
     `;
   }
@@ -20878,7 +20889,10 @@ function initHorizontalScrollContainers() {
     '#reward-suggest-chips',
     '#bank-suggest-chips',
     '#assistant-suggest-chips',
-    '.quick-suggest-chips'
+    '.quick-suggest-chips',
+    '.notes-toolbar',
+    '#focus-notes-toolbar',
+    '#modal-focus-notes-toolbar'
   ];
   const containers = document.querySelectorAll(selectors.join(', '));
   containers.forEach(el => makeHorizontalScrollable(el));

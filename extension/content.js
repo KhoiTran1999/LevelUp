@@ -8,7 +8,7 @@
 
   function broadcastExtensionVersion() {
     try {
-      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.2';
+      const extVersion = chrome.runtime?.getManifest?.()?.version || '1.5.3';
       document.documentElement.dataset.levelupExtensionInstalled = 'true';
       document.documentElement.dataset.levelupExtensionVersion = extVersion;
       window.__LEVELUP_EXTENSION_INSTALLED__ = true;
@@ -194,6 +194,14 @@
           isNewNote: message.isNewNote !== false
         }, '*');
         sendResponse?.({ received: true });
+      } else if (message.type === 'REQUEST_NOTES_LIST') {
+        const notes = getLevelUpNotesFromPage();
+        const noteList = notes.map(n => ({
+          id: n.id,
+          title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
+        }));
+        syncTopicsToExtension();
+        sendResponse?.({ notes: noteList });
       }
     });
   }
@@ -237,39 +245,72 @@
     }
   } catch (_) {}
 
+  // Helper đọc danh sách ghi chú từ nhiều nguồn bộ nhớ khả dĩ của LevelUp
+  function getLevelUpNotesFromPage() {
+    try {
+      const rawVault = localStorage.getItem('levelup_notes_vault');
+      if (rawVault) {
+        const parsed = JSON.parse(rawVault);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const rawV1 = localStorage.getItem('levelup_notes_v1');
+      if (rawV1) {
+        const parsed = JSON.parse(rawV1);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const stateRaw = localStorage.getItem('levelup_state_v2') || localStorage.getItem('levelup_state_v1');
+      if (stateRaw) {
+        const stateObj = JSON.parse(stateRaw);
+        if (Array.isArray(stateObj.notes) && stateObj.notes.length > 0) return stateObj.notes;
+      }
+    } catch (_) {}
+    return [];
+  }
+
   // 8. Tự động đồng bộ các ghi chú & chủ đề có sẵn sang Extension Storage
   function syncTopicsToExtension() {
     try {
       if (!chrome.storage?.local) return;
-      const raw = localStorage.getItem('levelup_notes_v1');
-      if (raw) {
-        const notes = JSON.parse(raw);
-        if (Array.isArray(notes)) {
-          const set = new Set(['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu']);
-          const noteList = [];
-          notes.forEach(n => {
-            const t = (n.topic || '').trim();
-            if (t) set.add(t);
-            noteList.push({
-              id: n.id,
-              title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
-            });
+      const notes = getLevelUpNotesFromPage();
+      if (Array.isArray(notes)) {
+        const set = new Set(['Ghi Chép Nhanh', 'Ý Tưởng', 'Học Tập', 'Công Việc', 'Nghiên Cứu']);
+        const noteList = [];
+        notes.forEach(n => {
+          const t = (n.topic || '').trim();
+          if (t) set.add(t);
+          noteList.push({
+            id: n.id,
+            title: (n.title || '').trim() || 'Chưa đặt tiêu đề'
           });
-          chrome.storage.local.set({
-            levelupTopics: Array.from(set),
-            levelupNotes: noteList
-          });
-        }
+        });
+        chrome.storage.local.set({
+          levelupTopics: Array.from(set),
+          levelupNotes: noteList
+        });
       }
     } catch (_) {}
   }
 
   syncTopicsToExtension();
   window.addEventListener('storage', (event) => {
-    if (event.key === 'levelup_notes_v1') syncTopicsToExtension();
+    if (event.key === 'levelup_notes_vault' || event.key === 'levelup_notes_v1' || event.key === 'levelup_state_v2') {
+      syncTopicsToExtension();
+    }
   });
   window.addEventListener('message', (event) => {
-    if (event.data?.type === 'LEVELUP_NOTES_UPDATED') syncTopicsToExtension();
+    if (event.data?.type === 'LEVELUP_NOTES_UPDATED' || event.data?.type === 'NOTES_UPDATED') {
+      syncTopicsToExtension();
+    }
   });
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const ch = new BroadcastChannel('levelup_sync_channel');
+      ch.onmessage = (event) => {
+        if (event.data?.type === 'NOTES_UPDATED' || event.data?.type === 'LEVELUP_NOTES_UPDATED') {
+          syncTopicsToExtension();
+        }
+      };
+    } catch (_) {}
+  }
 })();
 
