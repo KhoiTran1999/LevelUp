@@ -1684,18 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Brain Dump input Enter key submit
-  const inputBrainDump = document.getElementById('input-brain-dump');
-  if (inputBrainDump) {
-    inputBrainDump.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAddBrainDumpClick();
-      }
-    });
-  }
-
-  // Button triggers for Brain Dump & Dopamine Guide
+  // Button triggers for Sổ Ghi Chú & Dopamine Guide
   const btnOpenBrainDump = document.getElementById('btn-open-brain-dump');
   if (btnOpenBrainDump) {
     btnOpenBrainDump.addEventListener('click', () => {
@@ -1863,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Phím tắt Alt+D mở/đóng Cuộn Giấy Xả Rác Não Bộ (Brain Dump)
+  // Phím tắt Alt+D mở/đóng Sổ Ghi Chú (Focus Notes)
   document.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();

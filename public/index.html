@@ -329,9 +329,9 @@
               <span class="material-symbols-outlined text-[16px] leading-none">pause_circle</span>
               <span class="hidden sm:inline">Bảo Lưu</span>
             </button>
-            <button id="btn-open-brain-dump" type="button" class="m3-btn m3-btn-sm m3-btn-tonal px-2.5 sm:px-3 py-2 rounded-full text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer" title="Cuộn Giấy Xả Rác Não Bộ (Phím tắt: Alt+D)">
+            <button id="btn-open-brain-dump" type="button" class="m3-btn m3-btn-sm m3-btn-tonal px-2.5 sm:px-3 py-2 rounded-full text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer" title="Sổ Tay Ghi Chú (Phím tắt: Alt+D)">
               <span class="material-symbols-outlined text-[16px] leading-none">edit_note</span>
-              <span class="hidden sm:inline">Giấy Xả Rác</span>
+              <span class="hidden sm:inline">Sổ Ghi Chú</span>
               <span id="brain-dump-badge" class="hidden ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-amber-500 text-slate-950">0</span>
             </button>
             <button id="btn-focus-dopamine-guide" type="button" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 transition flex items-center justify-center cursor-pointer" title="Bí Kíp Ngắt Mạch Dopamine & Vào Deep Work">
@@ -3293,18 +3293,18 @@
         </div>
       </div>
 
-      <!-- Brain Dump Review Banner if there are items -->
+      <!-- Focus Notes Review Banner if there are notes -->
       <div id="focus-complete-brain-dump-banner" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-1.5">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
             <span>📝</span>
-            <span>Giấy Xả Rác Não Bộ</span>
+            <span>Sổ Tay Ghi Chú</span>
           </span>
-          <span id="focus-complete-brain-dump-count" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">0 mục</span>
+          <span id="focus-complete-brain-dump-count" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">Có ghi chú</span>
         </div>
-        <p class="text-[11px] text-slate-600 dark:text-slate-400">Bạn đã xả một số suy nghĩ trong lúc tập trung. Hãy xem lại để dọn rác hoặc tạo nhiệm vụ mới nhé!</p>
+        <p class="text-[11px] text-slate-600 dark:text-slate-400">Bạn đã có bản thảo trong Sổ Ghi Chú. Nhấn vào đây để xem lại hoặc sao chép nhé!</p>
         <button id="btn-focus-complete-view-dump" type="button" onclick="openBrainDumpModal()" class="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/40 transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
-          <span>Xem & Xử Lý Giấy Xả Rác</span>
+          <span>Mở Sổ Tay Ghi Chú</span>
           <span class="material-symbols-outlined text-sm leading-none">arrow_forward</span>
         </button>
       </div>
@@ -3348,9 +3348,9 @@
         <button id="btn-zen-toggle" type="button" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
           Tạm Dừng
         </button>
-        <button id="btn-zen-brain-dump" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Ghi suy nghĩ gây xao nhãng (Alt+D)">
+        <button id="btn-zen-brain-dump" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Sổ Tay Ghi Chú (Alt+D)">
           <span>📝</span>
-          <span>Giấy Xả Rác</span>
+          <span>Sổ Ghi Chú</span>
           <span id="zen-brain-dump-badge" class="hidden font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black">0</span>
         </button>
         <button id="btn-zen-hold" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-sky-600/30 border border-sky-500/50 text-sky-300 hover:bg-sky-600/50 transition active:scale-95 cursor-pointer" title="Bảo lưu thời gian còn lại">
@@ -3368,7 +3368,7 @@
         <span class="opacity-50">•</span>
         <span class="flex items-center gap-1">
           <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">Alt + D</kbd>
-          <span>Giấy xả rác</span>
+          <span>Sổ Ghi Chú</span>
         </span>
       </div>
     </div>
@@ -4600,7 +4600,7 @@
             <div class="flex items-center justify-between">
               <span class="font-bold text-amber-700 dark:text-amber-300 text-xs sm:text-sm flex items-center gap-2">
                 <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-black text-xs">5</span>
-                <span>Đặt Một Tờ "Giấy Xả Rác" (Brain Dump)</span>
+                <span>Đặt Một Cuốn "Sổ Ghi Chú" (Brain Dump) Cạnh Tay</span>
               </span>
               <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-700 dark:text-amber-300 font-mono font-bold">Xả xao nhãng</span>
             </div>
@@ -4611,7 +4611,7 @@
               </li>
               <li class="flex items-start gap-2">
                 <span class="text-amber-500 mt-0.5">•</span>
-                <div><b>Đừng giải quyết chúng ngay:</b> Hãy nhấn nút <b>📝 Giấy Xả Rác</b> trên thanh Pomodoro (hoặc phím tắt <code>Alt + D</code>) để ghi nhanh vào danh sách, coi như đã "lưu", rồi quay ngay lại việc học. Cuối buổi bạn có thể chuyển chúng thành nhiệm vụ hoặc xóa đi.</div>
+                <div><b>Đừng giải quyết chúng ngay:</b> Hãy mở ngay <b>📝 Sổ Ghi Chú</b> trên thanh Pomodoro (hoặc phím tắt <code>Alt + D</code>) để soạn thảo văn bản hoặc ghi nhanh vào, coi như đã "lưu", rồi quay ngay lại việc học. Não bạn sẽ an tâm không quên để tiếp tục duy trì trạng thái học sâu.</div>
               </li>
             </ul>
           </div>
@@ -4623,7 +4623,7 @@
       <div class="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex items-center justify-between shrink-0">
         <button type="button" onclick="openBrainDumpModal()" class="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer">
           <span class="material-symbols-outlined text-[16px] leading-none">edit_note</span>
-          <span>Mở Giấy Xả Rác Số</span>
+          <span>Mở Sổ Tay Ghi Chú</span>
         </button>
         <button type="button" onclick="closeDopamineGuideModal()" class="px-4 sm:px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer shadow-sm">
           Đã Hiểu & Bắt Đầu Học ⚔️
@@ -4633,19 +4633,19 @@
   </div>
 
   <!-- ======================================================================= -->
-  <!-- MODAL: CUỘN GIẤY XẢ RÁC NÃO BỘ (DIGITAL BRAIN DUMP)                     -->
+  <!-- MODAL: SỔ TAY GHI CHÚ (FOCUS NOTES & SCRATCHPAD)                        -->
   <!-- ======================================================================= -->
   <div id="modal-brain-dump" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title">
-    <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-lg border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-white dark:bg-slate-900">
       <!-- Modal Header -->
-      <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-amber-500/20 flex justify-between items-center shrink-0">
+      <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 border-b border-amber-500/20 flex justify-between items-center shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/25 to-yellow-500/25 border border-amber-500/40 flex items-center justify-center text-xl shadow-xs">
             <span>📝</span>
           </div>
           <div>
-            <h3 id="modal-brain-dump-title" class="font-rpg-title font-black text-sm sm:text-base text-amber-600 dark:text-amber-400 tracking-wide uppercase">GIẤY XẢ RÁC NÃO BỘ</h3>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Xả suy nghĩ gây xao nhãng để giữ vững mạch Deep Work</p>
+            <h3 id="modal-brain-dump-title" class="font-rpg-title font-black text-sm sm:text-base text-amber-600 dark:text-amber-400 tracking-wide uppercase">SỔ TAY GHI CHÚ</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Soạn thảo văn bản, ghi chép bản nháp và ý tưởng tự do</p>
           </div>
         </div>
         <button id="btn-close-brain-dump" type="button" onclick="closeBrainDumpModal()" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
@@ -4653,57 +4653,106 @@
         </button>
       </div>
 
-      <!-- Quick Input Section (Instant Capture < 3s) -->
-      <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 shrink-0">
-        <div class="flex items-center gap-2">
-          <input
-            id="input-brain-dump"
-            type="text"
-            maxlength="200"
-            placeholder="Gõ suy nghĩ xao nhãng rồi bấm Enter..."
-            class="flex-1 rpg-input rounded-xl px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm transition bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500 dark:focus:border-amber-400 placeholder:text-slate-400"
-          >
+      <!-- Rich Text Formatting Toolbar -->
+      <div class="px-3 sm:px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center gap-1 flex-wrap shrink-0">
+        <!-- Style formatting -->
+        <button type="button" onclick="formatNoteDoc('bold')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="In đậm (Ctrl+B)">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_bold</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('italic')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="In nghiêng (Ctrl+I)">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_italic</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('underline')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Gạch chân (Ctrl+U)">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_underlined</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('strikeThrough')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Gạch ngang">
+          <span class="material-symbols-outlined text-[18px] leading-none">strikethrough_s</span>
+        </button>
+
+        <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+        <!-- Block formatting -->
+        <button type="button" onclick="toggleNoteHeading()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer font-bold text-xs" title="Tiêu đề (H2)">
+          H2
+        </button>
+        <button type="button" onclick="formatNoteDoc('insertUnorderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Danh sách gạch đầu dòng">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_list_bulleted</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('insertOrderedList')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Danh sách số">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_list_numbered</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('formatBlock', '<blockquote>')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Trích dẫn">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_quote</span>
+        </button>
+
+        <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+        <!-- Highlight & clear -->
+        <button type="button" onclick="toggleNoteHighlight()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 transition cursor-pointer" title="Đánh dấu màu vàng">
+          <span class="material-symbols-outlined text-[18px] leading-none">ink_highlighter</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('removeFormat')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Xóa định dạng">
+          <span class="material-symbols-outlined text-[18px] leading-none">format_clear</span>
+        </button>
+
+        <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+        <!-- Undo / Redo -->
+        <button type="button" onclick="formatNoteDoc('undo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Hoàn tác (Ctrl+Z)">
+          <span class="material-symbols-outlined text-[18px] leading-none">undo</span>
+        </button>
+        <button type="button" onclick="formatNoteDoc('redo')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer" title="Làm lại (Ctrl+Y)">
+          <span class="material-symbols-outlined text-[18px] leading-none">redo</span>
+        </button>
+      </div>
+
+      <!-- Editor Content Area (Rich Text) -->
+      <div class="flex-1 min-h-[300px] max-h-[58vh] overflow-y-auto custom-scrollbar p-4 sm:p-5 bg-white dark:bg-slate-900">
+        <div
+          id="focus-notes-editor"
+          contenteditable="true"
+          spellcheck="false"
+          class="w-full min-h-[260px] text-sm leading-relaxed text-slate-800 dark:text-slate-100 focus:outline-none select-text"
+          data-placeholder="Bắt đầu gõ ghi chú, soạn thảo văn bản hoặc bản nháp của bạn tại đây... (Nhấn Alt+D để đóng/mở nhanh)"
+        ></div>
+      </div>
+
+      <!-- Modal Footer & Status Bar -->
+      <div class="p-3 sm:p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+        <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+          <span id="notes-word-count">0 từ</span>
+          <span>•</span>
+          <span id="notes-char-count">0 ký tự</span>
+          <span>•</span>
+          <span id="notes-save-status" class="text-emerald-600 dark:text-emerald-400 font-medium font-sans">✓ Đã lưu tự động</span>
+        </div>
+        <div class="flex items-center gap-1.5 sm:gap-2">
           <button
-            id="btn-add-brain-dump"
             type="button"
-            onclick="handleAddBrainDumpClick()"
-            class="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+            onclick="copyFocusNotes()"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer active:scale-95"
+            title="Sao chép toàn bộ văn bản vào clipboard"
           >
-            <span>Lưu</span>
-            <span class="material-symbols-outlined text-base leading-none">arrow_downward</span>
+            <span class="material-symbols-outlined text-[16px] leading-none">content_copy</span>
+            <span>Sao Chép</span>
+          </button>
+          <button
+            type="button"
+            onclick="clearFocusNotes()"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition flex items-center gap-1 cursor-pointer active:scale-95"
+            title="Xóa toàn bộ nội dung trong sổ ghi chú"
+          >
+            <span class="material-symbols-outlined text-[16px] leading-none">delete</span>
+            <span>Xóa Sạch</span>
+          </button>
+          <button
+            type="button"
+            onclick="closeBrainDumpModal()"
+            class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer shadow-sm"
+          >
+            Đóng (Esc)
           </button>
         </div>
-        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
-          <span>💡</span>
-          <span>Ghi lại để não an tâm không quên. Bạn có thể xóa hoặc biến thành Nhiệm Vụ sau!</span>
-        </p>
-      </div>
-
-      <!-- Dumped Thoughts List -->
-      <div id="brain-dump-list-container" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 space-y-2.5">
-        <div id="brain-dump-list" class="space-y-2">
-          <!-- Rendered dynamically -->
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex items-center justify-between shrink-0">
-        <button
-          id="btn-clear-all-dump"
-          type="button"
-          onclick="handleClearAllBrainDumpClick()"
-          class="text-xs font-semibold text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span class="material-symbols-outlined text-[16px] leading-none">delete_sweep</span>
-          <span>Dọn Sạch Rác</span>
-        </button>
-        <button
-          type="button"
-          onclick="closeBrainDumpModal()"
-          class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 cursor-pointer"
-        >
-          Đóng (Esc)
-        </button>
       </div>
     </div>
   </div>

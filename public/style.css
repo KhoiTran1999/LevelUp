@@ -4547,3 +4547,69 @@ html.dark #modal-shield-gate .shield-gate-dialog {
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.2) !important;
 }
 
+/* 24.10 Focus Notes / Sổ Tay Ghi Chú Rich Text Editor */
+#focus-notes-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+  display: block;
+}
+
+#focus-notes-editor:focus {
+  outline: none;
+}
+
+#focus-notes-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.6rem 0 0.3rem 0;
+  color: #d97706;
+}
+
+html.dark #focus-notes-editor h2 {
+  color: #fbbf24;
+}
+
+#focus-notes-editor h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem 0;
+}
+
+#focus-notes-editor ul {
+  list-style-type: disc;
+  padding-left: 1.35rem;
+  margin: 0.4rem 0;
+}
+
+#focus-notes-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.35rem;
+  margin: 0.4rem 0;
+}
+
+#focus-notes-editor li {
+  margin: 0.2rem 0;
+}
+
+#focus-notes-editor blockquote {
+  border-left: 3.5px solid #f59e0b;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  color: #64748b;
+  font-style: italic;
+}
+
+html.dark #focus-notes-editor blockquote {
+  color: #94a3b8;
+  border-left-color: #f59e0b;
+}
+
+#focus-notes-editor mark {
+  background-color: #fef08a;
+  color: #0f172a;
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+

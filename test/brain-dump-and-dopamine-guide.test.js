@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 
-console.log('=== Bắt đầu kiểm thử: Cẩm Nang Ngắt Mạch Dopamine & Giấy Xả Rác Não Bộ ===\n');
+console.log('=== Bắt đầu kiểm thử: Cẩm Nang Ngắt Mạch Dopamine & Sổ Tay Ghi Chú (Focus Notes) ===\n');
 
 const htmlPath = path.resolve('public/index.html');
 const appJsPath = path.resolve('public/app.js');
@@ -22,52 +22,74 @@ assert.ok(html.includes('Xóa Bộ Nhớ Đệm Thể Chất'), 'Cẩm nang ph�
 assert.ok(html.includes('Thiết Lập Môi Trường Cách Ly'), 'Cẩm nang phải chứa Bước 2: Thiết lập môi trường cách ly');
 assert.ok(html.includes('Bắt Đầu Siêu Nhỏ'), 'Cẩm nang phải chứa Bước 3: Bắt đầu siêu nhỏ 5 phút');
 assert.ok(html.includes('Kích Hoạt Chu Kỳ Tập Trung Ngắn'), 'Cẩm nang phải chứa Bước 4: Chu kỳ tập trung ngắn 25/5');
-assert.ok(html.includes('Đặt Một Tờ "Giấy Xả Rác" (Brain Dump)'), 'Cẩm nang phải chứa Bước 5: Giấy xả rác cạnh tay');
+assert.ok(html.includes('Sổ Tay Ghi Chú'), 'Cẩm nang phải chứa Bước 5 cập nhật: Sổ Tay Ghi Chú cạnh tay');
 assert.ok(html.includes('lái xe 100km/h mà bóp phanh gấp'), 'Cẩm nang phải giải thích cơ chế tương phản dopamine');
 console.log('  -> Cấu trúc Cẩm Nang Ngắt Mạch Dopamine và 5 bước đạt chuẩn 100%: OK\n');
 
-// 2. Kiểm tra HTML: Sự hiện diện của Cuộn Giấy Xả Rác (#modal-brain-dump) và các nút điều khiển
-console.log('Test 2: Kiểm tra cấu trúc HTML của Cuộn Giấy Xả Rác Não Bộ (#modal-brain-dump)');
+// 2. Kiểm tra HTML: Sự hiện diện của Sổ Tay Ghi Chú (#modal-brain-dump) và trình soạn thảo Rich Text
+console.log('Test 2: Kiểm tra cấu trúc HTML của Sổ Tay Ghi Chú Rich Text (#modal-brain-dump)');
 assert.ok(html.includes('id="modal-brain-dump"'), 'index.html phải có dialog #modal-brain-dump');
-assert.ok(html.includes('id="input-brain-dump"'), 'index.html phải có input #input-brain-dump để gõ nhanh');
-assert.ok(html.includes('id="btn-add-brain-dump"'), 'index.html phải có nút lưu #btn-add-brain-dump');
-assert.ok(html.includes('id="brain-dump-list"'), 'index.html phải có container #brain-dump-list');
-assert.ok(html.includes('id="btn-clear-all-dump"'), 'index.html phải có nút #btn-clear-all-dump');
+assert.ok(html.includes('id="focus-notes-editor"'), 'index.html phải có trình soạn thảo contenteditable #focus-notes-editor');
+assert.ok(html.includes('contenteditable="true"'), 'Trình soạn thảo phải có thuộc tính contenteditable="true"');
+assert.ok(html.includes('id="notes-word-count"'), 'index.html phải có phần tử hiển thị số từ #notes-word-count');
+assert.ok(html.includes('id="notes-char-count"'), 'index.html phải có phần tử hiển thị số ký tự #notes-char-count');
 
-// Các nút mở và badge hiển thị số lượng
+// Kiểm tra thanh công cụ định dạng Rich Text
+assert.ok(html.includes("formatNoteDoc('bold')"), 'Thanh công cụ phải có nút in đậm (Bold)');
+assert.ok(html.includes("formatNoteDoc('italic')"), 'Thanh công cụ phải có nút in nghiêng (Italic)');
+assert.ok(html.includes("formatNoteDoc('underline')"), 'Thanh công cụ phải có nút gạch chân (Underline)');
+assert.ok(html.includes("formatNoteDoc('strikeThrough')"), 'Thanh công cụ phải có nút gạch ngang (Strikethrough)');
+assert.ok(html.includes("toggleNoteHeading()"), 'Thanh công cụ phải có nút tiêu đề H2');
+assert.ok(html.includes("formatNoteDoc('insertUnorderedList')"), 'Thanh công cụ phải có nút danh sách chấm (Bullets)');
+assert.ok(html.includes("formatNoteDoc('insertOrderedList')"), 'Thanh công cụ phải có nút danh sách số (Numbered list)');
+assert.ok(html.includes("formatNoteDoc('formatBlock', '<blockquote>')"), 'Thanh công cụ phải có nút trích dẫn (Blockquote)');
+assert.ok(html.includes("toggleNoteHighlight()"), 'Thanh công cụ phải có nút bôi màu sáng (Highlight)');
+assert.ok(html.includes("formatNoteDoc('removeFormat')"), 'Thanh công cụ phải có nút xóa định dạng (Clear format)');
+assert.ok(html.includes("copyFocusNotes()"), 'Thanh công cụ phải có nút sao chép (Copy)');
+assert.ok(html.includes("clearFocusNotes()"), 'Thanh công cụ phải có nút dọn sạch (Clear)');
+
+// Xác nhận ĐÃ XÓA tính năng tạo Quest trong Sổ Ghi Chú
+assert.ok(!html.includes('id="input-brain-dump"'), 'Đã xóa hoàn toàn input đơn hàng dòng cũ #input-brain-dump');
+assert.ok(!html.includes('convertBrainDumpToQuest'), 'Đã xóa hoàn toàn tính năng convertBrainDumpToQuest khỏi HTML');
+
+// Các nút mở và badge hiển thị
 assert.ok(html.includes('id="btn-open-brain-dump"'), 'index.html phải có nút #btn-open-brain-dump trên Focus Banner');
-assert.ok(html.includes('id="brain-dump-badge"'), 'index.html phải có badge đếm số lượng #brain-dump-badge trên banner');
+assert.ok(html.includes('id="brain-dump-badge"'), 'index.html phải có badge đếm #brain-dump-badge trên banner');
 assert.ok(html.includes('id="btn-zen-brain-dump"'), 'index.html phải có nút #btn-zen-brain-dump trong Chế độ Zen');
-assert.ok(html.includes('id="zen-brain-dump-badge"'), 'index.html phải có badge đếm số lượng #zen-brain-dump-badge trong Zen Mode');
+assert.ok(html.includes('id="zen-brain-dump-badge"'), 'index.html phải có badge đếm #zen-brain-dump-badge trong Zen Mode');
 
 // Banner nhắc nhở sau khi hoàn thành phiên Pomodoro
-assert.ok(html.includes('id="focus-complete-brain-dump-banner"'), 'Modal hoàn thành Pomodoro phải có banner nhắc xử lý rác não');
-assert.ok(html.includes('id="focus-complete-brain-dump-count"'), 'Banner nhắc hoàn thành phải có element đếm số mục');
-console.log('  -> Cấu trúc HTML Giấy Xả Rác và các badge đồng bộ đạt chuẩn: OK\n');
+assert.ok(html.includes('id="focus-complete-brain-dump-banner"'), 'Modal hoàn thành Pomodoro phải có banner nhắc mở Sổ Tay Ghi Chú');
+assert.ok(html.includes('id="focus-complete-brain-dump-count"'), 'Banner nhắc hoàn thành phải có element đếm thống kê');
+console.log('  -> Cấu trúc HTML Sổ Tay Ghi Chú và thanh công cụ soạn thảo phong phú đạt chuẩn: OK\n');
 
 // 3. Kiểm tra mã nguồn JS trong public/app.js
-console.log('Test 3: Kiểm tra các hàm nghiệp vụ và phím tắt trong app.js');
+console.log('Test 3: Kiểm tra các hàm nghiệp vụ Focus Notes và phím tắt trong app.js');
 assert.ok(js.includes('function openDopamineGuideModal'), 'app.js phải định nghĩa openDopamineGuideModal');
 assert.ok(js.includes('function closeDopamineGuideModal'), 'app.js phải định nghĩa closeDopamineGuideModal');
-assert.ok(js.includes('function getBrainDumpList'), 'app.js phải định nghĩa getBrainDumpList');
-assert.ok(js.includes('function saveBrainDumpList'), 'app.js phải định nghĩa saveBrainDumpList');
-assert.ok(js.includes('function addBrainDumpItem'), 'app.js phải định nghĩa addBrainDumpItem');
-assert.ok(js.includes('function removeBrainDumpItem'), 'app.js phải định nghĩa removeBrainDumpItem');
-assert.ok(js.includes('function convertBrainDumpToQuest'), 'app.js phải định nghĩa convertBrainDumpToQuest');
-assert.ok(js.includes('function clearAllBrainDump'), 'app.js phải định nghĩa clearAllBrainDump');
-assert.ok(js.includes('function renderBrainDumpUI'), 'app.js phải định nghĩa renderBrainDumpUI');
+assert.ok(js.includes('function getFocusNotesContent'), 'app.js phải định nghĩa getFocusNotesContent');
+assert.ok(js.includes('function saveFocusNotesContent'), 'app.js phải định nghĩa saveFocusNotesContent');
+assert.ok(js.includes('function formatNoteDoc'), 'app.js phải định nghĩa formatNoteDoc');
+assert.ok(js.includes('function toggleNoteHeading'), 'app.js phải định nghĩa toggleNoteHeading');
+assert.ok(js.includes('function toggleNoteHighlight'), 'app.js phải định nghĩa toggleNoteHighlight');
+assert.ok(js.includes('function copyFocusNotes'), 'app.js phải định nghĩa copyFocusNotes');
+assert.ok(js.includes('function clearFocusNotes'), 'app.js phải định nghĩa clearFocusNotes');
+assert.ok(js.includes('function updateNotesStats'), 'app.js phải định nghĩa updateNotesStats');
 assert.ok(js.includes('function openBrainDumpModal'), 'app.js phải định nghĩa openBrainDumpModal');
 assert.ok(js.includes('function closeBrainDumpModal'), 'app.js phải định nghĩa closeBrainDumpModal');
+
+// Đảm bảo không còn logic convertBrainDumpToQuest
+assert.ok(!js.includes('function convertBrainDumpToQuest'), 'app.js không còn chứa function convertBrainDumpToQuest');
 
 // Kiểm tra phím tắt Alt + D
 assert.ok(
   js.includes("e.altKey && (e.key === 'd' || e.key === 'D')"),
-  'app.js phải có bộ lắng nghe phím tắt Alt+D để mở/đóng Giấy Xả Rác'
+  'app.js phải có bộ lắng nghe phím tắt Alt+D để mở/đóng Sổ Ghi Chú'
 );
-console.log('  -> Đầy đủ các hàm điều khiển và phím tắt Alt+D: OK\n');
+console.log('  -> Đầy đủ các hàm điều khiển Focus Notes Rich Text và phím tắt Alt+D: OK\n');
 
-// 4. Mô phỏng Logic Engine của Giấy Xả Rác
-console.log('Test 4: Mô phỏng logic CRUD và Chuyển thành Quest của Brain Dump Engine');
+// 4. Mô phỏng Logic Focus Notes Engine (Auto-save, Word/Char Count, Clear)
+console.log('Test 4: Mô phỏng logic lưu trữ, đếm từ/ký tự và xóa của Focus Notes Engine');
 
 const mockStorage = {};
 const fakeLocalStorage = {
@@ -76,86 +98,49 @@ const fakeLocalStorage = {
   removeItem: (k) => { delete mockStorage[k]; }
 };
 
-const fakeAppState = {
-  quests: []
-};
+const STORAGE_KEY = 'levelup_focus_notes';
 
-function engineGetList() {
+function engineGetContent() {
   try {
-    const raw = fakeLocalStorage.getItem('levelup_brain_dump');
-    if (!raw) return [];
-    return JSON.parse(raw);
+    return fakeLocalStorage.getItem(STORAGE_KEY) || '';
   } catch (_) {
-    return [];
+    return '';
   }
 }
 
-function engineSaveList(list) {
-  fakeLocalStorage.setItem('levelup_brain_dump', JSON.stringify(list));
+function engineSaveContent(htmlStr) {
+  try {
+    fakeLocalStorage.setItem(STORAGE_KEY, htmlStr || '');
+  } catch (_) {}
 }
 
-function engineAddItem(text) {
-  const clean = (text || '').trim();
-  if (!clean) return false;
-  const list = engineGetList();
-  list.unshift({
-    id: 'bd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    text: clean,
-    createdAt: Date.now()
-  });
-  engineSaveList(list);
-  return true;
+function engineCalculateStats(rawText) {
+  const text = (rawText || '').trim();
+  const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const charCount = text ? text.length : 0;
+  return { wordCount, charCount };
 }
 
-function engineConvertToQuest(id) {
-  const list = engineGetList();
-  const item = list.find(x => x.id === id);
-  if (!item) return false;
+// 4.1 Lưu và đọc nội dung HTML
+assert.strictEqual(engineGetContent(), '', 'Mặc định sổ ghi chú chưa có nội dung');
 
-  const newQuest = {
-    id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    title: item.text,
-    type: 'bounty',
-    targetMinutes: 0,
-    rewardCoins: 5,
-    requiresProof: false,
-    status: 'active',
-    completed: false,
-    createdAt: Date.now()
-  };
+const initialNotes = '<h2>Ý tưởng dự án</h2><p>Cần chuẩn bị <b>báo cáo</b> trước 15:00.</p>';
+engineSaveContent(initialNotes);
+assert.strictEqual(engineGetContent(), initialNotes, 'Nội dung HTML phải được lưu đúng vào localStorage');
 
-  fakeAppState.quests.unshift(newQuest);
-  engineSaveList(list.filter(x => x.id !== id));
-  return newQuest;
-}
+// 4.2 Thống kê số từ và ký tự
+const stats1 = engineCalculateStats('');
+assert.strictEqual(stats1.wordCount, 0, 'Chuỗi rỗng phải có 0 từ');
+assert.strictEqual(stats1.charCount, 0, 'Chuỗi rỗng phải có 0 ký tự');
 
-// 4.1 Thêm suy nghĩ
-assert.strictEqual(engineAddItem(''), false, 'Không được thêm suy nghĩ rỗng');
-assert.strictEqual(engineAddItem('   '), false, 'Không được thêm suy nghĩ chỉ có khoảng trắng');
-assert.strictEqual(engineAddItem('Nhớ rep tin nhắn Nam'), true, 'Thêm suy nghĩ hợp lệ thành công');
-assert.strictEqual(engineAddItem('Lát nữa mua cà phê'), true, 'Thêm suy nghĩ thứ 2 thành công');
+const samplePlainText = 'Cần chuẩn bị báo cáo trước 15:00.';
+const stats2 = engineCalculateStats(samplePlainText);
+assert.strictEqual(stats2.wordCount, 7, 'Số từ phải được tính toán chính xác');
+assert.strictEqual(stats2.charCount, samplePlainText.length, 'Số ký tự phải khớp độ dài chuỗi');
 
-let currentList = engineGetList();
-assert.strictEqual(currentList.length, 2, 'Danh sách phải có đúng 2 mục');
-assert.strictEqual(currentList[0].text, 'Lát nữa mua cà phê', 'Mục mới thêm phải nằm ở đầu danh sách (unshift)');
-assert.strictEqual(currentList[1].text, 'Nhớ rep tin nhắn Nam', 'Mục cũ hơn phải nằm ở vị trí kế tiếp');
+// 4.3 Dọn sạch sổ ghi chú
+engineSaveContent('');
+assert.strictEqual(engineGetContent(), '', 'Sau khi clear, nội dung trong storage phải rỗng');
 
-// 4.2 Chuyển thành Quest
-const itemToConvert = currentList[0];
-const createdQuest = engineConvertToQuest(itemToConvert.id);
-assert.ok(createdQuest, 'Phải tạo thành công Quest từ suy nghĩ');
-assert.strictEqual(createdQuest.title, 'Lát nữa mua cà phê');
-assert.strictEqual(createdQuest.type, 'bounty');
-assert.strictEqual(createdQuest.rewardCoins, 5);
-assert.strictEqual(fakeAppState.quests.length, 1, 'appState.quests phải được thêm 1 nhiệm vụ mới');
-
-currentList = engineGetList();
-assert.strictEqual(currentList.length, 1, 'Danh sách rác phải chỉ còn 1 mục sau khi chuyển thành Quest');
-assert.strictEqual(currentList[0].text, 'Nhớ rep tin nhắn Nam');
-
-// 4.3 Dọn sạch rác
-engineSaveList([]);
-assert.strictEqual(engineGetList().length, 0, 'Danh sách phải trống sau khi dọn sạch');
-
-console.log('  -> Toàn bộ hành vi CRUD và chuyển hóa Quest hoạt động hoàn hảo: OK\n');
+console.log('  -> Toàn bộ hành vi lưu trữ và thống kê của Focus Notes Engine hoạt động hoàn hảo: OK\n');
 console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ ĐỀU VƯỢT QUA XUẤT SẮC (100%)!');

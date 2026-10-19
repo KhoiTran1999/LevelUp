@@ -13511,41 +13511,105 @@ function closeDopamineGuideModal() {
 }
 window.closeDopamineGuideModal = closeDopamineGuideModal;
 
-// Brain Dump Engine
-const BRAIN_DUMP_STORAGE_KEY = 'levelup_brain_dump';
+// Sổ Tay Ghi Chú & Soạn Thảo (Focus Notes & Scratchpad Engine)
+const FOCUS_NOTES_STORAGE_KEY = 'levelup_focus_notes';
+let notesSaveTimeout = null;
 
-function getBrainDumpList() {
+function getFocusNotesContent() {
   try {
-    const raw = localStorage.getItem(BRAIN_DUMP_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
   } catch (_) {
-    return [];
+    return '';
   }
 }
-window.getBrainDumpList = getBrainDumpList;
+window.getFocusNotesContent = getFocusNotesContent;
 
-function saveBrainDumpList(list) {
+function saveFocusNotesContent(htmlContent) {
   try {
-    localStorage.setItem(BRAIN_DUMP_STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, htmlContent || '');
   } catch (_) {}
-  updateBrainDumpBadges(list.length);
+  updateNotesStats();
 }
-window.saveBrainDumpList = saveBrainDumpList;
+window.saveFocusNotesContent = saveFocusNotesContent;
 
-function updateBrainDumpBadges(count = null) {
-  if (count === null) {
-    const list = getBrainDumpList();
-    count = list.length;
+function formatNoteDoc(cmd, val = null) {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  editor.focus();
+  try {
+    document.execCommand(cmd, false, val);
+  } catch (_) {}
+  handleNotesInput();
+}
+window.formatNoteDoc = formatNoteDoc;
+
+function toggleNoteHeading() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  editor.focus();
+  try {
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      const parent = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      if (parent && parent.closest('h2')) {
+        document.execCommand('formatBlock', false, '<p>');
+        handleNotesInput();
+        return;
+      }
+    }
+    document.execCommand('formatBlock', false, '<h2>');
+  } catch (_) {}
+  handleNotesInput();
+}
+window.toggleNoteHeading = toggleNoteHeading;
+
+function toggleNoteHighlight() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  editor.focus();
+  try {
+    document.execCommand('hiliteColor', false, '#fef08a');
+  } catch (_) {}
+  handleNotesInput();
+}
+window.toggleNoteHighlight = toggleNoteHighlight;
+
+function handleNotesInput() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  updateNotesStats();
+  const statusEl = document.getElementById('notes-save-status');
+  if (statusEl) {
+    statusEl.textContent = 'Đang lưu...';
   }
 
-  // Active focus banner badge
+  clearTimeout(notesSaveTimeout);
+  notesSaveTimeout = setTimeout(() => {
+    saveFocusNotesContent(editor.innerHTML);
+    if (statusEl) {
+      statusEl.textContent = '✓ Đã lưu tự động';
+    }
+  }, 350);
+}
+window.handleNotesInput = handleNotesInput;
+
+function updateNotesStats() {
+  const editor = document.getElementById('focus-notes-editor');
+  const rawText = editor ? (editor.innerText || editor.textContent || '').trim() : '';
+  const wordCount = rawText ? rawText.split(/\s+/).filter(Boolean).length : 0;
+  const charCount = rawText ? rawText.length : 0;
+
+  const wEl = document.getElementById('notes-word-count');
+  const cEl = document.getElementById('notes-char-count');
+  if (wEl) wEl.textContent = `${wordCount} từ`;
+  if (cEl) cEl.textContent = `${charCount} ký tự`;
+
+  // Focus banner badge
   const bannerBadge = document.getElementById('brain-dump-badge');
   if (bannerBadge) {
-    if (count > 0) {
-      bannerBadge.textContent = count;
+    if (charCount > 0) {
       bannerBadge.classList.remove('hidden');
+      bannerBadge.textContent = wordCount > 0 ? `${wordCount} từ` : '•';
     } else {
       bannerBadge.classList.add('hidden');
     }
@@ -13554,189 +13618,82 @@ function updateBrainDumpBadges(count = null) {
   // Zen mode badge
   const zenBadge = document.getElementById('zen-brain-dump-badge');
   if (zenBadge) {
-    if (count > 0) {
-      zenBadge.textContent = count;
+    if (charCount > 0) {
       zenBadge.classList.remove('hidden');
+      zenBadge.textContent = wordCount > 0 ? `${wordCount} từ` : '•';
     } else {
       zenBadge.classList.add('hidden');
     }
   }
 
-  // Focus completion review banner
+  // Complete modal banner
   const completeBanner = document.getElementById('focus-complete-brain-dump-banner');
   const completeCountEl = document.getElementById('focus-complete-brain-dump-count');
   if (completeBanner) {
-    if (count > 0) {
+    if (charCount > 0) {
       completeBanner.classList.remove('hidden');
-      if (completeCountEl) completeCountEl.textContent = `${count} mục`;
+      if (completeCountEl) completeCountEl.textContent = `${wordCount} từ`;
     } else {
       completeBanner.classList.add('hidden');
     }
   }
-
-  // Clear all button in modal
-  const btnClearAll = document.getElementById('btn-clear-all-dump');
-  if (btnClearAll) {
-    btnClearAll.disabled = count === 0;
-  }
 }
-window.updateBrainDumpBadges = updateBrainDumpBadges;
+window.updateNotesStats = updateNotesStats;
+window.updateBrainDumpBadges = updateNotesStats;
 
-function addBrainDumpItem(text) {
-  const cleanText = (text || '').trim();
-  if (!cleanText) return false;
-
-  const list = getBrainDumpList();
-  const newItem = {
-    id: 'bd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    text: cleanText,
-    createdAt: Date.now()
-  };
-
-  list.unshift(newItem);
-  saveBrainDumpList(list);
-  renderBrainDumpUI();
-
-  if (typeof sfx !== 'undefined' && sfx.playClick) {
-    sfx.playClick();
-  }
-  if (typeof showToast === 'function') {
-    showToast('📝 Đã lưu suy nghĩ vào Giấy Xả Rác!', 'info');
-  }
-  return true;
-}
-window.addBrainDumpItem = addBrainDumpItem;
-
-function removeBrainDumpItem(id) {
-  const list = getBrainDumpList().filter(item => item.id !== id);
-  saveBrainDumpList(list);
-  renderBrainDumpUI();
-  if (typeof sfx !== 'undefined' && sfx.playClick) {
-    sfx.playClick();
-  }
-  if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa suy nghĩ xao nhãng!', 'info');
-  }
-}
-window.removeBrainDumpItem = removeBrainDumpItem;
-
-function convertBrainDumpToQuest(id) {
-  const list = getBrainDumpList();
-  const item = list.find(x => x.id === id);
-  if (!item) return;
-
-  const newQuest = {
-    id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    title: item.text,
-    type: 'bounty',
-    targetMinutes: 0,
-    rewardCoins: 5,
-    requiresProof: false,
-    status: 'active',
-    completed: false,
-    completedCount: 0,
-    createdAt: Date.now()
-  };
-
-  if (!Array.isArray(appState.quests)) appState.quests = [];
-  appState.quests.unshift(newQuest);
-
-  // Remove from brain dump list
-  saveBrainDumpList(list.filter(x => x.id !== id));
-  renderBrainDumpUI();
-
-  if (typeof triggerSave === 'function') triggerSave(true);
-  if (typeof renderQuests === 'function') renderQuests();
-
-  if (typeof sfx !== 'undefined' && sfx.playFanfare) {
-    sfx.playFanfare();
-  } else if (typeof sfx !== 'undefined' && sfx.playClick) {
-    sfx.playClick();
-  }
-
-  if (typeof showToast === 'function') {
-    showToast(`⚔️ Đã chuyển thành Nhiệm Vụ "${newQuest.title}" (+5 Vàng)!`, 'success');
-  }
-}
-window.convertBrainDumpToQuest = convertBrainDumpToQuest;
-
-function clearAllBrainDump() {
-  const list = getBrainDumpList();
-  if (list.length === 0) return;
-  saveBrainDumpList([]);
-  renderBrainDumpUI();
-  if (typeof sfx !== 'undefined' && sfx.playClick) {
-    sfx.playClick();
-  }
-  if (typeof showToast === 'function') {
-    showToast('🗑️ Đã dọn sạch Giấy Xả Rác!', 'info');
-  }
-}
-window.clearAllBrainDump = clearAllBrainDump;
-
-function formatBrainDumpTime(timestamp) {
-  if (!timestamp) return '';
-  const d = new Date(timestamp);
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
-}
-
-function renderBrainDumpUI() {
-  const container = document.getElementById('brain-dump-list');
-  if (!container) return;
-
-  const list = getBrainDumpList();
-  updateBrainDumpBadges(list.length);
-
-  if (list.length === 0) {
-    container.innerHTML = `
-      <div class="p-6 text-center text-slate-400 dark:text-slate-500 space-y-2">
-        <div class="text-3xl opacity-60">✨</div>
-        <div class="font-bold text-xs text-slate-600 dark:text-slate-400">Tâm trí bạn đang hoàn toàn trong sạch!</div>
-        <p class="text-[11px] leading-relaxed">Chưa có suy nghĩ xao nhãng nào. Khi đang học mà nảy ra ý nghĩ vẩn vơ, hãy gõ vào ô trên để xả ra nhé.</p>
-      </div>
-    `;
+function copyFocusNotes() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  const text = (editor.innerText || editor.textContent || '').trim();
+  if (!text) {
+    if (typeof showToast === 'function') {
+      showToast('Sổ ghi chú hiện chưa có nội dung!', 'info');
+    }
     return;
   }
 
-  container.innerHTML = list.map(item => {
-    const safeText = typeof escapeHtml === 'function' ? escapeHtml(item.text) : item.text;
-    const timeStr = formatBrainDumpTime(item.createdAt);
-    return `
-      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2.5 transition hover:border-amber-500/40 group">
-        <div class="min-w-0 flex-1 flex items-start gap-2">
-          <span class="text-amber-500 mt-0.5 text-xs shrink-0">•</span>
-          <div class="min-w-0 flex-1">
-            <p class="text-xs text-slate-800 dark:text-slate-200 break-words leading-relaxed font-medium">${safeText}</p>
-            <span class="text-[10px] font-mono text-slate-400 dark:text-slate-500">${timeStr}</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onclick="convertBrainDumpToQuest('${item.id}')"
-            class="px-2 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer active:scale-95"
-            title="Biến thành Nhiệm Vụ trong Bang Hội"
-          >
-            <span>⚔️</span>
-            <span class="hidden sm:inline">Tạo Quest</span>
-          </button>
-          <button
-            type="button"
-            onclick="removeBrainDumpItem('${item.id}')"
-            class="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-            title="Xóa suy nghĩ này"
-            aria-label="Xóa"
-          >
-            <span class="material-symbols-outlined text-base leading-none">delete</span>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (typeof showToast === 'function') {
+        showToast('📋 Đã sao chép toàn bộ nội dung Sổ Ghi Chú!', 'success');
+      }
+      if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+    }).catch(() => {
+      if (typeof showToast === 'function') {
+        showToast('Không thể sao chép tự động!', 'error');
+      }
+    });
+  }
 }
-window.renderBrainDumpUI = renderBrainDumpUI;
+window.copyFocusNotes = copyFocusNotes;
+
+async function clearFocusNotes() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (!editor) return;
+  const text = (editor.innerText || editor.textContent || '').trim();
+  if (!text) return;
+
+  if (typeof confirmAction === 'function') {
+    const ok = await confirmAction({
+      title: 'Xóa Sạch Sổ Ghi Chú?',
+      message: 'Bạn có chắc chắn muốn xóa toàn bộ nội dung trong Sổ Tay Ghi Chú không?',
+      confirmText: 'Xóa Sạch 🗑️',
+      cancelText: 'Giữ Lại',
+      icon: '🗑️',
+      btnColor: 'rose'
+    });
+    if (!ok) return;
+  }
+
+  editor.innerHTML = '';
+  saveFocusNotesContent('');
+  updateNotesStats();
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast('🗑️ Đã xóa sạch nội dung Sổ Ghi Chú!', 'info');
+  }
+}
+window.clearFocusNotes = clearFocusNotes;
 
 function openBrainDumpModal() {
   const navMoreMenu = document.getElementById('nav-more-menu');
@@ -13751,55 +13708,38 @@ function openBrainDumpModal() {
     sfx.playClick();
   }
 
-  renderBrainDumpUI();
+  const editor = document.getElementById('focus-notes-editor');
+  if (editor) {
+    const saved = getFocusNotesContent();
+    if (editor.innerHTML !== saved) {
+      editor.innerHTML = saved;
+    }
+    updateNotesStats();
+  }
+
   openModal('modal-brain-dump');
 
   setTimeout(() => {
-    const input = document.getElementById('input-brain-dump');
-    if (input) {
-      input.focus();
-      input.select();
+    if (editor) {
+      editor.focus();
     }
   }, 100);
 }
 window.openBrainDumpModal = openBrainDumpModal;
+window.openFocusNotesModal = openBrainDumpModal;
 
 function closeBrainDumpModal() {
+  const editor = document.getElementById('focus-notes-editor');
+  if (editor) {
+    saveFocusNotesContent(editor.innerHTML);
+  }
   if (typeof sfx !== 'undefined' && sfx.playClick) {
     sfx.playClick();
   }
   closeModal('modal-brain-dump');
 }
 window.closeBrainDumpModal = closeBrainDumpModal;
-
-function handleAddBrainDumpClick() {
-  const input = document.getElementById('input-brain-dump');
-  if (!input) return;
-  const val = input.value;
-  if (addBrainDumpItem(val)) {
-    input.value = '';
-    input.focus();
-  }
-}
-window.handleAddBrainDumpClick = handleAddBrainDumpClick;
-
-async function handleClearAllBrainDumpClick() {
-  const list = getBrainDumpList();
-  if (list.length === 0) return;
-  if (typeof confirmAction === 'function') {
-    const ok = await confirmAction({
-      title: 'Dọn Sạch Giấy Xả Rác?',
-      message: `Bạn có chắc chắn muốn xóa toàn bộ ${list.length} suy nghĩ trong Giấy Xả Rác không?`,
-      confirmText: 'Dọn Sạch 🗑️',
-      cancelText: 'Giữ Lại',
-      icon: '🗑️',
-      btnColor: 'rose'
-    });
-    if (!ok) return;
-  }
-  clearAllBrainDump();
-}
-window.handleClearAllBrainDumpClick = handleClearAllBrainDumpClick;
+window.closeFocusNotesModal = closeBrainDumpModal;
 
 function closeModal(id, immediate = false) {
   if (id === 'modal-welcome') {
@@ -19206,18 +19146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Brain Dump input Enter key submit
-  const inputBrainDump = document.getElementById('input-brain-dump');
-  if (inputBrainDump) {
-    inputBrainDump.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAddBrainDumpClick();
-      }
-    });
-  }
-
-  // Button triggers for Brain Dump & Dopamine Guide
+  // Button triggers for Sổ Ghi Chú & Dopamine Guide
   const btnOpenBrainDump = document.getElementById('btn-open-brain-dump');
   if (btnOpenBrainDump) {
     btnOpenBrainDump.addEventListener('click', () => {
@@ -19385,7 +19314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Phím tắt Alt+D mở/đóng Cuộn Giấy Xả Rác Não Bộ (Brain Dump)
+  // Phím tắt Alt+D mở/đóng Sổ Ghi Chú (Focus Notes)
   document.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();
