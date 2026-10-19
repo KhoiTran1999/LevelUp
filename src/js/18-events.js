@@ -1876,16 +1876,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Phím tắt Alt+D mở Sổ Ghi Chú (Focus Notes)
+  // Phím tắt Alt+D mở Sổ Ghi Chú (Focus Notes / Tab Ghi Chú)
   document.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();
-      const modal = document.getElementById('modal-brain-dump');
-      if (modal && modal.classList.contains('hidden')) {
-        openBrainDumpModal();
+      const zenOverlay = document.getElementById('zen-overlay');
+      const isZenActive = zenOverlay && !zenOverlay.classList.contains('hidden');
+      if (isZenActive) {
+        const modal = document.getElementById('modal-brain-dump');
+        if (modal && modal.classList.contains('hidden')) {
+          openBrainDumpModal();
+        } else {
+          const editor = document.getElementById('focus-notes-editor');
+          if (editor) editor.focus();
+        }
       } else {
-        const editor = document.getElementById('focus-notes-editor');
-        if (editor) editor.focus();
+        if (typeof switchTab === 'function') {
+          switchTab('notes');
+        }
+        const tabEditor = document.getElementById('focus-notes-tab-editor');
+        if (tabEditor) {
+          tabEditor.focus();
+        }
+      }
+    }
+  });
+
+  // Lắng nghe URL Hash (#notes, #shop, ...) để tự động chuyển tab
+  function handleUrlTabHash() {
+    try {
+      const hash = (window.location.hash || '').replace('#', '').trim();
+      const validTabs = ['quests', 'shop', 'notes', 'gold-bank', 'leaderboard', 'stats', 'skills'];
+      if (hash && validTabs.includes(hash) && typeof switchTab === 'function') {
+        switchTab(hash);
+      }
+    } catch (_) {}
+  }
+  window.addEventListener('hashchange', handleUrlTabHash);
+  setTimeout(handleUrlTabHash, 250);
+
+  // Lắng nghe tin nhắn từ Chrome Extension / Content Script
+  window.addEventListener('message', (e) => {
+    if (!e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'LEVELUP_SWITCH_TAB' && e.data.tab && typeof switchTab === 'function') {
+      switchTab(e.data.tab);
+    } else if (e.data.type === 'LEVELUP_APPEND_CLIP') {
+      if (typeof appendClipToNotes === 'function') {
+        appendClipToNotes(e.data.text || '', e.data.source || '', e.data.title || '');
       }
     }
   });

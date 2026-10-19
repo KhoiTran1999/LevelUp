@@ -882,9 +882,43 @@
           pointer-events: auto;
         }
 
-        .btn-dismiss:hover {
-          background: rgba(244, 63, 94, 0.55);
+        /* ------------------------------------------------------------- */
+        /* QUICK NOTES BUTTON "📝" (HIDDEN BY DEFAULT, REVEALED ON HOVER) */
+        /* ------------------------------------------------------------- */
+        .btn-capsule-notes {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 0;
+          height: 18px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.22);
           color: #ffffff;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+          border: none;
+          cursor: pointer;
+          font-size: 11px;
+          line-height: 1;
+          margin-left: 0;
+          opacity: 0;
+          visibility: hidden;
+          overflow: hidden;
+          pointer-events: none;
+          transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin-left 0.2s ease, background 0.15s, transform 0.15s;
+        }
+
+        /* Show smoothly when hovering over the capsule pill */
+        .capsule-pill:hover .btn-capsule-notes {
+          width: 18px;
+          margin-left: 4px;
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+        }
+
+        .btn-capsule-notes:hover {
+          background: rgba(245, 158, 11, 0.7);
+          transform: scale(1.15);
         }
 
         /* ------------------------------------------------------------- */
@@ -947,10 +981,11 @@
         </div>
       </div>
 
-      <!-- Minimal Transparent Capsule Pill: Dot, Timer, and "x" -->
+      <!-- Minimal Transparent Capsule Pill: Dot, Timer, Note and "x" -->
       <div class="capsule-pill" id="capsule-pill" title="Kéo để di chuyển • Bấm để quay về tab LevelUp">
         <span class="status-dot dot-green" id="capsule-dot"></span>
         <span id="capsule-timer" class="timer-digits">25:00</span>
+        <button id="capsule-notes-btn" class="btn-capsule-notes" title="Mở Sổ Ghi Chú LevelUp" type="button">📝</button>
         <button id="capsule-dismiss" class="btn-dismiss" title="Tạm ẩn trên trang này" type="button">×</button>
       </div>
     `;
@@ -986,6 +1021,7 @@
 
     const pill = shadowRoot.getElementById('capsule-pill');
     const dismissBtn = shadowRoot.getElementById('capsule-dismiss');
+    const notesBtn = shadowRoot.getElementById('capsule-notes-btn');
     const btnShrink = shadowRoot.getElementById('btn-overlay-shrink');
     const btnReturn = shadowRoot.getElementById('btn-overlay-return');
     const overlay = shadowRoot.getElementById('blocked-overlay');
@@ -1030,6 +1066,20 @@
       });
     }
 
+    if (notesBtn) {
+      notesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        try {
+          chrome.runtime.sendMessage({
+            type: 'FOCUS_OR_OPEN_LEVELUP',
+            targetTab: 'notes',
+            closeCurrentTab: false
+          });
+        } catch (_) {}
+      });
+    }
+
     if (pill) {
       // Khi hover chuột vào: Tạm dừng bay nhẹ nhàng để user dễ bấm nút × đóng tab hoặc bấm quay về LevelUp
       pill.addEventListener('mouseenter', () => {
@@ -1044,6 +1094,7 @@
 
       pill.addEventListener('mousedown', (e) => {
         if (e.target === dismissBtn || (dismissBtn && dismissBtn.contains(e.target))) return;
+        if (e.target === notesBtn || (notesBtn && notesBtn.contains(e.target))) return;
 
         isDragging = true;
         hasMoved = false;

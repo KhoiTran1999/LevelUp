@@ -1173,15 +1173,28 @@ async function hydrateFromCloud(isManual = false) {
       const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
       const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
       applyTheme(resolvedTheme, false);
+      if (Array.isArray(cloudData.notes)) {
+        appState.notes = cloudData.notes;
+        try {
+          localStorage.setItem('levelup_notes_vault', JSON.stringify(cloudData.notes));
+        } catch (_) {}
+      }
+      if (typeof cloudData.activeNoteId === 'string' && cloudData.activeNoteId) {
+        appState.activeNoteId = cloudData.activeNoteId;
+      }
       if (typeof cloudData.focusNotes === 'string') {
         appState.focusNotes = cloudData.focusNotes;
         try {
           localStorage.setItem('levelup_focus_notes', cloudData.focusNotes);
         } catch (_) {}
-        const editor = document.getElementById('focus-notes-editor');
-        if (editor && document.activeElement !== editor) {
-          editor.innerHTML = cloudData.focusNotes;
-          if (typeof updateNotesStats === 'function') updateNotesStats();
+        if (typeof syncAllNoteEditors === 'function') {
+          syncAllNoteEditors(cloudData.focusNotes);
+        } else {
+          const editor = document.getElementById('focus-notes-editor');
+          if (editor && document.activeElement !== editor) {
+            editor.innerHTML = cloudData.focusNotes;
+            if (typeof updateNotesStats === 'function') updateNotesStats();
+          }
         }
       }
       saveLocalCache();

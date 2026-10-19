@@ -145,7 +145,102 @@ chrome.runtime.onInstalled.addListener(async () => {
   // Ensure DNR rules match current shield state
   await applyDnrRules(Boolean(data.isShieldActive), initialBlacklist, data.whitelist || [], blockMode);
   await updateBadge(Boolean(data.isShieldActive), data.focusState);
+  setupContextMenus();
 });
+
+// Setup Context Menus for Quick Notes & Web Clipping
+function setupContextMenus() {
+  try {
+    if (chrome.contextMenus) {
+      chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+          id: 'levelup-save-selection',
+          title: '📝 Lưu vào Sổ Ghi Chú LevelUp',
+          contexts: ['selection']
+        });
+        chrome.contextMenus.create({
+          id: 'levelup-open-notes',
+          title: '📖 Mở Sổ Ghi Chú LevelUp',
+          contexts: ['page', 'action']
+        });
+      });
+    }
+  } catch (e) {
+    console.warn('[LevelUp Shield] Failed to setup context menus:', e);
+  }
+}
+
+// Initial setup call
+setupContextMenus();
+
+// Handle saving a clip to LevelUp notes
+async function handleSaveClip(text, sourceUrl = '', sourceTitle = '') {
+  if (!text || !text.trim()) return;
+  const storage = await chrome.storage.local.get(['levelupWebUrl', 'pendingClips']);
+  const webUrl = storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+  const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+
+  if (tabs.length > 0) {
+    const targetTabId = tabs[0].id;
+    await chrome.tabs.update(targetTabId, { active: true });
+    if (tabs[0].windowId) {
+      await chrome.windows.update(tabs[0].windowId, { focused: true });
+    }
+    // Switch to notes tab
+    chrome.tabs.sendMessage(targetTabId, { type: 'SWITCH_TO_TAB', tab: 'notes' }).catch(() => {});
+    // Append the clip
+    chrome.tabs.sendMessage(targetTabId, {
+      type: 'APPEND_CLIP',
+      text: text.trim(),
+      source: sourceUrl,
+      title: sourceTitle
+    }).catch(() => {});
+  } else {
+    // Save to pendingClips queue so content.js delivers it upon web app load
+    const pendingClips = Array.isArray(storage.pendingClips) ? storage.pendingClips : [];
+    pendingClips.push({
+      text: text.trim(),
+      source: sourceUrl,
+      title: sourceTitle,
+      timestamp: Date.now()
+    });
+    await chrome.storage.local.set({ pendingClips });
+    // Open new tab at webUrl#notes
+    const targetUrl = webUrl.includes('#') ? webUrl : `${webUrl}#notes`;
+    await chrome.tabs.create({ url: targetUrl });
+  }
+}
+
+// Listen for context menu clicks
+if (chrome.contextMenus && chrome.contextMenus.onClicked) {
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    try {
+      if (info.menuItemId === 'levelup-save-selection') {
+        const selectedText = (info.selectionText || '').trim();
+        const sourceUrl = tab?.url || '';
+        const sourceTitle = tab?.title || '';
+        await handleSaveClip(selectedText, sourceUrl, sourceTitle);
+      } else if (info.menuItemId === 'levelup-open-notes') {
+        const storage = await chrome.storage.local.get(['levelupWebUrl']);
+        const webUrl = storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+        const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
+        if (tabs.length > 0) {
+          await chrome.tabs.update(tabs[0].id, { active: true });
+          if (tabs[0].windowId) {
+            await chrome.windows.update(tabs[0].windowId, { focused: true });
+          }
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'SWITCH_TO_TAB', tab: 'notes' }).catch(() => {});
+        } else {
+          const targetUrl = webUrl.includes('#') ? webUrl : `${webUrl}#notes`;
+          await chrome.tabs.create({ url: targetUrl });
+        }
+      }
+    } catch (err) {
+      console.warn('[LevelUp Shield] Context menu action error:', err);
+    }
+  });
+}
+
 
 // Auto-inject capsule.js into all open web tabs
 async function injectCapsuleIntoAllTabs() {
@@ -486,9 +581,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
-        case 'FOCUS_OR_OPEN_LEVELUP': {
+        case 'FOCUS_OR_OPEN_LEVELUP':
+        case 'OPEN_LEVELUP_NOTES': {
+          const isNotesRequest = message.type === 'OPEN_LEVELUP_NOTES' || message.targetTab === 'notes';
           const storage = await chrome.storage.local.get(['levelupWebUrl']);
-          const targetUrl = message.targetUrl || storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+          let targetUrl = message.targetUrl || storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+          if (isNotesRequest && !targetUrl.includes('#')) {
+            targetUrl = `${targetUrl}#notes`;
+          }
           const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
           let targetTabId = null;
 
@@ -497,6 +597,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await chrome.tabs.update(tabs[0].id, { active: true });
             if (tabs[0].windowId) {
               await chrome.windows.update(tabs[0].windowId, { focused: true });
+            }
+            if (isNotesRequest) {
+              chrome.tabs.sendMessage(targetTabId, {
+                type: 'SWITCH_TO_TAB',
+                tab: 'notes'
+              }).catch(() => {});
             }
           } else {
             const newTab = await chrome.tabs.create({ url: targetUrl });
@@ -514,6 +620,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           sendResponse({ success: true, tabId: targetTabId });
+          break;
+        }
+
+        case 'APPEND_CLIP_TO_NOTES': {
+          await handleSaveClip(message.text, message.source, message.title);
+          sendResponse({ success: true });
           break;
         }
 

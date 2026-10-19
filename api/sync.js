@@ -2966,6 +2966,8 @@ export default async function handler(req, res) {
         proofPhotos: Array.isArray(state.proofPhotos) ? state.proofPhotos.slice(0, 100) : (Array.isArray(existingState?.proofPhotos) ? existingState.proofPhotos : []),
         googleId: userSub,
         focusNotes: typeof state.focusNotes === 'string' ? state.focusNotes : (typeof existingState?.focusNotes === 'string' ? existingState.focusNotes : ''),
+        notes: Array.isArray(state.notes) ? state.notes.slice(0, 100) : (Array.isArray(existingState?.notes) ? existingState.notes : []),
+        activeNoteId: typeof state.activeNoteId === 'string' ? state.activeNoteId : (existingState?.activeNoteId || ''),
         lastModified: incomingModified || serverTimestamp,
         profile: {
           ...(state.profile || {}),

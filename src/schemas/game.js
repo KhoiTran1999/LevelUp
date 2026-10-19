@@ -122,6 +122,8 @@ export const StateSyncSchema = v.looseObject({
   completedQuestIds: v.optional(v.array(v.any())),
   proofPhotos: v.optional(v.array(v.any())),
   focusNotes: v.optional(v.string()),
+  notes: v.optional(v.array(v.any())),
+  activeNoteId: v.optional(v.string()),
   lastSyncedAt: v.optional(v.number()),
   lastModified: v.optional(v.number())
 });

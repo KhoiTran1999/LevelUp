@@ -48,6 +48,8 @@ const DEFAULT_STATE = {
     }
   },
   focusNotes: '',
+  notes: [],
+  activeNoteId: '',
   quests: [
     {
       id: 'q_seed_1',

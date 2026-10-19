@@ -220,6 +220,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Open Sổ Ghi Chú Button
+  const openNotesBtn = document.getElementById('btn-open-notes');
+  if (openNotesBtn) {
+    openNotesBtn.addEventListener('click', async () => {
+      await chrome.runtime.sendMessage({ 
+        type: 'FOCUS_OR_OPEN_LEVELUP',
+        targetTab: 'notes'
+      });
+      window.close();
+    });
+  }
+
   // Open LevelUp Tab Button
   const openLevelUpBtn = document.getElementById('btn-open-levelup');
   if (openLevelUpBtn) {

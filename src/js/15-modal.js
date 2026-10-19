@@ -171,6 +171,11 @@ function openStreakInfoModal() {
 window.openStreakInfoModal = openStreakInfoModal;
 
 function switchTab(tabId) {
+  // Defensive guard: prevent blank screen if tabId is missing or undefined
+  if (!tabId || tabId === 'undefined') {
+    tabId = 'quests';
+  }
+
   // Graceful fallback / redirect for legacy 'inventory' tab links
   if (tabId === 'inventory') {
     tabId = 'shop';
@@ -189,6 +194,12 @@ function switchTab(tabId) {
     shop: {
       desktop: 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shadow-xs font-bold',
       mobile: 'active bg-purple-500/15 dark:bg-purple-400/20 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+    },
+    notes: {
+      desktop: 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs font-bold',
+      mobile: 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold shadow-xs',
+      itemDesktop: 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 font-bold',
+      itemMobile: 'active bg-amber-500/15 dark:bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold'
     },
     tracker: {
       desktop: 'active bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs font-bold',
@@ -333,6 +344,12 @@ function switchTab(tabId) {
   if (targetPane) {
     targetPane.classList.remove('hidden');
     targetPane.classList.add('block');
+  } else {
+    const fallbackPane = document.getElementById('tab-quests');
+    if (fallbackPane) {
+      fallbackPane.classList.remove('hidden');
+      fallbackPane.classList.add('block');
+    }
   }
 
   if (tabId === 'leaderboard') {
@@ -353,6 +370,8 @@ function switchTab(tabId) {
     if (typeof renderProofPhotos === 'function') renderProofPhotos();
   } else if (tabId === 'tracker') {
     if (typeof renderTracker === 'function') renderTracker();
+  } else if (tabId === 'notes') {
+    if (typeof loadNotesWorkspace === 'function') loadNotesWorkspace();
   }
 
   if (tabId !== 'bank' && typeof stopBankCountdownLoop === 'function') {
@@ -535,51 +554,615 @@ function closeDopamineGuideModal() {
 }
 window.closeDopamineGuideModal = closeDopamineGuideModal;
 
-// Sổ Tay Ghi Chú & Soạn Thảo (Focus Notes & Scratchpad Engine)
+// =============================================================================
+// SỔ TAY GHI CHÚ ĐA NĂNG, TỰ DO PHÂN LOẠI CHỦ ĐỀ & RICH TEXT WORKSPACE
+// =============================================================================
+const NOTES_VAULT_STORAGE_KEY = 'levelup_notes_vault';
+const ACTIVE_NOTE_ID_KEY = 'levelup_active_note_id';
 const FOCUS_NOTES_STORAGE_KEY = 'levelup_focus_notes';
+
 let notesSaveTimeout = null;
+let currentTopicFilter = 'all';
+let currentNotesSearchQuery = '';
 
-function getFocusNotesContent() {
-  try {
-    if (typeof appState !== 'undefined' && typeof appState.focusNotes === 'string' && appState.focusNotes) {
-      return appState.focusNotes;
-    }
-    return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
-  } catch (_) {
-    return (typeof appState !== 'undefined' && appState.focusNotes) || '';
+// 1. Quản lý danh sách ghi chú (Multi-notes Vault)
+function getAllNotes() {
+  let list = null;
+  if (typeof appState !== 'undefined' && Array.isArray(appState.notes) && appState.notes.length > 0) {
+    list = appState.notes;
+  } else {
+    try {
+      const raw = localStorage.getItem(NOTES_VAULT_STORAGE_KEY);
+      if (raw) list = JSON.parse(raw);
+    } catch (_) {}
   }
-}
-window.getFocusNotesContent = getFocusNotesContent;
 
-function saveFocusNotesContent(htmlContent) {
-  const content = htmlContent || '';
+  // Tự động chuyển đổi ghi chú cũ nếu chưa có dữ liệu danh sách
+  if (!Array.isArray(list) || list.length === 0) {
+    let legacyContent = '';
+    try {
+      legacyContent = (typeof appState !== 'undefined' && appState.focusNotes) || localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
+    } catch (_) {}
+
+    if (legacyContent && legacyContent.trim()) {
+      list = [{
+        id: 'note_' + Date.now(),
+        title: 'Ghi Chép Tập Trung',
+        topic: 'Ghi Chép Nhanh',
+        content: legacyContent,
+        pinned: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }];
+    } else {
+      list = [{
+        id: 'note_' + Date.now(),
+        title: 'Kế Hoạch & Mục Tiêu',
+        topic: 'Kế Hoạch',
+        content: '<h2>🎯 Kế Hoạch Tuần Này</h2><p>Không gian ghi chép tự do của bạn. Bạn có thể tự do đặt tên chủ đề tùy ý!</p><div class="note-todo-item"><input type="checkbox" class="note-checkbox"><span class="note-todo-text">Hoàn thành 3 phiên Pomodoro hôm nay</span></div><div class="note-todo-item"><input type="checkbox" class="note-checkbox"><span class="note-todo-text">Đọc 1 chương tài liệu chuyên ngành</span></div><div class="note-todo-item"><input type="checkbox" class="note-checkbox"><span class="note-todo-text">Ghi chú lại ý tưởng sáng tạo</span></div>',
+        pinned: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }];
+    }
+
+    if (typeof appState !== 'undefined') {
+      appState.notes = list;
+      appState.activeNoteId = list[0].id;
+    }
+    try {
+      localStorage.setItem(NOTES_VAULT_STORAGE_KEY, JSON.stringify(list));
+      localStorage.setItem(ACTIVE_NOTE_ID_KEY, list[0].id);
+    } catch (_) {}
+  }
+
+  return list;
+}
+window.getAllNotes = getAllNotes;
+
+function saveAllNotes(notesList) {
+  if (!Array.isArray(notesList)) return;
+  if (typeof appState !== 'undefined') {
+    appState.notes = notesList;
+  }
   try {
-    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, content);
+    localStorage.setItem(NOTES_VAULT_STORAGE_KEY, JSON.stringify(notesList));
   } catch (_) {}
 
+  const active = getActiveNote();
+  const activeContent = active ? active.content : '';
   if (typeof appState !== 'undefined') {
-    if (appState.focusNotes !== content) {
-      appState.focusNotes = content;
-      if (typeof triggerSave === 'function') {
-        triggerSave(true, false, null, true);
-      }
+    appState.focusNotes = activeContent;
+    if (typeof triggerSave === 'function') {
+      triggerSave(true, false, null, true);
     }
   }
+  try {
+    localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, activeContent);
+  } catch (_) {}
 
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const ch = new BroadcastChannel('levelup_sync_channel');
-      ch.postMessage({ type: 'NOTES_UPDATED', content });
+      ch.postMessage({ type: 'NOTES_UPDATED', content: activeContent, notes: notesList });
       ch.close();
     } catch (_) {}
   }
 
+  updateTotalNotesBadge();
+}
+window.saveAllNotes = saveAllNotes;
+
+// 2. Lấy danh sách toàn bộ chủ đề người dùng đã tự đặt tên
+function getAllTopics() {
+  const notes = getAllNotes();
+  const set = new Set();
+  notes.forEach(n => {
+    const t = (n.topic || '').trim();
+    if (t) set.add(t);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+}
+window.getAllTopics = getAllTopics;
+
+// 3. Lấy ghi chú đang chọn (Active Note)
+function getActiveNote() {
+  const notes = getAllNotes();
+  let id = (typeof appState !== 'undefined' && appState.activeNoteId) || null;
+  if (!id) {
+    try {
+      id = localStorage.getItem(ACTIVE_NOTE_ID_KEY);
+    } catch (_) {}
+  }
+  let found = notes.find(n => n.id === id);
+  if (!found) {
+    found = notes[0];
+    if (found) {
+      if (typeof appState !== 'undefined') appState.activeNoteId = found.id;
+      try { localStorage.setItem(ACTIVE_NOTE_ID_KEY, found.id); } catch (_) {}
+    }
+  }
+  return found;
+}
+window.getActiveNote = getActiveNote;
+
+// 4. Khởi chạy và tải toàn bộ giao diện Sổ Ghi Chú
+function loadNotesWorkspace() {
+  renderTopicsBar();
+  renderNotesSidebar();
+  loadActiveNoteIntoEditor();
+  updateTotalNotesBadge();
+}
+window.loadNotesWorkspace = loadNotesWorkspace;
+
+// 5. Vẽ thanh chip lọc chủ đề tự đặt tên
+function renderTopicsBar() {
+  const container = document.getElementById('notes-topics-bar');
+  if (!container) return;
+
+  const notes = getAllNotes();
+  const topics = getAllTopics();
+
+  let html = `
+    <button type="button" onclick="filterNotesByTopic('all')" class="topic-chip px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${
+      currentTopicFilter === 'all'
+        ? 'bg-amber-500 text-slate-950 shadow-xs'
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-500/15 hover:text-amber-700 dark:hover:text-amber-300'
+    }">
+      🌟 Tất Cả (${notes.length})
+    </button>
+  `;
+
+  topics.forEach(topic => {
+    const count = notes.filter(n => (n.topic || '').trim() === topic).length;
+    const isActive = currentTopicFilter === topic;
+    html += `
+      <button type="button" onclick="filterNotesByTopic('${escapeHtml(topic)}')" class="topic-chip px-2.5 py-1 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 flex items-center gap-1 ${
+        isActive
+          ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-500/15 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200/60 dark:border-slate-700/60'
+      }">
+        <span class="opacity-60 text-[10px]">#</span>
+        <span>${escapeHtml(topic)}</span>
+        <span class="text-[10px] font-mono px-1 rounded-full ${isActive ? 'bg-slate-950/20' : 'bg-slate-200 dark:bg-slate-700'}">${count}</span>
+      </button>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // Cập nhật datalist cho input chọn chủ đề
+  const datalist = document.getElementById('notes-topics-datalist');
+  if (datalist) {
+    datalist.innerHTML = topics.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
+  }
+}
+window.renderTopicsBar = renderTopicsBar;
+
+// 6. Vẽ danh sách thẻ ghi chú (Sidebar List)
+function renderNotesSidebar() {
+  const container = document.getElementById('notes-card-list');
+  const countEl = document.getElementById('notes-list-count');
+  if (!container) return;
+
+  const notes = getAllNotes();
+  const activeNote = getActiveNote();
+
+  let filtered = notes.filter(n => {
+    if (currentTopicFilter !== 'all' && (n.topic || '').trim() !== currentTopicFilter) {
+      return false;
+    }
+    if (currentNotesSearchQuery) {
+      const q = currentNotesSearchQuery.toLowerCase();
+      const titleMatch = (n.title || '').toLowerCase().includes(q);
+      const topicMatch = (n.topic || '').toLowerCase().includes(q);
+      const contentMatch = (n.content || '').toLowerCase().includes(q);
+      return titleMatch || topicMatch || contentMatch;
+    }
+    return true;
+  });
+
+  // Sắp xếp: Ghim lên đầu, sau đó theo updatedAt mới nhất
+  filtered.sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+
+  if (countEl) countEl.textContent = `${filtered.length} ghi chú`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-slate-400">
+        <span class="material-symbols-outlined text-2xl mb-1 text-slate-300 dark:text-slate-600">search_off</span>
+        <div class="text-xs font-medium">Không tìm thấy ghi chú nào</div>
+        <button type="button" onclick="createNewNotePrompt()" class="mt-2 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer">+ Tạo ghi chú mới</button>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(note => {
+    const isActive = activeNote && activeNote.id === note.id;
+    const rawText = note.content ? note.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : 'Chưa có nội dung...';
+    const preview = rawText.length > 70 ? rawText.slice(0, 70) + '...' : rawText;
+    const timeFormatted = note.updatedAt ? formatNoteDate(note.updatedAt) : '';
+
+    html += `
+      <div
+        class="note-card-item p-3 rounded-2xl border transition cursor-pointer select-none relative group ${
+          isActive
+            ? 'active bg-amber-500/10 dark:bg-amber-950/30 border-amber-500/50 shadow-sm'
+            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+        }"
+        onclick="switchActiveNote('${note.id}')"
+        data-note-id="${note.id}"
+      >
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <div class="flex items-center gap-1.5 min-w-0 flex-1">
+            ${note.pinned ? '<span class="material-symbols-outlined text-amber-500 text-[14px] shrink-0" title="Đã ghim">push_pin</span>' : ''}
+            <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate ${isActive ? 'text-amber-700 dark:text-amber-400' : ''}">
+              ${escapeHtml(note.title || 'Chưa đặt tiêu đề')}
+            </h4>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 shrink-0">${timeFormatted}</span>
+        </div>
+
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-2 font-normal">
+          ${escapeHtml(preview)}
+        </p>
+
+        <div class="flex items-center justify-between gap-1">
+          <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono truncate max-w-[140px]">
+            #${escapeHtml(note.topic || 'Ghi Chép')}
+          </span>
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onclick="event.stopPropagation(); togglePinNote('${note.id}')"
+              class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-amber-500"
+              title="${note.pinned ? 'Bỏ ghim' : 'Ghim'}"
+            >
+              <span class="material-symbols-outlined text-[15px] leading-none">${note.pinned ? 'keep_off' : 'push_pin'}</span>
+            </button>
+            <button
+              type="button"
+              onclick="event.stopPropagation(); deleteNoteById('${note.id}')"
+              class="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-500"
+              title="Xóa ghi chú"
+            >
+              <span class="material-symbols-outlined text-[15px] leading-none">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+window.renderNotesSidebar = renderNotesSidebar;
+
+// 7. Định dạng ngày giờ hiển thị ngắn gọn
+function formatNoteDate(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  if (diff < 60000) return 'Vừa xong';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}p trước`;
+  const d = new Date(timestamp);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  if (diff < 86400000) return `${hh}:${mm}`;
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${mon}`;
+}
+
+// 8. Nạp ghi chú đang chọn vào Trình Soạn Thảo (Active Editor)
+function loadActiveNoteIntoEditor() {
+  const note = getActiveNote();
+  if (!note) return;
+
+  const titleInput = document.getElementById('active-note-title');
+  const topicInput = document.getElementById('active-note-topic-input');
+  const pinIcon = document.getElementById('pin-icon');
+  const tabEditor = document.getElementById('focus-notes-tab-editor');
+  const modalEditor = document.getElementById('focus-notes-editor');
+
+  if (titleInput && titleInput.value !== (note.title || '')) {
+    titleInput.value = note.title || '';
+  }
+  if (topicInput && topicInput.value !== (note.topic || '')) {
+    topicInput.value = note.topic || '';
+  }
+  if (pinIcon) {
+    pinIcon.textContent = note.pinned ? 'keep' : 'push_pin';
+    pinIcon.classList.toggle('text-amber-500', Boolean(note.pinned));
+  }
+
+  if (tabEditor && document.activeElement !== tabEditor) {
+    tabEditor.innerHTML = note.content || '';
+  }
+  if (modalEditor && document.activeElement !== modalEditor) {
+    modalEditor.innerHTML = note.content || '';
+  }
+
   updateNotesStats();
 }
-window.saveFocusNotesContent = saveFocusNotesContent;
+window.loadActiveNoteIntoEditor = loadActiveNoteIntoEditor;
 
+// 9. Tạo ghi chú mới (Create New Note)
+function createNewNotePrompt(defaultTopic = '') {
+  const notes = getAllNotes();
+  const topic = defaultTopic || (currentTopicFilter !== 'all' ? currentTopicFilter : 'Ghi Chép Nhanh');
+  const newNote = {
+    id: 'note_' + Date.now(),
+    title: 'Ghi Chú Mới',
+    topic: topic,
+    content: '<p></p>',
+    pinned: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  notes.unshift(newNote);
+  saveAllNotes(notes);
+  switchActiveNote(newNote.id);
+  renderTopicsBar();
+
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast(`📝 Đã tạo ghi chú mới trong chủ đề "${topic}"!`, 'success');
+  }
+
+  setTimeout(() => {
+    const titleEl = document.getElementById('active-note-title');
+    if (titleEl) {
+      titleEl.focus();
+      titleEl.select();
+    }
+  }, 100);
+}
+window.createNewNotePrompt = createNewNotePrompt;
+
+// 10. Chuyển đổi giữa các ghi chú
+function switchActiveNote(noteId) {
+  // Lưu ghi chú trước đó nếu đang có nội dung thay đổi
+  flushCurrentEditorChanges();
+
+  if (typeof appState !== 'undefined') {
+    appState.activeNoteId = noteId;
+  }
+  try {
+    localStorage.setItem(ACTIVE_NOTE_ID_KEY, noteId);
+  } catch (_) {}
+
+  loadActiveNoteIntoEditor();
+  renderNotesSidebar();
+
+  // Trên Mobile: ẩn danh sách, hiển thị trình soạn thảo
+  const editorCol = document.getElementById('notes-editor-column');
+  const sidebarCol = document.getElementById('notes-sidebar-column');
+  if (window.innerWidth < 1024 && editorCol && sidebarCol) {
+    sidebarCol.classList.add('hidden');
+    editorCol.classList.remove('hidden');
+  }
+}
+window.switchActiveNote = switchActiveNote;
+
+// Mobile: quay lại danh sách ghi chú
+function showNotesListMobile() {
+  const editorCol = document.getElementById('notes-editor-column');
+  const sidebarCol = document.getElementById('notes-sidebar-column');
+  if (sidebarCol) sidebarCol.classList.remove('hidden');
+  if (editorCol) editorCol.classList.add('hidden');
+}
+window.showNotesListMobile = showNotesListMobile;
+
+// 11. Đổi tiêu đề ghi chú đang chọn
+function handleActiveNoteTitleInput(newTitle) {
+  const note = getActiveNote();
+  if (!note) return;
+  note.title = newTitle || 'Chưa đặt tiêu đề';
+  note.updatedAt = Date.now();
+
+  clearTimeout(notesSaveTimeout);
+  notesSaveTimeout = setTimeout(() => {
+    saveAllNotes(getAllNotes());
+    renderNotesSidebar();
+  }, 350);
+}
+window.handleActiveNoteTitleInput = handleActiveNoteTitleInput;
+
+// 12. Đổi hoặc tự đặt tên chủ đề ghi chú đang chọn
+function handleActiveNoteTopicChange(newTopic) {
+  const note = getActiveNote();
+  if (!note) return;
+  const cleanTopic = (newTopic || 'Ghi Chép').trim();
+  if (note.topic === cleanTopic) return;
+
+  note.topic = cleanTopic;
+  note.updatedAt = Date.now();
+  saveAllNotes(getAllNotes());
+  renderTopicsBar();
+  renderNotesSidebar();
+
+  if (typeof showToast === 'function') {
+    showToast(`🏷️ Đã đổi chủ đề thành "#${cleanTopic}"`, 'info');
+  }
+}
+window.handleActiveNoteTopicChange = handleActiveNoteTopicChange;
+
+// 13. Ghim / Bỏ ghim ghi chú
+function toggleActiveNotePin() {
+  const note = getActiveNote();
+  if (!note) return;
+  togglePinNote(note.id);
+}
+window.toggleActiveNotePin = toggleActiveNotePin;
+
+function togglePinNote(noteId) {
+  const notes = getAllNotes();
+  const note = notes.find(n => n.id === noteId);
+  if (!note) return;
+
+  note.pinned = !note.pinned;
+  note.updatedAt = Date.now();
+  saveAllNotes(notes);
+  loadActiveNoteIntoEditor();
+  renderNotesSidebar();
+
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast(note.pinned ? '📌 Đã ghim ghi chú lên đầu!' : 'Đã bỏ ghim ghi chú.', 'info');
+  }
+}
+window.togglePinNote = togglePinNote;
+
+// 14. Xóa ghi chú
+async function deleteActiveNotePrompt() {
+  const note = getActiveNote();
+  if (!note) return;
+  await deleteNoteById(note.id);
+}
+window.deleteActiveNotePrompt = deleteActiveNotePrompt;
+
+async function deleteNoteById(noteId) {
+  const notes = getAllNotes();
+  const note = notes.find(n => n.id === noteId);
+  if (!note) return;
+
+  if (typeof confirmAction === 'function') {
+    const ok = await confirmAction({
+      title: 'Xóa Ghi Chú Này?',
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
+      confirmText: 'Xóa Ghi Chú 🗑️',
+      cancelText: 'Giữ Lại',
+      icon: '🗑️',
+      btnColor: 'rose'
+    });
+    if (!ok) return;
+  }
+
+  const remaining = notes.filter(n => n.id !== noteId);
+  if (remaining.length === 0) {
+    remaining.push({
+      id: 'note_' + Date.now(),
+      title: 'Ghi Chú Mới',
+      topic: 'Ghi Chép Nhanh',
+      content: '<p></p>',
+      pinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+
+  if (typeof appState !== 'undefined') {
+    appState.activeNoteId = remaining[0].id;
+  }
+  saveAllNotes(remaining);
+  renderTopicsBar();
+  loadNotesWorkspace();
+
+  if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
+  if (typeof showToast === 'function') {
+    showToast('🗑️ Đã xóa ghi chú thành công!', 'info');
+  }
+}
+window.deleteNoteById = deleteNoteById;
+
+// 15. Lọc theo chủ đề & Tìm kiếm
+function filterNotesByTopic(topic) {
+  currentTopicFilter = topic;
+  renderTopicsBar();
+  renderNotesSidebar();
+}
+window.filterNotesByTopic = filterNotesByTopic;
+
+function handleNotesSearch(query) {
+  currentNotesSearchQuery = (query || '').trim();
+  renderNotesSidebar();
+}
+window.handleNotesSearch = handleNotesSearch;
+
+function updateTotalNotesBadge() {
+  const notes = getAllNotes();
+  const badgeNav = document.getElementById('badge-notes-count');
+  const badgeHeader = document.getElementById('notes-total-badge');
+  if (badgeNav) badgeNav.textContent = notes.length;
+  if (badgeHeader) badgeHeader.textContent = `${notes.length} Ghi Chú`;
+}
+
+// 16. Lưu nội dung editor hiện tại vào Active Note
+function flushCurrentEditorChanges() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  const note = getActiveNote();
+  if (!note) return;
+
+  note.content = editor.innerHTML || '';
+  note.updatedAt = Date.now();
+  saveAllNotes(getAllNotes());
+}
+
+function handleNotesInput() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  updateNotesStats();
+
+  const statusEl = document.getElementById('tab-notes-save-status');
+  const modalStatusEl = document.getElementById('notes-save-status');
+  if (statusEl) statusEl.textContent = 'Đang lưu...';
+  if (modalStatusEl) modalStatusEl.textContent = 'Đang lưu...';
+
+  clearTimeout(notesSaveTimeout);
+  notesSaveTimeout = setTimeout(() => {
+    const note = getActiveNote();
+    if (note) {
+      note.content = editor.innerHTML || '';
+      note.updatedAt = Date.now();
+      saveAllNotes(getAllNotes());
+      renderNotesSidebar();
+    }
+
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const statusText = `✓ Đã lưu lúc ${hh}:${mm}:${ss}`;
+    if (statusEl) statusEl.textContent = statusText;
+    if (modalStatusEl) modalStatusEl.textContent = statusText;
+  }, 350);
+}
+window.handleNotesInput = handleNotesInput;
+
+function getActiveNotesEditor() {
+  const modal = document.getElementById('modal-brain-dump');
+  if (modal && !modal.classList.contains('hidden')) {
+    return document.getElementById('focus-notes-editor') || document.getElementById('focus-notes-tab-editor');
+  }
+  return document.getElementById('focus-notes-tab-editor') || document.getElementById('focus-notes-editor');
+}
+window.getActiveNotesEditor = getActiveNotesEditor;
+
+function syncAllNoteEditors(htmlContent) {
+  const content = htmlContent || '';
+  const tabEditor = document.getElementById('focus-notes-tab-editor');
+  const modalEditor = document.getElementById('focus-notes-editor');
+
+  [tabEditor, modalEditor].forEach(ed => {
+    if (ed && ed.innerHTML !== content && document.activeElement !== ed) {
+      ed.innerHTML = content;
+    }
+  });
+  updateNotesStats();
+}
+window.syncAllNoteEditors = syncAllNoteEditors;
+
+// 17. Bộ công cụ định dạng Rich Text chuyên nghiệp
 function formatNoteDoc(cmd, val = null) {
-  const editor = document.getElementById('focus-notes-editor');
+  const editor = getActiveNotesEditor();
   if (!editor) return;
   editor.focus();
   try {
@@ -589,66 +1172,241 @@ function formatNoteDoc(cmd, val = null) {
 }
 window.formatNoteDoc = formatNoteDoc;
 
-function toggleNoteHeading() {
-  const editor = document.getElementById('focus-notes-editor');
+function formatNoteHeading(tag) {
+  const editor = getActiveNotesEditor();
   if (!editor) return;
   editor.focus();
   try {
     const sel = window.getSelection();
     if (sel && sel.anchorNode) {
       const parent = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
-      if (parent && parent.closest('h2')) {
+      if (parent && parent.closest(tag)) {
         document.execCommand('formatBlock', false, '<p>');
         handleNotesInput();
         return;
       }
     }
-    document.execCommand('formatBlock', false, '<h2>');
+    document.execCommand('formatBlock', false, `<${tag}>`);
   } catch (_) {}
   handleNotesInput();
 }
-window.toggleNoteHeading = toggleNoteHeading;
+window.formatNoteHeading = formatNoteHeading;
 
 function toggleNoteHighlight() {
-  const editor = document.getElementById('focus-notes-editor');
+  const editor = getActiveNotesEditor();
   if (!editor) return;
   editor.focus();
   try {
-    document.execCommand('hiliteColor', false, '#fef08a');
+    const isDark = document.documentElement.classList.contains('dark');
+    const color = isDark ? 'rgba(245, 158, 11, 0.45)' : '#fef08a';
+    document.execCommand('hiliteColor', false, color);
   } catch (_) {}
   handleNotesInput();
 }
 window.toggleNoteHighlight = toggleNoteHighlight;
 
-function handleNotesInput() {
-  const editor = document.getElementById('focus-notes-editor');
+// Chèn Checklist tương tác
+function insertNoteChecklist() {
+  const editor = getActiveNotesEditor();
   if (!editor) return;
-  updateNotesStats();
-  const statusEl = document.getElementById('notes-save-status');
-  if (statusEl) {
-    statusEl.textContent = 'Đang lưu...';
-  }
-
-  clearTimeout(notesSaveTimeout);
-  notesSaveTimeout = setTimeout(() => {
-    saveFocusNotesContent(editor.innerHTML);
-    if (statusEl) {
-      statusEl.textContent = '✓ Đã lưu tự động';
-    }
-  }, 350);
+  editor.focus();
+  const html = '<div class="note-todo-item"><input type="checkbox" class="note-checkbox"><span class="note-todo-text">Nhiệm vụ mới...</span></div><p></p>';
+  try {
+    document.execCommand('insertHTML', false, html);
+  } catch (_) {}
+  handleNotesInput();
 }
-window.handleNotesInput = handleNotesInput;
+window.insertNoteChecklist = insertNoteChecklist;
 
+// Chèn dấu thời gian nhanh
+function insertNoteTimestamp() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  editor.focus();
+  const d = new Date();
+  const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const html = `<strong>📅 [${timeStr} - ${dateStr}]</strong>&nbsp;`;
+  try {
+    document.execCommand('insertHTML', false, html);
+  } catch (_) {}
+  handleNotesInput();
+}
+window.insertNoteTimestamp = insertNoteTimestamp;
+
+// Chèn Callout tip
+function insertNoteCallout() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  editor.focus();
+  const html = '<div class="note-callout"><span>💡</span><div><b>Lưu ý quan trọng:</b> Ghi lại điểm cần nhớ tại đây...</div></div><p></p>';
+  try {
+    document.execCommand('insertHTML', false, html);
+  } catch (_) {}
+  handleNotesInput();
+}
+window.insertNoteCallout = insertNoteCallout;
+
+// Chèn Code inline hoặc Block
+function insertNoteCode() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  editor.focus();
+  const sel = window.getSelection();
+  const selectedText = sel ? sel.toString() : '';
+  if (selectedText) {
+    const html = `<code>${escapeHtml(selectedText)}</code>`;
+    try {
+      document.execCommand('insertHTML', false, html);
+    } catch (_) {}
+  } else {
+    const html = '<code>code_here</code>&nbsp;';
+    try {
+      document.execCommand('insertHTML', false, html);
+    } catch (_) {}
+  }
+  handleNotesInput();
+}
+window.insertNoteCode = insertNoteCode;
+
+// Chèn Divider
+function insertNoteDivider() {
+  const editor = getActiveNotesEditor();
+  if (!editor) return;
+  editor.focus();
+  try {
+    document.execCommand('insertHorizontalRule', false, null);
+  } catch (_) {}
+  handleNotesInput();
+}
+window.insertNoteDivider = insertNoteDivider;
+
+// 18. Lắng nghe phím Enter trong Checklist & Clean Paste
+function setupNotesEditorListeners() {
+  // Lắng nghe sự kiện tick chọn checkbox trong toàn bộ vùng soạn thảo
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList.contains('note-checkbox')) {
+      const item = e.target.closest('.note-todo-item');
+      if (item) {
+        if (e.target.checked) {
+          item.classList.add('is-done');
+          e.target.setAttribute('checked', 'checked');
+        } else {
+          item.classList.remove('is-done');
+          e.target.removeAttribute('checked');
+        }
+        handleNotesInput();
+      }
+    }
+  });
+
+  // Lắng nghe bàn phím (Enter checklist, Tab thụt dòng, Ctrl+S lưu)
+  ['focus-notes-tab-editor', 'focus-notes-editor'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('keydown', (e) => {
+      // Phím tắt Ctrl+S / Cmd+S để lưu ngay
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        flushCurrentEditorChanges();
+        if (typeof showToast === 'function') {
+          showToast('💾 Đã lưu ghi chú thành công!', 'success');
+        }
+        return;
+      }
+
+      // Nhấn Enter trong checklist item để sinh item mới
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode) {
+          const item = sel.anchorNode.nodeType === 1 ? sel.anchorNode.closest('.note-todo-item') : sel.anchorNode.parentElement?.closest('.note-todo-item');
+          if (item) {
+            const textContent = (item.querySelector('.note-todo-text')?.innerText || item.innerText || '').trim();
+            if (!textContent || textContent === 'Nhiệm vụ mới...') {
+              // Nếu dòng trống, bấm Enter sẽ thoát checklist thành đoạn văn thường
+              e.preventDefault();
+              const p = document.createElement('p');
+              p.innerHTML = '<br>';
+              item.parentNode.replaceChild(p, item);
+              const range = document.createRange();
+              range.setStart(p, 0);
+              range.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(range);
+              handleNotesInput();
+              return;
+            }
+
+            e.preventDefault();
+            const newItem = document.createElement('div');
+            newItem.className = 'note-todo-item';
+            newItem.innerHTML = '<input type="checkbox" class="note-checkbox"><span class="note-todo-text">&nbsp;</span>';
+            item.parentNode.insertBefore(newItem, item.nextSibling);
+
+            const span = newItem.querySelector('.note-todo-text');
+            const range = document.createRange();
+            range.setStart(span, 0);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            handleNotesInput();
+            return;
+          }
+        }
+      }
+
+      // Phím Tab: thụt đầu dòng
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+        handleNotesInput();
+      }
+    });
+
+    // Lọc sạch mã rác khi Paste (Clean Paste Sanitizer)
+    el.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (text) {
+        document.execCommand('insertText', false, text);
+        handleNotesInput();
+      }
+    });
+
+    // Lắng nghe input gõ chữ
+    el.addEventListener('input', () => {
+      handleNotesInput();
+    });
+  });
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupNotesEditorListeners);
+  } else {
+    setTimeout(setupNotesEditorListeners, 50);
+  }
+}
+
+// 19. Cập nhật thống kê từ & ký tự
 function updateNotesStats() {
-  const editor = document.getElementById('focus-notes-editor');
+  const editor = getActiveNotesEditor();
   const rawText = editor ? (editor.innerText || editor.textContent || '').trim() : '';
   const wordCount = rawText ? rawText.split(/\s+/).filter(Boolean).length : 0;
   const charCount = rawText ? rawText.length : 0;
+  const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
 
-  const wEl = document.getElementById('notes-word-count');
-  const cEl = document.getElementById('notes-char-count');
-  if (wEl) wEl.textContent = `${wordCount} từ`;
-  if (cEl) cEl.textContent = `${charCount} ký tự`;
+  const tabWordsEl = document.getElementById('tab-notes-word-count');
+  const tabCharsEl = document.getElementById('tab-notes-char-count');
+  const tabReadEl = document.getElementById('tab-notes-read-time');
+  if (tabWordsEl) tabWordsEl.textContent = `${wordCount} từ`;
+  if (tabCharsEl) tabCharsEl.textContent = `${charCount} ký tự`;
+  if (tabReadEl) tabReadEl.textContent = wordCount > 0 ? `~${readTimeMinutes} phút đọc` : '~0 phút đọc';
+
+  const modalWordsEl = document.getElementById('notes-word-count');
+  const modalCharsEl = document.getElementById('notes-char-count');
+  if (modalWordsEl) modalWordsEl.textContent = `${wordCount} từ`;
+  if (modalCharsEl) modalCharsEl.textContent = `${charCount} ký tự`;
 
   // Focus banner badge
   const bannerBadge = document.getElementById('brain-dump-badge');
@@ -687,21 +1445,28 @@ function updateNotesStats() {
 window.updateNotesStats = updateNotesStats;
 window.updateBrainDumpBadges = updateNotesStats;
 
-function copyFocusNotes() {
-  const editor = document.getElementById('focus-notes-editor');
-  if (!editor) return;
+// 20. Sao chép nội dung ghi chú (Copy to Clipboard)
+function copyActiveNote() {
+  const note = getActiveNote();
+  const editor = getActiveNotesEditor();
+  if (!editor || !note) return;
+
   const text = (editor.innerText || editor.textContent || '').trim();
   if (!text) {
     if (typeof showToast === 'function') {
-      showToast('Sổ ghi chú hiện chưa có nội dung!', 'info');
+      showToast('Ghi chú hiện chưa có nội dung!', 'info');
     }
     return;
   }
 
+  const title = note.title || 'Ghi Chú';
+  const topic = note.topic ? `#${note.topic}\n` : '';
+  const fullText = `# ${title}\n${topic}\n${text}`;
+
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(fullText).then(() => {
       if (typeof showToast === 'function') {
-        showToast('📋 Đã sao chép toàn bộ nội dung Sổ Ghi Chú!', 'success');
+        showToast('📋 Đã sao chép nội dung ghi chú vào clipboard!', 'success');
       }
       if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
     }).catch(() => {
@@ -711,18 +1476,53 @@ function copyFocusNotes() {
     });
   }
 }
-window.copyFocusNotes = copyFocusNotes;
+window.copyActiveNote = copyActiveNote;
+window.copyFocusNotes = copyActiveNote;
 
-async function clearFocusNotes() {
-  const editor = document.getElementById('focus-notes-editor');
-  if (!editor) return;
+// 21. Xuất file Markdown (.md) hoặc Text (.txt)
+function exportActiveNote(format = 'md') {
+  const note = getActiveNote();
+  const editor = getActiveNotesEditor();
+  if (!note || !editor) return;
+
+  const title = (note.title || 'Ghi_Chu').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
   const text = (editor.innerText || editor.textContent || '').trim();
-  if (!text) return;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `LevelUp_${title}_${dateStr}.${format}`;
+
+  let content = '';
+  if (format === 'md') {
+    content = `# ${note.title || 'Ghi Chú'}\n\nChủ đề: #${note.topic || 'Ghi Chép'}\nNgày cập nhật: ${new Date(note.updatedAt || Date.now()).toLocaleString('vi-VN')}\n\n---\n\n${text}\n`;
+  } else {
+    content = `${note.title || 'Ghi Chú'}\nChủ đề: ${note.topic || 'Ghi Chép'}\n\n${text}\n`;
+  }
+
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  if (typeof showToast === 'function') {
+    showToast(`💾 Đã xuất file ${filename}!`, 'success');
+  }
+}
+window.exportActiveNote = exportActiveNote;
+
+// 22. Xóa trắng nội dung ghi chú
+async function clearActiveNoteContent() {
+  const note = getActiveNote();
+  const editor = getActiveNotesEditor();
+  if (!note || !editor) return;
 
   if (typeof confirmAction === 'function') {
     const ok = await confirmAction({
-      title: 'Xóa Sạch Sổ Ghi Chú?',
-      message: 'Bạn có chắc chắn muốn xóa toàn bộ nội dung trong Sổ Tay Ghi Chú không?',
+      title: 'Xóa Sạch Nội Dung?',
+      message: `Bạn có chắc chắn muốn xóa toàn bộ chữ trong ghi chú "${note.title || 'Chưa đặt tiêu đề'}" không?`,
       confirmText: 'Xóa Sạch 🗑️',
       cancelText: 'Giữ Lại',
       icon: '🗑️',
@@ -732,14 +1532,103 @@ async function clearFocusNotes() {
   }
 
   editor.innerHTML = '';
-  saveFocusNotesContent('');
+  note.content = '';
+  note.updatedAt = Date.now();
+  saveAllNotes(getAllNotes());
   updateNotesStats();
+  renderNotesSidebar();
+
   if (typeof sfx !== 'undefined' && sfx.playClick) sfx.playClick();
   if (typeof showToast === 'function') {
-    showToast('🗑️ Đã xóa sạch nội dung Sổ Ghi Chú!', 'info');
+    showToast('🗑️ Đã xóa sạch nội dung ghi chú!', 'info');
   }
 }
-window.clearFocusNotes = clearFocusNotes;
+window.clearActiveNoteContent = clearActiveNoteContent;
+window.clearFocusNotes = clearActiveNoteContent;
+
+// 23. Toàn màn hình chế độ tập trung (Focus Distraction-Free Mode)
+function toggleNoteFullscreen() {
+  const section = document.getElementById('tab-notes');
+  if (!section) return;
+  section.classList.toggle('focus-fullscreen');
+  const isFull = section.classList.contains('focus-fullscreen');
+  if (typeof showToast === 'function') {
+    showToast(isFull ? '🔲 Chế độ tập trung toàn màn hình (Bấm lại để thoát)' : 'Đã thoát chế độ toàn màn hình.', 'info');
+  }
+}
+window.toggleNoteFullscreen = toggleNoteFullscreen;
+
+// 24. Nhận đoạn trích từ Chrome Extension (Context Menu Clip)
+function appendClipToNotes(text, sourceUrl = '', pageTitle = '') {
+  if (!text) return;
+  const notes = getAllNotes();
+  const cleanSnippet = escapeHtml(text.trim());
+  const sourceLabel = pageTitle ? escapeHtml(pageTitle) : (sourceUrl || 'Web');
+  const linkHtml = sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="text-indigo-500 underline text-xs">[Nguồn: ${sourceLabel}]</a>` : '';
+
+  const clipHtml = `
+    <blockquote class="my-2 p-2 border-l-4 border-amber-500 bg-amber-500/10 rounded-r-lg">
+      <p class="italic text-xs">${cleanSnippet}</p>
+      <div class="mt-1 text-[11px] opacity-75">${linkHtml} <span>(${new Date().toLocaleTimeString('vi-VN')})</span></div>
+    </blockquote>
+    <p></p>
+  `;
+
+  // Thêm vào ghi chú đang mở
+  let note = getActiveNote();
+  if (!note) {
+    note = {
+      id: 'note_' + Date.now(),
+      title: 'Trích Dẫn Web ' + new Date().toLocaleDateString('vi-VN'),
+      topic: 'Web Clipping',
+      content: '',
+      pinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    notes.unshift(note);
+  }
+
+  note.content = (note.content || '') + clipHtml;
+  note.updatedAt = Date.now();
+  saveAllNotes(notes);
+
+  loadActiveNoteIntoEditor();
+  renderNotesSidebar();
+  renderTopicsBar();
+
+  if (typeof showToast === 'function') {
+    showToast('📝 Đã lưu trích dẫn từ web vào Sổ Ghi Chú!', 'success');
+  }
+}
+window.appendClipToNotes = appendClipToNotes;
+
+// 25. Hàm tương thích ngược với Modal Zen Mode
+function getFocusNotesContent() {
+  const active = getActiveNote();
+  if (active && active.content) return active.content;
+  try {
+    return localStorage.getItem(FOCUS_NOTES_STORAGE_KEY) || '';
+  } catch (_) {
+    return '';
+  }
+}
+window.getFocusNotesContent = getFocusNotesContent;
+
+function saveFocusNotesContent(htmlContent) {
+  const note = getActiveNote();
+  if (note) {
+    note.content = htmlContent || '';
+    note.updatedAt = Date.now();
+    saveAllNotes(getAllNotes());
+  } else {
+    try {
+      localStorage.setItem(FOCUS_NOTES_STORAGE_KEY, htmlContent || '');
+    } catch (_) {}
+  }
+  updateNotesStats();
+}
+window.saveFocusNotesContent = saveFocusNotesContent;
 
 function openBrainDumpModal() {
   const navMoreMenu = document.getElementById('nav-more-menu');

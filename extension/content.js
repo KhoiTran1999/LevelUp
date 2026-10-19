@@ -166,4 +166,45 @@
     const state = readCurrentTimer();
     syncTimerToExtension(state);
   }, 1000);
+
+  // 6. Lắng nghe lệnh từ background script (chuyển tab hoặc chèn ghi chú)
+  if (chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (!message || typeof message !== 'object') return;
+      if (message.type === 'SWITCH_TO_TAB' && message.tab) {
+        window.postMessage({ type: 'LEVELUP_SWITCH_TAB', tab: message.tab }, '*');
+        sendResponse?.({ received: true });
+      } else if (message.type === 'APPEND_CLIP') {
+        window.postMessage({
+          type: 'LEVELUP_APPEND_CLIP',
+          text: message.text || '',
+          source: message.source || '',
+          title: message.title || ''
+        }, '*');
+        sendResponse?.({ received: true });
+      }
+    });
+  }
+
+  // 7. Kiểm tra clip chờ xử lý được lưu khi LevelUp chưa mở
+  try {
+    if (chrome.storage?.local) {
+      chrome.storage.local.get(['pendingClips'], (res) => {
+        if (res && Array.isArray(res.pendingClips) && res.pendingClips.length > 0) {
+          setTimeout(() => {
+            res.pendingClips.forEach(clip => {
+              window.postMessage({
+                type: 'LEVELUP_APPEND_CLIP',
+                text: clip.text || '',
+                source: clip.source || '',
+                title: clip.title || ''
+              }, '*');
+            });
+            chrome.storage.local.remove(['pendingClips']);
+          }, 600);
+        }
+      });
+    }
+  } catch (_) {}
 })();
+
