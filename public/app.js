@@ -3383,7 +3383,7 @@ function updateQuestCardTimerState(questId, isRunning, isFocusing) {
 
 let pendingShieldGateQuest = null;
 
-const REQUIRED_EXTENSION_VERSION = '1.3.2';
+const REQUIRED_EXTENSION_VERSION = '1.4.0';
 
 function isLevelUpExtensionInstalled() {
   if (typeof window === 'undefined') return false;
@@ -13700,8 +13700,11 @@ window.loadNotesWorkspace = loadNotesWorkspace;
 
 // 5. Vẽ thanh chip lọc chủ đề tự đặt tên
 function renderTopicsBar() {
-  const container = document.getElementById('notes-topics-bar');
-  if (!container) return;
+  const containers = [
+    document.getElementById('notes-topics-bar'),
+    document.getElementById('modal-notes-topics-bar')
+  ].filter(Boolean);
+  if (containers.length === 0) return;
 
   const notes = getAllNotes();
   const topics = getAllTopics();
@@ -13732,21 +13735,26 @@ function renderTopicsBar() {
     `;
   });
 
-  container.innerHTML = html;
+  containers.forEach(c => {
+    c.innerHTML = html;
+  });
 
-  // Cập nhật datalist cho input chọn chủ đề
-  const datalist = document.getElementById('notes-topics-datalist');
-  if (datalist) {
-    datalist.innerHTML = topics.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
-  }
+  // Cập nhật datalist cho input chọn chủ đề (cả tab và modal)
+  const datalistHtml = topics.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
+  const datalist1 = document.getElementById('notes-topics-datalist');
+  const datalist2 = document.getElementById('modal-notes-topics-datalist');
+  if (datalist1) datalist1.innerHTML = datalistHtml;
+  if (datalist2) datalist2.innerHTML = datalistHtml;
 }
 window.renderTopicsBar = renderTopicsBar;
 
 // 6. Vẽ danh sách thẻ ghi chú (Sidebar List)
 function renderNotesSidebar() {
-  const container = document.getElementById('notes-card-list');
-  const countEl = document.getElementById('notes-list-count');
-  if (!container) return;
+  const container1 = document.getElementById('notes-card-list');
+  const container2 = document.getElementById('modal-notes-card-list');
+  const countEl1 = document.getElementById('notes-list-count');
+  const countEl2 = document.getElementById('modal-notes-list-count');
+  if (!container1 && !container2) return;
 
   const notes = getAllNotes();
   const activeNote = getActiveNote();
@@ -13772,16 +13780,20 @@ function renderNotesSidebar() {
     return (b.updatedAt || 0) - (a.updatedAt || 0);
   });
 
-  if (countEl) countEl.textContent = `${filtered.length} ghi chú`;
+  const countText = `${filtered.length} ghi chú`;
+  if (countEl1) countEl1.textContent = countText;
+  if (countEl2) countEl2.textContent = countText;
 
   if (filtered.length === 0) {
-    container.innerHTML = `
+    const emptyHtml = `
       <div class="text-center py-8 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-slate-400">
         <span class="material-symbols-outlined text-2xl mb-1 text-slate-300 dark:text-slate-600">search_off</span>
         <div class="text-xs font-medium">Không tìm thấy ghi chú nào</div>
         <button type="button" onclick="createNewNotePrompt()" class="mt-2 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer">+ Tạo ghi chú mới</button>
       </div>
     `;
+    if (container1) container1.innerHTML = emptyHtml;
+    if (container2) container2.innerHTML = emptyHtml;
     return;
   }
 
@@ -13843,7 +13855,8 @@ function renderNotesSidebar() {
     `;
   });
 
-  container.innerHTML = html;
+  if (container1) container1.innerHTML = html;
+  if (container2) container2.innerHTML = html;
 }
 window.renderNotesSidebar = renderNotesSidebar;
 
@@ -13868,21 +13881,36 @@ function loadActiveNoteIntoEditor() {
   if (!note) return;
 
   const titleInput = document.getElementById('active-note-title');
+  const modalTitleInput = document.getElementById('modal-active-note-title');
   const topicInput = document.getElementById('active-note-topic-input');
+  const modalTopicInput = document.getElementById('modal-active-note-topic-input');
   const pinIcon = document.getElementById('pin-icon');
+  const modalPinIcon = document.getElementById('modal-pin-icon');
   const tabEditor = document.getElementById('focus-notes-tab-editor');
   const modalEditor = document.getElementById('focus-notes-editor');
 
-  if (titleInput && titleInput.value !== (note.title || '')) {
-    titleInput.value = note.title || '';
+  const titleVal = note.title || '';
+  if (titleInput && titleInput.value !== titleVal && document.activeElement !== titleInput) {
+    titleInput.value = titleVal;
   }
-  if (topicInput && topicInput.value !== (note.topic || '')) {
-    topicInput.value = note.topic || '';
+  if (modalTitleInput && modalTitleInput.value !== titleVal && document.activeElement !== modalTitleInput) {
+    modalTitleInput.value = titleVal;
   }
-  if (pinIcon) {
-    pinIcon.textContent = note.pinned ? 'keep' : 'push_pin';
-    pinIcon.classList.toggle('text-amber-500', Boolean(note.pinned));
+
+  const topicVal = note.topic || '';
+  if (topicInput && topicInput.value !== topicVal && document.activeElement !== topicInput) {
+    topicInput.value = topicVal;
   }
+  if (modalTopicInput && modalTopicInput.value !== topicVal && document.activeElement !== modalTopicInput) {
+    modalTopicInput.value = topicVal;
+  }
+
+  [pinIcon, modalPinIcon].forEach(icon => {
+    if (icon) {
+      icon.textContent = note.pinned ? 'keep' : 'push_pin';
+      icon.classList.toggle('text-amber-500', Boolean(note.pinned));
+    }
+  });
 
   if (tabEditor && document.activeElement !== tabEditor) {
     tabEditor.innerHTML = note.content || '';
@@ -13920,7 +13948,10 @@ function createNewNotePrompt(defaultTopic = '') {
   }
 
   setTimeout(() => {
-    const titleEl = document.getElementById('active-note-title');
+    const isModalOpen = document.getElementById('modal-brain-dump')?.classList.contains('hidden') === false;
+    const titleEl = isModalOpen
+      ? (document.getElementById('modal-active-note-title') || document.getElementById('active-note-title'))
+      : (document.getElementById('active-note-title') || document.getElementById('modal-active-note-title'));
     if (titleEl) {
       titleEl.focus();
       titleEl.select();
@@ -13970,6 +14001,11 @@ function handleActiveNoteTitleInput(newTitle) {
   note.title = newTitle || 'Chưa đặt tiêu đề';
   note.updatedAt = Date.now();
 
+  const title1 = document.getElementById('active-note-title');
+  const title2 = document.getElementById('modal-active-note-title');
+  if (title1 && document.activeElement !== title1 && title1.value !== note.title) title1.value = note.title;
+  if (title2 && document.activeElement !== title2 && title2.value !== note.title) title2.value = note.title;
+
   clearTimeout(notesSaveTimeout);
   notesSaveTimeout = setTimeout(() => {
     saveAllNotes(getAllNotes());
@@ -13988,6 +14024,12 @@ function handleActiveNoteTopicChange(newTopic) {
   note.topic = cleanTopic;
   note.updatedAt = Date.now();
   saveAllNotes(getAllNotes());
+
+  const top1 = document.getElementById('active-note-topic-input');
+  const top2 = document.getElementById('modal-active-note-topic-input');
+  if (top1 && top1.value !== cleanTopic) top1.value = cleanTopic;
+  if (top2 && top2.value !== cleanTopic) top2.value = cleanTopic;
+
   renderTopicsBar();
   renderNotesSidebar();
 
@@ -14085,6 +14127,10 @@ window.filterNotesByTopic = filterNotesByTopic;
 
 function handleNotesSearch(query) {
   currentNotesSearchQuery = (query || '').trim();
+  const s1 = document.getElementById('notes-search-input');
+  const s2 = document.getElementById('modal-notes-search-input');
+  if (s1 && document.activeElement !== s1 && s1.value !== query) s1.value = query;
+  if (s2 && document.activeElement !== s2 && s2.value !== query) s2.value = query;
   renderNotesSidebar();
 }
 window.handleNotesSearch = handleNotesSearch;
@@ -14093,8 +14139,10 @@ function updateTotalNotesBadge() {
   const notes = getAllNotes();
   const badgeNav = document.getElementById('badge-notes-count');
   const badgeHeader = document.getElementById('notes-total-badge');
+  const badgeModal = document.getElementById('modal-notes-badge-count');
   if (badgeNav) badgeNav.textContent = notes.length;
   if (badgeHeader) badgeHeader.textContent = `${notes.length} Ghi Chú`;
+  if (badgeModal) badgeModal.textContent = notes.length;
 }
 
 // 16. Lưu nội dung editor hiện tại vào Active Note
@@ -14408,8 +14456,10 @@ function updateNotesStats() {
 
   const modalWordsEl = document.getElementById('notes-word-count');
   const modalCharsEl = document.getElementById('notes-char-count');
+  const modalReadEl = document.getElementById('notes-reading-time');
   if (modalWordsEl) modalWordsEl.textContent = `${wordCount} từ`;
   if (modalCharsEl) modalCharsEl.textContent = `${charCount} ký tự`;
+  if (modalReadEl) modalReadEl.textContent = wordCount > 0 ? `~${readTimeMinutes} phút đọc` : '~0 phút đọc';
 
   // Focus banner badge
   const bannerBadge = document.getElementById('brain-dump-badge');
@@ -14646,18 +14696,13 @@ function openBrainDumpModal() {
     sfx.playClick();
   }
 
-  const editor = document.getElementById('focus-notes-editor');
-  if (editor) {
-    const saved = getFocusNotesContent();
-    if (editor.innerHTML !== saved) {
-      editor.innerHTML = saved;
-    }
-    updateNotesStats();
-  }
+  // Tải và đồng bộ hóa toàn bộ danh sách, chủ đề và nội dung đang mở cho Modal
+  loadNotesWorkspace();
 
   openModal('modal-brain-dump');
 
   setTimeout(() => {
+    const editor = document.getElementById('focus-notes-editor');
     if (editor) {
       editor.focus();
     }
@@ -14667,10 +14712,7 @@ window.openBrainDumpModal = openBrainDumpModal;
 window.openFocusNotesModal = openBrainDumpModal;
 
 function closeBrainDumpModal() {
-  const editor = document.getElementById('focus-notes-editor');
-  if (editor) {
-    saveFocusNotesContent(editor.innerHTML);
-  }
+  flushCurrentEditorChanges();
   if (typeof sfx !== 'undefined' && sfx.playClick) {
     sfx.playClick();
   }
