@@ -933,6 +933,10 @@ function renderFocusStationUI() {
     btn.dataset.delta = isReward ? (idx === 0 ? '-60' : '-300') : (idx === 0 ? '60' : '300');
     btn.title = isReward ? (idx === 0 ? 'Giảm 1 phút hưởng thụ' : 'Giảm 5 phút hưởng thụ') : (idx === 0 ? 'Thêm 1 phút tập trung' : 'Thêm 5 phút tập trung');
   });
+
+  if (typeof updateBrainDumpBadges === 'function') {
+    updateBrainDumpBadges();
+  }
 }
 
 function updateQuestCardTimerState(questId, isRunning, isFocusing) {
@@ -2430,6 +2434,10 @@ function openFocusCompleteModal(quest) {
   if (descEl) descEl.textContent = `Xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}"!`;
   if (coinsEl) coinsEl.textContent = `+${quest.rewardCoins} VÀNG`;
   if (expEl) expEl.textContent = `+${quest.rewardCoins * 3} EXP`;
+
+  if (typeof updateBrainDumpBadges === 'function') {
+    updateBrainDumpBadges();
+  }
 
   openModal('modal-focus-complete');
 }

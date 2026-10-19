@@ -256,7 +256,11 @@
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-purple-500">admin_panel_settings</span>
               <span>Quản Trị</span>
             </button>
-            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+            <button id="btn-nav-dopamine" type="button" onclick="openDopamineGuideModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+              <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-amber-500">psychology</span>
+              <span class="font-bold">Bí Kíp Ngắt Dopamine</span>
+            </button>
+            <button id="btn-nav-about" type="button" onclick="openAboutModal()" class="nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition text-left cursor-pointer">
               <span class="material-symbols-outlined text-[18px] leading-none shrink-0 text-indigo-500">auto_stories</span>
               <span class="font-bold">Giới Thiệu Dự Án</span>
             </button>
@@ -324,6 +328,14 @@
             <button id="btn-timer-hold" class="m3-btn m3-btn-sm m3-btn-tonal px-3 py-2 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 cursor-pointer" title="Bảo lưu thời gian còn lại để làm việc khác">
               <span class="material-symbols-outlined text-[16px] leading-none">pause_circle</span>
               <span class="hidden sm:inline">Bảo Lưu</span>
+            </button>
+            <button id="btn-open-brain-dump" type="button" class="m3-btn m3-btn-sm m3-btn-tonal px-2.5 sm:px-3 py-2 rounded-full text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer" title="Cuộn Giấy Xả Rác Não Bộ (Phím tắt: Alt+D)">
+              <span class="material-symbols-outlined text-[16px] leading-none">edit_note</span>
+              <span class="hidden sm:inline">Giấy Xả Rác</span>
+              <span id="brain-dump-badge" class="hidden ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-amber-500 text-slate-950">0</span>
+            </button>
+            <button id="btn-focus-dopamine-guide" type="button" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 transition flex items-center justify-center cursor-pointer" title="Bí Kíp Ngắt Mạch Dopamine & Vào Deep Work">
+              <span class="material-symbols-outlined text-[16px] leading-none">psychology</span>
             </button>
             <button id="btn-timer-zen" class="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center cursor-pointer" title="Chế độ Toàn màn hình (Tập trung tối đa)">
               <span class="material-symbols-outlined text-[16px] leading-none">fullscreen</span>
@@ -1662,6 +1674,18 @@
         </div>
       </div>
       <span class="material-symbols-outlined text-base text-purple-300 dark:text-purple-600 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+    </button>
+    <button id="btn-mobile-dopamine" type="button" onclick="openDopamineGuideModal()" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+          <span class="material-symbols-outlined text-[20px] leading-none">psychology</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold text-amber-700 dark:text-amber-300 truncate">Bí Kíp Ngắt Dopamine</div>
+          <div class="text-[10px] text-amber-500/80 truncate font-normal">5 bước đưa não vào Deep Work</div>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-base text-amber-300 dark:text-amber-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
     </button>
     <button id="btn-mobile-about" type="button" class="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5">
       <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -3269,6 +3293,22 @@
         </div>
       </div>
 
+      <!-- Brain Dump Review Banner if there are items -->
+      <div id="focus-complete-brain-dump-banner" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+            <span>📝</span>
+            <span>Giấy Xả Rác Não Bộ</span>
+          </span>
+          <span id="focus-complete-brain-dump-count" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">0 mục</span>
+        </div>
+        <p class="text-[11px] text-slate-600 dark:text-slate-400">Bạn đã xả một số suy nghĩ trong lúc tập trung. Hãy xem lại để dọn rác hoặc tạo nhiệm vụ mới nhé!</p>
+        <button id="btn-focus-complete-view-dump" type="button" onclick="openBrainDumpModal()" class="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/40 transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
+          <span>Xem & Xử Lý Giấy Xả Rác</span>
+          <span class="material-symbols-outlined text-sm leading-none">arrow_forward</span>
+        </button>
+      </div>
+
       <div class="space-y-2 pt-2">
         <button id="btn-focus-complete-break" type="button" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95">
           <span>☕</span>
@@ -3304,20 +3344,32 @@
       </div>
 
       <!-- Zen Controls -->
-      <div class="flex items-center gap-3">
-        <button id="btn-zen-toggle" type="button" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
+        <button id="btn-zen-toggle" type="button" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer" title="Tạm dừng / Tiếp tục (Phím tắt: Space)">
           Tạm Dừng
+        </button>
+        <button id="btn-zen-brain-dump" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition active:scale-95 cursor-pointer flex items-center gap-1.5" title="Ghi suy nghĩ gây xao nhãng (Alt+D)">
+          <span>📝</span>
+          <span>Giấy Xả Rác</span>
+          <span id="zen-brain-dump-badge" class="hidden font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black">0</span>
         </button>
         <button id="btn-zen-hold" type="button" class="px-4 py-2.5 rounded-xl font-semibold text-xs bg-sky-600/30 border border-sky-500/50 text-sky-300 hover:bg-sky-600/50 transition active:scale-95 cursor-pointer" title="Bảo lưu thời gian còn lại">
           ⏸️ Bảo Lưu
         </button>
-        <button id="btn-zen-exit" type="button" class="px-4 py-2.5 rounded-xl font-medium text-xs bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition">
+        <button id="btn-zen-exit" type="button" class="px-4 py-2.5 rounded-xl font-medium text-xs bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer">
           Thoát Toàn Màn Hình
         </button>
       </div>
-      <div class="text-[11px] text-slate-400 flex items-center gap-1.5 opacity-75 select-none">
-        <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">Space</kbd>
-        <span>Tạm dừng / Tiếp tục</span>
+      <div class="text-[11px] text-slate-400 flex items-center gap-2 opacity-75 select-none flex-wrap justify-center">
+        <span class="flex items-center gap-1">
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">Space</kbd>
+          <span>Tạm dừng / Tiếp tục</span>
+        </span>
+        <span class="opacity-50">•</span>
+        <span class="flex items-center gap-1">
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">Alt + D</kbd>
+          <span>Giấy xả rác</span>
+        </span>
       </div>
     </div>
   </div>
@@ -4410,6 +4462,248 @@
             <span class="material-symbols-outlined text-base leading-none">send</span>
           </button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: CẨM NANG NGẮT MẠCH DOPAMINE & CHUYỂN TRẠNG THÁI DEEP WORK       -->
+  <!-- ======================================================================= -->
+  <div id="modal-dopamine-guide" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-dopamine-guide-title">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
+      <!-- Modal Header -->
+      <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-amber-500/20 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/25 to-indigo-500/25 border border-amber-500/40 flex items-center justify-center text-xl shadow-xs">
+            <span>🧠</span>
+          </div>
+          <div>
+            <h3 id="modal-dopamine-guide-title" class="font-rpg-title font-black text-sm sm:text-base text-amber-600 dark:text-amber-400 tracking-wide uppercase">CẨM NANG NGẮT MẠCH DOPAMINE</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">5 bước chuyển trạng thái từ video ngắn sang Deep Work</p>
+          </div>
+        </div>
+        <button id="btn-close-dopamine-guide" type="button" onclick="closeDopamineGuideModal()" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
+          <span class="material-symbols-outlined text-lg leading-none">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body (Cuộn nội dung mượt mà) -->
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 sm:p-6 space-y-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+        
+        <!-- Cảnh báo khoa học não bộ (The Dopamine Contrast) -->
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+          <div class="flex items-center gap-2 font-bold text-xs sm:text-sm text-amber-700 dark:text-amber-300">
+            <span class="text-base">⚠️</span>
+            <span>Hiểu Cơ Chế: Tại Sao Bạn Không Thể Học Sâu Ngay?</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            Não bạn hiện đang ngập trong lượng <b>dopamine "rẻ" và cường độ cao</b> từ việc lướt video ngắn và mạng xã hội. Việc ép bản thân nhảy ngay vào trạng thái học sâu (deep work) lúc này giống như đang <b>lái xe 100km/h mà bóp phanh gấp</b> — não sẽ kháng cự dữ dội, sinh ra cảm giác chán nản và bồn chồn.
+          </p>
+          <div class="text-[11px] font-medium text-amber-800 dark:text-amber-200/90 bg-amber-500/15 p-2.5 rounded-xl border border-amber-500/20">
+            💡 <b>Giải pháp:</b> Hãy thực hiện quy trình "ngắt mạch" 5 bước dưới đây để đưa dopamine về mức cơ bản trước khi bắt đầu!
+          </div>
+        </div>
+
+        <!-- 5 Bước chuyển trạng thái -->
+        <div class="space-y-3 pt-1">
+
+          <!-- Bước 1 -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/30 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-mono font-black text-xs">1</span>
+                <span>Xóa Bộ Nhớ Đệm Thể Chất</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono font-bold">10 phút</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-indigo-500 mt-0.5">•</span>
+                <div><b>Rời khỏi vị trí cũ:</b> Nơi bạn vừa lướt web hay nghỉ ngơi tuyệt đối không được là nơi bạn ngồi học. Hãy đứng dậy ngay lập tức.</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-indigo-500 mt-0.5">•</span>
+                <div><b>Thay đổi trạng thái:</b> Đi rửa mặt bằng nước lạnh hoặc tắm nhanh. Sự thay đổi nhiệt độ đột ngột giúp đánh thức hệ thần kinh và "rửa trôi" trạng thái lờ đờ.</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-indigo-500 mt-0.5">•</span>
+                <div><b>Uống nước:</b> Uống ngay một cốc nước lọc lớn để kích hoạt lại cơ thể và tuần hoàn máu.</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Bước 2 -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-purple-500/30 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-purple-600 dark:text-purple-400 text-xs sm:text-sm flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-mono font-black text-xs">2</span>
+                <span>Thiết Lập Môi Trường Cách Ly</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 font-mono font-bold">Không gian</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-purple-500 mt-0.5">•</span>
+                <div><b>Loại bỏ nguồn cám dỗ:</b> Tắt nguồn điện thoại, bật chế độ máy bay, hoặc cất hẳn sang phòng khác. Đừng chỉ úp điện thoại trên bàn, vì tiềm thức bạn vẫn biết nó ở đó và chờ đợi chuông báo.</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-purple-500 mt-0.5">•</span>
+                <div><b>Dọn bàn học tối giản:</b> Chỉ để lại đúng những thứ phục vụ cho môn học hiện tại (1 quyển sách, 1 cây bút, 1 laptop nếu cần). Càng ít đồ vật, não càng ít lý do phân tán.</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Bước 3 -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-amber-500/30 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-600 dark:text-amber-400 text-xs sm:text-sm flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-mono font-black text-xs">3</span>
+                <span>Chiến Thuật "Bắt Đầu Siêu Nhỏ"</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-mono font-bold">Quy tắc 5 phút</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">•</span>
+                <div>Não bạn đang quen với những thứ dễ dãi, nên nếu bạn nghĩ <i>"Mình phải học 2 tiếng"</i>, nó sẽ sợ hãi và tìm cách đình công.</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">•</span>
+                <div><b>Mục tiêu phá vỡ lực cản:</b> Hãy tự nhủ <i>"Mình chỉ ngồi vào bàn, mở trang sách ra và đọc đúng 1 đoạn"</i>, hoặc <i>"Mình chỉ làm 1 bài tập rồi nghỉ"</i>. Một khi đã bắt tay làm được 5 phút, quán tính sẽ tự kéo bạn đi tiếp!</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Bước 4 -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/30 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-mono font-black text-xs">4</span>
+                <span>Kích Hoạt Chu Kỳ Tập Trung Ngắn</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-bold">Pomodoro 25/5</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500 mt-0.5">•</span>
+                <div>Sự tập trung lúc đầu rất mỏng manh, đừng cố ngồi lỳ. Hãy dùng <b>Pomodoro: Tập trung 25 phút — Nghỉ 5 phút</b> trên LevelUp.</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500 mt-0.5">•</span>
+                <div><b>Kỷ luật thép khi nghỉ:</b> Trong 5 phút nghỉ, <b>tuyệt đối không cầm lại điện thoại</b> hay mở tab giải trí. Hãy đứng dậy, vươn vai, nhìn ra xa (quy tắc 20-20-20) hoặc nhắm mắt. Việc nạp lại dopamine kích thích lúc này sẽ phá hỏng hoàn toàn công sức ngắt mạch!</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Bước 5 -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-500/30 hover:border-amber-500/50 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-700 dark:text-amber-300 text-xs sm:text-sm flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-black text-xs">5</span>
+                <span>Đặt Một Tờ "Giấy Xả Rác" (Brain Dump)</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-700 dark:text-amber-300 font-mono font-bold">Xả xao nhãng</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">•</span>
+                <div>Trong 15 phút đầu học sâu, não bạn sẽ liên tục giãy giụa và ném ra các suy nghĩ ngẫu nhiên (<i>"Quên chưa rep tin nhắn", "Lát nữa ăn gì ta"</i>).</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">•</span>
+                <div><b>Đừng giải quyết chúng ngay:</b> Hãy nhấn nút <b>📝 Giấy Xả Rác</b> trên thanh Pomodoro (hoặc phím tắt <code>Alt + D</code>) để ghi nhanh vào danh sách, coi như đã "lưu", rồi quay ngay lại việc học. Cuối buổi bạn có thể chuyển chúng thành nhiệm vụ hoặc xóa đi.</div>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex items-center justify-between shrink-0">
+        <button type="button" onclick="openBrainDumpModal()" class="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer">
+          <span class="material-symbols-outlined text-[16px] leading-none">edit_note</span>
+          <span>Mở Giấy Xả Rác Số</span>
+        </button>
+        <button type="button" onclick="closeDopamineGuideModal()" class="px-4 sm:px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 cursor-pointer shadow-sm">
+          Đã Hiểu & Bắt Đầu Học ⚔️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: CUỘN GIẤY XẢ RÁC NÃO BỘ (DIGITAL BRAIN DUMP)                     -->
+  <!-- ======================================================================= -->
+  <div id="modal-brain-dump" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brain-dump-title">
+    <div class="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-lg border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
+      <!-- Modal Header -->
+      <div class="bg-amber-500/10 dark:bg-amber-950/40 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-amber-500/20 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/25 to-yellow-500/25 border border-amber-500/40 flex items-center justify-center text-xl shadow-xs">
+            <span>📝</span>
+          </div>
+          <div>
+            <h3 id="modal-brain-dump-title" class="font-rpg-title font-black text-sm sm:text-base text-amber-600 dark:text-amber-400 tracking-wide uppercase">GIẤY XẢ RÁC NÃO BỘ</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Xả suy nghĩ gây xao nhãng để giữ vững mạch Deep Work</p>
+          </div>
+        </div>
+        <button id="btn-close-brain-dump" type="button" onclick="closeBrainDumpModal()" class="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
+          <span class="material-symbols-outlined text-lg leading-none">close</span>
+        </button>
+      </div>
+
+      <!-- Quick Input Section (Instant Capture < 3s) -->
+      <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 shrink-0">
+        <div class="flex items-center gap-2">
+          <input
+            id="input-brain-dump"
+            type="text"
+            maxlength="200"
+            placeholder="Gõ suy nghĩ xao nhãng rồi bấm Enter..."
+            class="flex-1 rpg-input rounded-xl px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm transition bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500 dark:focus:border-amber-400 placeholder:text-slate-400"
+          >
+          <button
+            id="btn-add-brain-dump"
+            type="button"
+            onclick="handleAddBrainDumpClick()"
+            class="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+          >
+            <span>Lưu</span>
+            <span class="material-symbols-outlined text-base leading-none">arrow_downward</span>
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
+          <span>💡</span>
+          <span>Ghi lại để não an tâm không quên. Bạn có thể xóa hoặc biến thành Nhiệm Vụ sau!</span>
+        </p>
+      </div>
+
+      <!-- Dumped Thoughts List -->
+      <div id="brain-dump-list-container" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 space-y-2.5">
+        <div id="brain-dump-list" class="space-y-2">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex items-center justify-between shrink-0">
+        <button
+          id="btn-clear-all-dump"
+          type="button"
+          onclick="handleClearAllBrainDumpClick()"
+          class="text-xs font-semibold text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <span class="material-symbols-outlined text-[16px] leading-none">delete_sweep</span>
+          <span>Dọn Sạch Rác</span>
+        </button>
+        <button
+          type="button"
+          onclick="closeBrainDumpModal()"
+          class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition active:scale-95 cursor-pointer"
+        >
+          Đóng (Esc)
+        </button>
       </div>
     </div>
   </div>

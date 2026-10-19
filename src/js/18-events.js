@@ -3,6 +3,9 @@
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
   initStartupFlow();
+  if (typeof updateBrainDumpBadges === 'function') {
+    updateBrainDumpBadges();
+  }
 
   // Tự động kiểm tra và đồng bộ khi người dùng quay lại tab hoặc mở lại ứng dụng trên máy khác
   window.addEventListener('focus', () => {
@@ -1681,6 +1684,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Brain Dump input Enter key submit
+  const inputBrainDump = document.getElementById('input-brain-dump');
+  if (inputBrainDump) {
+    inputBrainDump.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddBrainDumpClick();
+      }
+    });
+  }
+
+  // Button triggers for Brain Dump & Dopamine Guide
+  const btnOpenBrainDump = document.getElementById('btn-open-brain-dump');
+  if (btnOpenBrainDump) {
+    btnOpenBrainDump.addEventListener('click', () => {
+      openBrainDumpModal();
+    });
+  }
+
+  const btnZenBrainDump = document.getElementById('btn-zen-brain-dump');
+  if (btnZenBrainDump) {
+    btnZenBrainDump.addEventListener('click', () => {
+      openBrainDumpModal();
+    });
+  }
+
+  const btnFocusDopamineGuide = document.getElementById('btn-focus-dopamine-guide');
+  if (btnFocusDopamineGuide) {
+    btnFocusDopamineGuide.addEventListener('click', () => {
+      openDopamineGuideModal();
+    });
+  }
+
   // Confirmation Dialog controls
   const btnConfirmOk = document.getElementById('btn-confirm-ok');
   if (btnConfirmOk) {
@@ -1823,6 +1859,19 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAssistantModal();
       } else {
         openAssistantModal();
+      }
+    }
+  });
+
+  // Phím tắt Alt+D mở/đóng Cuộn Giấy Xả Rác Não Bộ (Brain Dump)
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      const modal = document.getElementById('modal-brain-dump');
+      if (modal && !modal.classList.contains('hidden')) {
+        closeBrainDumpModal();
+      } else {
+        openBrainDumpModal();
       }
     }
   });
