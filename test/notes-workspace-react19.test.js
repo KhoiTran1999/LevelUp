@@ -43,11 +43,12 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(indexContent.includes('TopicFilterChips'), 'index.ts phải export TopicFilterChips');
   });
 
-  it('2. Đảm bảo app/page.tsx tích hợp NotesWorkspace và chuyển legacy bridge sang tab-leaderboard', () => {
+  it('2. Đảm bảo app/page.tsx tích hợp NotesWorkspace và React Leaderboard trước legacy bridge', () => {
     assert.ok(pageContent.includes("import { NotesWorkspace } from '@/components/notes/NotesWorkspace'"), 'page.tsx phải import NotesWorkspace');
     assert.ok(pageContent.includes('<section id="tab-notes" className="tab-pane hidden">'), 'page.tsx phải có section tab-notes');
     assert.ok(pageContent.includes('<NotesWorkspace />'), 'page.tsx phải render NotesWorkspace');
-    assert.ok(pageContent.includes("rawHtml.indexOf('<section id=\"tab-leaderboard\"')"), 'legacyTabsContent phải bắt đầu từ tab-leaderboard');
+    assert.ok(pageContent.includes('<Leaderboard />'), 'page.tsx phải render Leaderboard React');
+    assert.ok(pageContent.includes("rawHtml.indexOf('<section id=\"tab-admin\"')"), 'legacyTabsContent phải bắt đầu sau tab-leaderboard đã migrate');
   });
 
   it('3. Đảm bảo LevelUpProvider quản lý state và các action ghi chú (create, update, delete, togglePin)', () => {

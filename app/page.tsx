@@ -20,6 +20,8 @@ import { BankWithdrawModal } from '@/components/bank/BankWithdrawModal';
 import { BankRulesModal } from '@/components/bank/BankRulesModal';
 import { CreditLimitModal } from '@/components/bank/CreditLimitModal';
 import { LedgerContainer } from '@/components/ledger/LedgerContainer';
+import { Leaderboard } from '@/components/leaderboard/Leaderboard';
+import { Tracker } from '@/components/tracker/Tracker';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +40,14 @@ function getLegacyTemplates(): { tabs: string; overlays: string } {
 
   try {
     const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
-    const leaderboardIndex = rawHtml.indexOf('<section id="tab-leaderboard"');
+    const adminIndex = rawHtml.indexOf('<section id="tab-admin"');
     const mainCloseIndex = rawHtml.indexOf('</main>');
     const confettiIndex = rawHtml.indexOf('<!-- RPG Confetti VFX');
 
-    if (leaderboardIndex !== -1 && mainCloseIndex !== -1) {
-      let tabs = rawHtml.slice(leaderboardIndex, mainCloseIndex);
+    if (adminIndex !== -1 && mainCloseIndex !== -1) {
+      let tabs = rawHtml.slice(adminIndex, mainCloseIndex);
+      // Exclude legacy tracker; React Tracker now manages this tab.
+      tabs = tabs.replace(/<section\s+id="tab-tracker"[\s\S]*?<\/section>/i, '');
       // Exclude legacy bank tab since React 19 BankContainer manages it
       tabs = tabs.replace(/<section\s+id="tab-bank"[\s\S]*?<\/section>/i, '');
       // Exclude legacy ledger tab since React 19 LedgerContainer manages it
@@ -116,7 +120,13 @@ export default function LevelUpPage() {
             <LedgerContainer />
           </section>
 
-          {/* Legacy Main Tabs (Leaderboard, Admin, Tracker) */}
+          {/* React Leaderboard */}
+          <Leaderboard />
+
+          {/* React Habit Tracker */}
+          <Tracker />
+
+          {/* Legacy Admin Tab */}
           <LegacyViewsBridge content={legacyTabsContent} />
         </main>
 

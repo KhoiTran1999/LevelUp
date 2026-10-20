@@ -14,9 +14,11 @@ test('Frequency Tracker - Math and Grid Calculation (Matches Image 1: 1d -> 0.27
   assert.equal(pct33.toFixed(2), '9.04');
 });
 
-test('Frequency Tracker - HTML elements exist in public/index.html', async () => {
+test('Frequency Tracker - React tab is mounted while legacy detail modal stays available', async () => {
   const htmlPath = path.join(process.cwd(), 'public', 'index.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
+  const page = fs.readFileSync(path.join(process.cwd(), 'app', 'page.tsx'), 'utf8');
+  const tracker = fs.readFileSync(path.join(process.cwd(), 'components', 'tracker', 'Tracker.tsx'), 'utf8');
 
   // Tab navigation in Menu / Xem Thêm
   assert.ok(html.includes('id="nav-more-menu"'), 'Desktop nav should contain #nav-more-menu');
@@ -28,19 +30,15 @@ test('Frequency Tracker - HTML elements exist in public/index.html', async () =>
   const mobileMoreMenu = html.substring(html.indexOf('id="mobile-more-menu"'), html.indexOf('id="mobile-more-menu"') + 800);
   assert.ok(mobileMoreMenu.includes('data-tab="tracker"'), 'Tracker tab button must be inside #mobile-more-menu');
 
-  // Section pane
-  assert.ok(html.includes('id="tab-tracker"'), 'index.html should have section id="tab-tracker"');
+  assert.ok(page.includes('<Tracker />'), 'Next.js page should render React Tracker');
+  assert.ok(tracker.includes('id="tab-tracker"'), 'React Tracker should own the tracker tab');
+  assert.ok(tracker.includes("useState<TrackerPeriod>('monthly')"), 'Monthly period should remain the default');
+  assert.ok(tracker.includes("useState<TrackerCategory>('quests')"), 'Quests should remain the default category');
+  assert.ok(tracker.includes('aria-pressed={period === option.id}'), 'Period control should expose selected state');
+  assert.ok(tracker.includes('aria-pressed={category === \'quests\'}'), 'Category control should expose selected state');
 
-  // Category filter: exactly 2 categories (Nhiệm Vụ & Phần Thưởng), no 'Tất cả'
-  assert.ok(!html.includes('id="tracker-cat-all"'), 'index.html should NOT have #tracker-cat-all');
-  assert.ok(html.includes('id="tracker-cat-quests"'), 'index.html should have #tracker-cat-quests');
-  assert.ok(html.includes('id="tracker-cat-rewards"'), 'index.html should have #tracker-cat-rewards');
-
-  // Default period: Monthly is active by default
-  assert.ok(html.includes('id="tracker-period-monthly" class="tracker-period-btn px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer"'), 'Monthly period button should have active class');
+  // Keep detail modal as a transitional shared legacy overlay.
   assert.ok(html.includes('id="modal-freq-p-monthly" class="modal-freq-btn px-3 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer"'), 'Modal monthly button should have active class');
-
-  assert.ok(html.includes('id="tracker-list-container"'), 'index.html should have tracker-list-container');
   // Detail modal
   assert.ok(html.includes('id="modal-frequency-detail"'), 'index.html should have modal-frequency-detail');
   assert.ok(html.includes('id="modal-freq-grid-container"'), 'index.html should have modal-freq-grid-container');
@@ -196,4 +194,3 @@ test('Frequency Tracker - backfillItemHistories correctly reconstructs quest and
   assert.ok(Object.keys(shop1.history).length > 0, 'shop item history should be backfilled');
   assert.ok(Object.values(shop1.history).some(v => v >= 1), 'shop item count should be at least 1');
 });
-

@@ -17,7 +17,7 @@ Thư mục này chứa toàn bộ mã nguồn giao diện và logic client của
 | `09-shop.js` | **Tavern Shop & Inventory:** Mua chiến lợi phẩm, kho đồ cá nhân (Inventory), hoàn tiền (refund), hoàn tác sử dụng quà. |
 | `10-arbiter.js` | **AI Arbiter & Auto-Suggestions:** Trọng tài AI định giá nhiệm vụ khắt khe, tranh biện xin tăng thưởng (Debate modal) và gợi ý nhiệm vụ thông minh. |
 | `11-reward-ai.js` | **AI Reward Appraisal:** Thẩm định độ cám dỗ và định giá vàng tự động cho phần thưởng do người chơi tạo. |
-| `12-leaderboard.js` | **Leaderboard & Presence:** Bảng vàng vinh danh Top 3 mạo hiểm giả, tìm kiếm thành viên, trạng thái online và Bảng người gian lận. |
+| `12-leaderboard.js` | **Legacy Leaderboard Logic:** Giao diện web đã chuyển sang `components/leaderboard/Leaderboard.tsx`; module cũ còn trong bundle chuyển tiếp cho tới khi hoàn tất gỡ legacy. |
 | `13-admin.js` | **Guildmaster Admin Dashboard:** Bảng điều khiển quản trị, tinh chỉnh cấp độ/vàng, xóa tài khoản, tra cứu & dọn dẹp sổ cái thu chi. |
 | `14-render.js` | **DOM Render Engines:** Render danh sách nhiệm vụ, tiệm phần thưởng, kho đồ, thanh exp, avatar và huy hiệu. |
 | `15-modal.js` | **Navigation & Modal Controllers:** Quản lý điều hướng tab trên mobile/desktop, đóng/mở modal và phím tắt (`Alt+A`, `Space`, `Escape`). |

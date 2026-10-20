@@ -28,6 +28,14 @@ export interface Quest {
   focusTimerCompleted?: boolean;
   signature?: string;
   history?: Record<string, unknown>;
+  completedAt?: number;
+  lastCompletedAt?: number;
+  updatedAt?: number;
+  completed?: boolean;
+  loanDeductions?: Array<{
+    completedDate?: string;
+    timestamp?: number;
+  }>;
   createdAt: number;
   savedTimer?: {
     remainingSeconds: number;
@@ -106,6 +114,7 @@ export interface InventoryItem {
   isUsed: boolean;
   used?: boolean;
   usedAt?: number;
+  createdAt?: number;
   savedTimer?: {
     remainingSeconds: number;
     totalSeconds: number;
@@ -210,6 +219,7 @@ export interface LedgerEntry {
   title: string;
   description: string;
   timestamp: number;
+  shopItemId?: string;
   proofImageUrl?: string;
   proofUserNote?: string;
   proofFeedback?: string;
