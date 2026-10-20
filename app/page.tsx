@@ -19,6 +19,7 @@ import { BankContainer } from '@/components/bank/BankContainer';
 import { BankWithdrawModal } from '@/components/bank/BankWithdrawModal';
 import { BankRulesModal } from '@/components/bank/BankRulesModal';
 import { CreditLimitModal } from '@/components/bank/CreditLimitModal';
+import { LedgerContainer } from '@/components/ledger/LedgerContainer';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,8 @@ export default function LevelUpPage() {
       let tabs = rawHtml.slice(leaderboardIndex, mainCloseIndex);
       // Exclude legacy bank tab since React 19 BankContainer manages it
       tabs = tabs.replace(/<section\s+id="tab-bank"[\s\S]*?<\/section>/i, '');
+      // Exclude legacy ledger tab since React 19 LedgerContainer manages it
+      tabs = tabs.replace(/<section\s+id="tab-ledger"[\s\S]*?<\/section>/i, '');
       legacyTabsContent = tabs;
     }
     if (mainCloseIndex !== -1 && confettiIndex !== -1) {
@@ -92,7 +95,12 @@ export default function LevelUpPage() {
             <BankContainer />
           </section>
 
-          {/* Legacy Main Tabs (Leaderboard, Ledger, Admin, Tracker) */}
+          {/* React 19 Ledger & Proof Album Section */}
+          <section id="tab-ledger" className="tab-pane hidden">
+            <LedgerContainer />
+          </section>
+
+          {/* Legacy Main Tabs (Leaderboard, Admin, Tracker) */}
           <LegacyViewsBridge content={legacyTabsContent} />
         </main>
 

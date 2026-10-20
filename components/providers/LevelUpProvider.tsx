@@ -16,7 +16,9 @@ import type {
   ProofVerificationResult,
   BankLoan,
   BankDepositItem,
+  ProofPhotoItem,
 } from '@/types/levelup';
+import { getAllProofPhotos } from '@/components/ledger/ledger-utils';
 
 function notifyBankToast(msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
   if (typeof window !== 'undefined') {
@@ -1150,6 +1152,12 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       executeBankWithdraw?: (amount?: number, depositId?: string) => Promise<boolean>;
       executeBankBorrow?: (amount: number, termDays: number, autoDeductPercent: number) => Promise<boolean>;
       executeBankRepay?: (amount?: number) => Promise<boolean>;
+      getAllProofPhotos?: () => ProofPhotoItem[];
+      renderProofPhotos?: () => void;
+      renderLedger?: () => void;
+      switchLedgerSubtab?: (s: string) => void;
+      setLedgerFilter?: (f: string) => void;
+      changeLedgerPage?: (delta: number) => void;
     };
     win.openQuestProofModal = (quest: Quest) => {
       openProofModal(quest);
@@ -1193,6 +1201,15 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     win.executeBankRepay = (amount?: number) => {
       return executeBankRepay(amount);
     };
+    win.getAllProofPhotos = () => {
+      return getAllProofPhotos(state.proofPhotos, state.ledger, state.quests);
+    };
+    win.renderProofPhotos = () => {
+      // Handled reactively by React 19 ProofPhotosView
+    };
+    win.renderLedger = () => {
+      // Handled reactively by React 19 LedgerContainer
+    };
 
     // Keyboard shortcut Q to open quest setup modal
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1220,6 +1237,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     executeBankWithdraw,
     executeBankBorrow,
     executeBankRepay,
+    state.proofPhotos,
+    state.ledger,
+    state.quests,
   ]);
 
   const addQuest = useCallback((newQuestData: Partial<Quest>) => {

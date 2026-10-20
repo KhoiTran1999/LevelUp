@@ -210,6 +210,12 @@ export interface LedgerEntry {
   title: string;
   description: string;
   timestamp: number;
+  proofImageUrl?: string;
+  proofUserNote?: string;
+  proofFeedback?: string;
+  userNote?: string;
+  feedback?: string;
+  questId?: string;
 }
 
 export interface ActiveTimer {
