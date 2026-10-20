@@ -59,13 +59,13 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(providerContent.includes('levelup:notes-updated'), 'LevelUpProvider phải lắng nghe levelup:notes-updated');
   });
 
-  it('4. Đảm bảo NoteSidebar hỗ trợ tìm kiếm tức thời, đếm số lượng, và ghim note', () => {
-    assert.ok(sidebarContent.includes('id="notes-header-banner"'), 'NoteSidebar phải có #notes-header-banner');
-    assert.ok(sidebarContent.includes('id="notes-search-input"'), 'NoteSidebar phải có #notes-search-input');
-    assert.ok(sidebarContent.includes('id="notes-total-badge"'), 'NoteSidebar phải có #notes-total-badge');
-    assert.ok(sidebarContent.includes('id="btn-reload-notes"'), 'NoteSidebar phải có #btn-reload-notes');
-    assert.ok(sidebarContent.includes('id="btn-create-new-note"'), 'NoteSidebar phải có #btn-create-new-note');
-    assert.ok(sidebarContent.includes('id="notes-sidebar-column"'), 'NoteSidebar phải có #notes-sidebar-column');
+  it('4. Đảm bảo NotesWorkspace & NoteSidebar hỗ trợ banner, tìm kiếm tức thời, và danh sách ghi chú', () => {
+    assert.ok(workspaceContent.includes('id="notes-header-banner"'), 'NotesWorkspace phải có #notes-header-banner ở đầu tab');
+    assert.ok(workspaceContent.includes('id="notes-search-input"'), 'NotesWorkspace phải có #notes-search-input');
+    assert.ok(workspaceContent.includes('id="notes-total-badge"'), 'NotesWorkspace phải có #notes-total-badge');
+    assert.ok(workspaceContent.includes('id="btn-reload-notes"'), 'NotesWorkspace phải có #btn-reload-notes');
+    assert.ok(workspaceContent.includes('id="btn-create-new-note"'), 'NotesWorkspace phải có #btn-create-new-note');
+    assert.ok(workspaceContent.includes('id="notes-sidebar-column"'), 'NotesWorkspace phải có #notes-sidebar-column');
     assert.ok(sidebarContent.includes('id="notes-card-list"'), 'NoteSidebar phải có #notes-card-list');
     assert.ok(sidebarContent.includes('note-card-title'), 'NoteSidebar phải có class note-card-title');
     assert.ok(sidebarContent.includes('note-card-time'), 'NoteSidebar phải có class note-card-time');
@@ -73,7 +73,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(sidebarContent.includes('push_pin'), 'NoteSidebar phải có icon push_pin');
   });
 
-  it('5. Đảm bảo NoteEditor hỗ trợ thanh công cụ 1 hàng, Markdown Live Preview, To-Do Checklist, Auto-Save', () => {
+  it('5. Đảm bảo NoteEditor hỗ trợ thanh công cụ 1 hàng, Markdown Auto-Format, To-Do Checklist, Auto-Save', () => {
     assert.ok(editorContent.includes('id="active-note-card"'), 'NoteEditor phải có #active-note-card');
     assert.ok(editorContent.includes('id="active-note-title"'), 'NoteEditor phải có #active-note-title');
     assert.ok(editorContent.includes('id="active-note-topic-input"'), 'NoteEditor phải có #active-note-topic-input');
@@ -88,14 +88,11 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(editorContent.includes('id="tab-notes-read-time"'), 'NoteEditor phải có #tab-notes-read-time');
     assert.ok(editorContent.includes('id="tab-notes-save-status"'), 'NoteEditor phải có #tab-notes-save-status');
     assert.ok(editorContent.includes('save-status-dot'), 'NoteEditor phải có class save-status-dot');
-    assert.ok(editorContent.includes('viewMode'), 'NoteEditor phải hỗ trợ viewMode chuyển đổi Live Preview');
     assert.ok(editorContent.includes('note-checkbox'), 'NoteEditor phải hỗ trợ note-checkbox checklist');
   });
 
-  it('6. Đảm bảo TopicFilterChips hỗ trợ chip lọc động và hiển thị badge', () => {
+  it('6. Đảm bảo TopicFilterChips duy trì container #notes-topics-bar tương thích ngược', () => {
     assert.ok(chipsContent.includes('id="notes-topics-bar"'), 'TopicFilterChips phải có id #notes-topics-bar');
-    assert.ok(chipsContent.includes('topic-chip'), 'TopicFilterChips phải có class topic-chip');
-    assert.ok(chipsContent.includes('Tất Cả'), 'TopicFilterChips phải có nút Tất Cả');
   });
 
   it('7. Thuật toán Markdown Parser trong markdown.ts hoạt động chính xác', async () => {
