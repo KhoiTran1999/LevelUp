@@ -15,15 +15,15 @@ const cssContent = fs.readFileSync(path.join(rootDir, 'public', 'style.css'), 'u
 assert(!cssContent.includes('@import url('), 'public/style.css không được chứa @import url gây render-blocking CSSOM');
 console.log('✓ Test 1: Đã loại bỏ hoàn toàn @import font gây chặn render CSSOM trong public/style.css.');
 
-// 2. Kiểm thử cấu hình Cache-Control headers trên Express & Vercel
-const serverContent = fs.readFileSync(path.join(rootDir, 'server.js'), 'utf-8');
-assert(serverContent.includes('Cache-Control') && serverContent.includes('immutable'), 'server.js phải cấu hình Cache-Control immutable cho static assets');
+// 2. Kiểm thử cấu hình Cache-Control headers trên Next.js & Vercel
+const nextConfigContent = fs.readFileSync(path.join(rootDir, 'next.config.ts'), 'utf-8');
+assert(nextConfigContent.includes('Cache-Control') && nextConfigContent.includes('max-age=86400, immutable'), 'next.config.ts phải cấu hình Cache-Control immutable cho static assets');
 
 const vercelJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'vercel.json'), 'utf-8'));
 assert(Array.isArray(vercelJson.headers) && vercelJson.headers.length > 0, 'vercel.json phải cấu hình headers caching');
 const staticHeader = vercelJson.headers.find(h => h.headers?.some(sub => sub.key === 'Cache-Control' && sub.value.includes('immutable')));
 assert(staticHeader, 'vercel.json phải có rule Cache-Control immutable cho assets');
-console.log('✓ Test 2: Đã cấu hình Cache-Control (max-age=86400, immutable) đồng bộ cho Express và Vercel.');
+console.log('✓ Test 2: Đã cấu hình Cache-Control (max-age=86400, immutable) đồng bộ cho Next.js và Vercel.');
 
 // 3. Kiểm thử Frontend DocumentFragment và isHydrating guard
 const appJsContent = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf-8');

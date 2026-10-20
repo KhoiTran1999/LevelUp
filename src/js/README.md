@@ -2,6 +2,8 @@
 
 Thư mục này chứa toàn bộ mã nguồn giao diện và logic client của **LevelUp RPG Guild**, được module hóa thành 19 tệp chuyên biệt theo từng miền nghiệp vụ:
 
+> **Trạng thái chuyển đổi:** ứng dụng web và API hiện chạy bằng Next.js (`npm run dev`, `npm run build`, `npm start`). Các module này cùng `public/app.js` vẫn được giữ để hỗ trợ những tab/modal legacy chưa chuyển sang React; chưa xóa chúng cho đến khi các màn hình đó được thay thế và kiểm thử. Express và Vite không còn là runtime web.
+
 | Tệp Module | Phân vùng chức năng & Nhiệm vụ |
 | :--- | :--- |
 | `01-sound.js` | **Web Audio Synthesizer (SoundFX):** Hiệu ứng âm thanh 8-bit RPG (coin, gong, fanfare, click) không tải asset media ngoài. |

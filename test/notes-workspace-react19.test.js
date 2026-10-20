@@ -17,6 +17,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const indexPath = path.join(rootDir, 'components/notes/index.ts');
   const mdPath = path.join(rootDir, 'components/notes/markdown.ts');
   const providerPath = path.join(rootDir, 'components/providers/LevelUpProvider.tsx');
+  const legacyNotesPath = path.join(rootDir, 'src/js/15-modal.js');
 
   const pageContent = fs.readFileSync(pagePath, 'utf8');
   const workspaceContent = fs.readFileSync(workspacePath, 'utf8');
@@ -26,6 +27,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const indexContent = fs.readFileSync(indexPath, 'utf8');
   const mdContent = fs.readFileSync(mdPath, 'utf8');
   const providerContent = fs.readFileSync(providerPath, 'utf8');
+  const legacyNotesContent = fs.readFileSync(legacyNotesPath, 'utf8');
 
   it('1. Đảm bảo cấu trúc 4 Component React 19 và module index được tạo đầy đủ', () => {
     assert.ok(fs.existsSync(workspacePath), 'Phải có components/notes/NotesWorkspace.tsx');
@@ -59,6 +61,15 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(providerContent.includes('levelup:notes-updated'), 'LevelUpProvider phải lắng nghe levelup:notes-updated');
   });
 
+  it('3a. Giữ đồng bộ ghi chú theo một nguồn dữ liệu và bỏ qua snapshot cũ', () => {
+    assert.ok(!providerContent.includes('setActiveNoteIdState'), 'Active note phải lấy từ state duy nhất');
+    assert.ok(providerContent.includes('activeNoteId: state.activeNoteId'), 'Context phải dùng active note từ app state');
+    assert.ok(providerContent.includes('crypto.randomUUID()'), 'ID ghi chú mới phải không đụng nhau khi tạo nhanh');
+    assert.ok(providerContent.includes('message.revision <= lastRevision'), 'Snapshot cũ không được ghi đè danh sách mới');
+    assert.ok(providerContent.includes('skipNotesBroadcastRef.current = true'), 'Nhận sync không được phát ngược snapshot');
+    assert.ok(!providerContent.includes('win.appState.notes ='), 'Action ghi chú không được ghi từ bản appState cũ');
+  });
+
   it('4. Đảm bảo NotesWorkspace & NoteSidebar hỗ trợ banner, tìm kiếm tức thời, và danh sách ghi chú', () => {
     assert.ok(workspaceContent.includes('id="notes-header-banner"'), 'NotesWorkspace phải có #notes-header-banner ở đầu tab');
     assert.ok(workspaceContent.includes('id="notes-search-input"'), 'NotesWorkspace phải có #notes-search-input');
@@ -66,7 +77,8 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(workspaceContent.includes('id="btn-reload-notes"'), 'NotesWorkspace phải có #btn-reload-notes');
     assert.ok(workspaceContent.includes('id="btn-create-new-note"'), 'NotesWorkspace phải có #btn-create-new-note');
     assert.ok(workspaceContent.includes('id="notes-sidebar-column"'), 'NotesWorkspace phải có #notes-sidebar-column');
-    assert.ok(sidebarContent.includes('id="notes-card-list"'), 'NoteSidebar phải có #notes-card-list');
+    assert.ok(sidebarContent.includes('id="react-notes-card-list"'), 'React NoteSidebar phải có container riêng, không trùng legacy #notes-card-list');
+    assert.ok(legacyNotesContent.includes("getElementById('notes-card-list')"), 'Renderer legacy chỉ được giữ selector của danh sách legacy');
     assert.ok(sidebarContent.includes('note-card-title'), 'NoteSidebar phải có class note-card-title');
     assert.ok(sidebarContent.includes('note-card-time'), 'NoteSidebar phải có class note-card-time');
     assert.ok(sidebarContent.includes('note-card-preview'), 'NoteSidebar phải có class note-card-preview');
@@ -74,6 +86,9 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   });
 
   it('5. Đảm bảo NoteEditor hỗ trợ thanh công cụ 1 hàng, Markdown Auto-Format, To-Do Checklist, Auto-Save', () => {
+    assert.ok(editorContent.includes('savedSnapshot.content === currentHtml'), 'Flush không được lưu ghi chú nếu nội dung không đổi');
+    assert.ok(editorContent.includes('savedSnapshot.title === currentTitle'), 'Flush không được lưu ghi chú nếu tiêu đề không đổi');
+    assert.ok(editorContent.includes('const updatedAt = Date.now()'), 'Thời gian cập nhật chỉ sinh khi có thay đổi thực tế');
     assert.ok(editorContent.includes('id="active-note-card"'), 'NoteEditor phải có #active-note-card');
     assert.ok(editorContent.includes('id="active-note-title"'), 'NoteEditor phải có #active-note-title');
     assert.ok(editorContent.includes('id="active-note-topic-input"'), 'NoteEditor phải có #active-note-topic-input');

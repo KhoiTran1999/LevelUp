@@ -41,6 +41,11 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   const editorRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const currentEditingNoteIdRef = useRef<string>(activeNote?.id || '');
+  const savedNoteSnapshotRef = useRef({
+    id: activeNote?.id || '',
+    title: activeNote?.title || '',
+    content: activeNote?.content || '',
+  });
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isPinned = Boolean(activeNote?.pinned ?? activeNote?.isPinned);
@@ -65,6 +70,15 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
     const currentHtml = editorRef.current.innerHTML || '';
     const currentTitle = titleInputRef.current?.value || '';
+    const savedSnapshot = savedNoteSnapshotRef.current;
+    if (
+      savedSnapshot.id === targetId &&
+      savedSnapshot.content === currentHtml &&
+      savedSnapshot.title === currentTitle
+    ) {
+      return;
+    }
+    const updatedAt = Date.now();
 
     // Synchronously update window.appState to guarantee 0 data loss
     if (typeof window !== 'undefined') {
@@ -73,8 +87,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         const found = win.appState.notes.find(n => n.id === targetId);
         if (found) {
           found.content = currentHtml;
-          if (currentTitle) found.title = currentTitle;
-          found.updatedAt = Date.now();
+          found.title = currentTitle || 'Chưa đặt tiêu đề';
+          found.updatedAt = updatedAt;
           win.appState.focusNotes = currentHtml;
         }
       }
@@ -83,8 +97,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     onSaveNote(targetId, {
       content: currentHtml,
       title: currentTitle || 'Chưa đặt tiêu đề',
-      updatedAt: Date.now(),
+      updatedAt,
     });
+    savedNoteSnapshotRef.current = {
+      id: targetId,
+      content: currentHtml,
+      title: currentTitle,
+    };
   }, [onSaveNote]);
 
   // Expose flush handle to parent
@@ -114,6 +133,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     // 4. Populate new title
     if (titleInputRef.current && activeNote) {
       titleInputRef.current.value = activeNote.title || '';
+    }
+    if (activeNote) {
+      savedNoteSnapshotRef.current = {
+        id: activeNote.id,
+        title: activeNote.title || '',
+        content: activeNote.content || '',
+      };
     }
 
     setIsSaving(false);
@@ -145,7 +171,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         const found = win.appState.notes.find(n => n.id === targetId);
         if (found) {
           found.content = currentHtml;
-          found.updatedAt = Date.now();
           win.appState.focusNotes = currentHtml;
         }
       }
@@ -156,11 +181,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     saveTimeoutRef.current = setTimeout(() => {
       // Guard against saving into wrong note if switched
       if (currentEditingNoteIdRef.current !== targetId) return;
-
-      onSaveNote(targetId, {
-        content: currentHtml,
-        updatedAt: Date.now(),
-      });
+      saveTimeoutRef.current = null;
+      flushCurrentEditor();
 
       setIsSaving(false);
       const now = new Date();
@@ -183,7 +205,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         const found = win.appState.notes.find(n => n.id === targetId);
         if (found) {
           found.title = newTitle || 'Chưa đặt tiêu đề';
-          found.updatedAt = Date.now();
         }
       }
     }
@@ -194,11 +215,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       if (currentEditingNoteIdRef.current !== targetId) return;
-
-      onSaveNote(targetId, {
-        title: newTitle || 'Chưa đặt tiêu đề',
-        updatedAt: Date.now(),
-      });
+      saveTimeoutRef.current = null;
+      flushCurrentEditor();
 
       setIsSaving(false);
       const now = new Date();

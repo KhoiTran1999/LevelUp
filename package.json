@@ -2,13 +2,13 @@
   "name": "levelup",
   "version": "1.0.0",
   "description": "Gamified Productivity & Habit RPG with Strict AI Arbiter",
-  "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
   "scripts": {
     "start": "next start",
-    "start:express": "node server.js",
     "dev": "npm run build:client && next dev --turbopack",
-    "dev:express": "node --watch server.js",
     "build:client": "npm run build:js && npm run build:css",
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./public/tailwind.min.css --minify",
     "watch:css": "tailwindcss -i ./src/tailwind.css -o ./public/tailwind.min.css --watch",
@@ -27,10 +27,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",
-    "compression": "^1.8.2",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.4",
-    "express": "^4.22.3",
     "ioredis": "^5.4.2",
     "next": "^16.4.2",
     "postgres": "^3.4.9",

@@ -247,6 +247,7 @@ export interface LevelUpAppState {
   activeTimer: ActiveTimer | null;
   lastTimerClearedAt: number;
   lastSyncedAt: number;
+  lastModified?: number;
 }
 
 export type TabType =

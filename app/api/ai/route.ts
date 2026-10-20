@@ -42,7 +42,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    body = {};
+    return NextResponse.json(
+      { error: 'Invalid JSON request body.' },
+      { status: 400, headers: CORS_HEADERS }
+    );
   }
 
   const clientIp =

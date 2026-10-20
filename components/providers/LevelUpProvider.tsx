@@ -44,6 +44,23 @@ function dedupeById<T extends { id?: string }>(items: T[]): T[] {
   return result;
 }
 
+function isNoteItem(value: unknown): value is NoteItem {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'title' in value &&
+    'content' in value &&
+    'createdAt' in value &&
+    'updatedAt' in value &&
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.content === 'string' &&
+    typeof value.createdAt === 'number' &&
+    typeof value.updatedAt === 'number'
+  );
+}
+
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
     id: 'shop_seed_1',
@@ -264,7 +281,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [activeTab, setActiveTabState] = useState<TabType>('quests');
-  const [activeNoteId, setActiveNoteIdState] = useState<string>('note_seed_1');
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeProofQuest, setActiveProofQuest] = useState<Quest | null>(null);
   const [pendingApprovedQuest, setPendingApprovedQuest] = useState<Quest | null>(null);
@@ -320,7 +336,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   );
 
   const [optimisticNotes, setOptimisticNotes] = useOptimistic(
-    state.notes.length > 0 ? state.notes : INITIAL_NOTES,
+    state.notes,
     (current: NoteItem[], action: NotesOptimisticAction) => {
       switch (action.type) {
         case 'create':
@@ -348,6 +364,12 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const isHydratedRef = useRef(false);
   const syncDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedHashRef = useRef<string>('');
+  const notesBroadcastSourceRef = useRef(
+    `react_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  );
+  const notesBroadcastRevisionRef = useRef(0);
+  const receivedNotesRevisionsRef = useRef(new Map<string, number>());
+  const skipNotesBroadcastRef = useRef(false);
 
   // ponytail: Computes content fingerprint omitting lastSyncedAt to prevent infinite ping-pong sync loop
   const computeStateSyncHash = useCallback((st: LevelUpAppState): string => {
@@ -392,8 +414,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         lastSyncedHashRef.current = currentHash;
         const data = await res.json().catch(() => ({}));
-        if (data.syncedAt) {
-          setState(prev => ({ ...prev, lastSyncedAt: data.syncedAt }));
+        if (data.conflict && data.state) {
+          // ponytail: Remote state is strictly newer; rehydrate to resolve conflict
+          setState(prev => ({
+            ...prev,
+            ...data.state,
+            lastSyncedAt: data.syncedAt || Date.now(),
+            lastModified: data.syncedAt || Date.now(),
+          }));
+        } else if (data.syncedAt) {
+          setState(prev => ({ ...prev, lastSyncedAt: data.syncedAt, lastModified: data.syncedAt }));
         }
       }
     } catch (err) {
@@ -405,15 +435,22 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const queueSyncToCloud = useCallback(
     (stateToSync: LevelUpAppState, immediate = false) => {
+      // ponytail: Stamp fresh lastModified on every mutation so cloud sync never misidentifies client writes as stale
+      const now = Date.now();
+      const stateWithTimestamp: LevelUpAppState = {
+        ...stateToSync,
+        lastModified: Math.max(Number(stateToSync.lastModified) || 0, Math.max(now, (Number(stateToSync.lastSyncedAt) || 0) + 1)),
+      };
+
       // Synchronize window.appState for any legacy views
       if (typeof window !== 'undefined') {
         const win = window as unknown as { appState?: LevelUpAppState };
         if (win.appState) {
-          Object.assign(win.appState, stateToSync);
+          Object.assign(win.appState, stateWithTimestamp);
         }
       }
 
-      const currentHash = computeStateSyncHash(stateToSync);
+      const currentHash = computeStateSyncHash(stateWithTimestamp);
       if (currentHash && currentHash === lastSyncedHashRef.current) {
         return;
       }
@@ -424,10 +461,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (immediate) {
-        syncToCloud(stateToSync);
+        syncToCloud(stateWithTimestamp);
       } else {
         syncDebounceTimerRef.current = setTimeout(() => {
-          syncToCloud(stateToSync);
+          syncToCloud(stateWithTimestamp);
         }, 1500);
       }
     },
@@ -459,16 +496,22 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
                 theme: currentTheme,
               };
 
+              const notes = Array.isArray(cloudData.notes)
+                ? dedupeById(cloudData.notes)
+                : dedupeById(prev.notes);
+              const activeNoteId = notes.some(note => note.id === cloudData.activeNoteId)
+                ? cloudData.activeNoteId
+                : notes[0]?.id || '';
               const resolvedState: LevelUpAppState = {
                 ...prev,
                 ...cloudData,
                 profile: mergedProfile,
-                quests: Array.isArray(cloudData.quests) && cloudData.quests.length > 0 ? dedupeById(cloudData.quests) : dedupeById(prev.quests),
-                shopItems: Array.isArray(cloudData.shopItems) && cloudData.shopItems.length > 0 ? dedupeById(cloudData.shopItems) : dedupeById(prev.shopItems),
+                quests: Array.isArray(cloudData.quests) ? dedupeById(cloudData.quests) : dedupeById(prev.quests),
+                shopItems: Array.isArray(cloudData.shopItems) ? dedupeById(cloudData.shopItems) : dedupeById(prev.shopItems),
                 inventory: Array.isArray(cloudData.inventory) ? dedupeById(cloudData.inventory) : dedupeById(prev.inventory),
-                notes: Array.isArray(cloudData.notes) && cloudData.notes.length > 0 ? dedupeById(cloudData.notes) : dedupeById(prev.notes),
-                activeNoteId: cloudData.activeNoteId || prev.activeNoteId,
-                focusNotes: typeof cloudData.focusNotes === 'string' ? cloudData.focusNotes : prev.focusNotes,
+                notes,
+                activeNoteId,
+                focusNotes: notes.find(note => note.id === activeNoteId)?.content || '',
                 ledger: Array.isArray(cloudData.ledger) ? dedupeById(cloudData.ledger) : dedupeById(prev.ledger),
                 proofPhotos: Array.isArray(cloudData.proofPhotos) ? dedupeById(cloudData.proofPhotos) : dedupeById(prev.proofPhotos),
                 completedQuestIds: Array.isArray(cloudData.completedQuestIds) ? cloudData.completedQuestIds : prev.completedQuestIds,
@@ -485,9 +528,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
               return resolvedState;
             });
 
-            if (cloudData.activeNoteId) {
-              setActiveNoteIdState(cloudData.activeNoteId);
-            }
           }
         }
       } catch (err) {
@@ -507,21 +547,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       const customEvent = e as CustomEvent<LevelUpAppState>;
       if (customEvent.detail) {
         setState(prev => {
-          let nextQuests = prev.quests;
-          if (Array.isArray(customEvent.detail.quests) && customEvent.detail.quests.length > 0) {
-            const cleanIncoming = dedupeById(customEvent.detail.quests);
-            const incomingIds = new Set(cleanIncoming.map(q => q.id));
-            const userQuests = prev.quests.filter(q => !incomingIds.has(q.id) && !q.id.startsWith('q_seed_'));
-            nextQuests = dedupeById([...cleanIncoming, ...userQuests]);
-          }
+          // ponytail: Direct assignment of deduplicated incoming array honors deletions and empty arrays without resurrecting dead items
+          const nextQuests = Array.isArray(customEvent.detail.quests)
+            ? dedupeById(customEvent.detail.quests)
+            : prev.quests;
 
-          let nextShop = prev.shopItems;
-          if (Array.isArray(customEvent.detail.shopItems) && customEvent.detail.shopItems.length > 0) {
-            const cleanIncomingShop = dedupeById(customEvent.detail.shopItems);
-            const incomingShopIds = new Set(cleanIncomingShop.map(s => s.id));
-            const userShop = prev.shopItems.filter(s => !incomingShopIds.has(s.id) && !s.id.startsWith('shop_seed_'));
-            nextShop = dedupeById([...cleanIncomingShop, ...userShop]);
-          }
+          const nextShop = Array.isArray(customEvent.detail.shopItems)
+            ? dedupeById(customEvent.detail.shopItems)
+            : prev.shopItems;
 
           const next = {
             ...prev,
@@ -529,12 +562,12 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             quests: nextQuests,
             shopItems: nextShop,
             inventory: Array.isArray(customEvent.detail.inventory) ? dedupeById(customEvent.detail.inventory) : prev.inventory,
+            notes: prev.notes,
+            activeNoteId: prev.activeNoteId,
+            focusNotes: prev.focusNotes,
           };
           return next;
         });
-        if (customEvent.detail.activeNoteId) {
-          setActiveNoteIdState(customEvent.detail.activeNoteId);
-        }
       }
     };
 
@@ -542,17 +575,22 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     const handleNotesUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ notes: NoteItem[]; activeNoteId?: string }>;
       if (customEvent.detail?.notes) {
+        const notes = dedupeById(customEvent.detail.notes);
+        const requestedActiveNoteId = customEvent.detail.activeNoteId;
         setState(prev => {
+          const activeNoteId = requestedActiveNoteId && notes.some(note => note.id === requestedActiveNoteId)
+            ? requestedActiveNoteId
+            : notes.some(note => note.id === prev.activeNoteId)
+              ? prev.activeNoteId
+              : notes[0]?.id || '';
           const next = {
             ...prev,
-            notes: customEvent.detail.notes,
-            activeNoteId: customEvent.detail.activeNoteId || prev.activeNoteId,
+            notes,
+            activeNoteId,
+            focusNotes: notes.find(note => note.id === activeNoteId)?.content || '',
           };
           return next;
         });
-        if (customEvent.detail.activeNoteId) {
-          setActiveNoteIdState(customEvent.detail.activeNoteId);
-        }
       }
     };
 
@@ -560,18 +598,43 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     let ch: BroadcastChannel | null = null;
     try {
       ch = new BroadcastChannel('levelup_sync_channel');
-      ch.onmessage = (event) => {
-        if (event.data?.type === 'NOTES_UPDATED' && Array.isArray(event.data.notes)) {
-          if (event.data.source === 'react_levelup_provider') return;
-          setState(prev => {
-            const next = {
-              ...prev,
-              notes: event.data.notes,
-              focusNotes: event.data.content || prev.focusNotes,
-            };
-            return next;
-          });
+      ch.onmessage = event => {
+        const message = event.data;
+        if (
+          message?.type !== 'NOTES_UPDATED' ||
+          !Array.isArray(message.notes) ||
+          typeof message.sourceId !== 'string' ||
+          !Number.isInteger(message.revision) ||
+          message.sourceId === notesBroadcastSourceRef.current
+        ) {
+          return;
         }
+
+        const lastRevision = receivedNotesRevisionsRef.current.get(message.sourceId) || 0;
+        if (message.revision <= lastRevision) return;
+        receivedNotesRevisionsRef.current.set(message.sourceId, message.revision);
+
+        const incomingNotes: unknown[] = message.notes;
+        const seenNoteIds = new Set<string>();
+        const notes: NoteItem[] = [];
+        for (const note of incomingNotes) {
+          if (!isNoteItem(note) || seenNoteIds.has(note.id)) continue;
+          seenNoteIds.add(note.id);
+          notes.push(note);
+        }
+        skipNotesBroadcastRef.current = true;
+        setState(prev => {
+          const activeNoteId = notes.some(note => note.id === message.activeNoteId)
+            ? message.activeNoteId
+            : notes[0]?.id || '';
+          const activeNote = notes.find(note => note.id === activeNoteId);
+          return {
+            ...prev,
+            notes,
+            activeNoteId,
+            focusNotes: activeNote?.content || '',
+          };
+        });
       };
     } catch (_) {}
 
@@ -590,6 +653,47 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     if (!isHydratedRef.current) return;
     queueSyncToCloud(state);
   }, [state, queueSyncToCloud]);
+
+  useEffect(() => {
+    if (!isHydratedRef.current || typeof window === 'undefined') return;
+
+    const win = window as unknown as {
+      appState?: LevelUpAppState;
+      triggerSave?: (needsCloud?: boolean, immediate?: boolean, timerAction?: unknown, skipFullRender?: boolean) => void;
+    };
+    if (!win.appState) return;
+
+    const activeNote = state.notes.find(note => note.id === state.activeNoteId);
+    Object.assign(win.appState, {
+      notes: state.notes,
+      activeNoteId: state.activeNoteId,
+      focusNotes: activeNote?.content || '',
+    });
+    win.triggerSave?.(false, false, null, true);
+  }, [state.notes, state.activeNoteId]);
+
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    if (skipNotesBroadcastRef.current) {
+      skipNotesBroadcastRef.current = false;
+      return;
+    }
+
+    try {
+      const ch = new BroadcastChannel('levelup_sync_channel');
+      ch.postMessage({
+        type: 'NOTES_UPDATED',
+        source: 'react_levelup_provider',
+        sourceId: notesBroadcastSourceRef.current,
+        revision: ++notesBroadcastRevisionRef.current,
+        notes: state.notes,
+        activeNoteId: state.activeNoteId,
+      });
+      ch.close();
+    } catch (error) {
+      console.warn('[Notes Sync Error]', error);
+    }
+  }, [state.notes, state.activeNoteId]);
 
   const setActiveTab = useCallback((tab: TabType) => {
     setActiveTabState(tab);
@@ -1995,21 +2099,15 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setActiveNoteId = useCallback((id: string) => {
-    setActiveNoteIdState(id);
     setState(prev => ({
       ...prev,
       activeNoteId: id,
+      focusNotes: prev.notes.find(note => note.id === id)?.content || '',
     }));
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as { appState?: LevelUpAppState };
-      if (win.appState) {
-        win.appState.activeNoteId = id;
-      }
-    }
   }, []);
 
   const createNote = useCallback((defaultTopic: string = '') => {
-    const newNoteId = `note_${Date.now()}`;
+    const newNoteId = `note_${crypto.randomUUID()}`;
     const newNote: NoteItem = {
       id: newNoteId,
       title: 'Ghi Chú Mới',
@@ -2025,35 +2123,15 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       setOptimisticNotes({ type: 'create', note: newNote });
     });
 
-    setActiveNoteIdState(newNoteId);
-
     setState(prev => {
       const updatedNotes = [newNote, ...prev.notes];
       return {
         ...prev,
         notes: updatedNotes,
         activeNoteId: newNoteId,
+        focusNotes: newNote.content,
       };
     });
-
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (t: boolean, b?: boolean, c?: unknown, isNotes?: boolean) => void;
-      };
-      if (win.appState) {
-        win.appState.notes = [newNote, ...(win.appState.notes || [])];
-        win.appState.activeNoteId = newNoteId;
-      }
-      if (typeof win.triggerSave === 'function') {
-        win.triggerSave(false, false, null, true);
-      }
-      try {
-        const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: [newNote, ...(win.appState?.notes || [])] });
-        ch.close();
-      } catch (_) {}
-    }
 
     return newNoteId;
   }, [setOptimisticNotes]);
@@ -2075,34 +2153,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         focusNotes: active ? active.content : prev.focusNotes,
       };
     });
-
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (t: boolean, b?: boolean, c?: unknown, isNotes?: boolean) => void;
-      };
-      if (win.appState) {
-        win.appState.notes = (win.appState.notes || []).map(n =>
-          n.id === id ? { ...n, ...updates, updatedAt } : n
-        );
-        const active = win.appState.notes.find(n => n.id === (win.appState?.activeNoteId || id));
-        if (active) win.appState.focusNotes = active.content;
-      }
-      if (typeof win.triggerSave === 'function') {
-        win.triggerSave(false, false, null, true);
-      }
-      try {
-        const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: win.appState?.notes });
-        ch.close();
-      } catch (_) {}
-    }
   }, [setOptimisticNotes]);
 
   const deleteNote = useCallback(async (id: string): Promise<boolean> => {
-    let nextNotes: NoteItem[] = [];
-    let nextActiveId = '';
-
     startTransition(() => {
       setOptimisticNotes({ type: 'delete', id });
     });
@@ -2111,7 +2164,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       const remaining = prev.notes.filter(n => n.id !== id);
       if (remaining.length === 0) {
         remaining.push({
-          id: `note_${Date.now()}`,
+          id: `note_${crypto.randomUUID()}`,
           title: 'Ghi Chú Mới',
           topic: 'Ghi Chép Nhanh',
           content: '<p></p>',
@@ -2121,8 +2174,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           updatedAt: Date.now(),
         });
       }
-      nextNotes = remaining;
-      nextActiveId = remaining[0].id;
+      const nextActiveId = remaining[0].id;
       return {
         ...prev,
         notes: remaining,
@@ -2130,28 +2182,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         focusNotes: remaining[0].content,
       };
     });
-
-    setActiveNoteIdState(nextActiveId);
-
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (t: boolean, b?: boolean, c?: unknown, isNotes?: boolean) => void;
-      };
-      if (win.appState) {
-        win.appState.notes = nextNotes;
-        win.appState.activeNoteId = nextActiveId;
-        win.appState.focusNotes = nextNotes[0]?.content || '';
-      }
-      if (typeof win.triggerSave === 'function') {
-        win.triggerSave(false, false, null, true);
-      }
-      try {
-        const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: nextNotes });
-        ch.close();
-      } catch (_) {}
-    }
 
     return true;
   }, [setOptimisticNotes]);
@@ -2174,30 +2204,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         notes: updatedNotes,
       };
     });
-
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (t: boolean, b?: boolean, c?: unknown, isNotes?: boolean) => void;
-      };
-      if (win.appState) {
-        win.appState.notes = (win.appState.notes || []).map(n => {
-          if (n.id === id) {
-            const nextPinned = !(n.pinned ?? n.isPinned);
-            return { ...n, pinned: nextPinned, isPinned: nextPinned, updatedAt: Date.now() };
-          }
-          return n;
-        });
-      }
-      if (typeof win.triggerSave === 'function') {
-        win.triggerSave(false, false, null, true);
-      }
-      try {
-        const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: win.appState?.notes });
-        ch.close();
-      } catch (_) {}
-    }
   }, [setOptimisticNotes]);
 
   return (
@@ -2208,7 +2214,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         optimisticQuests,
         optimisticInventory,
         optimisticNotes,
-        activeNoteId,
+        activeNoteId: state.activeNoteId,
         activeTab,
         isSyncing,
         setActiveTab,

@@ -202,9 +202,10 @@ const swCode = fs.readFileSync(swPath, 'utf8');
 assert(swCode.includes('/download/'), 'public/sw.js phải bỏ qua /download/ để không nuốt request download file');
 assert(swCode.includes('.zip'), 'public/sw.js phải bỏ qua .zip để tránh lỗi tải file trên Chrome PWA');
 
-const serverJsPath = path.resolve('server.js');
-const serverJsCode = fs.readFileSync(serverJsPath, 'utf8');
-assert(serverJsCode.includes('/download/levelup-shield.zip'), 'server.js phải khai báo route phục vụ tải extension zip');
+const nextConfigPath = path.resolve('next.config.ts');
+const nextConfigCode = fs.readFileSync(nextConfigPath, 'utf8');
+assert(nextConfigCode.includes("source: '/download/:path*'"), 'Next.js phải phục vụ download extension qua route static');
+assert(nextConfigCode.includes('attachment; filename="levelup-shield.zip"'), 'Next.js phải đính kèm tên file ZIP khi tải');
 
 const vercelJsonPath = path.resolve('vercel.json');
 const vercelJsonCode = fs.readFileSync(vercelJsonPath, 'utf8');
@@ -212,7 +213,7 @@ assert(vercelJsonCode.includes('Content-Disposition') && vercelJsonCode.includes
 
 assert(timerSrc.includes('btn-download-shield-zip'), '06-timer.js phải lắng nghe nút tải zip');
 assert(appJs.includes('btn-download-shield-zip'), 'public/app.js bundle phải chứa logic tải zip an toàn');
-console.log('✓ Test 9: Hạ tầng tải file ZIP (ServiceWorker bypass, Server header, Vercel config, Blob fallback) hoạt động chuẩn xác.');
+console.log('✓ Test 9: Hạ tầng tải file ZIP (ServiceWorker bypass, Next.js/Vercel headers, Blob fallback) hoạt động chuẩn xác.');
 
 // Test 10: Kiểm tra triệt tiêu xung đột giữa Google Login (modal-welcome) và Shield Gate (modal-shield-gate)
 const modalSrcPath = path.resolve('src/js/15-modal.js');
@@ -258,5 +259,4 @@ assert(appJs.includes('isLevelUpExtensionOutdated'), 'public/app.js bundle phả
 console.log('✓ Test 11: Cơ chế kiểm tra phiên bản extension và ép buộc nâng cấp (Forced Update) hoạt động chính xác 100%.');
 
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.3.0 thành công 100%!');
-
 

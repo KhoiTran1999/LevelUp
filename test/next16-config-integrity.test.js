@@ -4,6 +4,20 @@ import path from 'node:path';
 
 console.log('=== KIỂM THỬ TÍNH TOÀN VẸN CẤU HÌNH NEXT.JS 16 & REACT 19 ===\n');
 
+// 0. Kiểm tra package scripts and dependencies use Next.js instead of Express/Vite
+{
+  console.log('Test 0: Kiểm tra Next.js là web runtime duy nhất...');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+  assert.strictEqual(packageJson.scripts.start, 'next start', 'Lệnh start production phải chạy Next.js');
+  assert.ok(packageJson.scripts.dev.includes('next dev'), 'Lệnh dev phải chạy Next.js');
+  assert.ok(!packageJson.scripts['start:express'], 'Không được giữ lệnh chạy Express');
+  assert.ok(!packageJson.dependencies.express, 'Express không còn là dependency runtime');
+  assert.ok(!packageJson.dependencies.compression, 'Express compression middleware không còn là dependency');
+  assert.ok(!fs.existsSync(path.join(process.cwd(), 'server.js')), 'Express server cũ phải được gỡ bỏ');
+  assert.ok(!fs.existsSync(path.join(process.cwd(), 'vite.config.js')), 'Vite config cũ phải được gỡ bỏ');
+  console.log('  ✓ Next.js là runtime duy nhất cho web app.\n');
+}
+
 // 1. Kiểm tra next.config.ts có khai báo serverExternalPackages
 {
   console.log('Test 1: Kiểm tra next.config.ts chứa serverExternalPackages cho native drivers...');

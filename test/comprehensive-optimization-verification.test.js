@@ -10,14 +10,13 @@ const rootDir = path.resolve(__dirname, '..');
 
 console.log('=== KIỂM THỬ XÁC MINH CÁC TỐI ƯU HÓA ĐÃ TRIỂN KHAI (1, 2, 4, 5) ===\n');
 
-// 1. Kiểm thử server.js có tích hợp compression, apiCacheControl và gracefulShutdown
+// 1. Kiểm thử Next.js đã thay Express runtime với compression và API cache headers
 {
-  const serverCode = fs.readFileSync(path.join(rootDir, 'server.js'), 'utf8');
-  assert.ok(serverCode.includes("import compression from 'compression'"), 'server.js phải import compression');
-  assert.ok(serverCode.includes('app.use(compression('), 'server.js phải kích hoạt compression middleware');
-  assert.ok(serverCode.includes('Cache-Control') && serverCode.includes('private, no-cache, no-store'), 'server.js phải cấu hình Cache-Control no-store cho API');
-  assert.ok(serverCode.includes('gracefulShutdown'), 'server.js phải xử lý gracefulShutdown');
-  console.log('✓ Mục 1: server.js đã tích hợp chuẩn HTTP compression, Cache-Control API và Graceful Shutdown.');
+  const nextConfig = fs.readFileSync(path.join(rootDir, 'next.config.ts'), 'utf8');
+  assert.ok(nextConfig.includes('compress: true'), 'Next.js phải bật HTTP compression');
+  assert.ok(nextConfig.includes("source: '/api/:path*'"), 'Next.js phải cấu hình headers cho API routes');
+  assert.ok(nextConfig.includes('private, no-cache, no-store, must-revalidate'), 'Next.js phải đặt Cache-Control no-store cho API');
+  console.log('✓ Mục 1: Next.js runtime đã thay Express với HTTP compression và API cache headers.');
 }
 
 // 2. Kiểm thử api/sync.js batching mget cho admin_list_users

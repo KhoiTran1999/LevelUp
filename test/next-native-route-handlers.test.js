@@ -107,6 +107,39 @@ setRedisClientForTesting(redisMock);
   const resGet = await aiGet();
   assert.strictEqual(resGet.status, 405, 'GET /api/ai phải bị từ chối 405 Method Not Allowed');
 
+  const malformedAiRequest = new Request('http://localhost:3000/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{'
+  });
+  const malformedAiResponse = await aiPost(malformedAiRequest);
+  assert.strictEqual(malformedAiResponse.status, 400, 'JSON không hợp lệ trên /api/ai phải trả HTTP 400');
+  assert.strictEqual(
+    malformedAiResponse.headers.get('access-control-allow-origin'),
+    '*',
+    'Phản hồi JSON không hợp lệ của /api/ai phải giữ CORS headers'
+  );
+  assert.ok((await malformedAiResponse.json()).error, 'Phản hồi JSON không hợp lệ của /api/ai phải có thông báo lỗi');
+
+  const malformedSyncRequest = new Request('http://localhost:3000/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{'
+  });
+  const malformedSyncResponse = await syncPost(malformedSyncRequest);
+  assert.strictEqual(malformedSyncResponse.status, 400, 'JSON không hợp lệ trên /api/sync phải trả HTTP 400');
+  assert.strictEqual(
+    malformedSyncResponse.headers.get('access-control-allow-origin'),
+    '*',
+    'Phản hồi JSON không hợp lệ của /api/sync phải giữ CORS headers'
+  );
+  assert.strictEqual(
+    malformedSyncResponse.headers.get('cache-control'),
+    'private, no-cache, no-store, must-revalidate',
+    'Phản hồi JSON không hợp lệ của /api/sync phải giữ cache policy'
+  );
+  assert.ok((await malformedSyncResponse.json()).error, 'Phản hồi JSON không hợp lệ của /api/sync phải có thông báo lỗi');
+
   const reqUnauth = new Request('http://localhost:3000/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -46,7 +46,7 @@ export function NoteSidebar({
       </div>
 
       <div
-        id="notes-card-list"
+        id="react-notes-card-list"
         className="flex flex-col gap-2 max-h-[calc(100vh-270px)] lg:max-h-[620px] overflow-y-auto custom-scrollbar pr-0.5"
       >
         {notes.length === 0 ? (

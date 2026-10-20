@@ -109,27 +109,6 @@ export function QuestCard({ quest }: QuestCardProps) {
               ĐÃ XONG
             </span>
           ) : null}
-          {quest.requiresProof && (
-            <span
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold border shrink-0 ${
-                quest._proofVerified
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25'
-              }`}
-            >
-              {quest._proofVerified
-                ? quest.proofType === 'both'
-                  ? '📸+✍️ Đã duyệt'
-                  : quest.proofType === 'text'
-                  ? '✍️ Đã duyệt'
-                  : '📸 Đã duyệt'
-                : quest.proofType === 'both'
-                ? '📸+✍️ Cần bằng chứng'
-                : quest.proofType === 'text'
-                ? '✍️ Cần báo cáo'
-                : '📸 Cần ảnh'}
-            </span>
-          )}
         </div>
         {quest.description ? (
           <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 truncate leading-relaxed">

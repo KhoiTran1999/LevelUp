@@ -4858,13 +4858,15 @@ html.dark .notes-editor a:hover {
 }
 
 /* CSS Containment for Notes Performance (Modern Web Guidance) */
-#notes-card-list {
+#notes-card-list,
+#react-notes-card-list {
   content-visibility: auto;
   contain-intrinsic-size: auto 450px;
 }
 
 @supports not (content-visibility: auto) {
-  #notes-card-list {
+  #notes-card-list,
+  #react-notes-card-list {
     contain: layout style paint;
   }
 }
@@ -4903,7 +4905,6 @@ html.dark .notes-editor a:hover {
 html.dark #tab-notes.focus-fullscreen {
   background: #090d16;
 }
-
 
 
 
