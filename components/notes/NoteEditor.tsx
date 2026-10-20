@@ -452,7 +452,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     win.clearActiveNoteContent = handleClearContent;
     win.toggleNoteFullscreen = toggleFullscreen;
     win.showNotesListMobile = () => handleBackToListMobile();
-  });
+  }, [
+    formatMarkdownInEditor,
+    handleCopyNote,
+    handleExportMarkdown,
+    handleClearContent,
+    handleBackToListMobile,
+  ]);
 
   return (
     <div

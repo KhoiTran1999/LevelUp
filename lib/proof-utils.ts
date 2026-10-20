@@ -101,6 +101,9 @@ export function isMobilePhone(): boolean {
  */
 export function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return reject(new Error('compressImage chỉ hoạt động trong môi trường trình duyệt.'));
+    }
     if (!file || !file.type.startsWith('image/')) {
       return reject(new Error('Tệp tải lên không phải là hình ảnh hợp lệ.'));
     }
@@ -402,6 +405,31 @@ export async function fetchDebateStream<T = unknown>(
         } catch (e) {
           if (event === 'error') throw e;
         }
+      }
+    }
+  }
+
+  // ponytail: Flush trailing buffer if stream closes without trailing \n\n. Upgrade path: standard EventSource.
+  if (buffer.trim()) {
+    const lines = buffer.split('\n');
+    let event = 'message';
+    let dataStr = '';
+    for (const line of lines) {
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+    }
+    if (dataStr) {
+      try {
+        const parsed = JSON.parse(dataStr);
+        if (event === 'step') {
+          if (typeof onStep === 'function') onStep(parsed);
+        } else if (event === 'result') {
+          finalResult = parsed;
+        } else if (event === 'error') {
+          throw new Error(parsed?.error || 'Lỗi xử lý luồng AI');
+        }
+      } catch (e) {
+        if (event === 'error') throw e;
       }
     }
   }

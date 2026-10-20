@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    '/': ['./public/index.html']
+  },
+  // CRITICAL FOR NEXT.JS 16: Externalize native backend drivers from bundling
+  serverExternalPackages: ['ioredis', 'postgres', '@aws-sdk/client-s3'],
   async headers() {
     return [
       {

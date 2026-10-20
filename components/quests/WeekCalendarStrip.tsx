@@ -33,19 +33,21 @@ export function WeekCalendarStrip() {
   return (
     <div
       id="week-calendar-container"
+      suppressHydrationWarning
       className="mb-4 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-2.5 border border-slate-200/60 dark:border-slate-800/60 shadow-2xs"
     >
       <div className="flex items-center justify-between px-2 sm:px-3 py-0.5 mb-1">
         <span
           id="current-week-month-label"
+          suppressHydrationWarning
           className="text-xs font-semibold text-slate-500 dark:text-slate-400 font-mono"
         >
           {monthLabel}
         </span>
       </div>
-      <div id="week-strip-days" className="week-calendar-strip">
+      <div id="week-strip-days" className="week-calendar-strip" suppressHydrationWarning>
         {days.map((d, index) => (
-          <div key={index} className={`week-day-col ${d.isToday ? 'is-today' : ''}`}>
+          <div key={index} suppressHydrationWarning className={`week-day-col ${d.isToday ? 'is-today' : ''}`}>
             <span className="week-day-name">{d.name}</span>
             <div className="week-day-circle">
               <span>{d.dateNum}</span>
