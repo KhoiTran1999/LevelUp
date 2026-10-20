@@ -13,6 +13,8 @@ import { LegacyViewsBridge } from '@/components/bridge/LegacyViewsBridge';
 import { QuestProofModal } from '@/components/proof/QuestProofModal';
 import { ProofApprovedModal } from '@/components/proof/ProofApprovedModal';
 import { ProofViewerModal } from '@/components/proof/ProofViewerModal';
+import { QuestSetupModal } from '@/components/quests/QuestSetupModal';
+import { RewardSetupModal } from '@/components/shop/RewardSetupModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,8 @@ export default function LevelUpPage() {
       overlays = overlays.replace(/<nav class="md:hidden m3-navigation-bar[\s\S]*?<\/nav>/i, '');
       // Exclude duplicate legacy proof modals since React 19 proof modals manage them
       overlays = overlays.replace(/<!-- =+\s*-->\s*<!-- MODAL: SUBMIT QUEST PROOF[\s\S]*?(?=<!-- =+\s*-->\s*<!-- ONBOARDING INTERACTIVE TOUR)/i, '');
+      // Exclude legacy quest & reward setup modals since React 19 QuestSetupModal & RewardSetupModal manage them
+      overlays = overlays.replace(/<!--\s*MODAL 1: SUBMIT QUEST TO AI ARBITER[\s\S]*?(?=<!--\s*MODAL 3: PROFILE & SYNC)/i, '');
       legacyOverlaysContent = overlays;
     }
   } catch (err) {
@@ -85,6 +89,10 @@ export default function LevelUpPage() {
         <QuestProofModal />
         <ProofApprovedModal />
         <ProofViewerModal />
+
+        {/* React 19 Quest & Reward AI Setup Modals */}
+        <QuestSetupModal />
+        <RewardSetupModal />
 
         {/* React 19 Mobile Bottom Navigation */}
         <MobileBottomNav />

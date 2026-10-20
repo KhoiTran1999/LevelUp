@@ -154,6 +154,15 @@ interface LevelUpContextType {
   closeProofApprovedModal: () => void;
   openProofViewer: (data: ViewerProofData) => void;
   closeProofViewer: () => void;
+  // Quest & Reward Setup Modals
+  isQuestModalOpen: boolean;
+  isRewardModalOpen: boolean;
+  editingQuest: Quest | null;
+  editingReward: ShopItem | null;
+  openQuestModal: (questToEdit?: Quest) => void;
+  closeQuestModal: () => void;
+  openRewardModal: (rewardToEdit?: ShopItem) => void;
+  closeRewardModal: () => void;
   // Shop Actions
   buyShopItem: (item: ShopItem) => Promise<boolean>;
   useInventoryItem: (invId: string) => Promise<void>;
@@ -219,6 +228,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
   const [isProofApprovedModalOpen, setIsProofApprovedModalOpen] = useState(false);
   const [isProofViewerModalOpen, setIsProofViewerModalOpen] = useState(false);
+  const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
+  const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
+  const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
+  const [editingReward, setEditingReward] = useState<ShopItem | null>(null);
   const [, startTransition] = useTransition();
 
   // React 19 useOptimistic for immediate user feedback
@@ -613,6 +626,26 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     completeQuest(questToClaim.id, true);
   }, [pendingApprovedQuest, completeQuest]);
 
+  const openQuestModal = useCallback((questToEdit?: Quest) => {
+    setEditingQuest(questToEdit || null);
+    setIsQuestModalOpen(true);
+  }, []);
+
+  const closeQuestModal = useCallback(() => {
+    setIsQuestModalOpen(false);
+    setEditingQuest(null);
+  }, []);
+
+  const openRewardModal = useCallback((rewardToEdit?: ShopItem) => {
+    setEditingReward(rewardToEdit || null);
+    setIsRewardModalOpen(true);
+  }, []);
+
+  const closeRewardModal = useCallback(() => {
+    setIsRewardModalOpen(false);
+    setEditingReward(null);
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -625,6 +658,8 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         feedback?: string,
         timestamp?: number | null
       ) => void;
+      openQuestModal?: (q?: Quest) => void;
+      openRewardModal?: (r?: ShopItem) => void;
     };
     win.openQuestProofModal = (quest: Quest) => {
       openProofModal(quest);
@@ -638,7 +673,27 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     ) => {
       openProofViewer({ imageUrl, questTitle, userNote, feedback, timestamp });
     };
-  }, [openProofModal, openProofViewer]);
+    win.openQuestModal = (q?: Quest) => {
+      openQuestModal(q);
+    };
+    win.openRewardModal = (r?: ShopItem) => {
+      openRewardModal(r);
+    };
+
+    // Keyboard shortcut Q to open quest setup modal
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+        const isEditable = (document.activeElement as HTMLElement)?.isContentEditable;
+        if (activeTag !== 'input' && activeTag !== 'textarea' && !isEditable) {
+          e.preventDefault();
+          openQuestModal();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openProofModal, openProofViewer, openQuestModal, openRewardModal]);
 
   const addQuest = useCallback((newQuestData: Partial<Quest>) => {
     const newQuest: Quest = {
@@ -1327,6 +1382,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         closeProofApprovedModal,
         openProofViewer,
         closeProofViewer,
+        isQuestModalOpen,
+        isRewardModalOpen,
+        editingQuest,
+        editingReward,
+        openQuestModal,
+        closeQuestModal,
+        openRewardModal,
+        closeRewardModal,
         buyShopItem,
         useInventoryItem,
         refundInventoryItem,

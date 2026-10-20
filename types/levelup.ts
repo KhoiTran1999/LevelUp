@@ -26,6 +26,7 @@ export interface Quest {
   proofFeedback?: string;
   _proofVerified?: boolean;
   focusTimerCompleted?: boolean;
+  signature?: string;
   history?: Record<string, unknown>;
   createdAt: number;
   savedTimer?: {
@@ -86,6 +87,7 @@ export interface ShopItem {
   targetMinutes: number;
   history?: Record<string, unknown>;
   verdict?: string;
+  signature?: string;
 }
 
 export interface InventoryItem {
