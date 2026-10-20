@@ -347,9 +347,37 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const isHydratedRef = useRef(false);
   const syncDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedHashRef = useRef<string>('');
+
+  // ponytail: Computes content fingerprint omitting lastSyncedAt to prevent infinite ping-pong sync loop
+  const computeStateSyncHash = useCallback((st: LevelUpAppState): string => {
+    try {
+      return JSON.stringify({
+        nickname: st.profile?.nickname,
+        coins: st.profile?.coins,
+        bank: st.profile?.bank,
+        quests: st.quests,
+        shopItems: st.shopItems,
+        inventory: st.inventory,
+        notes: st.notes,
+        activeNoteId: st.activeNoteId,
+        focusNotes: st.focusNotes,
+        ledger: st.ledger,
+        proofPhotos: st.proofPhotos,
+        completedQuestIds: st.completedQuestIds,
+        activeTimer: st.activeTimer
+      });
+    } catch {
+      return '';
+    }
+  }, []);
 
   // Directly sync state to Cloud (Redis + Supabase Postgres via /api/sync)
   const syncToCloud = useCallback(async (stateToSync: LevelUpAppState) => {
+    const currentHash = computeStateSyncHash(stateToSync);
+    if (currentHash && currentHash === lastSyncedHashRef.current) {
+      return;
+    }
     try {
       setIsSyncing(true);
       const res = await fetch('/api/sync', {
@@ -362,6 +390,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         }),
       });
       if (res.ok) {
+        lastSyncedHashRef.current = currentHash;
         const data = await res.json().catch(() => ({}));
         if (data.syncedAt) {
           setState(prev => ({ ...prev, lastSyncedAt: data.syncedAt }));
@@ -372,7 +401,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [computeStateSyncHash]);
 
   const queueSyncToCloud = useCallback(
     (stateToSync: LevelUpAppState, immediate = false) => {
@@ -382,6 +411,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         if (win.appState) {
           Object.assign(win.appState, stateToSync);
         }
+      }
+
+      const currentHash = computeStateSyncHash(stateToSync);
+      if (currentHash && currentHash === lastSyncedHashRef.current) {
+        return;
       }
 
       if (syncDebounceTimerRef.current) {
@@ -394,10 +428,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       } else {
         syncDebounceTimerRef.current = setTimeout(() => {
           syncToCloud(stateToSync);
-        }, 600);
+        }, 1500);
       }
     },
-    [syncToCloud]
+    [syncToCloud, computeStateSyncHash]
   );
 
   // Fetch state directly from Redis & Supabase Postgres on mount
@@ -447,6 +481,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
                 Object.assign(win.appState, resolvedState);
               }
 
+              lastSyncedHashRef.current = computeStateSyncHash(resolvedState);
               return resolvedState;
             });
 
@@ -527,6 +562,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       ch = new BroadcastChannel('levelup_sync_channel');
       ch.onmessage = (event) => {
         if (event.data?.type === 'NOTES_UPDATED' && Array.isArray(event.data.notes)) {
+          if (event.data.source === 'react_levelup_provider') return;
           setState(prev => {
             const next = {
               ...prev,
@@ -2010,11 +2046,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         win.appState.activeNoteId = newNoteId;
       }
       if (typeof win.triggerSave === 'function') {
-        win.triggerSave(true, false, null, true);
+        win.triggerSave(false, false, null, true);
       }
       try {
         const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', notes: [newNote, ...(win.appState?.notes || [])] });
+        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: [newNote, ...(win.appState?.notes || [])] });
         ch.close();
       } catch (_) {}
     }
@@ -2053,11 +2089,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         if (active) win.appState.focusNotes = active.content;
       }
       if (typeof win.triggerSave === 'function') {
-        win.triggerSave(true, false, null, true);
+        win.triggerSave(false, false, null, true);
       }
       try {
         const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', notes: win.appState?.notes });
+        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: win.appState?.notes });
         ch.close();
       } catch (_) {}
     }
@@ -2108,11 +2144,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         win.appState.focusNotes = nextNotes[0]?.content || '';
       }
       if (typeof win.triggerSave === 'function') {
-        win.triggerSave(true, false, null, true);
+        win.triggerSave(false, false, null, true);
       }
       try {
         const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', notes: nextNotes });
+        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: nextNotes });
         ch.close();
       } catch (_) {}
     }
@@ -2154,11 +2190,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         });
       }
       if (typeof win.triggerSave === 'function') {
-        win.triggerSave(true, false, null, true);
+        win.triggerSave(false, false, null, true);
       }
       try {
         const ch = new BroadcastChannel('levelup_sync_channel');
-        ch.postMessage({ type: 'NOTES_UPDATED', notes: win.appState?.notes });
+        ch.postMessage({ type: 'NOTES_UPDATED', source: 'react_levelup_provider', notes: win.appState?.notes });
         ch.close();
       } catch (_) {}
     }

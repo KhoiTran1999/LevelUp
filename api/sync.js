@@ -815,6 +815,12 @@ export async function checkRateLimit(redis, identifier, limit = 60, windowSec = 
     const count = await redis.incr(key);
     if (count === 1 && typeof redis.expire === 'function') {
       await redis.expire(key, windowSec);
+    } else if (typeof redis.ttl === 'function') {
+      // Ensure key doesn't get stuck without TTL if count was already > 1
+      const ttl = await redis.ttl(key);
+      if (ttl === -1) {
+        await redis.expire(key, windowSec);
+      }
     }
     return count <= limit;
   } catch (e) {
@@ -835,7 +841,7 @@ export async function verifyGoogleToken(idToken) {
 
   try {
     const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken.trim())}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) return null;
     const payload = await response.json();
 
@@ -1008,10 +1014,10 @@ export default async function handler(req, res) {
     let token = extractToken(req);
     const action = req.query?.action;
 
-    // Rate Limit: 60 requests per minute per IP / token
+    // Rate Limit: 180 requests per minute per IP / token
     const clientIp = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
     const rateLimitId = token ? `sync:${token.slice(0, 32)}` : `sync:ip:${clientIp}`;
-    const allowed = await checkRateLimit(redis, rateLimitId, 60, 60);
+    const allowed = await checkRateLimit(redis, rateLimitId, 180, 60);
     if (!allowed) {
       return res.status(429).json({ error: 'Bạn đang gửi yêu cầu quá nhanh. Vui lòng thử lại sau 1 phút.' });
     }

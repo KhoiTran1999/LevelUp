@@ -108,7 +108,7 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
 
   const response = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(40000),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${API_KEY}`
@@ -3602,7 +3602,33 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
 - Mức thưởng mong muốn: ${userEstimateCoins ? userEstimateCoins + ' Vàng' : 'Để AI tính toán'}
 - Thời gian tập trung mong muốn: ${durationPromptInfo}${rewardContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+        let rawResult = null;
+        try {
+          rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+        } catch (err) {
+          console.warn('[AI evaluate_quest] callAI failed/timeout, falling back to deterministic evaluation:', err?.message);
+        }
+
+        // ponytail: deterministic fallback if AI is offline, slow, or times out
+        if (!rawResult || typeof rawResult !== 'object') {
+          const isFocus = effectiveDuration > 0 || /học|đọc|viết|code|ôn thi|tập trung|dự án|rèn luyện|thể thao/i.test(title);
+          const finalMins = effectiveDuration > 0 ? effectiveDuration : (isFocus ? 25 : 0);
+          const coins = userEstimateCoins || (finalMins > 0 ? Math.max(5, Math.round(finalMins * 0.38)) : 5);
+          rawResult = {
+            category: resolveCategory(title, title, description, description),
+            title,
+            description,
+            type: finalMins > 0 ? 'focus' : 'bounty',
+            targetMinutes: finalMins,
+            rewardCoins: coins,
+            rank: calculateRank(coins),
+            requiresProof: finalMins >= 25,
+            proofType: 'text',
+            icon: isFocus ? '📖' : '⚔️',
+            verdict: 'Nhiệm vụ đã được thẩm định tự động theo khung giờ và tiêu chuẩn nỗ lực của LevelUp.'
+          };
+        }
+
         const result = sanitizeEvaluatedQuest(rawResult, title, description, effectiveDuration);
         const isRepeatable = Boolean(payload?.isRepeatable !== undefined ? payload.isRepeatable : (rawResult?.isRepeatable !== undefined ? rawResult.isRepeatable : true));
         result.isRepeatable = isRepeatable;
@@ -4019,7 +4045,27 @@ Trả về ĐÚNG định dạng JSON:
 - Mức giá người dùng dự kiến: ${userEstimatePrice ? userEstimatePrice + ' Vàng' : 'Để AI đề xuất'}
 - Thời gian tận hưởng dự kiến: ${durationPromptInfo}${questContext}`;
 
-        const rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+        let rawResult = null;
+        try {
+          rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+        } catch (err) {
+          console.warn('[AI evaluate_reward] callAI failed/timeout, falling back to deterministic evaluation:', err?.message);
+        }
+
+        // ponytail: deterministic fallback if AI is offline, slow, or times out
+        if (!rawResult || typeof rawResult !== 'object') {
+          rawResult = {
+            category: resolveRewardCategory(name, name, description, description),
+            name,
+            description,
+            price: userEstimatePrice || 25,
+            targetMinutes: effectiveDuration || 0,
+            tier: 'common',
+            icon: '🎁',
+            verdict: 'Phần thưởng đã được định giá tự động theo tiêu chuẩn nỗ lực của LevelUp.'
+          };
+        }
+
         const result = sanitizeEvaluatedReward(rawResult, name, description, effectiveDuration);
         result.signature = signReward(result.name, result.price, result.tier, result.targetMinutes);
         return res.status(200).json(result);
@@ -4568,12 +4614,31 @@ ${userNote ? `- Lời giải trình/ghi chú của người làm: "${userNote}"`
 Hãy quan sát ảnh chụp đính kèm và thẩm định.`;
         }
 
-        const result = await callAI(systemPrompt, userPrompt, {
-          role: 'worker',
-          thinking: false,
-          temperature: 0.2,
-          imageBase64: (proofType === 'photo' || proofType === 'both') ? imageBase64 : null
-        });
+        let result = null;
+        try {
+          result = await callAI(systemPrompt, userPrompt, {
+            role: 'worker',
+            thinking: false,
+            temperature: 0.2,
+            imageBase64: (proofType === 'photo' || proofType === 'both') ? imageBase64 : null
+          });
+        } catch (err) {
+          console.warn('[AI verify_proof] callAI failed/timeout, falling back to graceful appraisal:', err?.message);
+        }
+
+        // ponytail: deterministic fallback if AI is offline, slow, or times out
+        if (!result || typeof result !== 'object') {
+          const hasImage = Boolean(imageBase64 && (proofType === 'photo' || proofType === 'both'));
+          const hasNote = Boolean(userNote && userNote.trim().length >= 10);
+          const approved = hasImage || hasNote;
+          result = {
+            approved,
+            feedback: approved
+              ? 'Hệ thống đã ghi nhận bằng chứng hoàn thành nhiệm vụ của bạn. Tiếp tục phát huy nhé!'
+              : 'Vui lòng cung cấp thêm hình ảnh hoặc báo cáo chi tiết hơn để hoàn tất nhiệm vụ.'
+          };
+        }
+
         const approved = Boolean(result.approved);
         let proofImageUrl = null;
 

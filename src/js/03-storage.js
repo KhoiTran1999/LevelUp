@@ -995,6 +995,7 @@ function triggerSave(needsCloud = true, immediate = false, timerAction = null, s
       try {
         ch.postMessage({
           type: 'STATE_UPDATED',
+          source: 'vanilla_storage',
           tabId: CURRENT_TAB_ID,
           profile: {
             coins: appState.profile.coins,
@@ -1027,7 +1028,7 @@ function triggerSave(needsCloud = true, immediate = false, timerAction = null, s
     } else {
       syncTimeout = setTimeout(() => {
         syncWithCloud(false, timerAction);
-      }, 600);
+      }, 1500);
     }
   }
 }

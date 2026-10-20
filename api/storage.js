@@ -70,6 +70,7 @@ async function uploadToSupabase({ fileBuffer, mimeType, key }) {
   const endpoint = `${supabaseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${key}`;
   const res = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(30000),
     headers: {
       'Authorization': `Bearer ${supabaseKey}`,
       'Content-Type': mimeType || 'image/jpeg',

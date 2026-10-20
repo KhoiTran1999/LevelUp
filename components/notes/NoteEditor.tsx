@@ -168,7 +168,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       const mm = String(now.getMinutes()).padStart(2, '0');
       const ss = String(now.getSeconds()).padStart(2, '0');
       setSaveStatus(`✓ Đã lưu lúc ${hh}:${mm}:${ss}`);
-    }, 500);
+    }, 1000);
   };
 
   // Handle title input typing
@@ -188,10 +188,25 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       }
     }
 
-    onSaveNote(targetId, {
-      title: newTitle || 'Chưa đặt tiêu đề',
-      updatedAt: Date.now(),
-    });
+    setIsSaving(true);
+    setSaveStatus('Đang lưu...');
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      if (currentEditingNoteIdRef.current !== targetId) return;
+
+      onSaveNote(targetId, {
+        title: newTitle || 'Chưa đặt tiêu đề',
+        updatedAt: Date.now(),
+      });
+
+      setIsSaving(false);
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      setSaveStatus(`✓ Đã lưu lúc ${hh}:${mm}:${ss}`);
+    }, 1000);
   };
 
   // Mobile Back Button Handler (touch screen safe)
