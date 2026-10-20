@@ -15,6 +15,10 @@ import { ProofApprovedModal } from '@/components/proof/ProofApprovedModal';
 import { ProofViewerModal } from '@/components/proof/ProofViewerModal';
 import { QuestSetupModal } from '@/components/quests/QuestSetupModal';
 import { RewardSetupModal } from '@/components/shop/RewardSetupModal';
+import { BankContainer } from '@/components/bank/BankContainer';
+import { BankWithdrawModal } from '@/components/bank/BankWithdrawModal';
+import { BankRulesModal } from '@/components/bank/BankRulesModal';
+import { CreditLimitModal } from '@/components/bank/CreditLimitModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +34,10 @@ export default function LevelUpPage() {
     const confettiIndex = rawHtml.indexOf('<!-- RPG Confetti VFX');
 
     if (leaderboardIndex !== -1 && mainCloseIndex !== -1) {
-      legacyTabsContent = rawHtml.slice(leaderboardIndex, mainCloseIndex);
+      let tabs = rawHtml.slice(leaderboardIndex, mainCloseIndex);
+      // Exclude legacy bank tab since React 19 BankContainer manages it
+      tabs = tabs.replace(/<section\s+id="tab-bank"[\s\S]*?<\/section>/i, '');
+      legacyTabsContent = tabs;
     }
     if (mainCloseIndex !== -1 && confettiIndex !== -1) {
       // Exclude duplicate legacy mobile navigation since React 19 MobileBottomNav manages it
@@ -40,6 +47,8 @@ export default function LevelUpPage() {
       overlays = overlays.replace(/<!-- =+\s*-->\s*<!-- MODAL: SUBMIT QUEST PROOF[\s\S]*?(?=<!-- =+\s*-->\s*<!-- ONBOARDING INTERACTIVE TOUR)/i, '');
       // Exclude legacy quest & reward setup modals since React 19 QuestSetupModal & RewardSetupModal manage them
       overlays = overlays.replace(/<!--\s*MODAL 1: SUBMIT QUEST TO AI ARBITER[\s\S]*?(?=<!--\s*MODAL 3: PROFILE & SYNC)/i, '');
+      // Exclude legacy bank modals since React 19 bank modals manage them
+      overlays = overlays.replace(/<!--\s*MODAL:\s*H[^>]*VAY[\s\S]*?(?=<!--\s*MODAL 5:\s*WELCOME)/i, '');
       legacyOverlaysContent = overlays;
     }
   } catch (err) {
@@ -78,7 +87,12 @@ export default function LevelUpPage() {
             <NotesWorkspace />
           </section>
 
-          {/* Legacy Main Tabs (Leaderboard, Ledger, Bank, Admin, Tracker) */}
+          {/* React 19 Bank Section */}
+          <section id="tab-bank" className="tab-pane hidden">
+            <BankContainer />
+          </section>
+
+          {/* Legacy Main Tabs (Leaderboard, Ledger, Admin, Tracker) */}
           <LegacyViewsBridge content={legacyTabsContent} />
         </main>
 
@@ -93,6 +107,11 @@ export default function LevelUpPage() {
         {/* React 19 Quest & Reward AI Setup Modals */}
         <QuestSetupModal />
         <RewardSetupModal />
+
+        {/* React 19 Bank Modals */}
+        <BankWithdrawModal />
+        <BankRulesModal />
+        <CreditLimitModal />
 
         {/* React 19 Mobile Bottom Navigation */}
         <MobileBottomNav />

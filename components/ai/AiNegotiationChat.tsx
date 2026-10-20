@@ -6,7 +6,7 @@ import {
   fetchDebateStream,
   type DebateOption,
 } from '@/lib/proof-utils';
-import type { Quest, ShopItem } from '@/types/levelup';
+import type { Quest, ShopItem, BankLoan } from '@/types/levelup';
 
 interface ChatMessage {
   id: string;
@@ -19,19 +19,28 @@ interface ChatMessage {
 interface AiNegotiationChatProps {
   quest?: Partial<Quest> | null;
   reward?: Partial<ShopItem> | null;
+  loan?: Partial<BankLoan> | null;
   type?: 'quest' | 'reward' | 'loan';
   onOptionSelected?: (option: DebateOption) => void;
   onVerdictUpdated?: (updated: Partial<Quest>) => void;
   onRewardVerdictUpdated?: (updated: Partial<ShopItem>) => void;
+  onLoanTermsUpdated?: (terms: {
+    newBorrowRate?: number;
+    newCreditLimit?: number;
+    newAutoDeductPercent?: number;
+    newAmount?: number;
+  }) => void;
 }
 
 export function AiNegotiationChat({
   quest,
   reward,
+  loan,
   type = 'quest',
   onOptionSelected,
   onVerdictUpdated,
   onRewardVerdictUpdated,
+  onLoanTermsUpdated,
 }: AiNegotiationChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputArg, setInputArg] = useState('');
@@ -63,6 +72,17 @@ export function AiNegotiationChat({
             timestamp: Date.now(),
           },
         ]);
+      } else if (type === 'loan') {
+        const initialSpeech =
+          'Chào bạn! Tôi là Trợ lý Vay Vàng AI. Bạn muốn thương lượng giảm lãi suất, xin nâng hạn mức hay điều chỉnh tỷ lệ trích nợ?';
+        setMessages([
+          {
+            id: 'welcome_loan',
+            sender: 'ai',
+            text: initialSpeech,
+            timestamp: Date.now(),
+          },
+        ]);
       } else if (quest) {
         const initialSpeech =
           quest.advice ||
@@ -78,7 +98,7 @@ export function AiNegotiationChat({
         ]);
       }
     }
-  }, [quest, reward, type, messages.length]);
+  }, [quest, reward, loan, type, messages.length]);
 
   const handleSendArgument = async (customText?: string) => {
     const textToSend = (customText || inputArg).trim();
@@ -105,9 +125,19 @@ export function AiNegotiationChat({
         content: m.text,
       }));
 
-      const action = type === 'reward' ? 'debate_reward' : 'debate_quest';
-      const targetPayload = type === 'reward' ? reward : quest;
-      const payloadKey = type === 'reward' ? 'reward' : 'quest';
+      let action = 'debate_quest';
+      let targetPayload: unknown = quest;
+      let payloadKey = 'quest';
+
+      if (type === 'reward') {
+        action = 'debate_reward';
+        targetPayload = reward;
+        payloadKey = 'reward';
+      } else if (type === 'loan') {
+        action = 'debate_loan';
+        targetPayload = loan;
+        payloadKey = 'loan';
+      }
 
       const data = await fetchDebateStream<{
         reply?: string;
@@ -121,6 +151,10 @@ export function AiNegotiationChat({
         newPrice?: number;
         newTier?: ShopItem['tier'];
         newName?: string;
+        newBorrowRate?: number;
+        newCreditLimit?: number;
+        newAutoDeductPercent?: number;
+        newAmount?: number;
       }>(
         '/api/ai',
         {
@@ -170,6 +204,21 @@ export function AiNegotiationChat({
             ...(data.newName ? { name: data.newName } : {}),
           });
         }
+      } else if (type === 'loan') {
+        if (
+          data.accepted ||
+          data.newBorrowRate !== undefined ||
+          data.newCreditLimit !== undefined ||
+          data.newAutoDeductPercent !== undefined ||
+          data.newAmount !== undefined
+        ) {
+          onLoanTermsUpdated?.({
+            newBorrowRate: data.newBorrowRate,
+            newCreditLimit: data.newCreditLimit,
+            newAutoDeductPercent: data.newAutoDeductPercent,
+            newAmount: data.newAmount,
+          });
+        }
       } else {
         if (data.verdict) {
           onVerdictUpdated?.(data.verdict);
@@ -207,6 +256,184 @@ export function AiNegotiationChat({
   const handleQuickSuggest = (suggestText: string) => {
     setInputArg(suggestText);
   };
+
+  if (type === 'loan') {
+    return (
+      <div
+        id="bank-debate-container"
+        className="p-3.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-slate-950 border border-indigo-500/30 dark:border-slate-800 space-y-3 shadow-inner"
+      >
+        <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800/80">
+          <span className="flex items-center gap-1.5">
+            <span>💬</span>
+            <span>Thương Lượng Khoản Vay</span>
+          </span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
+            Đề xuất giảm lãi hoặc tăng hạn mức
+          </span>
+        </div>
+
+        {/* Chat logs container with smooth scroll */}
+        <div
+          id="bank-debate-chat-logs"
+          className="relative min-h-[200px] max-h-72 sm:max-h-80 overflow-y-auto space-y-2.5 text-xs sm:text-[13px] pr-1.5"
+        >
+          {messages.map(msg => (
+            <div
+              key={msg.id}
+              className={`flex flex-col ${
+                msg.sender === 'user' ? 'items-end' : 'items-start'
+              }`}
+            >
+              <div
+                className={`max-w-[88%] p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
+                  msg.sender === 'user'
+                    ? 'bg-indigo-600 text-white font-medium rounded-br-none shadow-sm'
+                    : msg.sender === 'system'
+                    ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none shadow-sm'
+                }`}
+              >
+                {msg.text}
+
+                {/* Parsed Debate Option Chips */}
+                {msg.options && msg.options.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap gap-1.5">
+                    {msg.options.map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleOptionClick(opt)}
+                        disabled={isStreaming}
+                        className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 transition flex items-center gap-1 active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        <span>⚡</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Live Streaming Step Indicator */}
+          {isStreaming && currentStepText && (
+            <div className="flex items-start">
+              <div className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-800 dark:text-indigo-300 text-xs flex items-center gap-2 animate-pulse">
+                <span className="material-symbols-outlined text-sm animate-spin">
+                  autorenew
+                </span>
+                <span>{currentStepText}</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={logsEndRef} />
+        </div>
+
+        {/* Quick Suggestion Chips for Loan */}
+        <div
+          id="bank-suggest-chips"
+          className="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none"
+          title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+        >
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+            Gợi ý:
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              handleQuickSuggest(
+                'Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?'
+              )
+            }
+            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+            data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?"
+          >
+            📉 Xin giảm lãi suất
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleQuickSuggest(
+                'Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?'
+              )
+            }
+            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+            data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?"
+          >
+            🚀 Xin nâng hạn mức
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleQuickSuggest(
+                'Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!'
+              )
+            }
+            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+            data-suggest="Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!"
+          >
+            ⚡ Cam kết trích nợ 70%
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleQuickSuggest(
+                'Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?'
+              )
+            }
+            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+            data-suggest="Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?"
+          >
+            💡 Có nên vay lúc này?
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleQuickSuggest(
+                'Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé.'
+              )
+            }
+            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+            data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé."
+          >
+            🧭 Lập kế hoạch trả nợ
+          </button>
+        </div>
+
+        {/* Chat Input Row */}
+        <div className="flex gap-2 items-center">
+          <input
+            id="input-bank-debate-arg"
+            type="text"
+            value={inputArg}
+            onChange={e => setInputArg(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendArgument();
+              }
+            }}
+            disabled={isStreaming}
+            placeholder="Nhập đề xuất hoặc chọn gợi ý bên trên..."
+            className="flex-1 rpg-input rounded-xl px-3.5 py-2 text-xs transition disabled:opacity-60 disabled:cursor-not-allowed"
+          />
+          <button
+            id="btn-send-bank-debate"
+            type="button"
+            onClick={() => handleSendArgument()}
+            disabled={isStreaming || !inputArg.trim()}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer"
+          >
+            <span>Gửi</span>
+            <span className="text-[10px]">➤</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (type === 'reward') {
     return (

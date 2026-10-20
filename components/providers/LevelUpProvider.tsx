@@ -14,7 +14,10 @@ import type {
   ViewerProofData,
   ProofSubmissionPayload,
   ProofVerificationResult,
+  BankLoan,
+  BankDepositItem,
 } from '@/types/levelup';
+import { triggerToast } from '@/components/bank/bank-utils';
 
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
@@ -163,6 +166,22 @@ interface LevelUpContextType {
   closeQuestModal: () => void;
   openRewardModal: (rewardToEdit?: ShopItem) => void;
   closeRewardModal: () => void;
+  // Bank Modals & Actions
+  isBankWithdrawModalOpen: boolean;
+  isBankRulesModalOpen: boolean;
+  isCreditLimitModalOpen: boolean;
+  selectedWithdrawDepositId: string | null;
+  openBankWithdrawModal: (depositId?: string) => void;
+  closeBankWithdrawModal: () => void;
+  openBankRulesModal: (sectionId?: string) => void;
+  closeBankRulesModal: () => void;
+  openCreditLimitModal: () => void;
+  closeCreditLimitModal: () => void;
+  executeBankDeposit: (amount: number, termDays: number) => Promise<boolean>;
+  executeBankWithdraw: (amount?: number, depositId?: string) => Promise<boolean>;
+  executeBankBorrow: (amount: number, termDays: number, autoDeductPercent: number) => Promise<boolean>;
+  executeBankRepay: (amount?: number) => Promise<boolean>;
+  loadBankState: () => Promise<void>;
   // Shop Actions
   buyShopItem: (item: ShopItem) => Promise<boolean>;
   useInventoryItem: (invId: string) => Promise<void>;
@@ -232,6 +251,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
   const [editingReward, setEditingReward] = useState<ShopItem | null>(null);
+  const [isBankWithdrawModalOpen, setIsBankWithdrawModalOpen] = useState(false);
+  const [isBankRulesModalOpen, setIsBankRulesModalOpen] = useState(false);
+  const [isCreditLimitModalOpen, setIsCreditLimitModalOpen] = useState(false);
+  const [selectedWithdrawDepositId, setSelectedWithdrawDepositId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   // React 19 useOptimistic for immediate user feedback
@@ -565,11 +588,31 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
 
       const rewardCoins = quest.rewardCoins || 5;
+      let netCoins = rewardCoins;
+      let deductedForLoan = 0;
+      let principalDeducted = 0;
+      let updatedLoan: BankLoan | null = state.profile.bank?.loan ? { ...state.profile.bank.loan } : null;
+
+      if (updatedLoan && (updatedLoan.debt || 0) > 0) {
+        const isOverdue = Boolean(updatedLoan.isOverdue || state.profile.bank?.isFrozen);
+        const deductRate = isOverdue ? 1.0 : Math.min(0.8, Math.max(0.2, updatedLoan.autoDeductPercent || 0.5));
+        deductedForLoan = Math.min(updatedLoan.debt, Math.floor(rewardCoins * deductRate));
+        if (deductedForLoan > 0) {
+          const prevPrincipal = updatedLoan.principal || 0;
+          principalDeducted = Math.min(prevPrincipal, deductedForLoan);
+          updatedLoan.debt -= deductedForLoan;
+          updatedLoan.principal = Math.max(0, prevPrincipal - principalDeducted);
+          netCoins = rewardCoins - deductedForLoan;
+          if (updatedLoan.debt <= 0) {
+            updatedLoan = null;
+          }
+        }
+      }
 
       // Optimistic update using React 19 startTransition
       startTransition(() => {
         setOptimisticProfile({
-          coins: state.profile.coins + rewardCoins,
+          coins: state.profile.coins + netCoins,
           totalCoinsEarned: state.profile.totalCoinsEarned + rewardCoins,
         });
         setOptimisticQuests({ questId, status: 'completed' });
@@ -587,17 +630,35 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         category: 'quest',
         amount: rewardCoins,
         title: `Hoàn thành: ${quest.title}`,
-        description: `Nhiệm vụ ${quest.type === 'focus' ? 'Tập trung' : 'Làm ngay'} · Hạng ${quest.rank || 'C'}`,
+        description: `Nhiệm vụ ${quest.type === 'focus' ? 'Tập trung' : 'Làm ngay'} · Hạng ${quest.rank || 'C'}${deductedForLoan > 0 ? ` [🏦 Trích trả nợ: -${deductedForLoan} Vàng]` : ''}`,
         timestamp: Date.now(),
       };
+
+      const ledgerEntries: LedgerEntry[] = [newLedgerEntry];
+      if (deductedForLoan > 0) {
+        ledgerEntries.push({
+          id: `ledger_deduct_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          type: 'spend',
+          category: 'bank_deduct',
+          amount: deductedForLoan,
+          title: `Trích nợ tự động: ${quest.title}`,
+          description: `Đã trích ${deductedForLoan} Vàng (${principalDeducted} gốc + ${deductedForLoan - principalDeducted} lãi) từ phần thưởng "${quest.title}".${!updatedLoan ? ' 🎉 Bạn đã thanh toán sạch nợ!' : ` Dư nợ còn lại: ${updatedLoan.debt} Vàng.`}`,
+          timestamp: Date.now(),
+        });
+      }
 
       // Persist state update
       setState(prev => ({
         ...prev,
         profile: {
           ...prev.profile,
-          coins: prev.profile.coins + rewardCoins,
+          coins: prev.profile.coins + netCoins,
           totalCoinsEarned: prev.profile.totalCoinsEarned + rewardCoins,
+          bank: {
+            ...prev.profile.bank,
+            loan: updatedLoan,
+            isFrozen: updatedLoan ? updatedLoan.isOverdue : false,
+          },
         },
         quests: prev.quests.map(q =>
           q.id === questId
@@ -612,7 +673,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         completedQuestIds: prev.completedQuestIds.includes(questId)
           ? prev.completedQuestIds
           : [...prev.completedQuestIds, questId],
-        ledger: [newLedgerEntry, ...prev.ledger],
+        ledger: [...ledgerEntries, ...prev.ledger],
       }));
     },
     [state.quests, state.profile.coins, state.profile.totalCoinsEarned, setOptimisticProfile, setOptimisticQuests]
@@ -646,6 +707,422 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     setEditingReward(null);
   }, []);
 
+  // Bank Modals Handlers
+  const openBankWithdrawModal = useCallback((depositId?: string) => {
+    setSelectedWithdrawDepositId(depositId || null);
+    setIsBankWithdrawModalOpen(true);
+  }, []);
+
+  const closeBankWithdrawModal = useCallback(() => {
+    setIsBankWithdrawModalOpen(false);
+    setSelectedWithdrawDepositId(null);
+  }, []);
+
+  const openBankRulesModal = useCallback((_sectionId?: string) => {
+    setIsBankRulesModalOpen(true);
+  }, []);
+
+  const closeBankRulesModal = useCallback(() => {
+    setIsBankRulesModalOpen(false);
+  }, []);
+
+  const openCreditLimitModal = useCallback(() => {
+    setIsCreditLimitModalOpen(true);
+  }, []);
+
+  const closeCreditLimitModal = useCallback(() => {
+    setIsCreditLimitModalOpen(false);
+  }, []);
+
+  // Bank Operations
+  const loadBankState = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'bank_state' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.bank) {
+          setState(prev => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              bank: {
+                ...prev.profile.bank,
+                ...data.bank,
+              },
+            },
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn('loadBankState error:', err);
+    }
+  }, []);
+
+  const executeBankDeposit = useCallback(async (amount: number, termDays: number): Promise<boolean> => {
+    if (amount <= 0 || amount > state.profile.coins) {
+      triggerToast('Số dư Vàng không đủ để gửi tiết kiệm!', 'error');
+      return false;
+    }
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bank_deposit',
+          amount,
+          termDays,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Lỗi khi gửi tiền');
+      }
+      const data = await res.json();
+      const updatedBank = data.bank || state.profile.bank;
+      setState(prev => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          coins: prev.profile.coins - amount,
+          bank: updatedBank,
+        },
+        ledger: [
+          {
+            id: `ledger_dep_${Date.now()}`,
+            type: 'spend',
+            category: 'bank_deposit',
+            amount,
+            title: `Gửi tiết kiệm (${termDays === 0 ? 'Linh hoạt' : `${termDays} ngày`})`,
+            description: `Gửi ${amount} Vàng vào Ngân Hàng sinh lãi.`,
+            timestamp: Date.now(),
+          },
+          ...prev.ledger,
+        ],
+      }));
+      triggerToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      return true;
+    } catch {
+      // Fallback local execution
+      const newDepositItem: BankDepositItem = {
+        id: `dep_${Date.now()}`,
+        amount,
+        termDays,
+        interest: 0,
+        createdAt: Date.now(),
+        lastAccruedAt: Date.now(),
+        maturityAt: termDays > 0 ? Date.now() + termDays * 24 * 3600 * 1000 : 0,
+        status: 'active',
+      };
+      setState(prev => {
+        const currentDeposits = Array.isArray(prev.profile.bank.deposits) ? [...prev.profile.bank.deposits] : [];
+        currentDeposits.push(newDepositItem);
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            coins: prev.profile.coins - amount,
+            bank: {
+              ...prev.profile.bank,
+              deposited: prev.profile.bank.deposited + amount,
+              deposits: currentDeposits,
+            },
+          },
+          ledger: [
+            {
+              id: `ledger_dep_${Date.now()}`,
+              type: 'spend',
+              category: 'bank_deposit',
+              amount,
+              title: `Gửi tiết kiệm (${termDays === 0 ? 'Linh hoạt' : `${termDays} ngày`})`,
+              description: `Gửi ${amount} Vàng vào Ngân Hàng sinh lãi.`,
+              timestamp: Date.now(),
+            },
+            ...prev.ledger,
+          ],
+        };
+      });
+      triggerToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      return true;
+    }
+  }, [state.profile.coins, state.profile.bank, triggerToast]);
+
+  const executeBankWithdraw = useCallback(async (amount?: number, depositId?: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bank_withdraw',
+          amount,
+          depositId,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const payout = data.payout || amount || 0;
+        setState(prev => ({
+          ...prev,
+          profile: {
+            ...prev.profile,
+            coins: prev.profile.coins + payout,
+            bank: data.bank || prev.profile.bank,
+          },
+          ledger: [
+            {
+              id: `ledger_wd_${Date.now()}`,
+              type: 'earn',
+              category: 'bank_withdraw',
+              amount: payout,
+              title: 'Rút tiền tiết kiệm',
+              description: `Rút ${payout} Vàng từ Ngân Hàng về ví.`,
+              timestamp: Date.now(),
+            },
+            ...prev.ledger,
+          ],
+        }));
+        triggerToast(`Đã rút thành công +${payout} Vàng về ví!`, 'success');
+        return true;
+      }
+    } catch {}
+
+    // Fallback local withdrawal
+    setState(prev => {
+      const bank = prev.profile.bank;
+      let payout = 0;
+      const updatedDeposits = Array.isArray(bank.deposits) ? [...bank.deposits] : [];
+
+      if (depositId) {
+        const idx = updatedDeposits.findIndex(d => d.id === depositId);
+        if (idx !== -1) {
+          payout = updatedDeposits[idx].amount + (updatedDeposits[idx].interest || 0);
+          updatedDeposits.splice(idx, 1);
+        }
+      } else {
+        const amtToWithdraw = amount || (bank.deposited + bank.depositInterest);
+        payout = Math.min(amtToWithdraw, bank.deposited + bank.depositInterest);
+        const allocInterest = Math.min(bank.depositInterest, payout);
+        const allocPrincipal = payout - allocInterest;
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            coins: prev.profile.coins + payout,
+            bank: {
+              ...bank,
+              deposited: Math.max(0, bank.deposited - allocPrincipal),
+              depositInterest: Math.max(0, bank.depositInterest - allocInterest),
+              deposits: updatedDeposits,
+            },
+          },
+          ledger: [
+            {
+              id: `ledger_wd_${Date.now()}`,
+              type: 'earn',
+              category: 'bank_withdraw',
+              amount: payout,
+              title: 'Rút tiền tiết kiệm',
+              description: `Rút ${payout} Vàng từ Ngân Hàng về ví.`,
+              timestamp: Date.now(),
+            },
+            ...prev.ledger,
+          ],
+        };
+      }
+
+      return {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          coins: prev.profile.coins + payout,
+          bank: {
+            ...bank,
+            deposited: updatedDeposits.reduce((sum, d) => sum + d.amount, 0),
+            depositInterest: updatedDeposits.reduce((sum, d) => sum + (d.interest || 0), 0),
+            deposits: updatedDeposits,
+          },
+        },
+        ledger: [
+          {
+            id: `ledger_wd_${Date.now()}`,
+            type: 'earn',
+            category: 'bank_withdraw',
+            amount: payout,
+            title: 'Rút tiền tiết kiệm',
+            description: `Rút ${payout} Vàng từ Ngân Hàng về ví.`,
+            timestamp: Date.now(),
+          },
+          ...prev.ledger,
+        ],
+      };
+    });
+    triggerToast('Đã rút tiền tiết kiệm thành công!', 'success');
+    return true;
+  }, [triggerToast]);
+
+  const executeBankBorrow = useCallback(async (amount: number, termDays: number, autoDeductPercent: number): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bank_borrow',
+          amount,
+          termDays,
+          autoDeductPercent,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setState(prev => ({
+          ...prev,
+          profile: {
+            ...prev.profile,
+            coins: prev.profile.coins + amount,
+            bank: data.bank || prev.profile.bank,
+          },
+          ledger: [
+            {
+              id: `ledger_borrow_${Date.now()}`,
+              type: 'earn',
+              category: 'bank_borrow',
+              amount,
+              title: `Vay Vàng tín chấp (${termDays} ngày)`,
+              description: `Vay ${amount} Vàng tiêu ngay, cam kết trích ${Math.round(autoDeductPercent * 100)}% trả nợ.`,
+              timestamp: Date.now(),
+            },
+            ...prev.ledger,
+          ],
+        }));
+        triggerToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
+        return true;
+      }
+    } catch {}
+
+    // Fallback local borrow
+    const newLoan: BankLoan = {
+      amount,
+      principal: amount,
+      debt: amount,
+      borrowRate: 0.05,
+      termDays,
+      autoDeductPercent,
+      borrowedAt: Date.now(),
+      lastAccruedAt: Date.now(),
+      dueTimestamp: Date.now() + termDays * 24 * 3600 * 1000,
+      isOverdue: false,
+    };
+    setState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        coins: prev.profile.coins + amount,
+        bank: {
+          ...prev.profile.bank,
+          loan: newLoan,
+        },
+      },
+      ledger: [
+        {
+          id: `ledger_borrow_${Date.now()}`,
+          type: 'earn',
+          category: 'bank_borrow',
+          amount,
+          title: `Vay Vàng tín chấp (${termDays} ngày)`,
+          description: `Vay ${amount} Vàng tiêu ngay, cam kết trích ${Math.round(autoDeductPercent * 100)}% trả nợ.`,
+          timestamp: Date.now(),
+        },
+        ...prev.ledger,
+      ],
+    }));
+    triggerToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
+    return true;
+  }, [triggerToast]);
+
+  const executeBankRepay = useCallback(async (_amount?: number): Promise<boolean> => {
+    const loan = state.profile.bank?.loan;
+    if (!loan || (loan.debt || 0) <= 0) {
+      triggerToast('Bạn không có khoản nợ nào cần thanh toán!', 'info');
+      return false;
+    }
+    const currentDebt = loan.debt;
+    const penalty = Math.max(1, Math.ceil(currentDebt * 0.05));
+    const totalToPay = currentDebt + penalty;
+    const userCoins = state.profile.coins;
+
+    if (userCoins < totalToPay) {
+      triggerToast(`Số dư không đủ! Cần ${totalToPay} Vàng (${currentDebt} nợ + ${penalty} phí tất toán sớm).`, 'error');
+      return false;
+    }
+
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bank_repay',
+          amount: totalToPay,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setState(prev => ({
+          ...prev,
+          profile: {
+            ...prev.profile,
+            coins: prev.profile.coins - totalToPay,
+            bank: data.bank || { ...prev.profile.bank, loan: null, isFrozen: false },
+          },
+          ledger: [
+            {
+              id: `ledger_repay_${Date.now()}`,
+              type: 'spend',
+              category: 'bank_repay',
+              amount: totalToPay,
+              title: 'Tất toán nợ sớm',
+              description: `Đã thanh toán sạch ${currentDebt} Vàng nợ và ${penalty} Vàng phí tất toán trước hạn.`,
+              timestamp: Date.now(),
+            },
+            ...prev.ledger,
+          ],
+        }));
+        triggerToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
+        return true;
+      }
+    } catch {}
+
+    // Fallback local repay
+    setState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        coins: prev.profile.coins - totalToPay,
+        bank: {
+          ...prev.profile.bank,
+          loan: null,
+          isFrozen: false,
+        },
+      },
+      ledger: [
+        {
+          id: `ledger_repay_${Date.now()}`,
+          type: 'spend',
+          category: 'bank_repay',
+          amount: totalToPay,
+          title: 'Tất toán nợ sớm',
+          description: `Đã thanh toán sạch ${currentDebt} Vàng nợ và ${penalty} Vàng phí tất toán trước hạn.`,
+          timestamp: Date.now(),
+        },
+        ...prev.ledger,
+      ],
+    }));
+    triggerToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
+    return true;
+  }, [state.profile.bank?.loan, state.profile.coins, triggerToast]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -660,6 +1137,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       ) => void;
       openQuestModal?: (q?: Quest) => void;
       openRewardModal?: (r?: ShopItem) => void;
+      openBankRulesModal?: (sectionId?: string) => void;
+      openBankWithdrawModal?: (depositId?: string) => void;
+      openCreditLimitModal?: () => void;
+      loadBankState?: () => Promise<void>;
+      executeBankDeposit?: (amount: number, termDays: number) => Promise<boolean>;
+      executeBankWithdraw?: (amount?: number, depositId?: string) => Promise<boolean>;
+      executeBankBorrow?: (amount: number, termDays: number, autoDeductPercent: number) => Promise<boolean>;
+      executeBankRepay?: (amount?: number) => Promise<boolean>;
     };
     win.openQuestProofModal = (quest: Quest) => {
       openProofModal(quest);
@@ -679,6 +1164,30 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     win.openRewardModal = (r?: ShopItem) => {
       openRewardModal(r);
     };
+    win.openBankRulesModal = (sectionId?: string) => {
+      openBankRulesModal(sectionId);
+    };
+    win.openBankWithdrawModal = (depositId?: string) => {
+      openBankWithdrawModal(depositId);
+    };
+    win.openCreditLimitModal = () => {
+      openCreditLimitModal();
+    };
+    win.loadBankState = () => {
+      return loadBankState();
+    };
+    win.executeBankDeposit = (amount: number, termDays: number) => {
+      return executeBankDeposit(amount, termDays);
+    };
+    win.executeBankWithdraw = (amount?: number, depositId?: string) => {
+      return executeBankWithdraw(amount, depositId);
+    };
+    win.executeBankBorrow = (amount: number, termDays: number, autoDeductPercent: number) => {
+      return executeBankBorrow(amount, termDays, autoDeductPercent);
+    };
+    win.executeBankRepay = (amount?: number) => {
+      return executeBankRepay(amount);
+    };
 
     // Keyboard shortcut Q to open quest setup modal
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -693,7 +1202,20 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openProofModal, openProofViewer, openQuestModal, openRewardModal]);
+  }, [
+    openProofModal,
+    openProofViewer,
+    openQuestModal,
+    openRewardModal,
+    openBankRulesModal,
+    openBankWithdrawModal,
+    openCreditLimitModal,
+    loadBankState,
+    executeBankDeposit,
+    executeBankWithdraw,
+    executeBankBorrow,
+    executeBankRepay,
+  ]);
 
   const addQuest = useCallback((newQuestData: Partial<Quest>) => {
     const newQuest: Quest = {
@@ -1390,6 +1912,21 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         closeQuestModal,
         openRewardModal,
         closeRewardModal,
+        isBankWithdrawModalOpen,
+        isBankRulesModalOpen,
+        isCreditLimitModalOpen,
+        selectedWithdrawDepositId,
+        openBankWithdrawModal,
+        closeBankWithdrawModal,
+        openBankRulesModal,
+        closeBankRulesModal,
+        openCreditLimitModal,
+        closeCreditLimitModal,
+        executeBankDeposit,
+        executeBankWithdraw,
+        executeBankBorrow,
+        executeBankRepay,
+        loadBankState,
         buyShopItem,
         useInventoryItem,
         refundInventoryItem,

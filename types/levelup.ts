@@ -113,13 +113,31 @@ export interface InventoryItem {
   };
 }
 
-export interface BankLoan {
+export interface BankDepositItem {
+  id: string;
   amount: number;
-  principal: number;
-  interestRate: number;
   termDays: number;
-  dueTimestamp: number;
+  interest: number;
+  createdAt: number;
+  lastAccruedAt: number;
+  maturityAt: number;
+  status: 'active' | 'matured' | 'withdrawn';
+}
+
+export interface BankLoan {
+  amount?: number;
+  principal: number;
+  debt: number;
+  interestRate?: number;
+  borrowRate?: number;
+  termDays: number;
+  autoDeductPercent?: number;
+  borrowedAt?: number;
+  lastAccruedAt?: number;
+  dueTimestamp?: number;
   isOverdue: boolean;
+  creditLimit?: number;
+  signature?: string;
 }
 
 export interface BankAccount {
@@ -127,8 +145,24 @@ export interface BankAccount {
   depositInterest: number;
   lastDepositAt: number;
   termDays?: number;
+  deposits?: BankDepositItem[];
   loan: BankLoan | null;
   isFrozen: boolean;
+}
+
+export interface BankPoolState {
+  poolGold: number;
+  totalBorrowed: number;
+  reserveFund: number;
+  totalDeposited: number;
+  bailoutDebt: number;
+}
+
+export interface BankRates {
+  utilization: number;
+  depositRate: number;
+  borrowRate: number;
+  spread: number;
 }
 
 export interface UserProfile {
