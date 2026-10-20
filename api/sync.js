@@ -986,7 +986,7 @@ export default async function handler(req, res) {
       await redis.connect();
     }
 
-    const token = extractToken(req);
+    let token = extractToken(req);
     const action = req.query?.action;
 
     // Rate Limit: 60 requests per minute per IP / token
@@ -1630,17 +1630,43 @@ export default async function handler(req, res) {
       }
 
       // 2.6 Tải hồ sơ người dùng theo Google ID Token hoặc Session Token
-      if (!token) {
-        return res.status(401).json({ error: 'Cần đăng nhập tài khoản Google để tải dữ liệu.' });
+      let caller = null;
+      if (token) {
+        caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
       }
 
-      const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
-      const targetSub = caller ? caller.sub : null;
-
-      if (!targetSub) {
-        return res.status(401).json({ error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.' });
+      if (!caller || !caller.sub) {
+        const sessionToken = token && token.length >= 16 ? token : crypto.randomUUID();
+        const guestSub = 'guest_' + sessionToken.replace(/-/g, '').slice(0, 16);
+        caller = {
+          sub: guestSub,
+          email: '',
+          name: 'Hiệp Sĩ',
+          picture: '⚔️',
+          isGuest: true
+        };
+        token = sessionToken;
+        if (redis) {
+          try { await redis.set(`levelup:session:${sessionToken}`, JSON.stringify(caller), 'EX', 90 * 24 * 3600); } catch (_) {}
+        }
+        if (isDbConfigured()) {
+          try { await saveDbSession(sessionToken, caller, 90 * 24 * 3600 * 1000); } catch (_) {}
+        }
+        if (res.setHeader) {
+          const isProd = process.env.NODE_ENV === 'production';
+          const cookieFlags = [
+            `levelup_session=${sessionToken}`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=7776000',
+            isProd ? 'Secure' : ''
+          ].filter(Boolean).join('; ');
+          res.setHeader('Set-Cookie', cookieFlags);
+        }
       }
 
+      const targetSub = caller.sub;
       await updateUserPresence(redis, targetSub);
 
       let userKey = `levelup:user:google:${targetSub}`;
@@ -1664,7 +1690,115 @@ export default async function handler(req, res) {
       }
 
       if (!data) {
-        return res.status(200).json({ found: false, googleId: targetSub });
+        // Khởi tạo trạng thái mặc định cho người chơi mới và lưu bền vững vào Redis & Postgres
+        const defaultNick = caller.name || 'Hiệp Sĩ';
+        data = {
+          profile: {
+            nickname: defaultNick,
+            avatar: caller.picture || '⚔️',
+            level: 1,
+            exp: 0,
+            coins: 20,
+            totalCoinsEarned: 20,
+            title: 'Tân Binh Cấp 1',
+            streak: 1,
+            lastStreakDate: '',
+            streakHistory: [],
+            soundEnabled: true,
+            theme: 'light',
+            role: 'adventurer',
+            googleId: targetSub,
+            sessionToken: token,
+            hasOnboarded: true
+          },
+          quests: [
+            {
+              id: 'q_seed_1',
+              title: 'Đọc 1 chương sách chuyên ngành',
+              description: 'Ghi chú ít nhất 3 ý chính, không dùng điện thoại',
+              type: 'focus',
+              rank: 'C',
+              rewardCoins: 12,
+              targetMinutes: 25,
+              icon: '📖',
+              advice: 'Bật chế độ Không làm phiền trên điện thoại trước khi bấm giờ.',
+              verdict: '25 phút tập trung sâu là khoảng thời gian chuẩn mực. Hãy hoàn thành đủ giờ để nhận thưởng!',
+              isRepeatable: true,
+              completedCount: 0,
+              status: 'active',
+              createdAt: 1700000000000
+            },
+            {
+              id: 'q_seed_2',
+              title: 'Dọn sạch góc bàn làm việc & rửa sạch cốc',
+              description: 'Không gian ngăn nắp giúp tinh thần thoải mái và tập trung tốt hơn',
+              type: 'bounty',
+              rank: 'E',
+              rewardCoins: 5,
+              targetMinutes: 0,
+              icon: '🧹',
+              advice: 'Làm dứt khoát trong 5 - 10 phút.',
+              verdict: 'Công việc nhanh gọn có kết quả rõ ràng. Đánh dấu xong để nhận ngay 5 Vàng!',
+              isRepeatable: false,
+              completedCount: 0,
+              status: 'active',
+              createdAt: 1700000000000
+            }
+          ],
+          shopItems: [
+            {
+              id: 'shop_seed_1',
+              name: '1 Ly Trà Sữa / Cà Phê Yêu Thích',
+              description: 'Tự thưởng một cốc đồ uống ngon lành sau buổi học tập, làm việc',
+              price: 35,
+              tier: 'rare',
+              icon: '🧋',
+              targetMinutes: 0,
+              history: {},
+              verdict: 'Tương đương hơn 1 tiếng tập trung làm việc. Hãy thưởng thức thật ngon miệng!'
+            },
+            {
+              id: 'shop_seed_2',
+              name: 'Lướt Mạng Xã Hội / Xem Video 30 Phút',
+              description: 'Giải trí thư giãn thoải mái sau khi hoàn thành mục tiêu',
+              price: 20,
+              tier: 'common',
+              icon: '📱',
+              targetMinutes: 30,
+              history: {},
+              verdict: 'Thư giãn hợp lý giúp nạp lại năng lượng cho những mục tiêu tiếp theo.'
+            },
+            {
+              id: 'shop_seed_3',
+              name: 'Đi Xem Phim Rạp Cuối Tuần',
+              description: 'Một buổi tối thư giãn trọn vẹn tại rạp chiếu phim',
+              price: 120,
+              tier: 'epic',
+              icon: '🍿',
+              targetMinutes: 120,
+              history: {},
+              verdict: 'Mục tiêu lớn! Cần hoàn thành đều đặn nhiệm vụ cả tuần để đổi lấy món quà này.'
+            }
+          ],
+          inventory: [],
+          ledger: [{
+            id: 'led_welcome_' + Date.now(),
+            type: 'earn',
+            category: 'bonus',
+            amount: 20,
+            title: 'Thưởng chào mừng hiệp sĩ',
+            description: 'Thưởng chào mừng hiệp sĩ gia nhập LevelUp',
+            timestamp: Date.now()
+          }],
+          notes: [],
+          proofPhotos: [],
+          lastModified: Date.now(),
+          lastSyncedAt: Date.now()
+        };
+        await redis.set(userKey, JSON.stringify(data), 'EX', 180 * 24 * 3600);
+        if (isDbConfigured()) {
+          try { await upsertUser(targetSub, data); } catch (_) {}
+        }
       }
       let dataChanged = false;
       if (caller?.picture && data.profile) {
@@ -2599,13 +2733,40 @@ export default async function handler(req, res) {
       }
 
       // 3.3 Đồng bộ dữ liệu người dùng (Cloud Sync)
-      if (!token) {
-        return res.status(401).json({ error: 'Cần đăng nhập Google để đồng bộ dữ liệu.' });
+      let caller = null;
+      if (token) {
+        caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
       }
 
-      const caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
       if (!caller || !caller.sub) {
-        return res.status(401).json({ error: 'Phiên Google không hợp lệ hoặc đã hết hạn.' });
+        const sessionToken = token && token.length >= 16 ? token : crypto.randomUUID();
+        const guestSub = 'guest_' + sessionToken.replace(/-/g, '').slice(0, 16);
+        caller = {
+          sub: guestSub,
+          email: '',
+          name: sanitizeNickname(rawNick || state?.profile?.nickname) || 'Hiệp Sĩ',
+          picture: '⚔️',
+          isGuest: true
+        };
+        token = sessionToken;
+        if (redis) {
+          try { await redis.set(`levelup:session:${sessionToken}`, JSON.stringify(caller), 'EX', 90 * 24 * 3600); } catch (_) {}
+        }
+        if (isDbConfigured()) {
+          try { await saveDbSession(sessionToken, caller, 90 * 24 * 3600 * 1000); } catch (_) {}
+        }
+        if (res.setHeader) {
+          const isProd = process.env.NODE_ENV === 'production';
+          const cookieFlags = [
+            `levelup_session=${sessionToken}`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=7776000',
+            isProd ? 'Secure' : ''
+          ].filter(Boolean).join('; ');
+          res.setHeader('Set-Cookie', cookieFlags);
+        }
       }
 
       const userSub = caller.sub;

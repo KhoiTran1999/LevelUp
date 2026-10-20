@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useOptimistic, useTransition, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useOptimistic, useTransition, useCallback, useRef } from 'react';
 import type {
   LevelUpAppState,
   Quest,
@@ -327,50 +327,155 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     }
   );
 
-  // Sync with global window.appState or DOM on client mount
+  const isHydratedRef = useRef(false);
+  const syncDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Directly sync state to Cloud (Redis + Supabase Postgres via /api/sync)
+  const syncToCloud = useCallback(async (stateToSync: LevelUpAppState) => {
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickname: stateToSync.profile?.nickname || 'Hiệp Sĩ',
+          state: stateToSync,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.syncedAt) {
+          setState(prev => ({ ...prev, lastSyncedAt: data.syncedAt }));
+        }
+      }
+    } catch (err) {
+      console.warn('[Sync Error]', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  const queueSyncToCloud = useCallback(
+    (stateToSync: LevelUpAppState, immediate = false) => {
+      // Synchronize window.appState for any legacy views
+      if (typeof window !== 'undefined') {
+        const win = window as unknown as { appState?: LevelUpAppState };
+        if (win.appState) {
+          Object.assign(win.appState, stateToSync);
+        }
+      }
+
+      if (syncDebounceTimerRef.current) {
+        clearTimeout(syncDebounceTimerRef.current);
+        syncDebounceTimerRef.current = null;
+      }
+
+      if (immediate) {
+        syncToCloud(stateToSync);
+      } else {
+        syncDebounceTimerRef.current = setTimeout(() => {
+          syncToCloud(stateToSync);
+        }, 600);
+      }
+    },
+    [syncToCloud]
+  );
+
+  // Fetch state directly from Redis & Supabase Postgres on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check saved theme
-    const savedTheme = localStorage.getItem('levelup_theme') as 'light' | 'dark' | null;
-    const isDark = document.documentElement.classList.contains('dark') || savedTheme === 'dark';
-    const currentTheme = isDark ? 'dark' : 'light';
+    let isCancelled = false;
 
-    setState(prev => ({
-      ...prev,
-      profile: {
-        ...prev.profile,
-        theme: currentTheme,
-      },
-    }));
+    async function loadCloudState() {
+      try {
+        setIsSyncing(true);
+        const res = await fetch('/api/sync', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const result = await res.json().catch(() => ({}));
+          if (result.found && result.data && !isCancelled) {
+            const cloudData: LevelUpAppState = result.data;
+            setState(prev => {
+              const currentTheme: 'light' | 'dark' = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+              const mergedProfile = {
+                ...prev.profile,
+                ...(cloudData.profile || {}),
+                theme: currentTheme,
+              };
 
-    // Initial check from global window.appState
-    const win = window as unknown as { appState?: LevelUpAppState };
-    if (win.appState) {
-      setState(prev => ({
-        ...prev,
-        notes: (win.appState!.notes && win.appState!.notes.length > 0) ? win.appState!.notes : prev.notes,
-        activeNoteId: win.appState!.activeNoteId || win.appState!.notes?.[0]?.id || prev.activeNoteId,
-        focusNotes: win.appState!.focusNotes || prev.focusNotes,
-        quests: (win.appState!.quests && win.appState!.quests.length > 0) ? win.appState!.quests : prev.quests,
-        shopItems: (win.appState!.shopItems && win.appState!.shopItems.length > 0) ? win.appState!.shopItems : prev.shopItems,
-        inventory: win.appState!.inventory || prev.inventory,
-        ledger: win.appState!.ledger || prev.ledger,
-        proofPhotos: win.appState!.proofPhotos || prev.proofPhotos,
-      }));
-      if (win.appState.activeNoteId) {
-        setActiveNoteIdState(win.appState.activeNoteId);
+              const resolvedState: LevelUpAppState = {
+                ...prev,
+                ...cloudData,
+                profile: mergedProfile,
+                quests: Array.isArray(cloudData.quests) && cloudData.quests.length > 0 ? cloudData.quests : prev.quests,
+                shopItems: Array.isArray(cloudData.shopItems) && cloudData.shopItems.length > 0 ? cloudData.shopItems : prev.shopItems,
+                inventory: Array.isArray(cloudData.inventory) ? cloudData.inventory : prev.inventory,
+                notes: Array.isArray(cloudData.notes) && cloudData.notes.length > 0 ? cloudData.notes : prev.notes,
+                activeNoteId: cloudData.activeNoteId || prev.activeNoteId,
+                focusNotes: typeof cloudData.focusNotes === 'string' ? cloudData.focusNotes : prev.focusNotes,
+                ledger: Array.isArray(cloudData.ledger) ? cloudData.ledger : prev.ledger,
+                proofPhotos: Array.isArray(cloudData.proofPhotos) ? cloudData.proofPhotos : prev.proofPhotos,
+                completedQuestIds: Array.isArray(cloudData.completedQuestIds) ? cloudData.completedQuestIds : prev.completedQuestIds,
+                activeTimer: cloudData.activeTimer !== undefined ? cloudData.activeTimer : prev.activeTimer,
+                lastSyncedAt: result.syncedAt || cloudData.lastSyncedAt || Date.now(),
+              };
+
+              const win = window as unknown as { appState?: LevelUpAppState };
+              if (win.appState) {
+                Object.assign(win.appState, resolvedState);
+              }
+
+              return resolvedState;
+            });
+
+            if (cloudData.activeNoteId) {
+              setActiveNoteIdState(cloudData.activeNoteId);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[LevelUpProvider] Failed to fetch state from /api/sync:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsSyncing(false);
+          isHydratedRef.current = true;
+        }
       }
     }
+
+    loadCloudState();
 
     // Listen to vanilla appState sync if legacy app.js updates it
     const handleStateUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<LevelUpAppState>;
       if (customEvent.detail) {
-        setState(prev => ({
-          ...prev,
-          ...customEvent.detail,
-        }));
+        setState(prev => {
+          let nextQuests = prev.quests;
+          if (Array.isArray(customEvent.detail.quests) && customEvent.detail.quests.length > 0) {
+            const incomingIds = new Set(customEvent.detail.quests.map(q => q.id));
+            const userQuests = prev.quests.filter(q => !incomingIds.has(q.id) && !q.id.startsWith('q_seed_'));
+            nextQuests = [...userQuests, ...customEvent.detail.quests];
+          }
+
+          let nextShop = prev.shopItems;
+          if (Array.isArray(customEvent.detail.shopItems) && customEvent.detail.shopItems.length > 0) {
+            const incomingShopIds = new Set(customEvent.detail.shopItems.map(s => s.id));
+            const userShop = prev.shopItems.filter(s => !incomingShopIds.has(s.id) && !s.id.startsWith('shop_seed_'));
+            nextShop = [...userShop, ...customEvent.detail.shopItems];
+          }
+
+          const next = {
+            ...prev,
+            ...customEvent.detail,
+            quests: nextQuests,
+            shopItems: nextShop,
+          };
+          return next;
+        });
         if (customEvent.detail.activeNoteId) {
           setActiveNoteIdState(customEvent.detail.activeNoteId);
         }
@@ -381,11 +486,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     const handleNotesUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ notes: NoteItem[]; activeNoteId?: string }>;
       if (customEvent.detail?.notes) {
-        setState(prev => ({
-          ...prev,
-          notes: customEvent.detail.notes,
-          activeNoteId: customEvent.detail.activeNoteId || prev.activeNoteId,
-        }));
+        setState(prev => {
+          const next = {
+            ...prev,
+            notes: customEvent.detail.notes,
+            activeNoteId: customEvent.detail.activeNoteId || prev.activeNoteId,
+          };
+          return next;
+        });
         if (customEvent.detail.activeNoteId) {
           setActiveNoteIdState(customEvent.detail.activeNoteId);
         }
@@ -398,11 +506,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       ch = new BroadcastChannel('levelup_sync_channel');
       ch.onmessage = (event) => {
         if (event.data?.type === 'NOTES_UPDATED' && Array.isArray(event.data.notes)) {
-          setState(prev => ({
-            ...prev,
-            notes: event.data.notes,
-            focusNotes: event.data.content || prev.focusNotes,
-          }));
+          setState(prev => {
+            const next = {
+              ...prev,
+              notes: event.data.notes,
+              focusNotes: event.data.content || prev.focusNotes,
+            };
+            return next;
+          });
         }
       };
     } catch (_) {}
@@ -410,11 +521,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('levelup:state-updated', handleStateUpdate);
     window.addEventListener('levelup:notes-updated', handleNotesUpdate);
     return () => {
+      isCancelled = true;
       window.removeEventListener('levelup:state-updated', handleStateUpdate);
       window.removeEventListener('levelup:notes-updated', handleNotesUpdate);
       if (ch) ch.close();
     };
   }, []);
+
+  // Auto-persist state to Redis & Supabase Postgres on state changes after hydration
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    queueSyncToCloud(state);
+  }, [state, queueSyncToCloud]);
 
   const setActiveTab = useCallback((tab: TabType) => {
     setActiveTabState(tab);
@@ -441,7 +559,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const toggleTheme = useCallback(() => {
     const nextTheme = state.profile.theme === 'dark' ? 'light' : 'dark';
@@ -485,7 +603,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.dataset.palette = nextPalette;
       localStorage.setItem('levelup_theme_palette', nextPalette);
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const openProofModal = useCallback((quest: Quest) => {
     setActiveProofQuest(quest);
@@ -772,7 +890,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('loadBankState error:', err);
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const executeBankDeposit = useCallback(async (amount: number, termDays: number): Promise<boolean> => {
     if (amount <= 0 || amount > state.profile.coins) {
@@ -1280,16 +1398,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         existingIdx >= 0
           ? prev.quests.map((q, i) => (i === existingIdx ? { ...q, ...newQuest } : q))
           : [newQuest, ...prev.quests];
-      return {
+      const next = {
         ...prev,
         quests: nextQuests,
       };
+      queueSyncToCloud(next, true);
+      return next;
     });
 
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
-        triggerSave?: (immediate?: boolean) => void;
+        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
       };
       if (win.appState) {
         if (!Array.isArray(win.appState.quests)) {
@@ -1301,7 +1421,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         } else {
           win.appState.quests.unshift(newQuest);
         }
-        win.triggerSave?.(true);
+        win.triggerSave?.(true, true);
       }
       window.dispatchEvent(
         new CustomEvent('levelup:state-updated', {
@@ -1309,24 +1429,34 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         })
       );
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const deleteQuest = useCallback((questId: string) => {
-    setState(prev => ({
-      ...prev,
-      quests: prev.quests.filter(q => q.id !== questId),
-    }));
+    setState(prev => {
+      const nextQuests = prev.quests.filter(q => q.id !== questId);
+      const next = {
+        ...prev,
+        quests: nextQuests,
+      };
+      queueSyncToCloud(next, true);
+      return next;
+    });
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
-        triggerSave?: (immediate?: boolean) => void;
+        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
       };
       if (win.appState && Array.isArray(win.appState.quests)) {
         win.appState.quests = win.appState.quests.filter(q => q.id !== questId);
-        win.triggerSave?.(true);
+        win.triggerSave?.(true, true);
       }
+      window.dispatchEvent(
+        new CustomEvent('levelup:state-updated', {
+          detail: win.appState,
+        })
+      );
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const startFocusTimer = useCallback((quest: Quest) => {
     const minutes = quest.targetMinutes || 25;
@@ -1720,16 +1850,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         existingIdx >= 0
           ? prev.shopItems.map((s, i) => (i === existingIdx ? { ...s, ...newItem } : s))
           : [newItem, ...prev.shopItems];
-      return {
+      const next = {
         ...prev,
         shopItems: nextShopItems,
       };
+      queueSyncToCloud(next, true);
+      return next;
     });
 
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
-        triggerSave?: (immediate?: boolean) => void;
+        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
       };
       if (win.appState) {
         if (!Array.isArray(win.appState.shopItems)) {
@@ -1741,7 +1873,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         } else {
           win.appState.shopItems.unshift(newItem);
         }
-        win.triggerSave?.(true);
+        win.triggerSave?.(true, true);
       }
       window.dispatchEvent(
         new CustomEvent('levelup:state-updated', {
@@ -1749,24 +1881,34 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         })
       );
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const deleteShopItem = useCallback((itemId: string) => {
-    setState(prev => ({
-      ...prev,
-      shopItems: prev.shopItems.filter(s => s.id !== itemId),
-    }));
+    setState(prev => {
+      const nextShopItems = prev.shopItems.filter(s => s.id !== itemId);
+      const next = {
+        ...prev,
+        shopItems: nextShopItems,
+      };
+      queueSyncToCloud(next, true);
+      return next;
+    });
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
-        triggerSave?: (immediate?: boolean) => void;
+        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
       };
       if (win.appState && Array.isArray(win.appState.shopItems)) {
         win.appState.shopItems = win.appState.shopItems.filter(s => s.id !== itemId);
-        win.triggerSave?.(true);
+        win.triggerSave?.(true, true);
       }
+      window.dispatchEvent(
+        new CustomEvent('levelup:state-updated', {
+          detail: win.appState,
+        })
+      );
     }
-  }, []);
+  }, [queueSyncToCloud]);
 
   const startRewardTimer = useCallback((item: InventoryItem) => {
     const minutes = item.targetMinutes || 15;

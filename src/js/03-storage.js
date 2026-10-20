@@ -754,7 +754,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
   if (modalSyncState) modalSyncState.textContent = 'Đang đồng bộ...';
 
   const nick = appState.profile.nickname;
-  if (!appState.profile.googleId || !nick) {
+  if ((!appState.profile.googleId && !appState.profile.sessionToken && !appState.profile.token) || !nick) {
     if (typeof setGlobalProgress === 'function') setGlobalProgress(false);
     if (syncDot) {
       syncDot.innerHTML = '';
@@ -1040,7 +1040,7 @@ async function hydrateFromCloud(isManual = false) {
   const googleId = appState.profile?.googleId;
   const token = appState.profile?.sessionToken || appState.profile?.googleToken || appState.profile?.token || getOrCreateUserToken();
 
-  if (!googleId || !nick || !token) return;
+  if ((!googleId && !appState.profile?.sessionToken) || !nick || !token) return;
   isHydrating = true;
 
   const syncDot = document.getElementById('sync-indicator');

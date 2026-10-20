@@ -1,12 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const testDir = __dirname;
+const registerHooksUrl = pathToFileURL(path.join(testDir, 'register-hooks.mjs')).href;
 const files = fs.readdirSync(testDir)
   .filter(f => f.endsWith('.test.js'))
   .sort();
@@ -27,7 +28,7 @@ for (let i = 0; i < files.length; i++) {
   process.stdout.write(`${prefix} Running ${file}... `);
   const startFile = Date.now();
   
-  const res = spawnSync(process.execPath, [filePath], {
+  const res = spawnSync(process.execPath, ['--import', registerHooksUrl, filePath], {
     timeout: 25000,
     encoding: 'utf8',
     env: { ...process.env, NODE_ENV: 'test' }

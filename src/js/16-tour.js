@@ -436,6 +436,10 @@ async function initStartupFlow() {
         closeModal('modal-welcome');
         renderAll();
         restoreFocusTimer();
+        if (typeof window !== 'undefined') {
+          window.appState = appState;
+          window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+        }
         const pendingProofQuest = (appState.quests || []).find(q => q.focusTimerCompleted && q.requiresProof && !q._proofVerified && q.status !== 'completed');
         if (pendingProofQuest) {
           const proofModal = document.getElementById('modal-quest-proof');

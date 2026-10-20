@@ -27,7 +27,8 @@ let cachedLegacyTabs: string | null = null;
 let cachedLegacyOverlays: string | null = null;
 
 function getLegacyTemplates(): { tabs: string; overlays: string } {
-  if (cachedLegacyTabs !== null && cachedLegacyOverlays !== null) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction && cachedLegacyTabs !== null && cachedLegacyOverlays !== null) {
     return { tabs: cachedLegacyTabs, overlays: cachedLegacyOverlays };
   }
 

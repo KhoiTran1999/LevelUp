@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server.js';
+import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore
 import syncHandler from '../../../api/sync.js';
 
@@ -11,22 +11,20 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-export async function OPTIONS() {
+export async function OPTIONS(_request?: NextRequest) {
   return new Response(null, {
     status: 204,
     headers: CORS_HEADERS
   });
 }
 
-export async function GET(request?: NextRequest | Request): Promise<Response> {
-  const reqUrl = request?.url || 'http://localhost:3000/api/sync';
+export async function GET(request: NextRequest): Promise<Response> {
+  const reqUrl = request.url;
   const url = new URL(reqUrl);
   const headersObj: Record<string, string> = {};
-  if (request?.headers) {
-    request.headers.forEach((val, key) => {
-      headersObj[key.toLowerCase()] = val;
-    });
-  }
+  request.headers.forEach((val, key) => {
+    headersObj[key.toLowerCase()] = val;
+  });
 
   const queryObj: Record<string, string> = {};
   url.searchParams.forEach((val, key) => {
@@ -107,15 +105,13 @@ export async function GET(request?: NextRequest | Request): Promise<Response> {
   }
 }
 
-export async function POST(request?: NextRequest | Request): Promise<Response> {
-  const reqUrl = request?.url || 'http://localhost:3000/api/sync';
+export async function POST(request: NextRequest): Promise<Response> {
+  const reqUrl = request.url;
   const url = new URL(reqUrl);
   const headersObj: Record<string, string> = {};
-  if (request?.headers) {
-    request.headers.forEach((val, key) => {
-      headersObj[key.toLowerCase()] = val;
-    });
-  }
+  request.headers.forEach((val, key) => {
+    headersObj[key.toLowerCase()] = val;
+  });
 
   const queryObj: Record<string, string> = {};
   url.searchParams.forEach((val, key) => {
@@ -124,10 +120,7 @@ export async function POST(request?: NextRequest | Request): Promise<Response> {
 
   let body: any = {};
   try {
-    const text = request?.text ? await request.text() : '';
-    if (text) {
-      body = JSON.parse(text);
-    }
+    body = await request.json();
   } catch {
     body = {};
   }
