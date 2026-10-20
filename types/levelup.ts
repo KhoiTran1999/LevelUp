@@ -2,6 +2,8 @@ export type QuestType = 'focus' | 'bounty';
 export type QuestRank = 'S' | 'A' | 'B' | 'C' | 'D' | 'E';
 export type QuestStatus = 'active' | 'completed' | 'failed';
 
+export type ProofType = 'photo' | 'text' | 'both';
+
 export interface Quest {
   id: string;
   title: string;
@@ -16,6 +18,14 @@ export interface Quest {
   isRepeatable: boolean;
   completedCount: number;
   status: QuestStatus;
+  requiresProof?: boolean;
+  proofType?: ProofType;
+  proofGuidance?: string;
+  proofImageUrl?: string;
+  proofUserNote?: string;
+  proofFeedback?: string;
+  _proofVerified?: boolean;
+  focusTimerCompleted?: boolean;
   history?: Record<string, unknown>;
   createdAt: number;
   savedTimer?: {
@@ -24,6 +34,44 @@ export interface Quest {
     actualFocusedSeconds?: number;
     savedAt?: number;
   };
+}
+
+export interface ProofPhotoItem {
+  id: string;
+  questId: string;
+  questTitle?: string;
+  proofImageUrl?: string;
+  photoUrl?: string;
+  rewardCoins?: number;
+  userNote?: string;
+  feedback?: string;
+  timestamp?: number;
+  createdAt?: number;
+}
+
+export interface ViewerProofData {
+  imageUrl?: string | null;
+  questTitle?: string;
+  userNote?: string;
+  feedback?: string;
+  timestamp?: number | null;
+}
+
+export interface ProofSubmissionPayload {
+  questId: string;
+  title: string;
+  description?: string;
+  proofType: ProofType;
+  workContent?: string;
+  userNote?: string;
+  imageBase64?: string;
+}
+
+export interface ProofVerificationResult {
+  approved: boolean;
+  feedback: string;
+  proofImageUrl?: string;
+  error?: string;
 }
 
 export type ShopItemTier = 'common' | 'rare' | 'epic' | 'legendary';
@@ -152,12 +200,7 @@ export interface LevelUpAppState {
   shopItems: ShopItem[];
   inventory: InventoryItem[];
   completedQuestIds: string[];
-  proofPhotos: Array<{
-    id: string;
-    questId: string;
-    photoUrl: string;
-    createdAt: number;
-  }>;
+  proofPhotos: ProofPhotoItem[];
   ledger: LedgerEntry[];
   activeTimer: ActiveTimer | null;
   lastTimerClearedAt: number;

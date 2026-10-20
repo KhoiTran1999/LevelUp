@@ -10,6 +10,9 @@ import { QuestList } from '@/components/quests/QuestList';
 import { ShopContainer } from '@/components/shop/ShopContainer';
 import { NotesWorkspace } from '@/components/notes/NotesWorkspace';
 import { LegacyViewsBridge } from '@/components/bridge/LegacyViewsBridge';
+import { QuestProofModal } from '@/components/proof/QuestProofModal';
+import { ProofApprovedModal } from '@/components/proof/ProofApprovedModal';
+import { ProofViewerModal } from '@/components/proof/ProofViewerModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +34,8 @@ export default function LevelUpPage() {
       // Exclude duplicate legacy mobile navigation since React 19 MobileBottomNav manages it
       let overlays = rawHtml.slice(mainCloseIndex + 7, confettiIndex);
       overlays = overlays.replace(/<nav class="md:hidden m3-navigation-bar[\s\S]*?<\/nav>/i, '');
+      // Exclude duplicate legacy proof modals since React 19 proof modals manage them
+      overlays = overlays.replace(/<!-- =+\s*-->\s*<!-- MODAL: SUBMIT QUEST PROOF[\s\S]*?(?=<!-- =+\s*-->\s*<!-- ONBOARDING INTERACTIVE TOUR)/i, '');
       legacyOverlaysContent = overlays;
     }
   } catch (err) {
@@ -75,6 +80,11 @@ export default function LevelUpPage() {
 
         {/* Legacy Modals, Overlays, and Sheets */}
         <LegacyViewsBridge content={legacyOverlaysContent} />
+
+        {/* React 19 Quest Proof & AI Arbiter Modals */}
+        <QuestProofModal />
+        <ProofApprovedModal />
+        <ProofViewerModal />
 
         {/* React 19 Mobile Bottom Navigation */}
         <MobileBottomNav />

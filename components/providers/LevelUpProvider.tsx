@@ -1,7 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useOptimistic, useTransition, useCallback } from 'react';
-import type { LevelUpAppState, Quest, TabType, UserProfile, ActiveTimer, ShopItem, InventoryItem, LedgerEntry, NoteItem } from '@/types/levelup';
+import type {
+  LevelUpAppState,
+  Quest,
+  TabType,
+  UserProfile,
+  ActiveTimer,
+  ShopItem,
+  InventoryItem,
+  LedgerEntry,
+  NoteItem,
+  ViewerProofData,
+  ProofSubmissionPayload,
+  ProofVerificationResult,
+} from '@/types/levelup';
 
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
@@ -124,9 +137,23 @@ interface LevelUpContextType {
   isSyncing: boolean;
   setActiveTab: (tab: TabType) => void;
   // Quest Actions
-  completeQuest: (questId: string) => Promise<void>;
+  completeQuest: (questId: string, skipProofCheck?: boolean) => Promise<void>;
   addQuest: (quest: Partial<Quest>) => void;
   deleteQuest: (questId: string) => void;
+  // Quest Proof Actions & Modals
+  activeProofQuest: Quest | null;
+  pendingApprovedQuest: Quest | null;
+  viewerProofData: ViewerProofData | null;
+  isProofModalOpen: boolean;
+  isProofApprovedModalOpen: boolean;
+  isProofViewerModalOpen: boolean;
+  openProofModal: (quest: Quest) => void;
+  closeProofModal: () => void;
+  submitProof: (payload: ProofSubmissionPayload) => Promise<ProofVerificationResult>;
+  claimApprovedProof: () => void;
+  closeProofApprovedModal: () => void;
+  openProofViewer: (data: ViewerProofData) => void;
+  closeProofViewer: () => void;
   // Shop Actions
   buyShopItem: (item: ShopItem) => Promise<boolean>;
   useInventoryItem: (invId: string) => Promise<void>;
@@ -186,6 +213,12 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTabState] = useState<TabType>('quests');
   const [activeNoteId, setActiveNoteIdState] = useState<string>('note_seed_1');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [activeProofQuest, setActiveProofQuest] = useState<Quest | null>(null);
+  const [pendingApprovedQuest, setPendingApprovedQuest] = useState<Quest | null>(null);
+  const [viewerProofData, setViewerProofData] = useState<ViewerProofData | null>(null);
+  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [isProofApprovedModalOpen, setIsProofApprovedModalOpen] = useState(false);
+  const [isProofViewerModalOpen, setIsProofViewerModalOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   // React 19 useOptimistic for immediate user feedback
@@ -406,10 +439,117 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const openProofModal = useCallback((quest: Quest) => {
+    setActiveProofQuest(quest);
+    setIsProofModalOpen(true);
+  }, []);
+
+  const closeProofModal = useCallback(() => {
+    setIsProofModalOpen(false);
+    setActiveProofQuest(null);
+  }, []);
+
+  const openProofViewer = useCallback((data: ViewerProofData) => {
+    setViewerProofData(data);
+    setIsProofViewerModalOpen(true);
+  }, []);
+
+  const closeProofViewer = useCallback(() => {
+    setIsProofViewerModalOpen(false);
+    setViewerProofData(null);
+  }, []);
+
+  const closeProofApprovedModal = useCallback(() => {
+    setIsProofApprovedModalOpen(false);
+    setPendingApprovedQuest(null);
+  }, []);
+
+  const submitProof = useCallback(
+    async (payload: ProofSubmissionPayload): Promise<ProofVerificationResult> => {
+      const quest = state.quests.find(q => q.id === payload.questId) || activeProofQuest;
+      if (!quest) {
+        throw new Error('Không tìm thấy thông tin nhiệm vụ.');
+      }
+
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'verify_proof',
+          payload,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.details || 'Lỗi kết nối AI');
+      }
+
+      const data: ProofVerificationResult = await res.json();
+      if (data.approved) {
+        const updatedQuest: Quest = {
+          ...quest,
+          _proofVerified: true,
+          proofUserNote: payload.userNote || payload.workContent || '',
+          proofFeedback: data.feedback || '',
+          proofImageUrl: data.proofImageUrl || quest.proofImageUrl,
+        };
+
+        setPendingApprovedQuest(updatedQuest);
+
+        if (data.proofImageUrl) {
+          const newPhotoItem = {
+            id: `proof_${Date.now()}`,
+            questId: quest.id,
+            questTitle: quest.title,
+            proofImageUrl: data.proofImageUrl,
+            photoUrl: data.proofImageUrl,
+            rewardCoins: quest.rewardCoins || 10,
+            userNote: payload.userNote || payload.workContent || '',
+            feedback: data.feedback || '',
+            timestamp: Date.now(),
+            createdAt: Date.now(),
+          };
+
+          setState(prev => ({
+            ...prev,
+            proofPhotos: [newPhotoItem, ...prev.proofPhotos.slice(0, 99)],
+          }));
+        }
+
+        setIsProofModalOpen(false);
+        setIsProofApprovedModalOpen(true);
+
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as { sfx?: { playFanfare?: () => void } };
+          win.sfx?.playFanfare?.();
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as { sfx?: { playGong?: () => void } };
+          win.sfx?.playGong?.();
+        }
+      }
+
+      return data;
+    },
+    [state.quests, activeProofQuest]
+  );
+
   const completeQuest = useCallback(
-    async (questId: string) => {
+    async (questId: string, skipProofCheck = false) => {
       const quest = state.quests.find(q => q.id === questId);
       if (!quest || quest.status === 'completed') return;
+
+      // If proof is required and not yet verified, open proof modal
+      if (!skipProofCheck && quest.requiresProof && !quest._proofVerified) {
+        setActiveProofQuest(quest);
+        setIsProofModalOpen(true);
+        return;
+      }
 
       const rewardCoins = quest.rewardCoins || 5;
 
@@ -427,6 +567,17 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         window.dispatchEvent(new CustomEvent('levelup:quest-completed', { detail: { quest } }));
       }
 
+      // Record in ledger
+      const newLedgerEntry: LedgerEntry = {
+        id: `ledger_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type: 'earn',
+        category: 'quest',
+        amount: rewardCoins,
+        title: `Hoàn thành: ${quest.title}`,
+        description: `Nhiệm vụ ${quest.type === 'focus' ? 'Tập trung' : 'Làm ngay'} · Hạng ${quest.rank || 'C'}`,
+        timestamp: Date.now(),
+      };
+
       // Persist state update
       setState(prev => ({
         ...prev,
@@ -437,13 +588,57 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         },
         quests: prev.quests.map(q =>
           q.id === questId
-            ? { ...q, status: 'completed' as const, completedCount: (q.completedCount || 0) + 1 }
+            ? {
+                ...q,
+                status: 'completed' as const,
+                completedCount: (q.completedCount || 0) + 1,
+                _proofVerified: true,
+              }
             : q
         ),
+        completedQuestIds: prev.completedQuestIds.includes(questId)
+          ? prev.completedQuestIds
+          : [...prev.completedQuestIds, questId],
+        ledger: [newLedgerEntry, ...prev.ledger],
       }));
     },
     [state.quests, state.profile.coins, state.profile.totalCoinsEarned, setOptimisticProfile, setOptimisticQuests]
   );
+
+  const claimApprovedProof = useCallback(() => {
+    if (!pendingApprovedQuest) return;
+    const questToClaim = pendingApprovedQuest;
+    setPendingApprovedQuest(null);
+    setIsProofApprovedModalOpen(false);
+    completeQuest(questToClaim.id, true);
+  }, [pendingApprovedQuest, completeQuest]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const win = window as unknown as {
+      openQuestProofModal?: (q: Quest) => void;
+      openProofViewerModal?: (
+        imageUrl?: string | null,
+        questTitle?: string,
+        userNote?: string,
+        feedback?: string,
+        timestamp?: number | null
+      ) => void;
+    };
+    win.openQuestProofModal = (quest: Quest) => {
+      openProofModal(quest);
+    };
+    win.openProofViewerModal = (
+      imageUrl?: string | null,
+      questTitle?: string,
+      userNote?: string,
+      feedback?: string,
+      timestamp?: number | null
+    ) => {
+      openProofViewer({ imageUrl, questTitle, userNote, feedback, timestamp });
+    };
+  }, [openProofModal, openProofViewer]);
 
   const addQuest = useCallback((newQuestData: Partial<Quest>) => {
     const newQuest: Quest = {
@@ -1119,6 +1314,19 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         completeQuest,
         addQuest,
         deleteQuest,
+        activeProofQuest,
+        pendingApprovedQuest,
+        viewerProofData,
+        isProofModalOpen,
+        isProofApprovedModalOpen,
+        isProofViewerModalOpen,
+        openProofModal,
+        closeProofModal,
+        submitProof,
+        claimApprovedProof,
+        closeProofApprovedModal,
+        openProofViewer,
+        closeProofViewer,
         buyShopItem,
         useInventoryItem,
         refundInventoryItem,
