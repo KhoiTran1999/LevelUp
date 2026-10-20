@@ -2,6 +2,9 @@
 // 13. MODAL & NAVIGATION CONTROLLERS (Mobile Bottom Bar + Desktop Top Tabs)
 // =============================================================================
 function updateRewardsNavBadge() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const totalRewardsBadge = document.getElementById('badge-rewards-total');
   const unusedCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
   if (totalRewardsBadge) totalRewardsBadge.textContent = unusedCount;
@@ -10,6 +13,10 @@ function updateRewardsNavBadge() {
 }
 
 function switchRewardSubtab(subtab) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:switch-reward-subtab', { detail: { subtab } }));
+    return;
+  }
   const btnShop = document.getElementById('subtab-btn-shop');
   const btnInv = document.getElementById('subtab-btn-inventory');
   const paneShop = document.getElementById('subtab-pane-shop');

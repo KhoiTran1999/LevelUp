@@ -2898,6 +2898,9 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
       appState.activeTimer = null;
       appState.lastTimerClearedAt = Date.now();
       if (syncCloudNow) triggerSave(true, immediate, timerAction || 'cancel', true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+      }
     }
     return;
   }
@@ -2908,6 +2911,7 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
   }
 
   const state = {
+    status: isFocusRunning ? 'running' : 'paused',
     questId: activeFocusQuest ? activeFocusQuest.id : null,
     questTitle: activeFocusQuest ? activeFocusQuest.title : null,
     questRank: activeFocusQuest ? activeFocusQuest.rank : null,
@@ -2917,6 +2921,9 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     rewardItemName: activeRewardItem ? activeRewardItem.name : null,
     rewardItemIcon: activeRewardItem ? activeRewardItem.icon : null,
     isRewardMode: Boolean(activeRewardItem),
+    rewardId: activeRewardItem ? activeRewardItem.id : null,
+    rewardTitle: activeRewardItem ? activeRewardItem.name : null,
+    isReward: Boolean(activeRewardItem),
     remainingSeconds: Math.max(0, Math.round(focusRemainingSeconds)),
     totalSeconds: Math.max(0, Math.round(focusTotalSeconds)),
     actualFocusedSeconds: Math.max(0, Math.round(actualFocusedSeconds)),
@@ -2926,7 +2933,15 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     lastTickTime: Date.now(),
     updatedAt: (timerAction || !appState.activeTimer?.updatedAt) ? Date.now() : appState.activeTimer.updatedAt
   };
+  const wasNull = !appState.activeTimer;
+  const prevQuestId = appState.activeTimer?.questId;
+  const prevRunning = appState.activeTimer?.isRunning;
   appState.activeTimer = state;
+  if (timerAction || wasNull || prevQuestId !== state.questId || prevRunning !== state.isRunning) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    }
+  }
   try {
     localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
   } catch (_) {}
@@ -3339,6 +3354,10 @@ function renderFocusStationUI() {
 }
 
 function updateQuestCardTimerState(questId, isRunning, isFocusing) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    // In React 19 architecture, QuestCard component automatically handles its activeTimer state reactively!
+    return;
+  }
   const cards = document.querySelectorAll('#quests-grid .rpg-card, #quests-container .rpg-card');
   cards.forEach(card => {
     const cid = card.dataset.questId;
@@ -4098,10 +4117,10 @@ async function startFocusTimer(quest) {
   lastTickTime = Date.now();
 
   // Optimistic UI updates - 0ms latency phản hồi ngay trên giao diện
+  saveFocusTimerState(true, true, 'start');
   renderQuests();
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState(true, true, 'start');
   requestWakeLock();
   startTimerKeepAlive();
 
@@ -4589,6 +4608,9 @@ function clearFocusTimerSession(syncToCloud = true) {
         } catch (_) {}
       }
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    }
   }
 
   updateQuestCardTimerState(oldQuestId, false, false);
@@ -4712,7 +4734,8 @@ function saveEditTimer(mins, secs) {
 function toggleZenMode(show) {
   const overlay = document.getElementById('focus-zen-overlay');
   if (!overlay) return;
-  if (show) {
+  const willShow = show !== undefined ? Boolean(show) : overlay.classList.contains('hidden');
+  if (willShow) {
     overlay.classList.remove('hidden');
     const zenTitle = document.getElementById('zen-quest-title');
     const zenRank = document.getElementById('zen-quest-rank');
@@ -4729,7 +4752,7 @@ function toggleZenMode(show) {
       if (zenTitle) zenTitle.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
       if (zenRank) {
         const rawTier = (activeRewardItem.tier || 'rare').toLowerCase();
-        zenRank.textContent = REWARD_TIER_LABELS[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
+        zenRank.textContent = (typeof REWARD_TIER_LABELS !== 'undefined' && REWARD_TIER_LABELS[rawTier]) || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30 hidden';
       }
       if (zenProtocol) zenProtocol.textContent = 'TẬN HƯỞNG PHẦN THƯỞNG';
@@ -4740,10 +4763,36 @@ function toggleZenMode(show) {
         zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono hidden`;
       }
       if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
+    } else if (typeof appState !== 'undefined' && appState?.activeTimer) {
+      const q = appState.quests?.find(x => x.id === appState.activeTimer.questId);
+      if (zenTitle) zenTitle.textContent = q ? q.title : (appState.activeTimer.questTitle || 'Đang tập trung');
+      if (zenRank && q) {
+        zenRank.textContent = `HẠNG ${q.rank}`;
+        zenRank.className = `rank-badge-${q.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono hidden`;
+      }
+      if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
     }
+
+    if (typeof updateTimerDisplay === 'function') {
+      updateTimerDisplay();
+    }
+
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (_) {}
   } else {
     overlay.classList.add('hidden');
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch (_) {}
   }
+}
+if (typeof window !== 'undefined') {
+  window.toggleZenMode = toggleZenMode;
 }
 
 function focusTimerFinished() {
@@ -10350,6 +10399,13 @@ window.renderM3TableLoading = renderM3TableLoading;
 
 function renderHeader() {
   const p = appState.profile;
+  if (!p) return;
+
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const heroAvatar = document.getElementById('hero-avatar');
   if (heroAvatar) {
     if (isAvatarUrl(p.avatar)) {
@@ -10594,6 +10650,9 @@ function renderWeekStrip() {
 window.renderWeekStrip = renderWeekStrip;
 
 function renderQuestsDailyProgress() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const container = document.getElementById('quests-daily-progress');
   const textEl = document.getElementById('quests-daily-progress-text');
   const statusEl = document.getElementById('quests-daily-progress-status');
@@ -10641,6 +10700,11 @@ function renderQuestsDailyProgress() {
 window.renderQuestsDailyProgress = renderQuestsDailyProgress;
 
 function renderQuests() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   renderWeekStrip();
   renderQuestsDailyProgress();
   const grid = document.getElementById('quests-grid');
@@ -10676,12 +10740,12 @@ function renderQuests() {
   if (activeCountBadge) activeCountBadge.textContent = activeCount;
 
   if (filtered.length === 0) {
-    grid.innerHTML = '';
-    empty.classList.remove('hidden');
+    if (grid) grid.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
     return;
   }
-  empty.classList.add('hidden');
-  grid.innerHTML = '';
+  if (empty) empty.classList.add('hidden');
+  if (grid) grid.innerHTML = '';
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
   const fragment = document.createDocumentFragment();
 
@@ -11359,10 +11423,17 @@ window.openQuestDetailModal = openQuestDetailModal;
 
 
 function renderShop() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const grid = document.getElementById('shop-grid');
   const countBadge = document.getElementById('badge-shop-count');
   if (countBadge) countBadge.textContent = appState.shopItems.length;
   updateRewardsNavBadge();
+
+  if (!grid) return;
 
   grid.innerHTML = '';
 
@@ -11492,6 +11563,11 @@ function renderShop() {
 }
 
 function renderInventory() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const grid = document.getElementById('inventory-grid');
   const empty = document.getElementById('inventory-empty');
   const countBadge = document.getElementById('badge-inventory-count');
@@ -11499,6 +11575,8 @@ function renderInventory() {
   const totalInvCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
   if (countBadge) countBadge.textContent = totalInvCount;
   updateRewardsNavBadge();
+
+  if (!grid) return;
 
   if (appState.inventory.length === 0) {
     grid.innerHTML = '';
@@ -12487,6 +12565,9 @@ function renderAll() {
 }
 
 function renderSkeletons() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const heroAvatar = document.getElementById('hero-avatar');
   const heroNick = document.getElementById('hero-nickname');
   const heroTitle = document.getElementById('hero-title');
@@ -13013,6 +13094,9 @@ window.renderItemFrequencyModal = renderItemFrequencyModal;
 // 13. MODAL & NAVIGATION CONTROLLERS (Mobile Bottom Bar + Desktop Top Tabs)
 // =============================================================================
 function updateRewardsNavBadge() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const totalRewardsBadge = document.getElementById('badge-rewards-total');
   const unusedCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
   if (totalRewardsBadge) totalRewardsBadge.textContent = unusedCount;
@@ -13021,6 +13105,10 @@ function updateRewardsNavBadge() {
 }
 
 function switchRewardSubtab(subtab) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:switch-reward-subtab', { detail: { subtab } }));
+    return;
+  }
   const btnShop = document.getElementById('subtab-btn-shop');
   const btnInv = document.getElementById('subtab-btn-inventory');
   const paneShop = document.getElementById('subtab-pane-shop');
@@ -20914,6 +21002,11 @@ function initLevelUpApp() {
   // Phím Escape: đóng modal chi tiết hoặc chặn đóng đối với modal quan trọng
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const zenOverlay = document.getElementById('focus-zen-overlay');
+      if (zenOverlay && !zenOverlay.classList.contains('hidden')) {
+        toggleZenMode(false);
+        return;
+      }
       if (isTourActive) {
         e.preventDefault();
         finishTour(false);

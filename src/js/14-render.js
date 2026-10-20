@@ -86,6 +86,13 @@ window.renderM3TableLoading = renderM3TableLoading;
 
 function renderHeader() {
   const p = appState.profile;
+  if (!p) return;
+
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const heroAvatar = document.getElementById('hero-avatar');
   if (heroAvatar) {
     if (isAvatarUrl(p.avatar)) {
@@ -330,6 +337,9 @@ function renderWeekStrip() {
 window.renderWeekStrip = renderWeekStrip;
 
 function renderQuestsDailyProgress() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const container = document.getElementById('quests-daily-progress');
   const textEl = document.getElementById('quests-daily-progress-text');
   const statusEl = document.getElementById('quests-daily-progress-status');
@@ -377,6 +387,11 @@ function renderQuestsDailyProgress() {
 window.renderQuestsDailyProgress = renderQuestsDailyProgress;
 
 function renderQuests() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   renderWeekStrip();
   renderQuestsDailyProgress();
   const grid = document.getElementById('quests-grid');
@@ -412,12 +427,12 @@ function renderQuests() {
   if (activeCountBadge) activeCountBadge.textContent = activeCount;
 
   if (filtered.length === 0) {
-    grid.innerHTML = '';
-    empty.classList.remove('hidden');
+    if (grid) grid.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
     return;
   }
-  empty.classList.add('hidden');
-  grid.innerHTML = '';
+  if (empty) empty.classList.add('hidden');
+  if (grid) grid.innerHTML = '';
   // ponytail: batch DOM card insertion via DocumentFragment to eliminate layout thrashing
   const fragment = document.createDocumentFragment();
 
@@ -1095,10 +1110,17 @@ window.openQuestDetailModal = openQuestDetailModal;
 
 
 function renderShop() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const grid = document.getElementById('shop-grid');
   const countBadge = document.getElementById('badge-shop-count');
   if (countBadge) countBadge.textContent = appState.shopItems.length;
   updateRewardsNavBadge();
+
+  if (!grid) return;
 
   grid.innerHTML = '';
 
@@ -1228,6 +1250,11 @@ function renderShop() {
 }
 
 function renderInventory() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
+
   const grid = document.getElementById('inventory-grid');
   const empty = document.getElementById('inventory-empty');
   const countBadge = document.getElementById('badge-inventory-count');
@@ -1235,6 +1262,8 @@ function renderInventory() {
   const totalInvCount = Array.isArray(appState.inventory) ? appState.inventory.length : 0;
   if (countBadge) countBadge.textContent = totalInvCount;
   updateRewardsNavBadge();
+
+  if (!grid) return;
 
   if (appState.inventory.length === 0) {
     grid.innerHTML = '';
@@ -2223,6 +2252,9 @@ function renderAll() {
 }
 
 function renderSkeletons() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const heroAvatar = document.getElementById('hero-avatar');
   const heroNick = document.getElementById('hero-nickname');
   const heroTitle = document.getElementById('hero-title');

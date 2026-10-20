@@ -1832,6 +1832,11 @@ function initLevelUpApp() {
   // Phím Escape: đóng modal chi tiết hoặc chặn đóng đối với modal quan trọng
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const zenOverlay = document.getElementById('focus-zen-overlay');
+      if (zenOverlay && !zenOverlay.classList.contains('hidden')) {
+        toggleZenMode(false);
+        return;
+      }
       if (isTourActive) {
         e.preventDefault();
         finishTour(false);

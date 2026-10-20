@@ -499,6 +499,9 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
       appState.activeTimer = null;
       appState.lastTimerClearedAt = Date.now();
       if (syncCloudNow) triggerSave(true, immediate, timerAction || 'cancel', true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+      }
     }
     return;
   }
@@ -509,6 +512,7 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
   }
 
   const state = {
+    status: isFocusRunning ? 'running' : 'paused',
     questId: activeFocusQuest ? activeFocusQuest.id : null,
     questTitle: activeFocusQuest ? activeFocusQuest.title : null,
     questRank: activeFocusQuest ? activeFocusQuest.rank : null,
@@ -518,6 +522,9 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     rewardItemName: activeRewardItem ? activeRewardItem.name : null,
     rewardItemIcon: activeRewardItem ? activeRewardItem.icon : null,
     isRewardMode: Boolean(activeRewardItem),
+    rewardId: activeRewardItem ? activeRewardItem.id : null,
+    rewardTitle: activeRewardItem ? activeRewardItem.name : null,
+    isReward: Boolean(activeRewardItem),
     remainingSeconds: Math.max(0, Math.round(focusRemainingSeconds)),
     totalSeconds: Math.max(0, Math.round(focusTotalSeconds)),
     actualFocusedSeconds: Math.max(0, Math.round(actualFocusedSeconds)),
@@ -527,7 +534,15 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
     lastTickTime: Date.now(),
     updatedAt: (timerAction || !appState.activeTimer?.updatedAt) ? Date.now() : appState.activeTimer.updatedAt
   };
+  const wasNull = !appState.activeTimer;
+  const prevQuestId = appState.activeTimer?.questId;
+  const prevRunning = appState.activeTimer?.isRunning;
   appState.activeTimer = state;
+  if (timerAction || wasNull || prevQuestId !== state.questId || prevRunning !== state.isRunning) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    }
+  }
   try {
     localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
   } catch (_) {}
@@ -940,6 +955,10 @@ function renderFocusStationUI() {
 }
 
 function updateQuestCardTimerState(questId, isRunning, isFocusing) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    // In React 19 architecture, QuestCard component automatically handles its activeTimer state reactively!
+    return;
+  }
   const cards = document.querySelectorAll('#quests-grid .rpg-card, #quests-container .rpg-card');
   cards.forEach(card => {
     const cid = card.dataset.questId;
@@ -1699,10 +1718,10 @@ async function startFocusTimer(quest) {
   lastTickTime = Date.now();
 
   // Optimistic UI updates - 0ms latency phản hồi ngay trên giao diện
+  saveFocusTimerState(true, true, 'start');
   renderQuests();
   renderFocusStationUI();
   updateTimerDisplay();
-  saveFocusTimerState(true, true, 'start');
   requestWakeLock();
   startTimerKeepAlive();
 
@@ -2190,6 +2209,9 @@ function clearFocusTimerSession(syncToCloud = true) {
         } catch (_) {}
       }
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    }
   }
 
   updateQuestCardTimerState(oldQuestId, false, false);
@@ -2313,7 +2335,8 @@ function saveEditTimer(mins, secs) {
 function toggleZenMode(show) {
   const overlay = document.getElementById('focus-zen-overlay');
   if (!overlay) return;
-  if (show) {
+  const willShow = show !== undefined ? Boolean(show) : overlay.classList.contains('hidden');
+  if (willShow) {
     overlay.classList.remove('hidden');
     const zenTitle = document.getElementById('zen-quest-title');
     const zenRank = document.getElementById('zen-quest-rank');
@@ -2330,7 +2353,7 @@ function toggleZenMode(show) {
       if (zenTitle) zenTitle.textContent = `${activeRewardItem.icon || '🎁'} ${activeRewardItem.name}`;
       if (zenRank) {
         const rawTier = (activeRewardItem.tier || 'rare').toLowerCase();
-        zenRank.textContent = REWARD_TIER_LABELS[rawTier] || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
+        zenRank.textContent = (typeof REWARD_TIER_LABELS !== 'undefined' && REWARD_TIER_LABELS[rawTier]) || (activeRewardItem.tier || 'PHẦN THƯỞNG').toUpperCase();
         zenRank.className = 'text-xs px-2.5 py-0.5 rounded font-bold font-mono bg-purple-500/20 text-purple-400 border border-purple-500/30 hidden';
       }
       if (zenProtocol) zenProtocol.textContent = 'TẬN HƯỞNG PHẦN THƯỞNG';
@@ -2341,10 +2364,36 @@ function toggleZenMode(show) {
         zenRank.className = `rank-badge-${activeFocusQuest.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono hidden`;
       }
       if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
+    } else if (typeof appState !== 'undefined' && appState?.activeTimer) {
+      const q = appState.quests?.find(x => x.id === appState.activeTimer.questId);
+      if (zenTitle) zenTitle.textContent = q ? q.title : (appState.activeTimer.questTitle || 'Đang tập trung');
+      if (zenRank && q) {
+        zenRank.textContent = `HẠNG ${q.rank}`;
+        zenRank.className = `rank-badge-${q.rank} text-xs px-2.5 py-0.5 rounded font-bold font-mono hidden`;
+      }
+      if (zenProtocol) zenProtocol.textContent = 'CHẾ ĐỘ TẬP TRUNG';
     }
+
+    if (typeof updateTimerDisplay === 'function') {
+      updateTimerDisplay();
+    }
+
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (_) {}
   } else {
     overlay.classList.add('hidden');
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch (_) {}
   }
+}
+if (typeof window !== 'undefined') {
+  window.toggleZenMode = toggleZenMode;
 }
 
 function focusTimerFinished() {

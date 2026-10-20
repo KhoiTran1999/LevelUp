@@ -108,7 +108,9 @@ export default function RootLayout({
         />
 
         {/* Early script for font-active class, theme palette and dark mode before paint */}
-        <script
+        <Script
+          id="early-theme-font-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
             (function() {
@@ -155,10 +157,10 @@ export default function RootLayout({
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
 
         {/* Confetti Celebration VFX */}
-        <script src="/vendor/confetti.browser.min.js" defer></script>
+        <Script src="/vendor/confetti.browser.min.js" strategy="afterInteractive" />
 
         {/* Main LevelUp Client Application Bundle */}
-        <script src="/app.js?v=1.0.5" defer></script>
+        <Script src="/app.js?v=1.0.5" strategy="afterInteractive" />
 
         {/* PWA Service Worker Registration */}
         <Script id="pwa-sw-registration" strategy="afterInteractive">
