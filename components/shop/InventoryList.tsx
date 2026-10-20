@@ -28,23 +28,35 @@ export function InventoryList({ onSwitchToShop }: InventoryListProps) {
   };
 
   // Sắp xếp Kho Quà: Đang dùng ghim đầu ➔ Chưa dùng xếp trước Đã dùng ➔ Quà chưa dùng xếp Tier cao -> thấp
-  const sortedInventory = [...optimisticInventory].sort((a, b) => {
-    const aActive = activeTimer?.rewardId === a.id ? 1 : 0;
-    const bActive = activeTimer?.rewardId === b.id ? 1 : 0;
-    if (aActive !== bActive) return bActive - aActive;
-
-    const aUsed = a.isUsed ? 1 : 0;
-    const bUsed = b.isUsed ? 1 : 0;
-    if (aUsed !== bUsed) return aUsed - bUsed;
-
-    if (!a.isUsed && !b.isUsed) {
-      const scoreA = tierScores[(a.tier || 'rare').toLowerCase()] ?? 1;
-      const scoreB = tierScores[(b.tier || 'rare').toLowerCase()] ?? 1;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return (b.price || 0) - (a.price || 0);
+  const sortedInventory = React.useMemo(() => {
+    // ponytail: Deduplicate inventory by ID to guarantee unique React keys. Upgrade path: DB PK constraint.
+    const seenIds = new Set<string>();
+    const uniqueItems: InventoryItem[] = [];
+    for (const item of optimisticInventory) {
+      if (item && item.id && !seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        uniqueItems.push(item);
+      }
     }
-    return (b.purchasedAt || 0) - (a.purchasedAt || 0);
-  });
+
+    return uniqueItems.sort((a, b) => {
+      const aActive = activeTimer?.rewardId === a.id ? 1 : 0;
+      const bActive = activeTimer?.rewardId === b.id ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+
+      const aUsed = a.isUsed ? 1 : 0;
+      const bUsed = b.isUsed ? 1 : 0;
+      if (aUsed !== bUsed) return aUsed - bUsed;
+
+      if (!a.isUsed && !b.isUsed) {
+        const scoreA = tierScores[(a.tier || 'rare').toLowerCase()] ?? 1;
+        const scoreB = tierScores[(b.tier || 'rare').toLowerCase()] ?? 1;
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return (b.price || 0) - (a.price || 0);
+      }
+      return (b.purchasedAt || 0) - (a.purchasedAt || 0);
+    });
+  }, [optimisticInventory, activeTimer?.rewardId]);
 
   const handleOpenDetail = (item: InventoryItem) => {
     if (

@@ -26,6 +26,24 @@ function notifyBankToast(msg: string, type: 'info' | 'success' | 'warning' | 'er
   }
 }
 
+// ponytail: Fast array deduplicator by unique id for React keys & DB integrity. Upgrade path: database PK.
+function dedupeById<T extends { id?: string }>(items: T[]): T[] {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    if (item && item.id) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        result.push(item);
+      }
+    } else if (item) {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
     id: 'shop_seed_1',
@@ -411,14 +429,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
                 ...prev,
                 ...cloudData,
                 profile: mergedProfile,
-                quests: Array.isArray(cloudData.quests) && cloudData.quests.length > 0 ? cloudData.quests : prev.quests,
-                shopItems: Array.isArray(cloudData.shopItems) && cloudData.shopItems.length > 0 ? cloudData.shopItems : prev.shopItems,
-                inventory: Array.isArray(cloudData.inventory) ? cloudData.inventory : prev.inventory,
-                notes: Array.isArray(cloudData.notes) && cloudData.notes.length > 0 ? cloudData.notes : prev.notes,
+                quests: Array.isArray(cloudData.quests) && cloudData.quests.length > 0 ? dedupeById(cloudData.quests) : dedupeById(prev.quests),
+                shopItems: Array.isArray(cloudData.shopItems) && cloudData.shopItems.length > 0 ? dedupeById(cloudData.shopItems) : dedupeById(prev.shopItems),
+                inventory: Array.isArray(cloudData.inventory) ? dedupeById(cloudData.inventory) : dedupeById(prev.inventory),
+                notes: Array.isArray(cloudData.notes) && cloudData.notes.length > 0 ? dedupeById(cloudData.notes) : dedupeById(prev.notes),
                 activeNoteId: cloudData.activeNoteId || prev.activeNoteId,
                 focusNotes: typeof cloudData.focusNotes === 'string' ? cloudData.focusNotes : prev.focusNotes,
-                ledger: Array.isArray(cloudData.ledger) ? cloudData.ledger : prev.ledger,
-                proofPhotos: Array.isArray(cloudData.proofPhotos) ? cloudData.proofPhotos : prev.proofPhotos,
+                ledger: Array.isArray(cloudData.ledger) ? dedupeById(cloudData.ledger) : dedupeById(prev.ledger),
+                proofPhotos: Array.isArray(cloudData.proofPhotos) ? dedupeById(cloudData.proofPhotos) : dedupeById(prev.proofPhotos),
                 completedQuestIds: Array.isArray(cloudData.completedQuestIds) ? cloudData.completedQuestIds : prev.completedQuestIds,
                 activeTimer: cloudData.activeTimer !== undefined ? cloudData.activeTimer : prev.activeTimer,
                 lastSyncedAt: result.syncedAt || cloudData.lastSyncedAt || Date.now(),
@@ -456,16 +474,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         setState(prev => {
           let nextQuests = prev.quests;
           if (Array.isArray(customEvent.detail.quests) && customEvent.detail.quests.length > 0) {
-            const incomingIds = new Set(customEvent.detail.quests.map(q => q.id));
+            const cleanIncoming = dedupeById(customEvent.detail.quests);
+            const incomingIds = new Set(cleanIncoming.map(q => q.id));
             const userQuests = prev.quests.filter(q => !incomingIds.has(q.id) && !q.id.startsWith('q_seed_'));
-            nextQuests = [...userQuests, ...customEvent.detail.quests];
+            nextQuests = dedupeById([...cleanIncoming, ...userQuests]);
           }
 
           let nextShop = prev.shopItems;
           if (Array.isArray(customEvent.detail.shopItems) && customEvent.detail.shopItems.length > 0) {
-            const incomingShopIds = new Set(customEvent.detail.shopItems.map(s => s.id));
+            const cleanIncomingShop = dedupeById(customEvent.detail.shopItems);
+            const incomingShopIds = new Set(cleanIncomingShop.map(s => s.id));
             const userShop = prev.shopItems.filter(s => !incomingShopIds.has(s.id) && !s.id.startsWith('shop_seed_'));
-            nextShop = [...userShop, ...customEvent.detail.shopItems];
+            nextShop = dedupeById([...cleanIncomingShop, ...userShop]);
           }
 
           const next = {
@@ -473,6 +493,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...customEvent.detail,
             quests: nextQuests,
             shopItems: nextShop,
+            inventory: Array.isArray(customEvent.detail.inventory) ? dedupeById(customEvent.detail.inventory) : prev.inventory,
           };
           return next;
         });
@@ -1400,7 +1421,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           : [newQuest, ...prev.quests];
       const next = {
         ...prev,
-        quests: nextQuests,
+        quests: dedupeById(nextQuests),
       };
       queueSyncToCloud(next, true);
       return next;
@@ -1421,6 +1442,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         } else {
           win.appState.quests.unshift(newQuest);
         }
+        win.appState.quests = dedupeById(win.appState.quests);
         win.triggerSave?.(true, true);
       }
       window.dispatchEvent(
@@ -1852,7 +1874,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           : [newItem, ...prev.shopItems];
       const next = {
         ...prev,
-        shopItems: nextShopItems,
+        shopItems: dedupeById(nextShopItems),
       };
       queueSyncToCloud(next, true);
       return next;
@@ -1873,6 +1895,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         } else {
           win.appState.shopItems.unshift(newItem);
         }
+        win.appState.shopItems = dedupeById(win.appState.shopItems);
         win.triggerSave?.(true, true);
       }
       window.dispatchEvent(

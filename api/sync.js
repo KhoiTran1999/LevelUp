@@ -75,6 +75,25 @@ export function setMinRedemptionIntervalForTesting(ms) {
 
 const HMAC_SECRET = process.env.APP_SECRET || process.env.REDIS_URL || 'levelup_vault_secret_2026';
 
+// ponytail: Deduplicate array of objects by id/questId to prevent duplicate React keys. Upgrade path: DB primary key constraint.
+export function dedupeById(items) {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const id = item?.id || item?.questId;
+    if (id) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        result.push(item);
+      }
+    } else if (item) {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 export function deriveTitleForLevel(lvl) {
   const l = parseInt(lvl, 10) || 1;
   if (l >= 20) return 'Huyền Thoại Kỷ Luật';
@@ -915,9 +934,9 @@ export async function getUserCloudData(redis, userSub) {
     return {
       profile: parsed.profile || {},
       bank: parsed.profile?.bank || parsed.bank || null,
-      quests: Array.isArray(parsed.quests) ? parsed.quests : [],
-      shopItems: Array.isArray(parsed.shopItems) ? parsed.shopItems : [],
-      inventory: Array.isArray(parsed.inventory) ? parsed.inventory : [],
+      quests: dedupeById(parsed.quests),
+      shopItems: dedupeById(parsed.shopItems),
+      inventory: dedupeById(parsed.inventory),
       ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
       proofPhotos: Array.isArray(parsed.proofPhotos) ? parsed.proofPhotos : [],
       activeTimer: parsed.activeTimer || null
@@ -1862,6 +1881,10 @@ export default async function handler(req, res) {
         sessionToken: token || undefined,
         data: {
           ...data,
+          quests: dedupeById(data.quests),
+          shopItems: dedupeById(data.shopItems),
+          inventory: dedupeById(data.inventory),
+          notes: dedupeById(data.notes),
           profile: {
             ...(data.profile || {}),
             ...(token ? { sessionToken: token } : {})
@@ -3204,17 +3227,17 @@ export default async function handler(req, res) {
       } catch (_) {}
 
       // ponytail: Tối ưu hóa lưu trữ User State (Rolling Window cho completed quests & used inventory)
-      const incomingQuests = Array.isArray(state.quests) ? state.quests : [];
+      const incomingQuests = dedupeById(Array.isArray(state.quests) ? state.quests : []);
       const activeQuests = incomingQuests.filter(q => q.status !== 'completed');
       const completedQuests = incomingQuests.filter(q => q.status === 'completed');
       completedQuests.sort((a, b) => (Number(b.completedAt || b.createdAt || 0)) - (Number(a.completedAt || a.createdAt || 0)));
-      const prunedQuests = [...activeQuests, ...completedQuests.slice(0, 30)];
+      const prunedQuests = dedupeById([...activeQuests, ...completedQuests.slice(0, 30)]);
 
-      const incomingInventory = Array.isArray(state.inventory) ? state.inventory : [];
+      const incomingInventory = dedupeById(Array.isArray(state.inventory) ? state.inventory : []);
       const unusedInventory = incomingInventory.filter(i => !i.isUsed || (i.savedTimer && Number(i.savedTimer.remainingSeconds) > 0));
       const usedInventory = incomingInventory.filter(i => i.isUsed && (!i.savedTimer || Number(i.savedTimer.remainingSeconds) <= 0));
       usedInventory.sort((a, b) => (Number(b.usedAt || b.purchasedAt || 0)) - (Number(a.usedAt || a.purchasedAt || 0)));
-      const prunedInventory = [...unusedInventory, ...usedInventory.slice(0, 20)];
+      const prunedInventory = dedupeById([...unusedInventory, ...usedInventory.slice(0, 20)]);
 
       // ponytail: Thu thập và bảo tồn danh sách ID nhiệm vụ 1 lần đã hoàn thành (chống Replay Attack)
       const existingCompletedQuestIds = Array.isArray(existingState?.completedQuestIds) ? existingState.completedQuestIds : [];
@@ -3255,14 +3278,14 @@ export default async function handler(req, res) {
         inventory: prunedInventory,
         completedQuestIds: updatedCompletedQuestIds,
         activeTimer: finalActiveTimer,
-        shopItems: sanitizedShopItems,
+        shopItems: dedupeById(sanitizedShopItems),
         // ponytail: Giới hạn lưu trữ tối đa 100 giao dịch ledger gần nhất trên Cloud/Redis
         ledger: updatedLedger.slice(0, 100),
         // ponytail: Lưu trữ tối đa 100 ảnh bằng chứng gần nhất trên Cloud/Redis
         proofPhotos: Array.isArray(state.proofPhotos) ? state.proofPhotos.slice(0, 100) : (Array.isArray(existingState?.proofPhotos) ? existingState.proofPhotos : []),
         googleId: userSub,
         focusNotes: typeof state.focusNotes === 'string' ? state.focusNotes : (typeof existingState?.focusNotes === 'string' ? existingState.focusNotes : ''),
-        notes: Array.isArray(state.notes) ? state.notes.slice(0, 100) : (Array.isArray(existingState?.notes) ? existingState.notes : []),
+        notes: dedupeById(Array.isArray(state.notes) ? state.notes.slice(0, 100) : (Array.isArray(existingState?.notes) ? existingState.notes : [])),
         activeNoteId: typeof state.activeNoteId === 'string' ? state.activeNoteId : (existingState?.activeNoteId || ''),
         lastModified: incomingModified || serverTimestamp,
         profile: {

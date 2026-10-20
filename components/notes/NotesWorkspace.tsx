@@ -28,7 +28,17 @@ export function NotesWorkspace() {
 
   // Filter and sort notes (pinned notes first, then latest updatedAt)
   const filteredNotes = useMemo(() => {
-    let list = optimisticNotes;
+    // ponytail: Deduplicate notes by ID to guarantee unique React keys. Upgrade path: DB PK constraint.
+    const seenIds = new Set<string>();
+    const uniqueNotes: NoteItem[] = [];
+    for (const note of optimisticNotes) {
+      if (note && note.id && !seenIds.has(note.id)) {
+        seenIds.add(note.id);
+        uniqueNotes.push(note);
+      }
+    }
+
+    let list = uniqueNotes;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(n => {

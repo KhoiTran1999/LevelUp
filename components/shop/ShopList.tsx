@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import type { ShopItem } from '@/types/levelup';
 import { useLevelUp } from '@/hooks/useLevelUp';
 import { RewardCard } from './RewardCard';
 
@@ -15,8 +16,17 @@ export function ShopList() {
   };
 
   const sortedItems = useMemo(() => {
-    const items = [...state.shopItems];
-    return items.sort((a, b) => {
+    // ponytail: Deduplicate shop items by ID to guarantee unique React keys. Upgrade path: DB PK constraint.
+    const seenIds = new Set<string>();
+    const uniqueItems: ShopItem[] = [];
+    for (const item of state.shopItems) {
+      if (item && item.id && !seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        uniqueItems.push(item);
+      }
+    }
+
+    return uniqueItems.sort((a, b) => {
       const scoreA = tierScores[(a.tier || 'rare').toLowerCase()] ?? 1;
       const scoreB = tierScores[(b.tier || 'rare').toLowerCase()] ?? 1;
       if (scoreA !== scoreB) return scoreB - scoreA;

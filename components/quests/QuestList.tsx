@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import type { Quest } from '@/types/levelup';
 import { useLevelUp } from '@/hooks/useLevelUp';
 import { QuestFilterChips, type QuestFilterType } from './QuestFilterChips';
 import { QuestCard } from './QuestCard';
@@ -28,7 +29,17 @@ export function QuestList() {
 
   // Filtered and Sorted list (Faithful to stable RPG ranking & focus pinned)
   const filteredQuests = useMemo(() => {
-    let items = optimisticQuests.filter(q => {
+    // ponytail: Deduplicate by ID to guarantee unique React keys across state sync. Upgrade path: DB PK constraint.
+    const seenIds = new Set<string>();
+    const uniqueQuests: Quest[] = [];
+    for (const q of optimisticQuests) {
+      if (q && q.id && !seenIds.has(q.id)) {
+        seenIds.add(q.id);
+        uniqueQuests.push(q);
+      }
+    }
+
+    let items = uniqueQuests.filter(q => {
       if (filter === 'all') return true;
       if (filter === 'active') return q.status === 'active';
       if (filter === 'completed') return q.status === 'completed';
