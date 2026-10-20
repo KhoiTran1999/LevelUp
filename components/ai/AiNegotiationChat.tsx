@@ -32,6 +32,90 @@ interface AiNegotiationChatProps {
   }) => void;
 }
 
+function useHorizontalScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    // 1. Wheel listener: convert vertical mouse wheel to horizontal scroll
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    // 2. Mouse drag-to-scroll
+    let isDown = false;
+    let startX = 0;
+    let scrollStart = 0;
+    let hasMoved = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      isDown = true;
+      hasMoved = false;
+      startX = e.clientX;
+      scrollStart = el.scrollLeft;
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      if (!hasMoved && Math.abs(dx) > 4) {
+        hasMoved = true;
+        el.classList.add('is-dragging');
+      }
+      if (hasMoved) {
+        el.scrollLeft = scrollStart - dx;
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!isDown) return;
+      isDown = false;
+      el.classList.remove('is-dragging');
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    // Prevent child button click if mouse was dragging
+    const onClickCapture = (e: MouseEvent) => {
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+        hasMoved = false;
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('click', onClickCapture, true);
+
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('click', onClickCapture, true);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const scrollBy = (offset: number) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  return { ref, scrollBy };
+}
+
 export function AiNegotiationChat({
   quest,
   reward,
@@ -42,6 +126,10 @@ export function AiNegotiationChat({
   onRewardVerdictUpdated,
   onLoanTermsUpdated,
 }: AiNegotiationChatProps) {
+  const loanScroll = useHorizontalScroll<HTMLDivElement>();
+  const rewardScroll = useHorizontalScroll<HTMLDivElement>();
+  const questScroll = useHorizontalScroll<HTMLDivElement>();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputArg, setInputArg] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -333,11 +421,22 @@ export function AiNegotiationChat({
         </div>
 
         {/* Quick Suggestion Chips for Loan */}
-        <div
-          id="bank-suggest-chips"
-          className="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none"
-          title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-        >
+        <div className="relative flex items-center gap-1 group/suggest">
+          <button
+            type="button"
+            onClick={() => loanScroll.scrollBy(-150)}
+            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+            title="Cuộn sang trái"
+            aria-label="Cuộn sang trái"
+          >
+            ◀
+          </button>
+          <div
+            ref={loanScroll.ref}
+            id="bank-suggest-chips"
+            className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+            title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+          >
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
             Gợi ý:
           </span>
@@ -400,6 +499,16 @@ export function AiNegotiationChat({
             data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé."
           >
             🧭 Lập kế hoạch trả nợ
+          </button>
+        </div>
+          <button
+            type="button"
+            onClick={() => loanScroll.scrollBy(150)}
+            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+            title="Cuộn sang phải"
+            aria-label="Cuộn sang phải"
+          >
+            ▶
           </button>
         </div>
 
@@ -511,11 +620,22 @@ export function AiNegotiationChat({
         </div>
 
         {/* Quick Suggestion Chips for Reward */}
-        <div
-          id="reward-suggest-chips"
-          className="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none"
-          title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-        >
+        <div className="relative flex items-center gap-1 group/suggest">
+          <button
+            type="button"
+            onClick={() => rewardScroll.scrollBy(-150)}
+            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+            title="Cuộn sang trái"
+            aria-label="Cuộn sang trái"
+          >
+            ◀
+          </button>
+          <div
+            ref={rewardScroll.ref}
+            id="reward-suggest-chips"
+            className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+            title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+          >
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
             Gợi ý:
           </span>
@@ -578,6 +698,16 @@ export function AiNegotiationChat({
             className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
           >
             ✏️ Đổi tên quà
+          </button>
+        </div>
+          <button
+            type="button"
+            onClick={() => rewardScroll.scrollBy(150)}
+            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+            title="Cuộn sang phải"
+            aria-label="Cuộn sang phải"
+          >
+            ▶
           </button>
         </div>
 
@@ -689,11 +819,22 @@ export function AiNegotiationChat({
       </div>
 
       {/* Quick Suggestion Chips for Quest */}
-      <div
-        id="quest-suggest-chips"
-        className="horizontal-scroll-drag flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none"
-        title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-      >
+      <div className="relative flex items-center gap-1 group/suggest">
+        <button
+          type="button"
+          onClick={() => questScroll.scrollBy(-150)}
+          className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+          title="Cuộn sang trái"
+          aria-label="Cuộn sang trái"
+        >
+          ◀
+        </button>
+        <div
+          ref={questScroll.ref}
+          id="quest-suggest-chips"
+          className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+          title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+        >
         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
           Gợi ý:
         </span>
@@ -765,6 +906,16 @@ export function AiNegotiationChat({
           className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
         >
           📝 Đổi tên/mô tả
+        </button>
+      </div>
+        <button
+          type="button"
+          onClick={() => questScroll.scrollBy(150)}
+          className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+          title="Cuộn sang phải"
+          aria-label="Cuộn sang phải"
+        >
+          ▶
         </button>
       </div>
 

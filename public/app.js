@@ -267,6 +267,7 @@ const DEFAULT_STATE = {
 // =============================================================================
 const CACHE_STORAGE_KEY = 'levelup_user_cache_v1';
 let appState = { ...DEFAULT_STATE };
+if (typeof window !== 'undefined') window.appState = appState;
 let syncTimeout = null;
 
 function clearLegacyLocalStorage() {
@@ -1087,6 +1088,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         const localSavedQuests = new Map((appState.quests || []).filter(q => q.savedTimer).map(q => [q.id, q.savedTimer]));
         const localSavedItems = new Map((appState.inventory || []).filter(i => i.savedTimer).map(i => [i.id, i.savedTimer]));
 
+        if (typeof window !== 'undefined') window.appState = appState;
         appState = normalizeObjectNFC({
           ...DEFAULT_STATE,
           ...data.state,
@@ -11054,8 +11056,22 @@ function renderQuests() {
 }
 
 function openQuestDetailModal(questId) {
-  const q = appState.quests.find(x => x.id === questId);
+  let q = null;
+  if (typeof questId === 'object' && questId !== null && questId.id) {
+    q = questId;
+    if (typeof appState === 'object' && Array.isArray(appState.quests)) {
+      const idx = appState.quests.findIndex(x => x.id === q.id);
+      if (idx === -1) appState.quests.unshift(q); else appState.quests[idx] = { ...appState.quests[idx], ...q };
+    }
+  } else if (typeof appState === 'object' && Array.isArray(appState.quests)) {
+    q = appState.quests.find(x => x.id === questId);
+  }
+  if (!q && typeof window !== 'undefined' && Array.isArray(window.appState?.quests)) {
+    q = window.appState.quests.find(x => x.id === questId);
+    if (q && typeof appState === 'object' && Array.isArray(appState.quests)) appState.quests.unshift(q);
+  }
   if (!q) return;
+  //
 
   const modal = document.getElementById('modal-quest-detail');
   if (!modal) return;

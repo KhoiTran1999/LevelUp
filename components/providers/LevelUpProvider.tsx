@@ -346,12 +346,17 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
     // Initial check from global window.appState
     const win = window as unknown as { appState?: LevelUpAppState };
-    if (win.appState?.notes && win.appState.notes.length > 0) {
+    if (win.appState) {
       setState(prev => ({
         ...prev,
-        notes: win.appState!.notes,
-        activeNoteId: win.appState!.activeNoteId || win.appState!.notes[0]?.id || prev.activeNoteId,
+        notes: (win.appState!.notes && win.appState!.notes.length > 0) ? win.appState!.notes : prev.notes,
+        activeNoteId: win.appState!.activeNoteId || win.appState!.notes?.[0]?.id || prev.activeNoteId,
         focusNotes: win.appState!.focusNotes || prev.focusNotes,
+        quests: (win.appState!.quests && win.appState!.quests.length > 0) ? win.appState!.quests : prev.quests,
+        shopItems: (win.appState!.shopItems && win.appState!.shopItems.length > 0) ? win.appState!.shopItems : prev.shopItems,
+        inventory: win.appState!.inventory || prev.inventory,
+        ledger: win.appState!.ledger || prev.ledger,
+        proofPhotos: win.appState!.proofPhotos || prev.proofPhotos,
       }));
       if (win.appState.activeNoteId) {
         setActiveNoteIdState(win.appState.activeNoteId);
@@ -1244,24 +1249,66 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const addQuest = useCallback((newQuestData: Partial<Quest>) => {
     const newQuest: Quest = {
-      id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: newQuestData.id || `q_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       title: newQuestData.title || 'Nhiệm vụ mới',
       description: newQuestData.description || '',
       type: newQuestData.type || 'focus',
       rank: newQuestData.rank || 'C',
       rewardCoins: newQuestData.rewardCoins || 10,
-      targetMinutes: newQuestData.targetMinutes || 25,
+      targetMinutes:
+        newQuestData.targetMinutes !== undefined
+          ? newQuestData.targetMinutes
+          : newQuestData.type === 'bounty'
+          ? 0
+          : 25,
       icon: newQuestData.icon || '⚔️',
       isRepeatable: Boolean(newQuestData.isRepeatable),
-      completedCount: 0,
-      status: 'active',
-      createdAt: Date.now(),
+      completedCount: newQuestData.completedCount || 0,
+      status: newQuestData.status || 'active',
+      createdAt: newQuestData.createdAt || Date.now(),
+      requiresProof: Boolean(newQuestData.requiresProof),
+      proofType: newQuestData.proofType || 'photo',
+      proofGuidance: newQuestData.proofGuidance || '',
+      advice: newQuestData.advice || '',
+      verdict: newQuestData.verdict || '',
+      signature: newQuestData.signature || '',
     };
 
-    setState(prev => ({
-      ...prev,
-      quests: [newQuest, ...prev.quests],
-    }));
+    setState(prev => {
+      const existingIdx = prev.quests.findIndex(q => q.id === newQuest.id);
+      const nextQuests =
+        existingIdx >= 0
+          ? prev.quests.map((q, i) => (i === existingIdx ? { ...q, ...newQuest } : q))
+          : [newQuest, ...prev.quests];
+      return {
+        ...prev,
+        quests: nextQuests,
+      };
+    });
+
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: LevelUpAppState;
+        triggerSave?: (immediate?: boolean) => void;
+      };
+      if (win.appState) {
+        if (!Array.isArray(win.appState.quests)) {
+          win.appState.quests = [];
+        }
+        const existingIdx = win.appState.quests.findIndex(q => q.id === newQuest.id);
+        if (existingIdx >= 0) {
+          win.appState.quests[existingIdx] = { ...win.appState.quests[existingIdx], ...newQuest };
+        } else {
+          win.appState.quests.unshift(newQuest);
+        }
+        win.triggerSave?.(true);
+      }
+      window.dispatchEvent(
+        new CustomEvent('levelup:state-updated', {
+          detail: win.appState || { quests: [newQuest] },
+        })
+      );
+    }
   }, []);
 
   const deleteQuest = useCallback((questId: string) => {
@@ -1269,6 +1316,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       quests: prev.quests.filter(q => q.id !== questId),
     }));
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: LevelUpAppState;
+        triggerSave?: (immediate?: boolean) => void;
+      };
+      if (win.appState && Array.isArray(win.appState.quests)) {
+        win.appState.quests = win.appState.quests.filter(q => q.id !== questId);
+        win.triggerSave?.(true);
+      }
+    }
   }, []);
 
   const startFocusTimer = useCallback((quest: Quest) => {

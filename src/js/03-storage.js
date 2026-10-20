@@ -3,6 +3,7 @@
 // =============================================================================
 const CACHE_STORAGE_KEY = 'levelup_user_cache_v1';
 let appState = { ...DEFAULT_STATE };
+if (typeof window !== 'undefined') window.appState = appState;
 let syncTimeout = null;
 
 function clearLegacyLocalStorage() {
@@ -823,6 +824,7 @@ async function syncWithCloud(isManual = false, timerAction = null) {
         const localSavedQuests = new Map((appState.quests || []).filter(q => q.savedTimer).map(q => [q.id, q.savedTimer]));
         const localSavedItems = new Map((appState.inventory || []).filter(i => i.savedTimer).map(i => [i.id, i.savedTimer]));
 
+        if (typeof window !== 'undefined') window.appState = appState;
         appState = normalizeObjectNFC({
           ...DEFAULT_STATE,
           ...data.state,

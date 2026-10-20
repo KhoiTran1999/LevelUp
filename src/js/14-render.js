@@ -741,8 +741,22 @@ function renderQuests() {
 }
 
 function openQuestDetailModal(questId) {
-  const q = appState.quests.find(x => x.id === questId);
+  let q = null;
+  if (typeof questId === 'object' && questId !== null && questId.id) {
+    q = questId;
+    if (typeof appState === 'object' && Array.isArray(appState.quests)) {
+      const idx = appState.quests.findIndex(x => x.id === q.id);
+      if (idx === -1) appState.quests.unshift(q); else appState.quests[idx] = { ...appState.quests[idx], ...q };
+    }
+  } else if (typeof appState === 'object' && Array.isArray(appState.quests)) {
+    q = appState.quests.find(x => x.id === questId);
+  }
+  if (!q && typeof window !== 'undefined' && Array.isArray(window.appState?.quests)) {
+    q = window.appState.quests.find(x => x.id === questId);
+    if (q && typeof appState === 'object' && Array.isArray(appState.quests)) appState.quests.unshift(q);
+  }
   if (!q) return;
+  //
 
   const modal = document.getElementById('modal-quest-detail');
   if (!modal) return;

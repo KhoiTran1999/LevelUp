@@ -284,22 +284,20 @@ export function QuestSetupModal() {
     );
   };
 
-  // Toggle Proof Requirement
+  // Proof Requirement is determined exclusively by AI
   const handleToggleProof = () => {
-    if (!pendingVerdict) return;
-    // Cycle: photo -> text -> both -> waive -> photo
-    const currentReq = pendingVerdict.requiresProof;
-    const currentType = pendingVerdict.proofType || 'photo';
-
-    if (!currentReq) {
-      setPendingVerdict(prev => (prev ? { ...prev, requiresProof: true, proofType: 'photo' } : prev));
-    } else if (currentType === 'photo') {
-      setPendingVerdict(prev => (prev ? { ...prev, requiresProof: true, proofType: 'text' } : prev));
-    } else if (currentType === 'text') {
-      setPendingVerdict(prev => (prev ? { ...prev, requiresProof: true, proofType: 'both' } : prev));
-    } else {
-      setPendingVerdict(prev => (prev ? { ...prev, requiresProof: false } : prev));
-    }
+    // User is NOT allowed to directly change proof verification; only AI can via negotiation
+    setShowDebate(true);
+    triggerToast(
+      'Chỉ AI Arbiter mới có quyền đổi hình thức xác thực. Hãy gửi yêu cầu ở khung Thương Lượng Với AI bên dưới!',
+      'info'
+    );
+    setTimeout(() => {
+      const debateEl =
+        document.getElementById('ai-negotiation-chat') ||
+        document.getElementById('quest-debate-container');
+      debateEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
   };
 
   // Accept Verdict and Add/Update Quest
@@ -722,8 +720,8 @@ export function QuestSetupModal() {
                     id="verdict-proof-toggle"
                     type="button"
                     onClick={handleToggleProof}
-                    className="hover:opacity-80 transition flex items-center gap-1 cursor-pointer"
-                    title="Thương lượng với AI để thẩm định đổi hình thức xác thực"
+                    className="hover:opacity-90 transition flex items-center gap-1 cursor-pointer group"
+                    title="Hình thức xác thực do AI thẩm định. Bấm để thương lượng với AI ở khung bên dưới."
                   >
                     <span
                       id="verdict-proof-badge"
@@ -745,7 +743,7 @@ export function QuestSetupModal() {
                           : '📸 Cần chụp ảnh'
                         : '⚡ Không cần chụp ảnh'}
                     </span>
-                    <span className="text-[10px] text-slate-400">💬</span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-amber-500 transition" title="Chỉ AI mới có quyền thay đổi">🔒</span>
                   </button>
                 </div>
               </div>

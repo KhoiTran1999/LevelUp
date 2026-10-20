@@ -24,14 +24,29 @@ export function QuestCard({ quest }: QuestCardProps) {
       return;
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      typeof (window as unknown as { openQuestDetailModal?: (id: string) => void })
-        .openQuestDetailModal === 'function'
-    ) {
-      (window as unknown as { openQuestDetailModal: (id: string) => void }).openQuestDetailModal(
-        quest.id
-      );
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: { quests?: Quest[] };
+        openQuestDetailModal?: (questOrId: string | Quest) => void;
+      };
+
+      // Safely ensure quest is present in window.appState
+      if (win.appState) {
+        if (!Array.isArray(win.appState.quests)) {
+          win.appState.quests = [];
+        }
+        const idx = win.appState.quests.findIndex(q => q.id === quest.id);
+        if (idx === -1) {
+          win.appState.quests.unshift(quest);
+        } else {
+          win.appState.quests[idx] = { ...win.appState.quests[idx], ...quest };
+        }
+      }
+
+      if (typeof win.openQuestDetailModal === 'function') {
+        win.openQuestDetailModal(quest);
+        return;
+      }
     }
   };
 
