@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Quest, ShopItem } from '@/types/levelup';
 import { useLevelUp } from '@/hooks/useLevelUp';
 import {
@@ -57,19 +57,35 @@ function daySummary(day: FrequencyDay, isQuest: boolean): { icon: string; status
   };
 }
 
-function Heatmap({
+export function Heatmap({
   item,
   isQuest,
   period,
+  initialSelectedDate,
+  onSelectedDayChange,
+  showDaySummary = true,
 }: {
   item: Quest | ShopItem;
   isQuest: boolean;
   period: TrackerPeriod;
+  initialSelectedDate?: string;
+  onSelectedDayChange?: (day: FrequencyDay | null) => void;
+  showDaySummary?: boolean;
 }) {
   const data = getFrequencyGridData(item.history || {}, period);
   const [selectedDay, setSelectedDay] = useState<FrequencyDay | null>(null);
   const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
   const selectedSummary = selectedDay ? daySummary(selectedDay, isQuest) : null;
+  useEffect(() => {
+    const day = data.days.find(entry => entry.dateStr === initialSelectedDate) || null;
+    setSelectedDay(day);
+    onSelectedDayChange?.(day);
+  }, [period, initialSelectedDate, item.id]);
+
+  const selectDay = (day: FrequencyDay) => {
+    setSelectedDay(day);
+    onSelectedDayChange?.(day);
+  };
 
   return (
     <>
@@ -91,9 +107,9 @@ function Heatmap({
                 <button
                   key={day.dateStr}
                   type="button"
-                  onMouseEnter={() => setSelectedDay(day)}
-                  onFocus={() => setSelectedDay(day)}
-                  onClick={() => setSelectedDay(day)}
+                  onMouseEnter={() => selectDay(day)}
+                  onFocus={() => selectDay(day)}
+                  onClick={() => selectDay(day)}
                   title={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count ? `${day.count} lần` : day.isFuture ? 'Chưa tới' : 'Chưa thực hiện'}`}
                   aria-label={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count} lần`}
                   className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-[2px] ${color} ${
@@ -127,9 +143,9 @@ function Heatmap({
                 <button
                   key={day.dateStr}
                   type="button"
-                  onMouseEnter={() => setSelectedDay(day)}
-                  onFocus={() => setSelectedDay(day)}
-                  onClick={() => setSelectedDay(day)}
+                  onMouseEnter={() => selectDay(day)}
+                  onFocus={() => selectDay(day)}
+                  onClick={() => selectDay(day)}
                   title={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count ? `${day.count} lần` : day.isFuture ? 'Chưa tới' : 'Chưa thực hiện'}`}
                   aria-label={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count} lần`}
                   className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs ${color} ${
@@ -157,9 +173,9 @@ function Heatmap({
               <button
                 key={day.dateStr}
                 type="button"
-                onMouseEnter={() => setSelectedDay(day)}
-                onFocus={() => setSelectedDay(day)}
-                onClick={() => setSelectedDay(day)}
+                onMouseEnter={() => selectDay(day)}
+                onFocus={() => selectDay(day)}
+                onClick={() => selectDay(day)}
                 title={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count ? `${day.count} lần` : day.isFuture ? 'Chưa tới' : 'Chưa thực hiện'}`}
                 aria-label={`${dayLabels[day.dayOfWeek]}, ${day.dateStr}: ${day.count} lần`}
                 className={`heatmap-cell flex-1 min-w-[42px] p-2 sm:p-2.5 rounded-xl border flex flex-col items-center justify-between text-center cursor-pointer transition-all hover:scale-105 active:scale-95 select-none ${color} ${
@@ -175,21 +191,23 @@ function Heatmap({
         </div>
       )}
 
-      <div className="tracker-card-day-status mt-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/40 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="day-icon text-xs shrink-0">{selectedSummary?.icon || '💡'}</span>
-          <span className="day-text truncate">
-            {selectedDay && selectedSummary
-              ? `${dayLabels[selectedDay.dayOfWeek]}, ${formatDate(selectedDay.date)}${selectedDay.isToday ? ' (Hôm nay)' : ''}: ${selectedSummary.status}`
-              : 'Rê chuột hoặc bấm vào ô ngày để xem chi tiết'}
-          </span>
+      {showDaySummary && (
+        <div className="tracker-card-day-status mt-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/40 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="day-icon text-xs shrink-0">{selectedSummary?.icon || '💡'}</span>
+            <span className="day-text truncate">
+              {selectedDay && selectedSummary
+                ? `${dayLabels[selectedDay.dayOfWeek]}, ${formatDate(selectedDay.date)}${selectedDay.isToday ? ' (Hôm nay)' : ''}: ${selectedSummary.status}`
+                : 'Rê chuột hoặc bấm vào ô ngày để xem chi tiết'}
+            </span>
+          </div>
+          {selectedSummary && (
+            <span className={`day-count-badge px-2 py-0.5 rounded-full font-bold text-[10px] shrink-0 ${selectedSummary.badgeClass}`}>
+              {selectedSummary.badge}
+            </span>
+          )}
         </div>
-        {selectedSummary && (
-          <span className={`day-count-badge px-2 py-0.5 rounded-full font-bold text-[10px] shrink-0 ${selectedSummary.badgeClass}`}>
-            {selectedSummary.badge}
-          </span>
-        )}
-      </div>
+      )}
     </>
   );
 }

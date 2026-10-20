@@ -181,8 +181,8 @@ export function Header() {
               onClick={e => {
                 if (e.shiftKey) {
                   togglePalette();
-                } else if (typeof window !== 'undefined' && typeof (window as unknown as { openPaletteModal?: () => void }).openPaletteModal === 'function') {
-                  (window as unknown as { openPaletteModal: () => void }).openPaletteModal();
+                } else if (typeof window !== 'undefined' && typeof (window as unknown as { openPaletteStudio?: () => void }).openPaletteStudio === 'function') {
+                  (window as unknown as { openPaletteStudio: () => void }).openPaletteStudio();
                 } else {
                   togglePalette();
                 }

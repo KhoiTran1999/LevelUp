@@ -101,6 +101,7 @@ function testHtmlProofModalComponents() {
 
 // 5. Kiểm tra logic Client JS (08-proof.js, 14-render.js, 18-events.js)
 function testClientJsIntegration() {
+  const questDetail = fs.readFileSync(path.join(rootDir, 'components', 'quests', 'QuestDetailModal.tsx'), 'utf8');
   // 08-proof.js
   assert.ok(proofJs.includes('function switchProofTab('), '08-proof.js phải có hàm switchProofTab');
   assert.ok(proofJs.includes("workContent.length < 10"), '08-proof.js phải kiểm tra độ dài văn bản tối thiểu 10 ký tự');
@@ -108,7 +109,7 @@ function testClientJsIntegration() {
 
   // 14-render.js
   assert.ok(renderJs.includes("q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️'"), 'renderQuests phải hiển thị nhãn Nộp Báo Cáo Nhận Vàng khi proofType là text');
-  assert.ok(renderJs.includes("q.proofType === 'text' ? '✍️ Cần báo cáo AI duyệt'"), 'renderQuestDetail phải hiển thị badge Cần báo cáo AI duyệt khi proofType là text');
+  assert.ok(questDetail.includes('✍️ Cần báo cáo AI duyệt'), 'React quest detail must show text-proof requirement badge.');
   assert.ok(renderJs.includes("<span>📝 Xem báo cáo</span>"), 'renderLedger phải hiển thị nút Xem báo cáo khi có proofUserNote mà không có ảnh');
 
   // app.js đã bundle

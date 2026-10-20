@@ -539,15 +539,17 @@ function applyCustomDynamicSeed(seedHex, skipPersist = false) {
   }
 
   const btn = document.getElementById('toggle-palette-btn');
-  if (btn) {
-    btn.textContent = '🎨';
-    btn.title = `Bảng màu: Material You (${seedHex}) (Bấm để mở Studio)`;
-  }
-  const modalPaletteIcon = document.getElementById('modal-palette-icon');
-  const modalPaletteText = document.getElementById('modal-palette-text');
-  if (modalPaletteIcon && modalPaletteText) {
-    modalPaletteIcon.textContent = '🎨';
-    modalPaletteText.textContent = `Material You (${seedHex})`;
+  if (!document.getElementById('levelup-app')) {
+    if (btn) {
+      btn.textContent = '🎨';
+      btn.title = `Bảng màu: Material You (${seedHex}) (Bấm để mở Studio)`;
+    }
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      modalPaletteIcon.textContent = '🎨';
+      modalPaletteText.textContent = `Material You (${seedHex})`;
+    }
   }
 
   if (typeof updatePaletteStudioUI === 'function') {
@@ -571,17 +573,19 @@ function applyPalette(palette) {
   }
 
   const btn = document.getElementById('toggle-palette-btn');
-  if (btn) {
-    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
-    btn.textContent = cur.icon;
-    btn.title = `Bảng màu: ${cur.name} (Bấm để mở Studio)`;
-  }
-  const modalPaletteIcon = document.getElementById('modal-palette-icon');
-  const modalPaletteText = document.getElementById('modal-palette-text');
-  if (modalPaletteIcon && modalPaletteText) {
-    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
-    modalPaletteIcon.textContent = cur.icon;
-    modalPaletteText.textContent = cur.name.split(' (')[0];
+  if (!document.getElementById('levelup-app')) {
+    if (btn) {
+      const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+      btn.textContent = cur.icon;
+      btn.title = `Bảng màu: ${cur.name} (Bấm để mở Studio)`;
+    }
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+      modalPaletteIcon.textContent = cur.icon;
+      modalPaletteText.textContent = cur.name.split(' (')[0];
+    }
   }
   try {
     localStorage.setItem('levelup_theme_palette', palette);
@@ -606,6 +610,10 @@ function cyclePalette() {
 }
 
 function openPaletteStudio() {
+  if (document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:open-palette-studio'));
+    return;
+  }
   const modal = document.getElementById('m3-palette-studio-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
@@ -616,6 +624,10 @@ function openPaletteStudio() {
 }
 
 function closePaletteStudio() {
+  if (document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:close-palette-studio'));
+    return;
+  }
   const modal = document.getElementById('m3-palette-studio-modal');
   if (!modal) return;
   modal.classList.add('hidden');
@@ -627,6 +639,10 @@ function updatePaletteStudioUI() {
   const currentPalette = root.dataset.palette || 'modern-indigo';
   const listContainer = document.getElementById('m3-palette-studio-grid');
   if (!listContainer) return;
+  if (listContainer.dataset.reactOwned === 'true') {
+    window.dispatchEvent(new CustomEvent('levelup:palette-updated'));
+    return;
+  }
 
   listContainer.innerHTML = PALETTES.map(p => {
     const isActive = currentPalette === p.id;

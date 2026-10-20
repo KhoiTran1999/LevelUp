@@ -13,6 +13,7 @@ console.log('✓ Test 0: Cú pháp JavaScript của public/app.js hợp lệ 100
 
 const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const paletteComponent = fs.readFileSync(path.resolve('components/profile/PaletteStudioModal.tsx'), 'utf8');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const tailwindConfig = fs.readFileSync(path.resolve('tailwind.config.js'), 'utf8');
 
@@ -80,11 +81,12 @@ assert.ok(appJs.includes('openPaletteStudio'), 'app.js phải chứa hàm openPa
 assert.ok(appJs.includes('m3-monochrome') && appJs.includes('m3-emerald') && appJs.includes('m3-crimson'), 'app.js phải chứa đầy đủ 7 palettes trong mảng PALETTES');
 console.log('✓ Test 5: Engine tính toán màu động HCT và quản lý Palette Studio tích hợp đầy đủ trong JavaScript.');
 
-// 6. Kiểm tra giao diện Material 3 Palette Studio Modal trong index.html
-assert.ok(indexHtml.includes('id="m3-palette-studio-modal"'), 'index.html có modal #m3-palette-studio-modal');
-assert.ok(indexHtml.includes('id="m3-palette-studio-grid"'), 'index.html có container lưới #m3-palette-studio-grid');
-assert.ok(indexHtml.includes('id="m3-seed-picker-input"'), 'index.html có ô chọn màu động #m3-seed-picker-input');
-assert.ok(indexHtml.includes('WCAG 2.1 AA'), 'index.html có huy hiệu bảo đảm tương phản WCAG 2.1 AA');
-console.log('✓ Test 6: Giao diện Material 3 Palette Studio Hub được xây dựng hoàn chỉnh và chuẩn mực trong HTML.');
+// 6. Kiểm tra giao diện Material 3 Palette Studio Modal trong React
+assert.ok(paletteComponent.includes('id="m3-palette-studio-modal"'), 'React có modal #m3-palette-studio-modal');
+assert.ok(paletteComponent.includes('id="m3-palette-studio-grid"'), 'React có container lưới #m3-palette-studio-grid');
+assert.ok(paletteComponent.includes('id="m3-seed-picker-input"'), 'React có ô chọn màu động #m3-seed-picker-input');
+assert.ok(paletteComponent.includes('WCAG 2.1 AA'), 'React có huy hiệu bảo đảm tương phản WCAG 2.1 AA');
+assert.ok(!indexHtml.includes('id="m3-palette-studio-modal"'), 'Legacy HTML không còn sở hữu Palette Studio');
+console.log('✓ Test 6: Giao diện Material 3 Palette Studio Hub được xây dựng trong React.');
 
 console.log('\n=== TẤT CẢ 6 KIỂM THỬ HỆ THỐNG MÀU SẮC M3 ĐÃ VƯỢT QUA XUẤT SẮC! ===');

@@ -7,8 +7,8 @@ console.log('=== KIỂM THỬ ANIMATION BUNG LÊN TỪ PHÙ THỦY CHO MODAL CHA
 const cssPath = path.resolve('public/style.css');
 const cssContent = fs.readFileSync(cssPath, 'utf8');
 
-const htmlPath = path.resolve('public/index.html');
-const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+const assistantComponentPath = path.resolve('components/ai/AssistantModal.tsx');
+const assistantComponent = fs.readFileSync(assistantComponentPath, 'utf8');
 
 const appJsPath = path.resolve('public/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8').replace(/\r\n/g, '\n');
@@ -36,9 +36,9 @@ const appJsContent = fs.readFileSync(appJsPath, 'utf8').replace(/\r\n/g, '\n');
 
 // 2. Kiểm tra HTML markup trong index.html
 {
-  assert.ok(htmlContent.includes('id="modal-ai-assistant"'), 'Phải có modal-ai-assistant');
-  assert.ok(htmlContent.includes('id="assistant-panel"'), 'Phải có assistant-panel');
-  assert.ok(!htmlContent.includes('assistant-panel" class="rpg-panel rounded-none sm:rounded-2xl w-full max-w-2xl border-0 sm:border border-violet-500/40 overflow-hidden modal-fade'), 'Khung panel trợ lý không được dùng modal-fade gây xung đột animation');
+  assert.ok(assistantComponent.includes('id="modal-ai-assistant"'), 'React Assistant phải có modal-ai-assistant');
+  assert.ok(assistantComponent.includes('id="assistant-panel"'), 'React Assistant phải có assistant-panel');
+  assert.ok(!assistantComponent.includes('modal-fade'), 'Khung panel trợ lý không được dùng modal-fade gây xung đột animation');
 
   console.log('✓ Test 2: HTML markup thiết lập id assistant-panel và loại bỏ modal-fade chống xung đột.');
 }

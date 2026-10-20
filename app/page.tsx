@@ -22,6 +22,23 @@ import { CreditLimitModal } from '@/components/bank/CreditLimitModal';
 import { LedgerContainer } from '@/components/ledger/LedgerContainer';
 import { Leaderboard } from '@/components/leaderboard/Leaderboard';
 import { Tracker } from '@/components/tracker/Tracker';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ProfileModal } from '@/components/profile/ProfileModal';
+import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
+import { InteractiveTour } from '@/components/onboarding/InteractiveTour';
+import { ShieldGateModal } from '@/components/onboarding/ShieldGateModal';
+import { CleanupModal } from '@/components/onboarding/CleanupModal';
+import { AboutModal } from '@/components/about/AboutModal';
+import { DopamineGuideModal } from '@/components/about/DopamineGuideModal';
+import { BrainDumpModal } from '@/components/notes/BrainDumpModal';
+import { AssistantModal } from '@/components/ai/AssistantModal';
+import { LevelAndStreakInfoModals } from '@/components/profile/LevelAndStreakInfoModals';
+import { PaletteStudioModal } from '@/components/profile/PaletteStudioModal';
+import { FrequencyDetailModal } from '@/components/tracker/FrequencyDetailModal';
+import { QuestDetailModal } from '@/components/quests/QuestDetailModal';
+import { RewardDetailModal } from '@/components/shop/RewardDetailModal';
+import { FocusCompleteModal, TimerAdjustmentModal } from '@/components/timer/TimerModals';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,18 +69,43 @@ function getLegacyTemplates(): { tabs: string; overlays: string } {
       tabs = tabs.replace(/<section\s+id="tab-bank"[\s\S]*?<\/section>/i, '');
       // Exclude legacy ledger tab since React 19 LedgerContainer manages it
       tabs = tabs.replace(/<section\s+id="tab-ledger"[\s\S]*?<\/section>/i, '');
+      // React AdminDashboard owns the Admin tab.
+      tabs = tabs.replace(/<section\s+id="tab-admin"[\s\S]*?<\/section>/i, '');
       legacyTabsContent = tabs;
     }
     if (mainCloseIndex !== -1 && confettiIndex !== -1) {
       // Exclude duplicate legacy mobile navigation since React 19 MobileBottomNav manages it
       let overlays = rawHtml.slice(mainCloseIndex + 7, confettiIndex);
       overlays = overlays.replace(/<nav class="md:hidden m3-navigation-bar[\s\S]*?<\/nav>/i, '');
-      // Exclude duplicate legacy proof modals since React 19 proof modals manage them
-      overlays = overlays.replace(/<!-- =+\s*-->\s*<!-- MODAL: SUBMIT QUEST PROOF[\s\S]*?(?=<!-- =+\s*-->\s*<!-- ONBOARDING INTERACTIVE TOUR)/i, '');
       // Exclude legacy quest & reward setup modals since React 19 QuestSetupModal & RewardSetupModal manage them
       overlays = overlays.replace(/<!--\s*MODAL 1: SUBMIT QUEST TO AI ARBITER[\s\S]*?(?=<!--\s*MODAL 3: PROFILE & SYNC)/i, '');
+      // React ProfileModal owns profile editing and account controls.
+      overlays = overlays.replace(/<!--\s*MODAL 3:\s*PROFILE & SYNC[\s\S]*?(?=<!--\s*MODAL:\s*HẠN MỨC VAY)/i, '');
       // Exclude legacy bank modals since React 19 bank modals manage them
       overlays = overlays.replace(/<!--\s*MODAL:\s*H[^>]*VAY[\s\S]*?(?=<!--\s*MODAL 5:\s*WELCOME)/i, '');
+      // React ConfirmDialog handles app-wide confirmation requests.
+      overlays = overlays.replace(/<!--\s*MODAL:\s*CONFIRMATION DIALOG[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*SHIELD GATE)/i, '');
+      // React ShieldGateModal owns extension onboarding and status controls.
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*SHIELD GATE[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*CLEANUP)/i, '');
+      // React CleanupModal owns uninstall instructions and account purge controls.
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*CLEANUP[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*SUBMIT QUEST PROOF)/i, '');
+      // Exclude duplicate legacy proof modals since React 19 proof modals manage them
+      overlays = overlays.replace(/<!-- =+\s*-->\s*<!-- MODAL: SUBMIT QUEST PROOF[\s\S]*?(?=<!-- =+\s*-->\s*<!-- ONBOARDING INTERACTIVE TOUR)/i, '');
+      // React InteractiveTour owns the walkthrough overlay.
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*ONBOARDING INTERACTIVE TOUR[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*ADMIN EDIT USER)/i, '');
+      // React AdminDashboard owns the Admin user and ledger dialogs.
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*ADMIN EDIT USER[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*ADMIN USER LEDGER)/i, '');
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*ADMIN USER LEDGER[\s\S]*?(?=<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*GIỚI THIỆU DỰ ÁN)/i, '');
+      // React AboutModal owns the project guide and tour action.
+      overlays = overlays.replace(/<!--\s*=+\s*-->\s*<!--\s*MODAL:\s*GIỚI THIỆU DỰ ÁN[\s\S]*?(?=<!-- FLOATING ACTION BUTTON: PHÙ THỦY)/i, '');
+      // React AssistantModal owns the floating launcher and AI chat interface.
+      overlays = overlays.replace(/<!-- FLOATING ACTION BUTTON: PHÙ THỦY[\s\S]*?(?=<!--\s*MODAL:\s*CẨM NANG NGẮT MẠCH DOPAMINE)/i, '');
+      // React DopamineGuideModal owns the deep-work transition guide.
+      overlays = overlays.replace(/<!--\s*MODAL:\s*CẨM NANG NGẮT MẠCH DOPAMINE[\s\S]*?(?=<!--\s*MODAL:\s*SỔ TAY GHI CHÚ)/i, '');
+      // React BrainDumpModal owns the scratchpad and notes editor.
+      overlays = overlays.replace(/<!--\s*MODAL:\s*SỔ TAY GHI CHÚ[\s\S]*?(?=<!--\s*Toast Notification Container)/i, '');
+      // React WelcomeModal owns the Google sign-in and introduction UI.
+      overlays = overlays.replace(/<!--\s*MODAL 5:\s*WELCOME \/ ONBOARDING[\s\S]*?(?=<!--\s*FULLSCREEN ZEN \/ AMOLED FOCUS OVERLAY)/i, '');
       legacyOverlaysContent = overlays;
     }
   } catch (err) {
@@ -126,12 +168,30 @@ export default function LevelUpPage() {
           {/* React Habit Tracker */}
           <Tracker />
 
-          {/* Legacy Admin Tab */}
+          {/* React Admin Dashboard */}
+          <AdminDashboard />
+
+          {/* Remaining legacy tabs until their React migration is complete */}
           <LegacyViewsBridge content={legacyTabsContent} />
         </main>
 
         {/* Legacy Modals, Overlays, and Sheets */}
         <LegacyViewsBridge content={legacyOverlaysContent} />
+
+        {/* React shared confirmation dialog */}
+        <ConfirmDialog />
+        <ProfileModal />
+        <WelcomeModal />
+        <InteractiveTour />
+        <ShieldGateModal />
+        <CleanupModal />
+        <AboutModal />
+        <DopamineGuideModal />
+        <BrainDumpModal />
+        <AssistantModal />
+        <LevelAndStreakInfoModals />
+        <PaletteStudioModal />
+        <FrequencyDetailModal />
 
         {/* React 19 Quest Proof & AI Arbiter Modals */}
         <QuestProofModal />
@@ -141,6 +201,10 @@ export default function LevelUpPage() {
         {/* React 19 Quest & Reward AI Setup Modals */}
         <QuestSetupModal />
         <RewardSetupModal />
+        <QuestDetailModal />
+        <RewardDetailModal />
+        <TimerAdjustmentModal />
+        <FocusCompleteModal />
 
         {/* React 19 Bank Modals */}
         <BankWithdrawModal />

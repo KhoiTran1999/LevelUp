@@ -72,13 +72,13 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   });
 
   it('4. Đảm bảo NotesWorkspace & NoteSidebar hỗ trợ banner, tìm kiếm tức thời, và danh sách ghi chú', () => {
-    assert.ok(workspaceContent.includes('id="notes-header-banner"'), 'NotesWorkspace phải có #notes-header-banner ở đầu tab');
-    assert.ok(workspaceContent.includes('id="notes-search-input"'), 'NotesWorkspace phải có #notes-search-input');
-    assert.ok(workspaceContent.includes('id="notes-total-badge"'), 'NotesWorkspace phải có #notes-total-badge');
-    assert.ok(workspaceContent.includes('id="btn-reload-notes"'), 'NotesWorkspace phải có #btn-reload-notes');
-    assert.ok(workspaceContent.includes('id="btn-create-new-note"'), 'NotesWorkspace phải có #btn-create-new-note');
-    assert.ok(workspaceContent.includes('id="notes-sidebar-column"'), 'NotesWorkspace phải có #notes-sidebar-column');
-    assert.ok(sidebarContent.includes('id="react-notes-card-list"'), 'React NoteSidebar phải có container riêng, không trùng legacy #notes-card-list');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}notes-header-banner`}'), 'NotesWorkspace phải có #notes-header-banner ở đầu tab và ID riêng cho modal');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}notes-search-input`}'), 'NotesWorkspace phải có #notes-search-input');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}notes-total-badge`}'), 'NotesWorkspace phải có #notes-total-badge');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}btn-reload-notes`}'), 'NotesWorkspace phải có #btn-reload-notes');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}btn-create-new-note`}'), 'NotesWorkspace phải có #btn-create-new-note');
+    assert.ok(workspaceContent.includes('id={`${idPrefix}notes-sidebar-column`}'), 'NotesWorkspace phải có #notes-sidebar-column');
+    assert.ok(sidebarContent.includes('id={`${idPrefix}react-notes-card-list`}'), 'React NoteSidebar phải có container riêng, không trùng legacy #notes-card-list');
     assert.ok(legacyNotesContent.includes("getElementById('notes-card-list')"), 'Renderer legacy chỉ được giữ selector của danh sách legacy');
     assert.ok(sidebarContent.includes('note-card-title'), 'NoteSidebar phải có class note-card-title');
     assert.ok(sidebarContent.includes('note-card-time'), 'NoteSidebar phải có class note-card-time');
@@ -90,25 +90,25 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(editorContent.includes('savedSnapshot.content === currentHtml'), 'Flush không được lưu ghi chú nếu nội dung không đổi');
     assert.ok(editorContent.includes('savedSnapshot.title === currentTitle'), 'Flush không được lưu ghi chú nếu tiêu đề không đổi');
     assert.ok(editorContent.includes('const updatedAt = Date.now()'), 'Thời gian cập nhật chỉ sinh khi có thay đổi thực tế');
-    assert.ok(editorContent.includes('id="active-note-card"'), 'NoteEditor phải có #active-note-card');
-    assert.ok(editorContent.includes('id="active-note-title"'), 'NoteEditor phải có #active-note-title');
-    assert.ok(editorContent.includes('id="active-note-topic-input"'), 'NoteEditor phải có #active-note-topic-input');
-    assert.ok(editorContent.includes('id="notes-topics-datalist"'), 'NoteEditor phải có #notes-topics-datalist');
-    assert.ok(editorContent.includes('id="btn-pin-note"'), 'NoteEditor phải có #btn-pin-note');
-    assert.ok(editorContent.includes('id="pin-icon"'), 'NoteEditor phải có #pin-icon');
-    assert.ok(editorContent.includes('id="focus-notes-toolbar"'), 'NoteEditor phải có #focus-notes-toolbar');
-    assert.ok(editorContent.includes('id="btn-format-markdown"'), 'NoteEditor phải có #btn-format-markdown');
-    assert.ok(editorContent.includes('id="focus-notes-tab-editor"'), 'NoteEditor phải có #focus-notes-tab-editor');
-    assert.ok(editorContent.includes('id="tab-notes-word-count"'), 'NoteEditor phải có #tab-notes-word-count');
-    assert.ok(editorContent.includes('id="tab-notes-char-count"'), 'NoteEditor phải có #tab-notes-char-count');
-    assert.ok(editorContent.includes('id="tab-notes-read-time"'), 'NoteEditor phải có #tab-notes-read-time');
-    assert.ok(editorContent.includes('id="tab-notes-save-status"'), 'NoteEditor phải có #tab-notes-save-status');
+    assert.ok(editorContent.includes('id={`${idPrefix}active-note-card`}'), 'NoteEditor phải có #active-note-card và ID riêng cho modal');
+    assert.ok(editorContent.includes('id={`${idPrefix}active-note-title`}'), 'NoteEditor phải có #active-note-title');
+    assert.ok(editorContent.includes('id={`${idPrefix}active-note-topic-input`}'), 'NoteEditor phải có #active-note-topic-input');
+    assert.ok(editorContent.includes('id={`${idPrefix}notes-topics-datalist`}'), 'NoteEditor phải có #notes-topics-datalist');
+    assert.ok(editorContent.includes('id={`${idPrefix}btn-pin-note`}'), 'NoteEditor phải có #btn-pin-note');
+    assert.ok(editorContent.includes('id={`${idPrefix}pin-icon`}'), 'NoteEditor phải có #pin-icon');
+    assert.ok(editorContent.includes('id={`${idPrefix}focus-notes-toolbar`}'), 'NoteEditor phải có #focus-notes-toolbar');
+    assert.ok(editorContent.includes('id={`${idPrefix}btn-format-markdown`}'), 'NoteEditor phải có #btn-format-markdown');
+    assert.ok(editorContent.includes("'focus-notes-tab-editor'"), 'NoteEditor phải có #focus-notes-tab-editor');
+    assert.ok(editorContent.includes('id={`${idPrefix}tab-notes-word-count`}'), 'NoteEditor phải có #tab-notes-word-count');
+    assert.ok(editorContent.includes('id={`${idPrefix}tab-notes-char-count`}'), 'NoteEditor phải có #tab-notes-char-count');
+    assert.ok(editorContent.includes('id={`${idPrefix}tab-notes-read-time`}'), 'NoteEditor phải có #tab-notes-read-time');
+    assert.ok(editorContent.includes('id={`${idPrefix}tab-notes-save-status`}'), 'NoteEditor phải có #tab-notes-save-status');
     assert.ok(editorContent.includes('save-status-dot'), 'NoteEditor phải có class save-status-dot');
     assert.ok(editorContent.includes('note-checkbox'), 'NoteEditor phải hỗ trợ note-checkbox checklist');
   });
 
   it('6. Đảm bảo TopicFilterChips duy trì container #notes-topics-bar tương thích ngược', () => {
-    assert.ok(chipsContent.includes('id="notes-topics-bar"'), 'TopicFilterChips phải có id #notes-topics-bar');
+    assert.ok(chipsContent.includes("id = 'notes-topics-bar'"), 'TopicFilterChips phải mặc định giữ id #notes-topics-bar');
   });
 
   it('7. Thuật toán Markdown Parser trong markdown.ts hoạt động chính xác', async () => {

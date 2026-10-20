@@ -9,6 +9,7 @@ const appJsPath = path.resolve('public/app.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
 const js = fs.readFileSync(appJsPath, 'utf8');
+const timerModals = fs.readFileSync(path.resolve('components/timer/TimerModals.tsx'), 'utf8');
 
 // ---------------------------------------------------------------------------
 // 1. Kiểm tra renderAssistantOptionChips dùng data-prompt chống SyntaxError
@@ -98,8 +99,8 @@ assert.ok(
 
 // 3c. Timer edit inputs
 assert.ok(
-  js.includes("['input-edit-minutes', 'input-edit-seconds'].forEach"),
-  'Các ô nhập thời gian đếm ngược phải có bộ lắng nghe phím Enter'
+  timerModals.includes("event.key === 'Enter'"),
+  'React timer inputs must save when Enter is pressed'
 );
 
 // 3d. Profile nickname input

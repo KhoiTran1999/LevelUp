@@ -15,6 +15,24 @@ function confirmAction({
   onConfirm = null,
   onCancel = null
 } = {}) {
+  if (
+    typeof document !== 'undefined' &&
+    document.getElementById('levelup-app') &&
+    typeof window.levelupConfirmAction === 'function'
+  ) {
+    return window.levelupConfirmAction({
+      title,
+      message,
+      detail,
+      confirmText,
+      cancelText,
+      icon,
+      btnColor,
+      onConfirm,
+      onCancel
+    });
+  }
+
   return new Promise((resolve) => {
     if (activeConfirmResolve) {
       activeConfirmResolve(false);

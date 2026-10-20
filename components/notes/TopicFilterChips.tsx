@@ -7,6 +7,6 @@ import React from 'react';
  * Hidden by design according to the stable LevelUp RPG specification (bỏ hệ thống tag để giữ giao diện tối giản).
  * Retains the #notes-topics-bar ID for backwards compatibility with tests and DOM queries.
  */
-export function TopicFilterChips() {
-  return <div className="hidden" id="notes-topics-bar" aria-hidden="true" />;
+export function TopicFilterChips({ id = 'notes-topics-bar' }: { id?: string }) {
+  return <div className="hidden" id={id} aria-hidden="true" />;
 }

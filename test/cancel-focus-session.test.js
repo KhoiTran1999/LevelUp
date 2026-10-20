@@ -6,6 +6,7 @@ console.log('=== Kiểm thử Tính năng Hủy Phiên Tập Trung (Không Nộp
 
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const questDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');
 
 // 1. Kiểm tra modal nộp bằng chứng (modal-quest-proof) giữ nguyên sạch sẽ, không có nút Hủy Phiên ở đây
 console.log('Test 1: Kiểm tra modal nộp bằng chứng (modal-quest-proof) không bị gắn nút Hủy Phiên rườm rà...');
@@ -23,9 +24,8 @@ console.log('✓ Test 2: cancelQuestFocusSession được định nghĩa và x�
 
 // 3. Kiểm tra Modal Chi Tiết Nhiệm Vụ (openQuestDetailModal) render nút Hủy Phiên
 console.log('Test 3: Kiểm tra render nút Hủy Phiên trong Modal Chi Tiết Nhiệm Vụ...');
-assert.ok(appJs.includes('id="mqd-btn-cancel-session"'), 'openQuestDetailModal phải render id="mqd-btn-cancel-session"');
-assert.ok(appJs.includes('Hủy Phiên Này (Không nộp bằng chứng)'), 'Nút hủy phiên khi chờ nộp ảnh phải có nhãn rõ ràng');
-assert.ok(appJs.includes('cancelQuestFocusSession(q.id)'), 'Nút hủy phiên phải gọi cancelQuestFocusSession với id nhiệm vụ');
+assert.ok(questDetail.includes('id="mqd-btn-cancel-session"'), 'React quest detail must render cancel-session action.');
+assert.ok(questDetail.includes('invokeAction(\'cancelQuestFocusSession\')'), 'React cancel-session action must call legacy domain action.');
 console.log('✓ Test 3: Modal chi tiết hiển thị nút Hủy Phiên Này ngay dưới nút nộp bằng chứng.\n');
 
 // 4. Kiểm tra Menu Thao Tác Thẻ Nhiệm Vụ (.btn-cancel-focus-session)

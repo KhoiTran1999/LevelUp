@@ -11,6 +11,8 @@ const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
 const indexHtmlPath = path.resolve('public/index.html');
 const indexHtmlContent = fs.readFileSync(indexHtmlPath, 'utf8');
+const levelAndStreak = fs.readFileSync(path.resolve('components/profile/LevelAndStreakInfoModals.tsx'), 'utf8');
+const profile = fs.readFileSync(path.resolve('components/profile/ProfileModal.tsx'), 'utf8');
 
 const styleCssPath = path.resolve('public/style.css');
 const styleCssContent = fs.readFileSync(styleCssPath, 'utf8');
@@ -298,16 +300,17 @@ assert.ok(indexHtmlContent.includes('id="hero-streak-count"'), 'index.html phả
 assert.ok(indexHtmlContent.includes('id="hero-streak-flame"'), 'index.html phải có thẻ hero-streak-flame');
 
 // 2. Kiểm tra Modal Chi Tiết Chuỗi
-assert.ok(indexHtmlContent.includes('id="modal-streak-info"'), 'index.html phải có modal-streak-info');
-assert.ok(indexHtmlContent.includes('id="modal-streak-days-count"'), 'index.html phải có modal-streak-days-count');
-assert.ok(indexHtmlContent.includes('id="modal-streak-tier-title"'), 'index.html phải có modal-streak-tier-title');
-assert.ok(indexHtmlContent.includes('id="modal-streak-today-status"'), 'index.html phải có modal-streak-today-status');
-assert.ok(indexHtmlContent.includes('id="modal-streak-week-tracker"'), 'index.html phải có modal-streak-week-tracker (lịch 7 ngày)');
-assert.ok(indexHtmlContent.includes('id="modal-streak-perk-quest"'), 'index.html phải có modal-streak-perk-quest');
+assert.ok(levelAndStreak.includes('ModalFrame id="modal-streak-info"'), 'React phải sở hữu modal-streak-info');
+assert.ok(levelAndStreak.includes('Chuỗi ngày hiện tại'), 'React phải hiển thị số ngày streak');
+assert.ok(levelAndStreak.includes('getStreakTitle(streak)'), 'React phải hiển thị danh hiệu streak');
+assert.ok(levelAndStreak.includes("status === 'active_today'"), 'React phải hiển thị trạng thái streak hôm nay');
+assert.ok(levelAndStreak.includes('streak-day-card'), 'React phải hiển thị lịch streak 7 ngày');
+assert.ok(levelAndStreak.includes('getNextStreakMilestone(streak)'), 'React phải hiển thị mốc thưởng kế tiếp');
+assert.ok(!indexHtmlContent.includes('id="modal-streak-info"'), 'Legacy HTML không được chứa streak modal');
 
 // 3. Kiểm tra Profile Modal
-assert.ok(indexHtmlContent.includes('id="profile-modal-streak-title"'), 'index.html phải có thẻ streak trong profile modal');
-assert.ok(indexHtmlContent.includes('id="btn-open-streak-info-from-profile"'), 'index.html phải có nút mở streak modal từ profile');
+assert.ok(profile.includes('Chuỗi Chăm Chỉ'), 'React profile phải có thẻ streak');
+assert.ok(profile.includes('openStreakInfoModal'), 'React profile phải có nút mở streak modal');
 
 // 4. Kiểm tra CSS hiệu ứng
 assert.ok(styleCssContent.includes('.streak-flame'), 'style.css phải định nghĩa .streak-flame');
@@ -315,7 +318,7 @@ assert.ok(styleCssContent.includes('flamePulse'), 'style.css phải có keyframe
 assert.ok(styleCssContent.includes('.streak-day-card'), 'style.css phải có .streak-day-card');
 
 // 5. Kiểm tra mã nguồn app.js gắn kết sự kiện
-assert.ok(appJsContent.includes('openStreakInfoModal'), 'app.js phải định nghĩa hàm openStreakInfoModal');
+assert.ok(levelAndStreak.includes('legacyWindow.openStreakInfoModal = openStreak'), 'React phải cung cấp API mở streak modal');
 assert.ok(appJsContent.includes('updateStreakOnQuestComplete'), 'app.js phải định nghĩa hàm updateStreakOnQuestComplete');
 assert.ok(appJsContent.includes('getDailyStreakStatus'), 'app.js phải định nghĩa hàm getDailyStreakStatus');
 assert.ok(appJsContent.includes('getStreakBonusPercent'), 'app.js phải định nghĩa hàm getStreakBonusPercent');

@@ -14,3 +14,11 @@ assert.ok(
   questCard.includes('quest.focusTimerCompleted && quest.requiresProof && !quest._proofVerified'),
   'Task cards must keep opening proof submission when proof is required',
 );
+assert.ok(
+  questCard.includes('openQuestDetail(quest)'),
+  'Task card clicks must use the shared quest detail opener when available',
+);
+assert.ok(
+  questCard.includes("new CustomEvent('levelup:open-quest-detail', { detail: quest })"),
+  'Task card clicks must retain the React event fallback',
+);

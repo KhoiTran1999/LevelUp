@@ -7,16 +7,16 @@ console.log('=== Kiểm thử Giao Diện Thẻ Tinh Gọn, Giữ Nguyên Màu S
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const css = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const questDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');
 
 // 1. Kiểm tra HTML Lịch tuần & Modal chi tiết nhiệm vụ
 console.log('Test 1: Kiểm tra cấu trúc HTML Lịch Tuần & Modal Chi Tiết Nhiệm Vụ...');
 assert.ok(html.includes('id="week-calendar-container"'), 'index.html phải có container id="week-calendar-container"');
 assert.ok(html.includes('id="week-strip-days"'), 'index.html phải có id="week-strip-days"');
-assert.ok(html.includes('id="modal-quest-detail"'), 'index.html phải có modal chi tiết id="modal-quest-detail"');
-assert.ok(html.includes('id="mqd-title"'), 'modal chi tiết phải có id="mqd-title"');
-assert.ok(html.includes('id="mqd-coins-reward"'), 'modal chi tiết phải có id="mqd-coins-reward"');
-assert.ok(html.includes('id="mqd-exp-reward"'), 'modal chi tiết phải có id="mqd-exp-reward"');
-assert.ok(html.includes('id="mqd-primary-action-container"'), 'modal chi tiết phải có container cho các nút hành động chính');
+assert.ok(questDetail.includes('id="modal-quest-detail"'), 'React phải sở hữu modal chi tiết nhiệm vụ');
+assert.ok(questDetail.includes('id="mqd-title"'), 'React modal chi tiết phải có id="mqd-title"');
+assert.ok(questDetail.includes('quest.rewardCoins + rewardBonus'), 'React modal phải hiển thị vàng thưởng');
+assert.ok(questDetail.includes('mqd-btn-complete-bounty'), 'React modal phải có nút hoàn thành nhiệm vụ');
 console.log('✓ Test 1: Cấu trúc HTML Lịch Tuần và Modal Chi Tiết đầy đủ các phần tử chuẩn xác.\n');
 
 // 2. Kiểm tra CSS Định dạng Thẻ Tinh Gọn & Giữ Nguyên Bản Sắc Màu RPG
@@ -56,24 +56,23 @@ console.log('✓ Test 5: Chuỗi ngày được tính toán động từ lịch 
 
 // 6. Kiểm tra Tinh Giản Header Modal & Đầy Đủ Tính Năng Hoàn Lại (Undo Repeat) & Hủy Bảo Lưu
 console.log('Test 6: Kiểm tra loại bỏ badge rườm rà ở header modal và bổ sung đầy đủ nút hoàn lại...');
-assert.ok(!html.includes('id="mqd-rank-badge"'), 'Header modal đã gỡ bỏ badge Hạng rườm rà');
-assert.ok(!html.includes('id="mqd-type-badge"'), 'Header modal đã gỡ bỏ badge Loại rườm rà');
-assert.ok(appJs.includes('mqd-btn-undo-repeat'), 'Modal phải có nút hoàn lại lần vừa làm cho nhiệm vụ lặp lại');
-assert.ok(appJs.includes('mqd-btn-clear-saved'), 'Modal phải có nút hủy bảo lưu thời gian');
+assert.ok(!questDetail.includes('id="mqd-rank-badge"'), 'React header must not restore the old rank badge.');
+assert.ok(!questDetail.includes('id="mqd-type-badge"'), 'React header must not restore the old type badge.');
+assert.ok(questDetail.includes('mqd-btn-undo-repeat'), 'React modal must keep repeat undo action.');
+assert.ok(questDetail.includes('mqd-btn-clear-saved'), 'React modal must keep saved-timer clear action.');
 console.log('✓ Test 6: Header modal tinh giản tuyệt đẹp và đầy đủ 100% tính năng hoàn tác, hủy bảo lưu từ menu cũ.\n');
 
 // 7. Kiểm tra Gỡ Bỏ Ô Phiên Tập Trung & Ô Ảnh Bằng Chứng Cũ, Thay Bằng Cụm Badge Bổ Trợ Gọn Gàng & Nút Dưới Cùng Không Mất Chữ
 console.log('Test 7: Kiểm tra cấu trúc thông tin bổ trợ gọn gàng và hàng nút dưới cùng 2 cột thoáng đãng...');
-assert.ok(!html.includes('id="mqd-focus-box"'), 'Modal đã loại bỏ hoàn toàn ô Phiên tập trung cồng kềnh');
-assert.ok(!html.includes('id="mqd-proof-box"'), 'Modal đã loại bỏ ô yêu cầu ảnh bằng chứng cồng kềnh cũ');
-assert.ok(html.includes('id="mqd-meta-badges"'), 'Modal trang bị cụm thẻ bổ trợ gọn gàng id="mqd-meta-badges"');
-assert.ok(html.includes('id="mqd-undo-container"'), 'Nút hoàn lại đã được đưa xuống nhóm nút dưới cùng trong id="mqd-undo-container"');
-assert.ok(html.includes('grid grid-cols-2'), 'Nhóm nút dưới cùng sử dụng lưới 2 cột thoáng đãng để không bị mất chữ');
+assert.ok(!questDetail.includes('id="mqd-focus-box"'), 'React modal must not restore bulky focus box.');
+assert.ok(!questDetail.includes('id="mqd-proof-box"'), 'React modal must not restore bulky proof box.');
+assert.ok(questDetail.includes('Thông tin bổ trợ'), 'React modal must keep compact supplementary information.');
+assert.ok(questDetail.includes('grid grid-cols-2'), 'React modal must retain responsive two-column action layout.');
 console.log('✓ Test 7: Thông tin bổ trợ siêu gọn gàng, ô cồng kềnh đã gỡ bỏ, các nút dưới cùng không còn bị mất chữ.\n');
 
 // 8. Kiểm tra Gỡ Bỏ Lời Khuyên AI, Đổi Lặp Lại Hoạt Động (Không Bị Chặn Thưởng Cao), và Quay Lại Modal Chi Tiết Khi Tắt Sub-modal
 console.log('Test 8: Kiểm tra loại bỏ ô lời khuyên AI, toggleQuestRepeatable không chặn thưởng cao, và flow quay lại modal cha...');
-assert.ok(!html.includes('id="mqd-ai-box"'), 'Modal đã loại bỏ hoàn toàn ô Lời khuyên từ trọng tài AI theo yêu cầu');
+assert.ok(!questDetail.includes('id="mqd-ai-box"'), 'React modal must not restore the removed AI advice box.');
 assert.ok(!appJs.includes('Nhiệm vụ "${quest.title}" có mức thưởng cao (${quest.rewardCoins} Vàng). Hãy dùng tính năng Đàm Phán'), 'toggleQuestRepeatable không còn chặn người dùng đổi sang 1 lần với nhiệm vụ > 15 xu');
 assert.ok(appJs.includes('parentDetailQuestId'), 'Hệ thống modal có cơ chế parentDetailQuestId để quay lại modal chi tiết khi tắt sub-modal');
 console.log('✓ Test 8: Đã gỡ bỏ ô lời khuyên AI, tính năng đổi sang 1 lần hoạt động trơn tru, và đóng sub-modal tự động quay về modal chi tiết.\n');
@@ -81,7 +80,7 @@ console.log('✓ Test 8: Đã gỡ bỏ ô lời khuyên AI, tính năng đổi 
 // 9. Kiểm tra Gỡ Bỏ Toàn Bộ Hiển Thị Kinh Nghiệm (EXP) Khỏi Giao Diện
 console.log('Test 9: Kiểm tra gỡ bỏ hiển thị EXP khỏi toàn bộ giao diện người dùng...');
 assert.ok(html.includes('class="hidden" id="hero-exp-text"'), 'Header hero level badge ẩn hoàn toàn hiển thị EXP');
-assert.ok(html.includes('id="mqd-exp-reward" class="hidden"'), 'Modal chi tiết nhiệm vụ ẩn hoàn toàn hộp EXP, chỉ hiện Vàng');
+assert.ok(!questDetail.includes('mqd-exp-reward'), 'React quest detail must not display EXP reward.');
 assert.ok(html.includes('class="hidden" id="profile-modal-exp-text"'), 'Profile modal ẩn hoàn toàn hiển thị EXP');
 assert.ok(!appJs.includes('Kinh nghiệm: +'), 'Không còn thông báo xác nhận nhắc tới kinh nghiệm EXP');
 assert.ok(!appJs.includes('& +${totalAwardedCoins * 3} EXP!'), 'Toast hoàn thành không còn cộng EXP vào thông báo');
@@ -109,4 +108,3 @@ assert.ok(css.includes('.quest-card-gold-pill'), 'style.css phải định nghĩ
 console.log('✓ Test 11: Thông tin Vàng đã hiển thị ra ngoài thẻ và thời gian đã được dọn sạch hoàn toàn khỏi mặt trước thẻ.\n');
 
 console.log('🎉 TẤT CẢ 11 BỘ KIỂM THỬ GIAO DIỆN THẺ MỚI & MODAL ĐÃ VƯỢT QUA XUẤT SẮC 100%!');
-

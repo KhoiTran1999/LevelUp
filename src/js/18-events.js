@@ -714,52 +714,6 @@ function initLevelUpApp() {
     btnOpenEditTimer.addEventListener('click', openEditTimerModal);
   }
 
-  // Preset time chips in edit modal
-  document.querySelectorAll('.btn-preset-time').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const mins = parseInt(btn.dataset.mins, 10) || 25;
-      const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
-      if (activeFocusQuest && mins < activeFocusQuest.targetMinutes) {
-        showToast(`Không thể chọn mốc thấp hơn ${activeFocusQuest.targetMinutes} phút do AI đã định giá!`, 'error');
-        sfx.playClick();
-        return;
-      }
-      if (isReward && mins * 60 > focusRemainingSeconds) {
-        showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
-        sfx.playClick();
-        return;
-      }
-      const minInput = document.getElementById('input-edit-minutes');
-      const secInput = document.getElementById('input-edit-seconds');
-      if (minInput) minInput.value = mins;
-      if (secInput) secInput.value = 0;
-      sfx.playClick();
-    });
-  });
-
-  // Save button in edit modal
-  const btnSaveEdit = document.getElementById('btn-save-edit-timer');
-  if (btnSaveEdit) {
-    btnSaveEdit.addEventListener('click', () => {
-      const minInput = document.getElementById('input-edit-minutes');
-      const secInput = document.getElementById('input-edit-seconds');
-      const mins = Math.max(0, parseInt(minInput ? minInput.value : 25, 10) || 0);
-      const secs = Math.max(0, Math.min(59, parseInt(secInput ? secInput.value : 0, 10) || 0));
-      saveEditTimer(mins, secs);
-    });
-  }
-  ['input-edit-minutes', 'input-edit-seconds'].forEach(id => {
-    const input = document.getElementById(id);
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          document.getElementById('btn-save-edit-timer')?.click();
-        }
-      });
-    }
-  });
-
   // Fullscreen Focus Overlay controls
   const btnZen = document.getElementById('btn-timer-zen');
   if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
@@ -775,22 +729,6 @@ function initLevelUpApp() {
     btnZenHold.addEventListener('click', () => {
       toggleZenMode(false);
       holdFocusTimer();
-    });
-  }
-
-  // Focus Complete celebration modal actions
-  const btnCompleteClaim = document.getElementById('btn-focus-complete-claim');
-  if (btnCompleteClaim) {
-    btnCompleteClaim.addEventListener('click', () => {
-      closeModal('modal-focus-complete');
-    });
-  }
-
-  const btnCompleteBreak = document.getElementById('btn-focus-complete-break');
-  if (btnCompleteBreak) {
-    btnCompleteBreak.addEventListener('click', () => {
-      closeModal('modal-focus-complete');
-      startBreakTimer(5);
     });
   }
 
@@ -892,6 +830,11 @@ function initLevelUpApp() {
 
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn')?.addEventListener('click', () => {
+    if (!document.getElementById('modal-profile')) {
+      if (typeof window.openProfileModal === 'function') window.openProfileModal();
+      return;
+    }
+
     const nickInput = document.getElementById('input-hero-nickname'); if (nickInput) nickInput.value = appState.profile.nickname;
 
     const roleBadge = document.getElementById('profile-role-badge');

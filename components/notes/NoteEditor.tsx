@@ -15,6 +15,8 @@ export interface NoteEditorHandle {
 
 interface NoteEditorProps {
   activeNote: NoteItem | null;
+  idPrefix?: string;
+  exposeLegacyFunctions?: boolean;
   onBackToListMobile: () => void;
   onSaveNote: (id: string, updates: Partial<NoteItem>) => void;
   onTogglePin: () => void;
@@ -25,6 +27,8 @@ interface NoteEditorProps {
 export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function NoteEditor(
   {
     activeNote,
+    idPrefix = '',
+    exposeLegacyFunctions = true,
     onBackToListMobile,
     onSaveNote,
     onTogglePin,
@@ -414,6 +418,28 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   // Paste handler: Auto recognize Markdown
   const handlePaste = (e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData('text/plain');
+    if (idPrefix === 'modal-') {
+      e.preventDefault();
+      if (!text) return;
+      const html = isMarkdownText(text) ? convertMarkdownToEditorHtml(text) : '';
+      if (html) {
+        document.execCommand('insertHTML', false, html);
+        handleEditorInput();
+        if (typeof window !== 'undefined' && typeof (window as unknown as { showToast?: (m: string, t: string) => void }).showToast === 'function') {
+          (window as unknown as { showToast: (m: string, t: string) => void }).showToast(
+            '✨ Đã tự động nhận diện và chuyển đổi cú pháp Markdown!',
+            'success'
+          );
+        }
+      } else if (text.includes('\n')) {
+        document.execCommand('insertHTML', false, convertMarkdownToEditorHtml(text));
+        handleEditorInput();
+      } else {
+        document.execCommand('insertText', false, text);
+        handleEditorInput();
+      }
+      return;
+    }
     if (text && isMarkdownText(text)) {
       e.preventDefault();
       const html = convertMarkdownToEditorHtml(text);
@@ -426,6 +452,74 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         );
       }
     }
+  };
+
+  const handleModalEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      flushCurrentEditor();
+      if (typeof window !== 'undefined' && typeof (window as unknown as { showToast?: (m: string, t: string) => void }).showToast === 'function') {
+        (window as unknown as { showToast: (m: string, t: string) => void }).showToast(
+          '💾 Đã lưu ghi chú thành công!',
+          'success'
+        );
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      formatMarkdownInEditor();
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+      handleEditorInput();
+      return;
+    }
+
+    if (e.key !== 'Enter' && e.key !== 'Backspace') return;
+    const selection = window.getSelection();
+    const anchor = selection?.anchorNode;
+    const item = anchor instanceof Element
+      ? anchor.closest('.note-todo-item')
+      : anchor?.parentElement?.closest('.note-todo-item');
+    if (!selection || !item) return;
+
+    const textContent = (item.querySelector('.note-todo-text')?.textContent || item.textContent || '')
+      .replace(/\u00a0/g, ' ')
+      .trim();
+    const isEmptyItem = !textContent || textContent === 'Việc cần làm...' || textContent === 'Nhiệm vụ mới...';
+
+    if (e.key === 'Backspace' && !isEmptyItem) return;
+    e.preventDefault();
+    if (e.key === 'Backspace' || isEmptyItem) {
+      const paragraph = document.createElement('p');
+      paragraph.innerHTML = '<br>';
+      item.parentNode?.replaceChild(paragraph, item);
+      const range = document.createRange();
+      range.setStart(paragraph, 0);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      const nextItem = document.createElement('div');
+      nextItem.className = 'note-todo-item';
+      nextItem.innerHTML =
+        '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text">&nbsp;</span>';
+      item.parentNode?.insertBefore(nextItem, item.nextSibling);
+      const text = nextItem.querySelector('.note-todo-text');
+      if (text) {
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    handleEditorInput();
   };
 
   // Copy Note Text
@@ -470,7 +564,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
   // Expose global window helper functions for backwards compatibility
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !exposeLegacyFunctions) return;
     const win = window as unknown as {
       formatMarkdownInActiveEditor?: () => void;
       copyActiveNote?: () => void;
@@ -479,13 +573,37 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       toggleNoteFullscreen?: () => void;
       showNotesListMobile?: () => void;
     };
+    const previous = {
+      formatMarkdownInActiveEditor: win.formatMarkdownInActiveEditor,
+      copyActiveNote: win.copyActiveNote,
+      exportActiveNote: win.exportActiveNote,
+      clearActiveNoteContent: win.clearActiveNoteContent,
+      toggleNoteFullscreen: win.toggleNoteFullscreen,
+      showNotesListMobile: win.showNotesListMobile,
+    };
     win.formatMarkdownInActiveEditor = formatMarkdownInEditor;
     win.copyActiveNote = handleCopyNote;
     win.exportActiveNote = handleExportMarkdown;
     win.clearActiveNoteContent = handleClearContent;
     win.toggleNoteFullscreen = toggleFullscreen;
-    win.showNotesListMobile = () => handleBackToListMobile();
+    const showNotesListMobile = () => handleBackToListMobile();
+    win.showNotesListMobile = showNotesListMobile;
+    return () => {
+      if (win.formatMarkdownInActiveEditor === formatMarkdownInEditor) {
+        win.formatMarkdownInActiveEditor = previous.formatMarkdownInActiveEditor;
+      }
+      if (win.copyActiveNote === handleCopyNote) win.copyActiveNote = previous.copyActiveNote;
+      if (win.exportActiveNote === handleExportMarkdown) win.exportActiveNote = previous.exportActiveNote;
+      if (win.clearActiveNoteContent === handleClearContent) {
+        win.clearActiveNoteContent = previous.clearActiveNoteContent;
+      }
+      if (win.toggleNoteFullscreen === toggleFullscreen) win.toggleNoteFullscreen = previous.toggleNoteFullscreen;
+      if (win.showNotesListMobile === showNotesListMobile) {
+        win.showNotesListMobile = previous.showNotesListMobile;
+      }
+    };
   }, [
+    exposeLegacyFunctions,
     formatMarkdownInEditor,
     handleCopyNote,
     handleExportMarkdown,
@@ -495,7 +613,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
   return (
     <div
-      id="active-note-card"
+      id={`${idPrefix}active-note-card`}
       className={`rpg-panel rounded-2xl sm:rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl flex flex-col bg-white dark:bg-slate-900 ${
         isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : ''
       }`}
@@ -520,7 +638,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           <div className="flex-1 min-w-0">
             <input
               ref={titleInputRef}
-              id="active-note-title"
+              id={`${idPrefix}active-note-title`}
               type="text"
               placeholder="Tiêu đề ghi chú..."
               defaultValue={activeNote?.title || ''}
@@ -534,13 +652,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         <div className="flex items-center justify-between sm:justify-end gap-1.5 shrink-0 flex-wrap">
           <div className="hidden">
             <input
-              id="active-note-topic-input"
+              id={`${idPrefix}active-note-topic-input`}
               list="notes-topics-datalist"
               type="text"
               placeholder="Tự đặt chủ đề..."
               defaultValue={activeNote?.topic || ''}
             />
-            <datalist id="notes-topics-datalist"></datalist>
+            <datalist id={`${idPrefix}notes-topics-datalist`}></datalist>
           </div>
 
           <div className="flex items-center gap-0.5 sm:gap-1">
@@ -555,14 +673,14 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
             </button>
             {/* Pin Button */}
             <button
-              id="btn-pin-note"
+              id={`${idPrefix}btn-pin-note`}
               type="button"
               onClick={onTogglePin}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition cursor-pointer shrink-0"
               title="Ghim ghi chú lên đầu"
             >
               <span
-                id="pin-icon"
+                id={`${idPrefix}pin-icon`}
                 className={`material-symbols-outlined text-[17px] sm:text-[18px] leading-none ${
                   isPinned ? 'text-amber-500' : ''
                 }`}
@@ -612,7 +730,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
       {/* 2. Rich Text Formatting Toolbar */}
       <div
-        id="focus-notes-toolbar"
+        id={`${idPrefix}focus-notes-toolbar`}
         className="notes-toolbar horizontal-scroll-drag px-2 sm:px-4 py-1.5 sm:py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center gap-1 overflow-x-auto no-scrollbar flex-nowrap shrink-0 select-none"
       >
         {/* Paragraph / Headings */}
@@ -822,7 +940,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
         {/* Markdown Auto-Formatter */}
         <button
-          id="btn-format-markdown"
+          id={`${idPrefix}btn-format-markdown`}
           type="button"
           onMouseDown={e => e.preventDefault()}
           onPointerDown={e => e.preventDefault()}
@@ -839,10 +957,12 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       <div className="flex-1 min-h-[350px] max-h-[calc(100vh-280px)] lg:max-h-[62vh] overflow-y-auto custom-scrollbar p-3.5 sm:p-6 bg-white dark:bg-slate-900 select-text">
         <div
           ref={editorRef}
-          id="focus-notes-tab-editor"
+          id={idPrefix === 'modal-' ? 'focus-notes-editor' : 'focus-notes-tab-editor'}
           contentEditable="true"
           suppressContentEditableWarning
           spellCheck="false"
+          onFocus={idPrefix === 'modal-' ? () => document.execCommand('defaultParagraphSeparator', false, 'p') : undefined}
+          onKeyDown={idPrefix === 'modal-' ? handleModalEditorKeyDown : undefined}
           onInput={handleEditorInput}
           onClick={handleEditorClick}
           onPaste={handlePaste}
@@ -854,16 +974,16 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       {/* 4. Footer Stats & Save Status */}
       <div className="p-2.5 sm:p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between gap-2 shrink-0 flex-wrap">
         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono flex-wrap">
-          <span id="tab-notes-word-count">{stats.words} từ</span>
+          <span id={`${idPrefix}tab-notes-word-count`}>{stats.words} từ</span>
           <span>•</span>
-          <span id="tab-notes-char-count">{stats.chars} ký tự</span>
+          <span id={`${idPrefix}tab-notes-char-count`}>{stats.chars} ký tự</span>
           <span className="hidden sm:inline">•</span>
-          <span id="tab-notes-read-time" className="hidden sm:inline">
+          <span           id={`${idPrefix}tab-notes-read-time`} className="hidden sm:inline">
             ~{stats.readTime} phút đọc
           </span>
           <span>•</span>
           <span
-            id="tab-notes-save-status"
+            id={`${idPrefix}tab-notes-save-status`}
             className={`inline-flex items-center gap-1 font-medium font-sans ${
               isSaving
                 ? 'text-amber-600 dark:text-amber-400'

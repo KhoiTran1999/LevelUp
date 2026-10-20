@@ -50,133 +50,6 @@ function switchRewardSubtab(subtab) {
 }
 window.switchRewardSubtab = switchRewardSubtab;
 
-function openLevelInfoModal() {
-  const p = appState.profile;
-  const expNeeded = p.level * 100;
-  const expRemaining = Math.max(0, expNeeded - p.exp);
-  const pct = Math.min(100, Math.round((p.exp / expNeeded) * 100));
-
-  const curBadge = document.getElementById('modal-level-current-badge');
-  const curTitle = document.getElementById('modal-level-current-title');
-  const expRatio = document.getElementById('modal-level-exp-ratio');
-  const expBar = document.getElementById('modal-level-exp-bar');
-  const neededText = document.getElementById('modal-level-needed-text');
-
-  if (curBadge) curBadge.textContent = `LV. ${p.level}`;
-  if (curTitle) curTitle.textContent = p.title || 'Tân Binh Cấp 1';
-  if (expRatio) expRatio.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
-  if (expBar) expBar.style.width = `${pct}%`;
-  if (neededText) {
-    neededText.textContent = `Cần thêm ${expRemaining} EXP nữa để lên LV. ${p.level + 1}`;
-  }
-
-  const modal = document.getElementById('modal-level-info');
-  if (modal) modal.classList.remove('hidden');
-}
-window.openLevelInfoModal = openLevelInfoModal;
-
-function openStreakInfoModal() {
-  const p = appState.profile;
-  if (!p) return;
-
-  const streak = Math.max(0, parseInt(p.streak, 10) || 0);
-  const streakStatusInfo = getDailyStreakStatus(p);
-  const bonusPct = getStreakBonusPercent(streak);
-  const streakTitle = getStreakTitle(streak);
-  const nextMilestone = getNextStreakMilestone(streak);
-
-  const daysCountEl = document.getElementById('modal-streak-days-count');
-  if (daysCountEl) daysCountEl.textContent = streak;
-
-  const titleEl = document.getElementById('modal-streak-tier-title');
-  if (titleEl) titleEl.textContent = streakTitle;
-
-  const statusEl = document.getElementById('modal-streak-today-status');
-  if (statusEl) {
-    if (streakStatusInfo.status === 'active_today') {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">✅</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chuỗi hôm nay đã được bảo vệ an toàn!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã hoàn thành nhiệm vụ hôm nay. Hãy quay lại vào ngày mai để tiếp tục nâng chuỗi nhé!</div>
-        </div>
-      `;
-    } else if (streakStatusInfo.status === 'waiting_today') {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">⏳</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chưa hoàn thành nhiệm vụ hôm nay!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Hãy hoàn thành ít nhất 1 nhiệm vụ trước 23:59 để tăng chuỗi lên ${streak + 1} ngày và nhận thưởng.</div>
-        </div>
-      `;
-    } else {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">⚠️</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chuỗi đã bị gián đoạn!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã bỏ lỡ ngày hôm qua. Hoàn thành 1 nhiệm vụ hôm nay để thắp lại ngọn lửa chuỗi mới!</div>
-        </div>
-      `;
-    }
-  }
-
-  const perkQuestEl = document.getElementById('modal-streak-perk-quest');
-  if (perkQuestEl) perkQuestEl.textContent = `+${bonusPct}% Vàng`;
-
-  const perkQuestNextEl = document.getElementById('modal-streak-perk-quest-next');
-  if (perkQuestNextEl) perkQuestNextEl.textContent = nextMilestone.label;
-
-  const perkCreditEl = document.getElementById('modal-streak-perk-credit');
-  if (perkCreditEl) perkCreditEl.textContent = `+${streak * 5} Vàng`;
-
-  // Render weekly 7-day dots tracker
-  const trackerEl = document.getElementById('modal-streak-week-tracker');
-  if (trackerEl) {
-    const today = new Date();
-    const history = Array.isArray(p.streakHistory) ? p.streakHistory : [];
-    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    let html = '';
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayStr = getLocalDayString(d);
-      const dayOfWeek = dayNames[d.getDay()];
-      const isToday = i === 0;
-      const isCompleted = history.includes(dayStr);
-
-      html += `
-        <div class="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-xl border transition-all ${
-          isToday
-            ? 'streak-day-card today bg-orange-500/15 border-orange-500/50'
-            : isCompleted
-              ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-              : 'bg-slate-100/60 dark:bg-slate-950/60 border-slate-200/50 dark:border-slate-800/50 opacity-60'
-        }">
-          <span class="text-[9px] font-bold ${isToday ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${dayOfWeek}</span>
-          <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs ${
-            isCompleted
-              ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm'
-              : isToday
-                ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-dashed border-orange-500/50 animate-pulse'
-                : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-400'
-          }">
-            ${isCompleted ? '🔥' : isToday ? '⏳' : '·'}
-          </div>
-          <span class="text-[8px] font-mono text-slate-400">${d.getDate()}/${d.getMonth() + 1}</span>
-        </div>
-      `;
-    }
-    trackerEl.innerHTML = html;
-  }
-
-  const modal = document.getElementById('modal-streak-info');
-  if (modal) modal.classList.remove('hidden');
-}
-window.openStreakInfoModal = openStreakInfoModal;
-
 function switchTab(tabId) {
   // Defensive guard: prevent blank screen if tabId is missing or undefined
   if (!tabId || tabId === 'undefined') {
@@ -456,6 +329,7 @@ function dismissModalWithSlideDown(modal, onDone) {
     }
 
     modal._suppressBackdropClick = false;
+    if (typeof modal._reactOnDismiss === 'function') modal._reactOnDismiss();
 
     // 3. Quay lại modal chi tiết nhiệm vụ trước đó nếu có
     if (typeof window !== 'undefined' && window.parentDetailQuestId && (modal.id === 'modal-quest' || modal.id === 'modal-frequency-detail' || modal.id === 'modal-quest-proof')) {
@@ -1736,7 +1610,7 @@ function convertMarkdownToEditorHtml(md) {
 window.convertMarkdownToEditorHtml = convertMarkdownToEditorHtml;
 
 function formatMarkdownInActiveEditor() {
-  const editor = document.getElementById('focus-notes-tab-editor') || document.getElementById('focus-notes-editor') || document.querySelector('.notes-editor');
+  const editor = getActiveNotesEditor() || document.querySelector('.notes-editor');
   if (!editor) return;
 
   const sel = window.getSelection();
@@ -2320,6 +2194,11 @@ function saveFocusNotesContent(htmlContent) {
 window.saveFocusNotesContent = saveFocusNotesContent;
 
 function openBrainDumpModal() {
+  if (typeof window.openReactBrainDumpModal === 'function') {
+    window.openReactBrainDumpModal();
+    return;
+  }
+
   const navMoreMenu = document.getElementById('nav-more-menu');
   if (navMoreMenu) navMoreMenu.classList.add('hidden');
   if (typeof closeMobileMoreMenu === 'function') {
@@ -2348,6 +2227,11 @@ window.openBrainDumpModal = openBrainDumpModal;
 window.openFocusNotesModal = openBrainDumpModal;
 
 function closeBrainDumpModal() {
+  if (typeof window.closeReactBrainDumpModal === 'function') {
+    window.closeReactBrainDumpModal();
+    return;
+  }
+
   flushCurrentEditorChanges();
   if (typeof sfx !== 'undefined' && sfx.playClick) {
     sfx.playClick();

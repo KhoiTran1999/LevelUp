@@ -38,6 +38,7 @@ function updateAdminNavVisibility() {
 
 async function fetchAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
+  if (!tbody) return;
   tbody.innerHTML = (typeof renderM3TableLoading === 'function')
     ? renderM3TableLoading(6, 'Đang tải danh sách người chơi...')
     : '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';

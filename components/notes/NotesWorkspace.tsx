@@ -8,7 +8,12 @@ import { NoteEditor, type NoteEditorHandle } from './NoteEditor';
 import { TopicFilterChips } from './TopicFilterChips';
 import { Icon } from '@/components/ui/Icon';
 
-export function NotesWorkspace() {
+interface NotesWorkspaceProps {
+  modalMode?: boolean;
+  onReady?: (flush: () => void) => void;
+}
+
+export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspaceProps) {
   const {
     optimisticNotes,
     activeNoteId,
@@ -21,10 +26,16 @@ export function NotesWorkspace() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileActive, setMobileActive] = useState(false);
+  const idPrefix = modalMode ? 'modal-' : '';
 
   const editorHandleRef = useRef<NoteEditorHandle>(null);
   const notesRef = useRef<NoteItem[]>(optimisticNotes);
   notesRef.current = optimisticNotes;
+  const flushEditor = useCallback(() => editorHandleRef.current?.flush(), []);
+
+  useEffect(() => {
+    onReady?.(flushEditor);
+  }, [flushEditor, onReady]);
 
   // Filter and sort notes (pinned notes first, then latest updatedAt)
   const filteredNotes = useMemo(() => {
@@ -126,7 +137,7 @@ export function NotesWorkspace() {
 
     // 4. Focus new note title
     setTimeout(() => {
-      const titleInput = document.getElementById('active-note-title') as HTMLInputElement | null;
+      const titleInput = document.getElementById(`${idPrefix}active-note-title`) as HTMLInputElement | null;
       if (titleInput) {
         titleInput.focus();
         titleInput.select();
@@ -142,7 +153,7 @@ export function NotesWorkspace() {
         'success'
       );
     }
-  }, [createNote, setActiveNoteId]);
+  }, [createNote, idPrefix, setActiveNoteId]);
 
   // Mobile Back Button: Return from Screen 2 (Editor) to Screen 1 (List)
   const handleBackToListMobile = useCallback(() => {
@@ -225,18 +236,22 @@ export function NotesWorkspace() {
       const win = window as unknown as {
         reloadNotesWorkspace?: (t: boolean) => void;
         hydrateFromCloud?: (s: boolean) => void;
+        showToast?: (message: string, type: string) => void;
       };
-      if (typeof win.reloadNotesWorkspace === 'function') {
+      if (modalMode && typeof win.hydrateFromCloud === 'function') {
+        win.hydrateFromCloud(false);
+        win.showToast?.('Đang đồng bộ ghi chú...', 'info');
+      } else if (typeof win.reloadNotesWorkspace === 'function') {
         win.reloadNotesWorkspace(true);
       } else if (typeof win.hydrateFromCloud === 'function') {
         win.hydrateFromCloud(false);
       }
     }
-  }, []);
+  }, [modalMode]);
 
   // Expose global window hooks for seamless legacy compatibility
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || modalMode) return;
     const win = window as unknown as {
       showNotesListMobile?: () => void;
       switchActiveNote?: (id: string) => void;
@@ -263,6 +278,7 @@ export function NotesWorkspace() {
     win.handleNotesSearch = (query: string) => setSearchQuery(query);
     win.reloadNotesWorkspace = handleReloadNotes;
   }, [
+    modalMode,
     handleBackToListMobile,
     handleSelectNote,
     handleCreateNewNote,
@@ -276,7 +292,7 @@ export function NotesWorkspace() {
     <>
       {/* 1. Header Banner & Actions (Full width at top, matches original public/index.html) */}
       <div
-        id="notes-header-banner"
+        id={`${idPrefix}notes-header-banner`}
         className={`rpg-panel rounded-2xl p-3 sm:p-5 mb-3 sm:mb-6 border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-transparent to-yellow-500/5 ${
           mobileActive ? 'hidden lg:block' : 'block'
         }`}
@@ -292,7 +308,7 @@ export function NotesWorkspace() {
                   SỔ TAY GHI CHÚ &amp; PHÂN LOẠI
                 </h2>
                 <span
-                  id="notes-total-badge"
+                  id={`${idPrefix}notes-total-badge`}
                   className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-mono"
                 >
                   {optimisticNotes.length} Ghi Chú
@@ -311,7 +327,7 @@ export function NotesWorkspace() {
                 search
               </span>
               <input
-                id="notes-search-input"
+                id={`${idPrefix}notes-search-input`}
                 type="text"
                 placeholder="Tìm ghi chú..."
                 value={searchQuery}
@@ -322,7 +338,7 @@ export function NotesWorkspace() {
 
             {/* Reload notes button */}
             <button
-              id="btn-reload-notes"
+              id={`${idPrefix}btn-reload-notes`}
               type="button"
               onClick={handleReloadNotes}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
@@ -334,7 +350,7 @@ export function NotesWorkspace() {
 
             {/* Create new note button */}
             <button
-              id="btn-create-new-note"
+              id={`${idPrefix}btn-create-new-note`}
               type="button"
               onClick={handleCreateNewNote}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition shadow-sm cursor-pointer active:scale-95 shrink-0"
@@ -347,13 +363,13 @@ export function NotesWorkspace() {
       </div>
 
       {/* 2. Dynamic Custom Topics Filter Bar (Ẩn theo yêu cầu bỏ hệ thống tag) */}
-      <TopicFilterChips />
+      <TopicFilterChips id={`${idPrefix}notes-topics-bar`} />
 
       {/* 3. Master-Detail Workspace: Note List + Active Editor */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start" id="notes-workspace-container">
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-start ${modalMode ? 'min-h-0' : ''}`} id={`${idPrefix}notes-workspace-container`}>
         {/* Left: Notes Sidebar List (4 cols on lg, full on mobile when in list mode) */}
         <div
-          id="notes-sidebar-column"
+          id={`${idPrefix}notes-sidebar-column`}
           className={`col-span-12 lg:col-span-4 flex flex-col gap-2 ${
             mobileActive ? 'hidden lg:flex' : 'flex'
           }`}
@@ -361,6 +377,7 @@ export function NotesWorkspace() {
           <NoteSidebar
             notes={filteredNotes}
             activeNoteId={currentActiveNote?.id || null}
+            idPrefix={idPrefix}
             onSelectNote={handleSelectNote}
             onTogglePin={handleTogglePin}
             onDeleteNote={handleDeleteNote}
@@ -370,15 +387,17 @@ export function NotesWorkspace() {
 
         {/* Right: Active Note Editor (8 cols on lg, full on mobile when in editor mode) */}
         <div
-          id="notes-editor-column"
+          id={`${idPrefix}notes-editor-column`}
           data-mobile-active={mobileActive ? 'true' : undefined}
           className={`col-span-12 lg:col-span-8 flex flex-col ${
-            mobileActive ? 'flex' : 'hidden lg:flex'
+            modalMode || mobileActive ? 'flex' : 'hidden lg:flex'
           }`}
         >
           <NoteEditor
             ref={editorHandleRef}
             activeNote={currentActiveNote}
+            idPrefix={idPrefix}
+            exposeLegacyFunctions={!modalMode}
             onBackToListMobile={handleBackToListMobile}
             onSaveNote={handleSaveNote}
             onTogglePin={() => currentActiveNote && handleTogglePin(currentActiveNote.id)}

@@ -8,6 +8,10 @@ interface QuestCardProps {
   quest: Quest;
 }
 
+interface QuestCardWindow extends Window {
+  openQuestDetailModal?: (questOrId: Quest | string) => void;
+}
+
 export function QuestCard({ quest }: QuestCardProps) {
   const { state, completeQuest, startFocusTimer, deleteQuest, openProofModal } = useLevelUp();
 
@@ -23,31 +27,12 @@ export function QuestCard({ quest }: QuestCardProps) {
       openProofModal(quest);
       return;
     }
-
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: { quests?: Quest[] };
-        openQuestDetailModal?: (questOrId: string | Quest) => void;
-      };
-
-      // Safely ensure quest is present in window.appState
-      if (win.appState) {
-        if (!Array.isArray(win.appState.quests)) {
-          win.appState.quests = [];
-        }
-        const idx = win.appState.quests.findIndex(q => q.id === quest.id);
-        if (idx === -1) {
-          win.appState.quests.unshift(quest);
-        } else {
-          win.appState.quests[idx] = { ...win.appState.quests[idx], ...quest };
-        }
-      }
-
-      if (typeof win.openQuestDetailModal === 'function') {
-        win.openQuestDetailModal(quest);
-        return;
-      }
+    const openQuestDetail = (window as QuestCardWindow).openQuestDetailModal;
+    if (openQuestDetail) {
+      openQuestDetail(quest);
+      return;
     }
+    window.dispatchEvent(new CustomEvent('levelup:open-quest-detail', { detail: quest }));
   };
 
   return (

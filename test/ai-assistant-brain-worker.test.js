@@ -290,14 +290,14 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
 // -----------------------------------------------------------------------------
 {
   const fs = await import('node:fs');
-  const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../components/ai/AssistantModal.tsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
   const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 
-  // 7a. Kiểm tra HTML: Không có nút Nav thừa thãi, có FAB và Modal Phù Thủy AI
-  assert.ok(!html.includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
-  assert.ok(html.includes('id="btn-floating-assistant"'), 'Phải có Floating Action Button (FAB) Trợ Lý AI');
-  assert.ok(html.includes('id="modal-ai-assistant"'), 'Phải có modal #modal-ai-assistant');
+  // 7a. Kiểm tra React UI: Không có nút Nav thừa thãi, có FAB và Modal Phù Thủy AI
+  assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
+  assert.ok(html.includes('id="btn-floating-assistant"'), 'React phải có Floating Action Button (FAB) Trợ Lý AI');
+  assert.ok(html.includes('id="modal-ai-assistant"'), 'React phải có modal #modal-ai-assistant');
   assert.ok(html.includes('id="assistant-chat-logs"'), 'Modal phải có khung log chat #assistant-chat-logs');
   assert.ok(html.includes('id="input-assistant-query"'), 'Modal phải có ô nhập câu hỏi #input-assistant-query');
   assert.ok(html.includes('id="btn-send-assistant"'), 'Modal phải có nút gửi #btn-send-assistant');

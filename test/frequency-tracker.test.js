@@ -14,11 +14,12 @@ test('Frequency Tracker - Math and Grid Calculation (Matches Image 1: 1d -> 0.27
   assert.equal(pct33.toFixed(2), '9.04');
 });
 
-test('Frequency Tracker - React tab is mounted while legacy detail modal stays available', async () => {
+test('Frequency Tracker - React tab and detail modal are mounted', async () => {
   const htmlPath = path.join(process.cwd(), 'public', 'index.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
   const page = fs.readFileSync(path.join(process.cwd(), 'app', 'page.tsx'), 'utf8');
   const tracker = fs.readFileSync(path.join(process.cwd(), 'components', 'tracker', 'Tracker.tsx'), 'utf8');
+  const frequencyModal = fs.readFileSync(path.join(process.cwd(), 'components', 'tracker', 'FrequencyDetailModal.tsx'), 'utf8');
 
   // Tab navigation in Menu / Xem Thêm
   assert.ok(html.includes('id="nav-more-menu"'), 'Desktop nav should contain #nav-more-menu');
@@ -37,12 +38,12 @@ test('Frequency Tracker - React tab is mounted while legacy detail modal stays a
   assert.ok(tracker.includes('aria-pressed={period === option.id}'), 'Period control should expose selected state');
   assert.ok(tracker.includes('aria-pressed={category === \'quests\'}'), 'Category control should expose selected state');
 
-  // Keep detail modal as a transitional shared legacy overlay.
-  assert.ok(html.includes('id="modal-freq-p-monthly" class="modal-freq-btn px-3 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-xs cursor-pointer"'), 'Modal monthly button should have active class');
-  // Detail modal
-  assert.ok(html.includes('id="modal-frequency-detail"'), 'index.html should have modal-frequency-detail');
-  assert.ok(html.includes('id="modal-freq-grid-container"'), 'index.html should have modal-freq-grid-container');
-  assert.ok(html.includes('id="modal-freq-day-detail"'), 'index.html should have modal-freq-day-detail');
+  assert.ok(page.includes('<FrequencyDetailModal />'), 'Next.js page should mount React frequency detail modal');
+  assert.ok(frequencyModal.includes('id="modal-frequency-detail"'), 'React should own modal-frequency-detail');
+  assert.ok(frequencyModal.includes('id="modal-freq-grid-container"'), 'React should own modal-freq-grid-container');
+  assert.ok(frequencyModal.includes('id="modal-freq-day-detail"'), 'React should own modal-freq-day-detail');
+  assert.ok(frequencyModal.includes('levelup:open-frequency-detail'), 'React should receive legacy frequency open events');
+  assert.ok(!html.includes('id="modal-frequency-detail"'), 'Legacy HTML must not own the frequency modal');
 
   // Floating tooltip element
   assert.ok(html.includes('id="heatmap-floating-tooltip"'), 'index.html should have heatmap-floating-tooltip');

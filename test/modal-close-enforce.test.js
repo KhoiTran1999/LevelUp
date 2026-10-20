@@ -6,6 +6,17 @@ const htmlPath = path.resolve('public/index.html');
 const appJsPath = path.resolve('public/app.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
+const timerModals = fs.readFileSync(path.resolve('components/timer/TimerModals.tsx'), 'utf8');
+const modalSources = {
+  'modal-quest': fs.readFileSync(path.resolve('components/quests/QuestSetupModal.tsx'), 'utf8'),
+  'modal-reward': fs.readFileSync(path.resolve('components/shop/RewardSetupModal.tsx'), 'utf8'),
+  'modal-profile': fs.readFileSync(path.resolve('components/profile/ProfileModal.tsx'), 'utf8'),
+  'modal-level-info': fs.readFileSync(path.resolve('components/profile/LevelAndStreakInfoModals.tsx'), 'utf8'),
+  'modal-edit-focus-timer': timerModals,
+  'modal-focus-complete': timerModals,
+  'modal-confirm': fs.readFileSync(path.resolve('components/ui/ConfirmDialog.tsx'), 'utf8'),
+  'modal-ai-assistant': fs.readFileSync(path.resolve('components/ai/AssistantModal.tsx'), 'utf8')
+};
 const js = fs.readFileSync(appJsPath, 'utf8');
 
 console.log('--- Kiểm thử ràng buộc: Tất cả modal chỉ tắt khi nhấn dấu x ---');
@@ -23,11 +34,11 @@ const actionableModals = [
 ];
 
 actionableModals.forEach(modalId => {
-  const modalRegex = new RegExp(`id="${modalId}"[\\s\\S]*?<\\/div>`);
-  const match = html.match(new RegExp(`<div[^>]*id="${modalId}"[\\s\\S]*?class="[^"]*modal-close[^"]*"`));
-  assert(match, `Modal ${modalId} phải có nút đóng mang class modal-close (dấu x)`);
+  const markup = modalSources[modalId];
+  assert(markup.includes(`id="${modalId}"`), `Modal ${modalId} phải có ID`);
+  assert.match(markup, /class(?:Name)?="[^"]*modal-close[^"]*"/, `Modal ${modalId} phải có nút đóng mang class modal-close (dấu x)`);
 });
-console.log('✓ Tất cả 6 modal thao tác đều có nút đóng class modal-close (dấu x).');
+console.log(`✓ Tất cả ${actionableModals.length} modal thao tác đều có nút đóng class modal-close (dấu x).`);
 
 // 2. Kiểm tra logic JS không đóng modal khi click ra backdrop
 assert(

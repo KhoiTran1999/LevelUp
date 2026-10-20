@@ -803,15 +803,17 @@ function applyCustomDynamicSeed(seedHex, skipPersist = false) {
   }
 
   const btn = document.getElementById('toggle-palette-btn');
-  if (btn) {
-    btn.textContent = '🎨';
-    btn.title = `Bảng màu: Material You (${seedHex}) (Bấm để mở Studio)`;
-  }
-  const modalPaletteIcon = document.getElementById('modal-palette-icon');
-  const modalPaletteText = document.getElementById('modal-palette-text');
-  if (modalPaletteIcon && modalPaletteText) {
-    modalPaletteIcon.textContent = '🎨';
-    modalPaletteText.textContent = `Material You (${seedHex})`;
+  if (!document.getElementById('levelup-app')) {
+    if (btn) {
+      btn.textContent = '🎨';
+      btn.title = `Bảng màu: Material You (${seedHex}) (Bấm để mở Studio)`;
+    }
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      modalPaletteIcon.textContent = '🎨';
+      modalPaletteText.textContent = `Material You (${seedHex})`;
+    }
   }
 
   if (typeof updatePaletteStudioUI === 'function') {
@@ -835,17 +837,19 @@ function applyPalette(palette) {
   }
 
   const btn = document.getElementById('toggle-palette-btn');
-  if (btn) {
-    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
-    btn.textContent = cur.icon;
-    btn.title = `Bảng màu: ${cur.name} (Bấm để mở Studio)`;
-  }
-  const modalPaletteIcon = document.getElementById('modal-palette-icon');
-  const modalPaletteText = document.getElementById('modal-palette-text');
-  if (modalPaletteIcon && modalPaletteText) {
-    const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
-    modalPaletteIcon.textContent = cur.icon;
-    modalPaletteText.textContent = cur.name.split(' (')[0];
+  if (!document.getElementById('levelup-app')) {
+    if (btn) {
+      const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+      btn.textContent = cur.icon;
+      btn.title = `Bảng màu: ${cur.name} (Bấm để mở Studio)`;
+    }
+    const modalPaletteIcon = document.getElementById('modal-palette-icon');
+    const modalPaletteText = document.getElementById('modal-palette-text');
+    if (modalPaletteIcon && modalPaletteText) {
+      const cur = PALETTES.find(p => p.id === palette) || PALETTES[0];
+      modalPaletteIcon.textContent = cur.icon;
+      modalPaletteText.textContent = cur.name.split(' (')[0];
+    }
   }
   try {
     localStorage.setItem('levelup_theme_palette', palette);
@@ -870,6 +874,10 @@ function cyclePalette() {
 }
 
 function openPaletteStudio() {
+  if (document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:open-palette-studio'));
+    return;
+  }
   const modal = document.getElementById('m3-palette-studio-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
@@ -880,6 +888,10 @@ function openPaletteStudio() {
 }
 
 function closePaletteStudio() {
+  if (document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:close-palette-studio'));
+    return;
+  }
   const modal = document.getElementById('m3-palette-studio-modal');
   if (!modal) return;
   modal.classList.add('hidden');
@@ -891,6 +903,10 @@ function updatePaletteStudioUI() {
   const currentPalette = root.dataset.palette || 'modern-indigo';
   const listContainer = document.getElementById('m3-palette-studio-grid');
   if (!listContainer) return;
+  if (listContainer.dataset.reactOwned === 'true') {
+    window.dispatchEvent(new CustomEvent('levelup:palette-updated'));
+    return;
+  }
 
   listContainer.innerHTML = PALETTES.map(p => {
     const isActive = currentPalette === p.id;
@@ -1713,6 +1729,24 @@ function confirmAction({
   onConfirm = null,
   onCancel = null
 } = {}) {
+  if (
+    typeof document !== 'undefined' &&
+    document.getElementById('levelup-app') &&
+    typeof window.levelupConfirmAction === 'function'
+  ) {
+    return window.levelupConfirmAction({
+      title,
+      message,
+      detail,
+      confirmText,
+      cancelText,
+      icon,
+      btnColor,
+      onConfirm,
+      onCancel
+    });
+  }
+
   return new Promise((resolve) => {
     if (activeConfirmResolve) {
       activeConfirmResolve(false);
@@ -4482,7 +4516,6 @@ async function cancelQuestFocusSession(questId) {
     } catch (_) {}
   }
 
-  closeModal('modal-quest-detail');
   closeModal('modal-quest-proof');
   renderQuests();
   sfx.playClick();
@@ -4668,28 +4701,24 @@ function adjustTimer(deltaSec) {
 function openEditTimerModal() {
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
   const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
-  const minInput = document.getElementById('input-edit-minutes');
-  const secInput = document.getElementById('input-edit-seconds');
-  const titleEl = document.querySelector('#modal-edit-focus-timer h3 span:last-child');
-  if (minInput && secInput) {
-    const totalSecs = Math.round(focusRemainingSeconds);
-    minInput.value = Math.floor(totalSecs / 60);
-    secInput.value = totalSecs % 60;
-    if (isReward) {
-      minInput.min = 0;
-      minInput.max = Math.floor(totalSecs / 60);
-      if (titleEl) titleEl.textContent = 'Giảm Thời Gian Hưởng Thụ';
-    } else {
-      const minRequiredSecs = activeFocusQuest ? ((activeFocusQuest.targetMinutes || 1) * 60) : 60;
-      const neededRemainingSecs = Math.max(0, minRequiredSecs - actualFocusedSeconds);
-      minInput.min = Math.max(1, Math.ceil(neededRemainingSecs / 60));
-      minInput.removeAttribute('max');
-      if (titleEl) titleEl.textContent = 'Điều Chỉnh Thời Gian';
+  const totalSecs = Math.round(focusRemainingSeconds);
+  const minRequiredSecs = activeFocusQuest ? ((activeFocusQuest.targetMinutes || 1) * 60) : 60;
+  const neededRemainingSecs = Math.max(0, minRequiredSecs - actualFocusedSeconds);
+  window.dispatchEvent(new CustomEvent('levelup:open-timer-adjustment', {
+    detail: {
+      remainingSeconds: totalSecs,
+      isReward,
+      minMinutes: isReward ? 0 : Math.max(1, Math.ceil(neededRemainingSecs / 60)),
+      maxMinutes: isReward ? Math.floor(totalSecs / 60) : undefined,
+      targetMinutes: activeFocusQuest?.targetMinutes
     }
-  }
-  openModal('modal-edit-focus-timer');
+  }));
 }
+window.openEditTimerModal = openEditTimerModal;
 
+function closeEditTimerModal() {
+  window.dispatchEvent(new CustomEvent('levelup:close-timer-adjustment'));
+}
 function saveEditTimer(mins, secs) {
   const total = Math.max(0, mins * 60 + secs);
   const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
@@ -4697,22 +4726,22 @@ function saveEditTimer(mins, secs) {
   if (isReward) {
     if (total > Math.round(focusRemainingSeconds)) {
       showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
-      return;
+      return false;
     }
     if (total <= 0) {
-      closeModal('modal-edit-focus-timer');
+      closeEditTimerModal();
       focusRemainingSeconds = 0;
       updateTimerDisplay();
       rewardTimerFinished();
-      return;
+      return true;
     }
     focusRemainingSeconds = total;
     updateTimerDisplay();
     saveFocusTimerState(true, true, 'adjust');
     sfx.playClick();
-    closeModal('modal-edit-focus-timer');
+    closeEditTimerModal();
     showToast(`Đã giảm thời gian: ${mins}p ${secs}s`, 'success');
-    return;
+    return true;
   }
 
   // Anti-Cheat: Không cho phép đặt thời gian sao cho tổng phiên thấp hơn mức cam kết của nhiệm vụ
@@ -4721,7 +4750,7 @@ function saveEditTimer(mins, secs) {
     if ((actualFocusedSeconds + total) < (minRequiredSecs - 5)) {
       const neededMinutes = Math.ceil(Math.max(0, minRequiredSecs - actualFocusedSeconds) / 60);
       showToast(`Không thể đặt thời gian ít hơn ${neededMinutes} phút để đảm bảo đủ ${activeFocusQuest.targetMinutes} phút cam kết!`, 'error');
-      return;
+      return false;
     }
   }
 
@@ -4730,9 +4759,12 @@ function saveEditTimer(mins, secs) {
   updateTimerDisplay();
   saveFocusTimerState(true, true, 'adjust');
   sfx.playClick();
-  closeModal('modal-edit-focus-timer');
+  closeEditTimerModal();
   showToast(`Đã lưu thời gian: ${mins}p ${secs}s`, 'success');
+  return true;
 }
+window.saveEditTimer = saveEditTimer;
+window.startBreakTimer = startBreakTimer;
 
 function toggleZenMode(show) {
   const overlay = document.getElementById('focus-zen-overlay');
@@ -4878,19 +4910,8 @@ function rewardTimerFinished() {
 }
 
 function openFocusCompleteModal(quest) {
-  const descEl = document.getElementById('focus-complete-desc');
-  const coinsEl = document.getElementById('focus-complete-coins');
-  const expEl = document.getElementById('focus-complete-exp');
-
-  if (descEl) descEl.textContent = `Xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}"!`;
-  if (coinsEl) coinsEl.textContent = `+${quest.rewardCoins} VÀNG`;
-  if (expEl) expEl.textContent = `+${quest.rewardCoins * 3} EXP`;
-
-  if (typeof updateBrainDumpBadges === 'function') {
-    updateBrainDumpBadges();
-  }
-
-  openModal('modal-focus-complete');
+  if (typeof updateBrainDumpBadges === 'function') updateBrainDumpBadges();
+  window.dispatchEvent(new CustomEvent('levelup:focus-complete', { detail: quest }));
 }
 
 // =============================================================================
@@ -9558,6 +9579,7 @@ function updateAdminNavVisibility() {
 
 async function fetchAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
+  if (!tbody) return;
   tbody.innerHTML = (typeof renderM3TableLoading === 'function')
     ? renderM3TableLoading(6, 'Đang tải danh sách người chơi...')
     : '<tr><td colspan="6" class="text-center py-8 text-slate-500 text-xs">Đang tải danh sách người chơi...</td></tr>';
@@ -11056,389 +11078,21 @@ function renderQuests() {
   }
 }
 
-function openQuestDetailModal(questId) {
-  let q = null;
-  if (typeof questId === 'object' && questId !== null && questId.id) {
-    q = questId;
-    if (typeof appState === 'object' && Array.isArray(appState.quests)) {
-      const idx = appState.quests.findIndex(x => x.id === q.id);
-      if (idx === -1) appState.quests.unshift(q); else appState.quests[idx] = { ...appState.quests[idx], ...q };
-    }
-  } else if (typeof appState === 'object' && Array.isArray(appState.quests)) {
-    q = appState.quests.find(x => x.id === questId);
+function openQuestDetailModal(questOrId) {
+  let quest = typeof questOrId === 'object' && questOrId !== null
+    ? questOrId
+    : (typeof appState === 'object' ? appState.quests?.find(item => item.id === questOrId) : null);
+  if (!quest && typeof window !== 'undefined' && Array.isArray(window.appState?.quests)) {
+    quest = window.appState.quests.find(item => item.id === questOrId);
   }
-  if (!q && typeof window !== 'undefined' && Array.isArray(window.appState?.quests)) {
-    q = window.appState.quests.find(x => x.id === questId);
-    if (q && typeof appState === 'object' && Array.isArray(appState.quests)) appState.quests.unshift(q);
+  if (!quest) return;
+  if (!document.getElementById('levelup-app')) {
+    console.error('[QuestDetailModal] React dialog owner is unavailable.');
+    return;
   }
-  if (!q) return;
-  //
-
-  const modal = document.getElementById('modal-quest-detail');
-  if (!modal) return;
-
-  const isCompleted = q.status === 'completed';
-  const isCurrentlyFocusing = activeFocusQuest && activeFocusQuest.id === q.id;
-  const isTimerDone = isCurrentlyFocusing && focusRemainingSeconds <= 0;
-  const hasSavedTimer = Boolean(q.savedTimer && q.savedTimer.remainingSeconds > 0);
-  const cooldownRemainingMs = getQuestRepeatCooldownRemaining(q);
-  const rank = (q.rank || 'E').toUpperCase();
-  const index = appState.quests.indexOf(q);
-  const colorKey = getQuestCardColorName(q, Math.max(0, index));
-
-  // 1. Header Banner
-  const banner = document.getElementById('mqd-header-banner');
-  if (banner) {
-    banner.className = 'p-5 sm:p-6 transition-colors flex items-start justify-between gap-3 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800';
-  }
-
-  const iconEl = document.getElementById('mqd-icon');
-  if (iconEl) iconEl.textContent = getQuestIcon(q);
-
-  const titleEl = document.getElementById('mqd-title');
-  if (titleEl) titleEl.textContent = q.title;
-
-  const rankBadge = document.getElementById('mqd-rank-badge');
-  if (rankBadge) rankBadge.textContent = `HẠNG ${rank}`;
-
-  const typeBadge = document.getElementById('mqd-type-badge');
-  if (typeBadge) {
-    typeBadge.textContent = q.type === 'focus' ? `⏱️ Tập trung (${q.targetMinutes || 25}p)` : '🎯 Nhanh gọn';
-  }
-
-  const repeatBadge = document.getElementById('mqd-repeat-badge');
-  if (repeatBadge) {
-    repeatBadge.textContent = q.isRepeatable ? `🔁 Lặp lại${q.completedCount ? ` (${q.completedCount})` : ''}` : '🎯 Làm 1 lần';
-  }
-
-  // 2. Rewards
-  const curStreak = Math.max(0, parseInt(appState.profile?.streak, 10) || 0);
-  const streakBonusPct = getStreakBonusPercent(curStreak);
-  const streakBonusCoins = Math.floor(q.rewardCoins * (streakBonusPct / 100));
-  const totalAwarded = q.rewardCoins + streakBonusCoins;
-
-  const coinsEl = document.getElementById('mqd-coins-reward');
-  if (coinsEl) {
-    coinsEl.textContent = `+${totalAwarded} Vàng${streakBonusCoins > 0 ? ` (+${streakBonusCoins} 🔥)` : ''}`;
-  }
-
-  const expEl = document.getElementById('mqd-exp-reward');
-  if (expEl) {
-    expEl.textContent = `+${totalAwarded * 3} EXP`;
-  }
-
-  // 3. Description
-  const descEl = document.getElementById('mqd-desc');
-  if (descEl) {
-    descEl.textContent = q.description || 'Không có mô tả chi tiết.';
-  }
-
-  // 4. Supplementary Info Badges (Thời gian, Chế độ lặp, Bằng chứng ảnh, Hạng, Streak, Bảo lưu)
-  const metaBadges = document.getElementById('mqd-meta-badges');
-  if (metaBadges) {
-    const badges = [];
-
-    // Badge 1: Thời gian & Loại
-    if (q.type === 'focus') {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-          ⏱️ ${q.targetMinutes || 25} phút tập trung
-        </span>
-      `);
-    } else {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700">
-          ⚡ Thường
-        </span>
-      `);
-    }
-
-    // Badge 2: Chế độ lặp lại
-    if (q.isRepeatable) {
-      const count = q.completedCount || 0;
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/10 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
-          🔁 Lặp lại${count > 0 ? ` (${count})` : ''}
-        </span>
-      `);
-    } else {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
-          📌 Làm 1 lần
-        </span>
-      `);
-    }
-
-    // Badge 3: Yêu cầu bằng chứng
-    if (q.requiresProof) {
-      if (q._proofVerified) {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-            ${q.proofType === 'both' ? '📸+✍️ Bằng chứng đã duyệt' : (q.proofType === 'text' ? '✍️ Báo cáo đã duyệt' : '📸 Ảnh đã duyệt')}
-          </span>
-        `);
-      } else {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-            ${q.proofType === 'both' ? '📸+✍️ Cần ảnh & báo cáo AI duyệt' : (q.proofType === 'text' ? '✍️ Cần báo cáo AI duyệt' : '📸 Cần ảnh AI duyệt')}
-          </span>
-        `);
-      }
-    }
-
-    // Badge: Chuỗi streak
-    const qStreak = typeof getQuestStreak === 'function' ? getQuestStreak(q) : (q.streak || 0);
-    if (qStreak > 0) {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-300 border border-orange-500/20">
-          🔥 Chuỗi ${qStreak} ngày
-        </span>
-      `);
-    }
-
-    // Badge 6: Trạng thái đếm giờ bảo lưu
-    if (hasSavedTimer) {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300">
-          ⏸️ Đang bảo lưu: ${Math.ceil(q.savedTimer.remainingSeconds / 60)}p
-        </span>
-      `);
-    } else if (isCurrentlyFocusing) {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 animate-pulse">
-          ⏱️ Đang bấm giờ (${Math.ceil(focusRemainingSeconds / 60)}p)
-        </span>
-      `);
-    }
-
-    metaBadges.innerHTML = badges.join('');
-  }
-
-  // 5. Primary Action Button Container
-  const primaryActionContainer = document.getElementById('mqd-primary-action-container');
-  if (primaryActionContainer) {
-    if (isCompleted) {
-      primaryActionContainer.innerHTML = `
-        <div class="flex items-center gap-2">
-          <button id="mqd-btn-restart" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>Làm Lại</span>
-          </button>
-          <button id="mqd-btn-undo" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-            <span>Hoàn Tác</span>
-          </button>
-        </div>
-      `;
-      document.getElementById('mqd-btn-restart')?.addEventListener('click', () => {
-        closeModal('modal-quest-detail');
-        restartQuest(q.id);
-      });
-      document.getElementById('mqd-btn-undo')?.addEventListener('click', () => {
-        closeModal('modal-quest-detail');
-        undoCompleteQuest(q.id);
-      });
-    } else if (q.focusTimerCompleted && q.requiresProof) {
-      primaryActionContainer.innerHTML = `
-        <div class="space-y-2">
-          <button id="mqd-btn-proof" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-            ${q.proofType === 'both' ? `
-              <span>📸+✍️</span>
-              <span>Nộp Ảnh & Báo Cáo Nhận Vàng</span>
-            ` : (q.proofType === 'text' ? `
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              <span>Nộp Báo Cáo Nhận Vàng ✍️</span>
-            ` : `
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4" stroke-width="2"/></svg>
-              <span>Chụp Ảnh Nhận Vàng 📸</span>
-            `)}
-          </button>
-          <button id="mqd-btn-cancel-session" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Hủy kết quả phiên tập trung này để bắt đầu lại">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            <span>Hủy Phiên Này (Không nộp bằng chứng)</span>
-          </button>
-        </div>
-      `;
-      document.getElementById('mqd-btn-proof')?.addEventListener('click', () => {
-        window.parentDetailQuestId = q.id;
-        closeModal('modal-quest-detail');
-        openQuestProofModal(q);
-      });
-      document.getElementById('mqd-btn-cancel-session')?.addEventListener('click', () => {
-        cancelQuestFocusSession(q.id);
-      });
-    } else if (q.type === 'focus') {
-      if (isTimerDone) {
-        primaryActionContainer.innerHTML = `
-          <div class="space-y-2">
-            <button id="mqd-btn-focus-done" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer animate-pulse">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-              <span>${q.requiresProof && !q._proofVerified ? (q.proofType === 'both' ? 'Nộp Bằng Chứng Nhận Vàng 📸+✍️' : (q.proofType === 'text' ? 'Nộp Báo Cáo Nhận Vàng ✍️' : 'Chụp Ảnh Nhận Vàng 📸')) : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
-            </button>
-            <button id="mqd-btn-cancel-session" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98" title="Hủy phiên tập trung này để bắt đầu lại">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              <span>Hủy Phiên Tập Trung Này</span>
-            </button>
-          </div>
-        `;
-        document.getElementById('mqd-btn-focus-done')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          actualFocusedSeconds = Math.max(actualFocusedSeconds, focusTotalSeconds);
-          focusRemainingSeconds = 0;
-          focusTimerFinished();
-        });
-        document.getElementById('mqd-btn-cancel-session')?.addEventListener('click', () => {
-          cancelQuestFocusSession(q.id);
-        });
-      } else if (isCurrentlyFocusing) {
-        primaryActionContainer.innerHTML = `
-          <div class="flex items-center gap-2">
-            <button id="mqd-btn-focus-toggle" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-1.5 cursor-pointer">
-              <span>${isFocusRunning ? 'Tạm Dừng ⏸️' : 'Tiếp Tục Chạy ▶️'}</span>
-            </button>
-            <button id="mqd-btn-go-timer" type="button" class="py-3 px-4 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1 cursor-pointer">
-              <span>Đồng Hồ ⏱️</span>
-            </button>
-          </div>
-        `;
-        document.getElementById('mqd-btn-focus-toggle')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          toggleFocusTimer();
-        });
-        document.getElementById('mqd-btn-go-timer')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          document.getElementById('timer-section')?.scrollIntoView({ behavior: 'smooth' });
-        });
-      } else if (hasSavedTimer) {
-        primaryActionContainer.innerHTML = `
-          <div class="flex items-center gap-2">
-            <button id="mqd-btn-start-focus" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-              <span>Tiếp Tục (${Math.ceil(q.savedTimer.remainingSeconds / 60)}p) ⏱️</span>
-            </button>
-            <button id="mqd-btn-clear-saved" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-600 dark:text-rose-400 transition flex items-center justify-center gap-1 cursor-pointer" title="Hủy thời gian đã bảo lưu để bắt đầu lại">
-              <span>⏹️ Hủy</span>
-            </button>
-          </div>
-        `;
-        document.getElementById('mqd-btn-start-focus')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          startFocusTimer(q);
-        });
-        document.getElementById('mqd-btn-clear-saved')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          clearSavedQuestTimer(q.id);
-        });
-      } else {
-        primaryActionContainer.innerHTML = `
-          <button id="mqd-btn-start-focus" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-            <span>Bắt Đầu Tập Trung (${q.targetMinutes || 25}p) ⏱️</span>
-          </button>
-        `;
-        document.getElementById('mqd-btn-start-focus')?.addEventListener('click', () => {
-          closeModal('modal-quest-detail');
-          startFocusTimer(q);
-        });
-      }
-    } else {
-      // Bounty quest
-      primaryActionContainer.innerHTML = `
-        <button id="mqd-btn-complete-bounty" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md ${cooldownRemainingMs > 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer'}" ${cooldownRemainingMs > 0 ? 'disabled' : ''}>
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>
-          <span>${cooldownRemainingMs > 0 ? `Chờ ${Math.ceil(cooldownRemainingMs / 60000)}p` : 'Hoàn Thành & Nhận Thưởng 🎉'}</span>
-        </button>
-      `;
-      document.getElementById('mqd-btn-complete-bounty')?.addEventListener('click', () => {
-        closeModal('modal-quest-detail');
-        completeQuest(q.id);
-      });
-    }
-  }
-
-  // 6. Hoàn tác lần vừa làm cho nhiệm vụ lặp lại (nằm trong nhóm nút dưới cùng)
-  const undoContainer = document.getElementById('mqd-undo-container');
-  if (undoContainer) {
-    if (!isCompleted && q.isRepeatable && (q.completedCount || 0) > 0) {
-      undoContainer.classList.remove('hidden');
-      undoContainer.innerHTML = `
-        <button id="mqd-btn-undo-repeat" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-700 dark:text-amber-300 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-          <span>Hoàn lại lần vừa làm (-${q.rewardCoins} Vàng)</span>
-        </button>
-      `;
-      document.getElementById('mqd-btn-undo-repeat')?.addEventListener('click', () => {
-        closeModal('modal-quest-detail');
-        undoCompleteQuest(q.id);
-      });
-    } else {
-      undoContainer.classList.add('hidden');
-      undoContainer.innerHTML = '';
-    }
-  }
-
-  // 7. Secondary Buttons: Debate, Freq, Repeat, Delete
-  const btnDebate = document.getElementById('mqd-btn-debate');
-  if (btnDebate) {
-    btnDebate.onclick = () => {
-      window.parentDetailQuestId = q.id;
-      closeModal('modal-quest-detail');
-      openQuestRenegotiateModal(q.id);
-    };
-  }
-
-  const btnFreq = document.getElementById('mqd-btn-freq');
-  if (btnFreq) {
-    btnFreq.onclick = () => {
-      window.parentDetailQuestId = q.id;
-      closeModal('modal-quest-detail');
-      openItemFrequencyModal(q, true);
-    };
-  }
-
-  const btnRepeat = document.getElementById('mqd-btn-repeat');
-  const repeatLabel = document.getElementById('mqd-repeat-btn-label');
-  if (btnRepeat) {
-    if (repeatLabel) repeatLabel.textContent = q.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi lặp lại';
-    btnRepeat.onclick = () => {
-      toggleQuestRepeatable(q.id);
-      openQuestDetailModal(q.id);
-    };
-  }
-
-  const btnDelete = document.getElementById('mqd-btn-delete');
-  if (btnDelete) {
-    btnDelete.onclick = async () => {
-      const deleted = await deleteQuest(q.id);
-      if (deleted) {
-        closeModal('modal-quest-detail');
-      }
-    };
-  }
-
-  modal.classList.remove('sheet-closing');
-  modal.style.pointerEvents = '';
-  modal.style.opacity = '';
-  modal.style.transition = '';
-  modal.style.backgroundColor = '';
-  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
-  if (panel) {
-    panel.style.transform = '';
-    panel.style.transition = '';
-    panel.style.opacity = '';
-    if (typeof panel.getAnimations === 'function') {
-      try { panel.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-    }
-  }
-  if (typeof modal.getAnimations === 'function') {
-    try { modal.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-  }
-  modal._suppressBackdropClick = false;
-  modal.classList.remove('hidden');
+  window.dispatchEvent(new CustomEvent('levelup:open-quest-detail', { detail: quest }));
 }
 window.openQuestDetailModal = openQuestDetailModal;
-
-
 function renderShop() {
   if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
     window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
@@ -11559,7 +11213,7 @@ function renderShop() {
     // Null-guarded button queries (test-facing, functional in modal)
     const delShopBtn = card.querySelector('.btn-del-shop-item');
     if (delShopBtn) {
-      delShopBtn.addEventListener('click', (e) => { e.stopPropagation(); closeModal('modal-reward-detail'); deleteShopItem(item.id); });
+      delShopBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteShopItem(item.id); });
     }
     const buyItemBtn = card.querySelector('.btn-buy-item');
     if (buyItemBtn) {
@@ -11760,320 +11414,15 @@ function renderInventory() {
 // source: 'shop' | 'inventory'
 // ──────────────────────────────────────────────────────────────────
 function openRewardDetailModal(itemId, source) {
-  const isShop = source === 'shop';
-  let item = null;
-  if (typeof itemId === 'object' && itemId !== null && itemId.id) {
-    item = itemId;
-    if (isShop && typeof appState === 'object' && Array.isArray(appState.shopItems)) {
-      const idx = appState.shopItems.findIndex(x => x.id === item.id);
-      if (idx === -1) appState.shopItems.unshift(item); else appState.shopItems[idx] = { ...appState.shopItems[idx], ...item };
-    }
-  } else if (typeof appState === 'object') {
-    item = isShop ? (appState.shopItems || []).find(x => x.id === itemId) : (appState.inventory || []).find(x => x.id === itemId);
+  if (!document.getElementById('levelup-app')) {
+    console.error('[RewardDetailModal] React dialog owner is unavailable.');
+    return;
   }
-  if (!item && typeof window !== 'undefined') {
-    if (isShop && Array.isArray(window.appState?.shopItems)) {
-      item = window.appState.shopItems.find(x => x.id === itemId);
-      if (item && typeof appState === 'object' && Array.isArray(appState.shopItems)) appState.shopItems.unshift(item);
-    } else if (!isShop && Array.isArray(window.appState?.inventory)) {
-      item = window.appState.inventory.find(x => x.id === itemId);
-      if (item && typeof appState === 'object' && Array.isArray(appState.inventory)) appState.inventory.unshift(item);
-    }
-  }
-  if (!item) return;
-
-  const modal = document.getElementById('modal-reward-detail');
-  if (!modal) return;
-
-  const rawTier = (item.tier || 'rare').toLowerCase();
-  const durationMins = extractRewardDuration(item);
-  const isThisActiveReward = !isShop && Boolean(activeRewardItem && activeRewardItem.id === item.id);
-  const hasSavedTimer = !isShop && Boolean(item.savedTimer && item.savedTimer.remainingSeconds > 0);
-  const canAfford = isShop ? appState.profile.coins >= item.price : false;
-  const coinsNeeded = isShop ? Math.max(0, item.price - appState.profile.coins) : 0;
-  const canUndo = !isShop && (isThisActiveReward || (item.isUsed && item.usedAt && (Date.now() - item.usedAt <= 5 * 60 * 1000)));
-
-  const tierColorMap = { common: 'bg-purple-100 text-purple-600 border-purple-200', rare: 'bg-purple-200 text-purple-700 border-purple-300', epic: 'bg-purple-300 text-purple-800 border-purple-400', legendary: 'bg-purple-400 text-purple-900 border-purple-500' };
-  const tierLabelMap = REWARD_TIER_LABELS;
-
-  // 1. Header
-  const banner = document.getElementById('mrd-header-banner');
-  if (banner) {
-    banner.className = 'p-5 sm:p-6 transition-colors flex items-center justify-between gap-3.5 shrink-0 relative bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800';
-  }
-
-  const iconEl = document.getElementById('mrd-icon');
-  if (iconEl) iconEl.textContent = item.icon || '🎁';
-
-  const titleEl = document.getElementById('mrd-title');
-  if (titleEl) titleEl.textContent = item.name;
-
-  const tierBadge = document.getElementById('mrd-tier-badge');
-  if (tierBadge) {
-    tierBadge.textContent = '';
-    tierBadge.className = 'hidden';
-  }
-
-  // 2. Price / Value Strip
-  const priceLabel = document.getElementById('mrd-price-label');
-  if (priceLabel) priceLabel.textContent = isShop ? 'Giá đổi phần thưởng' : 'Trị giá phần thưởng';
-
-  const priceValue = document.getElementById('mrd-price-value');
-  if (priceValue) priceValue.textContent = `${item.price} Vàng`;
-
-  const affordability = document.getElementById('mrd-affordability');
-  if (affordability) {
-    if (isShop) {
-      affordability.innerHTML = canAfford
-        ? `<span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="20 6 9 17 4 12" stroke-width="2.5"/></svg>Đủ Vàng</span>`
-        : `<span class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">Thiếu ${coinsNeeded} Vàng</span>`;
-    } else {
-      affordability.innerHTML = '';
-    }
-  }
-
-  // 3. Description
-  const descEl = document.getElementById('mrd-desc');
-  if (descEl) descEl.textContent = item.description || 'Không có mô tả chi tiết.';
-
-  // 4. Meta Badges
-  const metaBadges = document.getElementById('mrd-meta-badges');
-  if (metaBadges) {
-    const badges = [];
-
-    // Duration
-    if (durationMins > 0) {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-          ⏱️ ${durationMins} phút
-        </span>
-      `);
-    } else {
-      badges.push(`
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700">
-          ⚡ Dùng ngay
-        </span>
-      `);
-    }
-
-    // Status (inventory only)
-    if (!isShop) {
-      if (isThisActiveReward) {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-300 animate-pulse">
-            ▶️ Đang sử dụng
-          </span>
-        `);
-      } else if (hasSavedTimer) {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300">
-            ⏸️ Đang bảo lưu: ${Math.ceil(item.savedTimer.remainingSeconds / 60)}p
-          </span>
-        `);
-      } else if (item.isUsed) {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
-            ✅ ${durationMins > 0 ? 'Đã kết thúc' : 'Đã sử dụng'}
-          </span>
-        `);
-      } else {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-            🎁 Chưa sử dụng
-          </span>
-        `);
-      }
-
-      // Purchase date
-      if (item.purchasedAt) {
-        badges.push(`
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-slate-700">
-            📅 Đã đổi: ${new Date(item.purchasedAt).toLocaleDateString()}
-          </span>
-        `);
-      }
-    }
-
-    metaBadges.innerHTML = badges.join('');
-  }
-
-  // 5. Primary Action Button
-  const primaryActionContainer = document.getElementById('mrd-primary-action-container');
-  if (primaryActionContainer) {
-    if (isShop) {
-      // SHOP: Buy button
-      primaryActionContainer.innerHTML = `
-        <button id="mrd-btn-buy" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}" ${canAfford ? '' : 'disabled'}>
-          ${canAfford ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>' : ''}
-          <span>${canAfford ? (durationMins > 0 ? `Đổi & Bấm Giờ (${durationMins}p) 🎁` : 'Đổi Quà Ngay 🎁') : `Chưa Đủ Vàng (thiếu ${coinsNeeded})`}</span>
-        </button>
-      `;
-      document.getElementById('mrd-btn-buy')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        buyShopItem(item.id);
-      });
-    } else if (isThisActiveReward) {
-      // INVENTORY: Active reward — show timer + undo
-      primaryActionContainer.innerHTML = `
-        <div class="flex items-center gap-2">
-          <button id="mrd-btn-scroll-timer" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition flex items-center justify-center gap-1.5 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
-            <span>${isFocusRunning ? 'Xem Đồng Hồ ⏱️' : 'Tạm Dừng ⏸️'}</span>
-          </button>
-          <button id="mrd-btn-undo" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1 cursor-pointer">
-            <span>Hoàn tác</span>
-          </button>
-        </div>
-      `;
-      document.getElementById('mrd-btn-scroll-timer')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        document.getElementById('active-focus-banner')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-      document.getElementById('mrd-btn-undo')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        undoUseInventoryItem(item.id);
-      });
-    } else if (hasSavedTimer) {
-      // INVENTORY: Saved timer — resume or end
-      primaryActionContainer.innerHTML = `
-        <div class="flex items-center gap-2">
-          <button id="mrd-btn-resume" type="button" class="flex-1 py-3 px-4 rounded-2xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Tiếp Tục Dùng (${Math.ceil(item.savedTimer.remainingSeconds / 60)}p) ▶️</span>
-          </button>
-          <button id="mrd-btn-end-saved" type="button" class="py-3 px-3.5 rounded-2xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-600 dark:text-rose-400 transition flex items-center justify-center gap-1 cursor-pointer">
-            <span>⏹️ Kết thúc</span>
-          </button>
-        </div>
-      `;
-      document.getElementById('mrd-btn-resume')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        useInventoryItem(item.id);
-      });
-      document.getElementById('mrd-btn-end-saved')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        clearSavedRewardTimer(item.id);
-      });
-    } else if (!isShop && item.isUsed) {
-      // INVENTORY: Used item — undo if within window
-      if (canUndo) {
-        primaryActionContainer.innerHTML = `
-          <button id="mrd-btn-undo-used" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4"/></svg>
-            <span>Hoàn Tác (Đánh dấu chưa dùng)</span>
-          </button>
-        `;
-        document.getElementById('mrd-btn-undo-used')?.addEventListener('click', () => {
-          closeModal('modal-reward-detail');
-          undoUseInventoryItem(item.id);
-        });
-      } else {
-        primaryActionContainer.innerHTML = `
-          <div class="text-center py-2 text-xs text-slate-400 dark:text-slate-500 font-medium">
-            <span>✅ ${durationMins > 0 ? 'Đã kết thúc sử dụng' : 'Đã sử dụng xong'}</span>
-          </div>
-        `;
-      }
-    } else {
-      // INVENTORY: Unused — use now
-      primaryActionContainer.innerHTML = `
-        <button id="mrd-btn-use" type="button" class="w-full py-3 px-4 rounded-2xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-md cursor-pointer">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>${durationMins > 0 ? `Dùng Quà & Bấm Giờ (${durationMins}p) 🎉` : 'Dùng Quà Ngay 🎉'}</span>
-        </button>
-      `;
-      document.getElementById('mrd-btn-use')?.addEventListener('click', () => {
-        closeModal('modal-reward-detail');
-        useInventoryItem(item.id);
-      });
-    }
-  }
-
-  // 6. Secondary Actions Grid (2x2)
-  const secondaryGrid = document.getElementById('mrd-secondary-grid');
-  if (secondaryGrid) {
-    const buttons = [];
-
-    if (isShop) {
-      // Shop: Debate, Frequency, Delete
-      buttons.push(`
-        <button id="mrd-btn-debate" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-          <span>💬</span><span>Thương lượng</span>
-        </button>
-      `);
-      buttons.push(`
-        <button id="mrd-btn-freq" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-          <span>📊</span><span>Xem tần suất</span>
-        </button>
-      `);
-      buttons.push(`
-        <button id="mrd-btn-delete" type="button" class="col-span-2 py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-          <span>🗑️</span><span>Xóa phần thưởng</span>
-        </button>
-      `);
-    } else {
-      // Inventory: Refund/Undo, Delete
-      if (!item.isUsed && !isThisActiveReward && !hasSavedTimer) {
-        buttons.push(`
-          <button id="mrd-btn-refund" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-            <span>↩️</span><span>Trả quà lấy Vàng</span>
-          </button>
-        `);
-      }
-      buttons.push(`
-        <button id="mrd-btn-delete" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98">
-          <span>🗑️</span><span>Xóa khỏi kho</span>
-        </button>
-      `);
-    }
-
-    secondaryGrid.innerHTML = buttons.join('');
-
-    // Wire up secondary actions
-    document.getElementById('mrd-btn-debate')?.addEventListener('click', () => {
-      closeModal('modal-reward-detail');
-      openRewardRenegotiateModal(item.id);
-    });
-    document.getElementById('mrd-btn-freq')?.addEventListener('click', () => {
-      closeModal('modal-reward-detail');
-      openItemFrequencyModal(item, isShop);
-    });
-    document.getElementById('mrd-btn-refund')?.addEventListener('click', () => {
-      closeModal('modal-reward-detail');
-      refundInventoryItem(item.id);
-    });
-    document.getElementById('mrd-btn-delete')?.addEventListener('click', async () => {
-      closeModal('modal-reward-detail');
-      if (isShop) {
-        deleteShopItem(item.id);
-      } else {
-        deleteInventoryItem(item.id);
-      }
-    });
-  }
-
-  modal.classList.remove('sheet-closing');
-  modal.style.pointerEvents = '';
-  modal.style.opacity = '';
-  modal.style.transition = '';
-  modal.style.backgroundColor = '';
-  const panel = modal.querySelector('.m3-dialog-panel') || modal.querySelector('.rpg-panel');
-  if (panel) {
-    panel.style.transform = '';
-    panel.style.transition = '';
-    panel.style.opacity = '';
-    if (typeof panel.getAnimations === 'function') {
-      try { panel.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-    }
-  }
-  if (typeof modal.getAnimations === 'function') {
-    try { modal.getAnimations().forEach(a => a.cancel()); } catch (_) {}
-  }
-  modal._suppressBackdropClick = false;
-  modal.classList.remove('hidden');
+  window.dispatchEvent(new CustomEvent('levelup:open-reward-detail', {
+    detail: { itemId, source }
+  }));
 }
 window.openRewardDetailModal = openRewardDetailModal;
-
 function addLedgerEntry(entry) {
   if (!Array.isArray(appState.ledger)) appState.ledger = [];
   appState.ledger.unshift(entry);
@@ -12989,6 +12338,12 @@ function renderTracker() {
 window.renderTracker = renderTracker;
 
 function openItemFrequencyModal(item, isQuest = true) {
+  if (document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:open-frequency-detail', {
+      detail: { item, isQuest }
+    }));
+    return;
+  }
   if (typeof backfillItemHistories === 'function') {
     backfillItemHistories();
   }
@@ -13183,133 +12538,6 @@ function switchRewardSubtab(subtab) {
   }
 }
 window.switchRewardSubtab = switchRewardSubtab;
-
-function openLevelInfoModal() {
-  const p = appState.profile;
-  const expNeeded = p.level * 100;
-  const expRemaining = Math.max(0, expNeeded - p.exp);
-  const pct = Math.min(100, Math.round((p.exp / expNeeded) * 100));
-
-  const curBadge = document.getElementById('modal-level-current-badge');
-  const curTitle = document.getElementById('modal-level-current-title');
-  const expRatio = document.getElementById('modal-level-exp-ratio');
-  const expBar = document.getElementById('modal-level-exp-bar');
-  const neededText = document.getElementById('modal-level-needed-text');
-
-  if (curBadge) curBadge.textContent = `LV. ${p.level}`;
-  if (curTitle) curTitle.textContent = p.title || 'Tân Binh Cấp 1';
-  if (expRatio) expRatio.textContent = `${p.exp}/${expNeeded} EXP (${pct}%)`;
-  if (expBar) expBar.style.width = `${pct}%`;
-  if (neededText) {
-    neededText.textContent = `Cần thêm ${expRemaining} EXP nữa để lên LV. ${p.level + 1}`;
-  }
-
-  const modal = document.getElementById('modal-level-info');
-  if (modal) modal.classList.remove('hidden');
-}
-window.openLevelInfoModal = openLevelInfoModal;
-
-function openStreakInfoModal() {
-  const p = appState.profile;
-  if (!p) return;
-
-  const streak = Math.max(0, parseInt(p.streak, 10) || 0);
-  const streakStatusInfo = getDailyStreakStatus(p);
-  const bonusPct = getStreakBonusPercent(streak);
-  const streakTitle = getStreakTitle(streak);
-  const nextMilestone = getNextStreakMilestone(streak);
-
-  const daysCountEl = document.getElementById('modal-streak-days-count');
-  if (daysCountEl) daysCountEl.textContent = streak;
-
-  const titleEl = document.getElementById('modal-streak-tier-title');
-  if (titleEl) titleEl.textContent = streakTitle;
-
-  const statusEl = document.getElementById('modal-streak-today-status');
-  if (statusEl) {
-    if (streakStatusInfo.status === 'active_today') {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">✅</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chuỗi hôm nay đã được bảo vệ an toàn!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã hoàn thành nhiệm vụ hôm nay. Hãy quay lại vào ngày mai để tiếp tục nâng chuỗi nhé!</div>
-        </div>
-      `;
-    } else if (streakStatusInfo.status === 'waiting_today') {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">⏳</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chưa hoàn thành nhiệm vụ hôm nay!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Hãy hoàn thành ít nhất 1 nhiệm vụ trước 23:59 để tăng chuỗi lên ${streak + 1} ngày và nhận thưởng.</div>
-        </div>
-      `;
-    } else {
-      statusEl.className = 'p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 border bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300';
-      statusEl.innerHTML = `
-        <span class="text-base shrink-0">⚠️</span>
-        <div class="min-w-0">
-          <div class="font-bold">Chuỗi đã bị gián đoạn!</div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">Bạn đã bỏ lỡ ngày hôm qua. Hoàn thành 1 nhiệm vụ hôm nay để thắp lại ngọn lửa chuỗi mới!</div>
-        </div>
-      `;
-    }
-  }
-
-  const perkQuestEl = document.getElementById('modal-streak-perk-quest');
-  if (perkQuestEl) perkQuestEl.textContent = `+${bonusPct}% Vàng`;
-
-  const perkQuestNextEl = document.getElementById('modal-streak-perk-quest-next');
-  if (perkQuestNextEl) perkQuestNextEl.textContent = nextMilestone.label;
-
-  const perkCreditEl = document.getElementById('modal-streak-perk-credit');
-  if (perkCreditEl) perkCreditEl.textContent = `+${streak * 5} Vàng`;
-
-  // Render weekly 7-day dots tracker
-  const trackerEl = document.getElementById('modal-streak-week-tracker');
-  if (trackerEl) {
-    const today = new Date();
-    const history = Array.isArray(p.streakHistory) ? p.streakHistory : [];
-    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    let html = '';
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayStr = getLocalDayString(d);
-      const dayOfWeek = dayNames[d.getDay()];
-      const isToday = i === 0;
-      const isCompleted = history.includes(dayStr);
-
-      html += `
-        <div class="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-xl border transition-all ${
-          isToday
-            ? 'streak-day-card today bg-orange-500/15 border-orange-500/50'
-            : isCompleted
-              ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-              : 'bg-slate-100/60 dark:bg-slate-950/60 border-slate-200/50 dark:border-slate-800/50 opacity-60'
-        }">
-          <span class="text-[9px] font-bold ${isToday ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${dayOfWeek}</span>
-          <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs ${
-            isCompleted
-              ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm'
-              : isToday
-                ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-dashed border-orange-500/50 animate-pulse'
-                : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-400'
-          }">
-            ${isCompleted ? '🔥' : isToday ? '⏳' : '·'}
-          </div>
-          <span class="text-[8px] font-mono text-slate-400">${d.getDate()}/${d.getMonth() + 1}</span>
-        </div>
-      `;
-    }
-    trackerEl.innerHTML = html;
-  }
-
-  const modal = document.getElementById('modal-streak-info');
-  if (modal) modal.classList.remove('hidden');
-}
-window.openStreakInfoModal = openStreakInfoModal;
 
 function switchTab(tabId) {
   // Defensive guard: prevent blank screen if tabId is missing or undefined
@@ -13590,6 +12818,7 @@ function dismissModalWithSlideDown(modal, onDone) {
     }
 
     modal._suppressBackdropClick = false;
+    if (typeof modal._reactOnDismiss === 'function') modal._reactOnDismiss();
 
     // 3. Quay lại modal chi tiết nhiệm vụ trước đó nếu có
     if (typeof window !== 'undefined' && window.parentDetailQuestId && (modal.id === 'modal-quest' || modal.id === 'modal-frequency-detail' || modal.id === 'modal-quest-proof')) {
@@ -14870,7 +14099,7 @@ function convertMarkdownToEditorHtml(md) {
 window.convertMarkdownToEditorHtml = convertMarkdownToEditorHtml;
 
 function formatMarkdownInActiveEditor() {
-  const editor = document.getElementById('focus-notes-tab-editor') || document.getElementById('focus-notes-editor') || document.querySelector('.notes-editor');
+  const editor = getActiveNotesEditor() || document.querySelector('.notes-editor');
   if (!editor) return;
 
   const sel = window.getSelection();
@@ -15454,6 +14683,11 @@ function saveFocusNotesContent(htmlContent) {
 window.saveFocusNotesContent = saveFocusNotesContent;
 
 function openBrainDumpModal() {
+  if (typeof window.openReactBrainDumpModal === 'function') {
+    window.openReactBrainDumpModal();
+    return;
+  }
+
   const navMoreMenu = document.getElementById('nav-more-menu');
   if (navMoreMenu) navMoreMenu.classList.add('hidden');
   if (typeof closeMobileMoreMenu === 'function') {
@@ -15482,6 +14716,11 @@ window.openBrainDumpModal = openBrainDumpModal;
 window.openFocusNotesModal = openBrainDumpModal;
 
 function closeBrainDumpModal() {
+  if (typeof window.closeReactBrainDumpModal === 'function') {
+    window.closeReactBrainDumpModal();
+    return;
+  }
+
   flushCurrentEditorChanges();
   if (typeof sfx !== 'undefined' && sfx.playClick) {
     sfx.playClick();
@@ -19936,52 +19175,6 @@ function initLevelUpApp() {
     btnOpenEditTimer.addEventListener('click', openEditTimerModal);
   }
 
-  // Preset time chips in edit modal
-  document.querySelectorAll('.btn-preset-time').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const mins = parseInt(btn.dataset.mins, 10) || 25;
-      const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
-      if (activeFocusQuest && mins < activeFocusQuest.targetMinutes) {
-        showToast(`Không thể chọn mốc thấp hơn ${activeFocusQuest.targetMinutes} phút do AI đã định giá!`, 'error');
-        sfx.playClick();
-        return;
-      }
-      if (isReward && mins * 60 > focusRemainingSeconds) {
-        showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
-        sfx.playClick();
-        return;
-      }
-      const minInput = document.getElementById('input-edit-minutes');
-      const secInput = document.getElementById('input-edit-seconds');
-      if (minInput) minInput.value = mins;
-      if (secInput) secInput.value = 0;
-      sfx.playClick();
-    });
-  });
-
-  // Save button in edit modal
-  const btnSaveEdit = document.getElementById('btn-save-edit-timer');
-  if (btnSaveEdit) {
-    btnSaveEdit.addEventListener('click', () => {
-      const minInput = document.getElementById('input-edit-minutes');
-      const secInput = document.getElementById('input-edit-seconds');
-      const mins = Math.max(0, parseInt(minInput ? minInput.value : 25, 10) || 0);
-      const secs = Math.max(0, Math.min(59, parseInt(secInput ? secInput.value : 0, 10) || 0));
-      saveEditTimer(mins, secs);
-    });
-  }
-  ['input-edit-minutes', 'input-edit-seconds'].forEach(id => {
-    const input = document.getElementById(id);
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          document.getElementById('btn-save-edit-timer')?.click();
-        }
-      });
-    }
-  });
-
   // Fullscreen Focus Overlay controls
   const btnZen = document.getElementById('btn-timer-zen');
   if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
@@ -19997,22 +19190,6 @@ function initLevelUpApp() {
     btnZenHold.addEventListener('click', () => {
       toggleZenMode(false);
       holdFocusTimer();
-    });
-  }
-
-  // Focus Complete celebration modal actions
-  const btnCompleteClaim = document.getElementById('btn-focus-complete-claim');
-  if (btnCompleteClaim) {
-    btnCompleteClaim.addEventListener('click', () => {
-      closeModal('modal-focus-complete');
-    });
-  }
-
-  const btnCompleteBreak = document.getElementById('btn-focus-complete-break');
-  if (btnCompleteBreak) {
-    btnCompleteBreak.addEventListener('click', () => {
-      closeModal('modal-focus-complete');
-      startBreakTimer(5);
     });
   }
 
@@ -20114,6 +19291,11 @@ function initLevelUpApp() {
 
   // Profile Modal & Avatar Picker
   document.getElementById('open-profile-btn')?.addEventListener('click', () => {
+    if (!document.getElementById('modal-profile')) {
+      if (typeof window.openProfileModal === 'function') window.openProfileModal();
+      return;
+    }
+
     const nickInput = document.getElementById('input-hero-nickname'); if (nickInput) nickInput.value = appState.profile.nickname;
 
     const roleBadge = document.getElementById('profile-role-badge');

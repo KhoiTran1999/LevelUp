@@ -2080,7 +2080,6 @@ async function cancelQuestFocusSession(questId) {
     } catch (_) {}
   }
 
-  closeModal('modal-quest-detail');
   closeModal('modal-quest-proof');
   renderQuests();
   sfx.playClick();
@@ -2266,28 +2265,24 @@ function adjustTimer(deltaSec) {
 function openEditTimerModal() {
   if (!activeFocusQuest && !isBreakMode && !activeRewardItem) return;
   const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
-  const minInput = document.getElementById('input-edit-minutes');
-  const secInput = document.getElementById('input-edit-seconds');
-  const titleEl = document.querySelector('#modal-edit-focus-timer h3 span:last-child');
-  if (minInput && secInput) {
-    const totalSecs = Math.round(focusRemainingSeconds);
-    minInput.value = Math.floor(totalSecs / 60);
-    secInput.value = totalSecs % 60;
-    if (isReward) {
-      minInput.min = 0;
-      minInput.max = Math.floor(totalSecs / 60);
-      if (titleEl) titleEl.textContent = 'Giảm Thời Gian Hưởng Thụ';
-    } else {
-      const minRequiredSecs = activeFocusQuest ? ((activeFocusQuest.targetMinutes || 1) * 60) : 60;
-      const neededRemainingSecs = Math.max(0, minRequiredSecs - actualFocusedSeconds);
-      minInput.min = Math.max(1, Math.ceil(neededRemainingSecs / 60));
-      minInput.removeAttribute('max');
-      if (titleEl) titleEl.textContent = 'Điều Chỉnh Thời Gian';
+  const totalSecs = Math.round(focusRemainingSeconds);
+  const minRequiredSecs = activeFocusQuest ? ((activeFocusQuest.targetMinutes || 1) * 60) : 60;
+  const neededRemainingSecs = Math.max(0, minRequiredSecs - actualFocusedSeconds);
+  window.dispatchEvent(new CustomEvent('levelup:open-timer-adjustment', {
+    detail: {
+      remainingSeconds: totalSecs,
+      isReward,
+      minMinutes: isReward ? 0 : Math.max(1, Math.ceil(neededRemainingSecs / 60)),
+      maxMinutes: isReward ? Math.floor(totalSecs / 60) : undefined,
+      targetMinutes: activeFocusQuest?.targetMinutes
     }
-  }
-  openModal('modal-edit-focus-timer');
+  }));
 }
+window.openEditTimerModal = openEditTimerModal;
 
+function closeEditTimerModal() {
+  window.dispatchEvent(new CustomEvent('levelup:close-timer-adjustment'));
+}
 function saveEditTimer(mins, secs) {
   const total = Math.max(0, mins * 60 + secs);
   const isReward = Boolean(activeRewardItem || appState.activeTimer?.isRewardMode);
@@ -2295,22 +2290,22 @@ function saveEditTimer(mins, secs) {
   if (isReward) {
     if (total > Math.round(focusRemainingSeconds)) {
       showToast('Thời gian hưởng thụ chỉ được trừ xuống, không thể cộng thêm!', 'error');
-      return;
+      return false;
     }
     if (total <= 0) {
-      closeModal('modal-edit-focus-timer');
+      closeEditTimerModal();
       focusRemainingSeconds = 0;
       updateTimerDisplay();
       rewardTimerFinished();
-      return;
+      return true;
     }
     focusRemainingSeconds = total;
     updateTimerDisplay();
     saveFocusTimerState(true, true, 'adjust');
     sfx.playClick();
-    closeModal('modal-edit-focus-timer');
+    closeEditTimerModal();
     showToast(`Đã giảm thời gian: ${mins}p ${secs}s`, 'success');
-    return;
+    return true;
   }
 
   // Anti-Cheat: Không cho phép đặt thời gian sao cho tổng phiên thấp hơn mức cam kết của nhiệm vụ
@@ -2319,7 +2314,7 @@ function saveEditTimer(mins, secs) {
     if ((actualFocusedSeconds + total) < (minRequiredSecs - 5)) {
       const neededMinutes = Math.ceil(Math.max(0, minRequiredSecs - actualFocusedSeconds) / 60);
       showToast(`Không thể đặt thời gian ít hơn ${neededMinutes} phút để đảm bảo đủ ${activeFocusQuest.targetMinutes} phút cam kết!`, 'error');
-      return;
+      return false;
     }
   }
 
@@ -2328,9 +2323,12 @@ function saveEditTimer(mins, secs) {
   updateTimerDisplay();
   saveFocusTimerState(true, true, 'adjust');
   sfx.playClick();
-  closeModal('modal-edit-focus-timer');
+  closeEditTimerModal();
   showToast(`Đã lưu thời gian: ${mins}p ${secs}s`, 'success');
+  return true;
 }
+window.saveEditTimer = saveEditTimer;
+window.startBreakTimer = startBreakTimer;
 
 function toggleZenMode(show) {
   const overlay = document.getElementById('focus-zen-overlay');
@@ -2476,18 +2474,6 @@ function rewardTimerFinished() {
 }
 
 function openFocusCompleteModal(quest) {
-  const descEl = document.getElementById('focus-complete-desc');
-  const coinsEl = document.getElementById('focus-complete-coins');
-  const expEl = document.getElementById('focus-complete-exp');
-
-  if (descEl) descEl.textContent = `Xuất sắc hoàn thành ${quest.targetMinutes} phút tập trung cho "${quest.title}"!`;
-  if (coinsEl) coinsEl.textContent = `+${quest.rewardCoins} VÀNG`;
-  if (expEl) expEl.textContent = `+${quest.rewardCoins * 3} EXP`;
-
-  if (typeof updateBrainDumpBadges === 'function') {
-    updateBrainDumpBadges();
-  }
-
-  openModal('modal-focus-complete');
+  if (typeof updateBrainDumpBadges === 'function') updateBrainDumpBadges();
+  window.dispatchEvent(new CustomEvent('levelup:focus-complete', { detail: quest }));
 }
-

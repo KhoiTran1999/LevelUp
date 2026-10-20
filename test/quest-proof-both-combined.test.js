@@ -163,9 +163,10 @@ test('5. src/js/08-proof.js and src/js/18-events.js properly support mode "both"
 
 test('6. src/js/14-render.js displays appropriate labels and badges for proofType "both"', () => {
   const renderJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '14-render.js'), 'utf8');
+  const questDetail = fs.readFileSync(path.join(rootDir, 'components', 'quests', 'QuestDetailModal.tsx'), 'utf8');
 
   assert.ok(renderJs.includes('Nộp Bằng Chứng Nhận Vàng 📸+✍️'), 'Card button text for both proofType');
-  assert.ok(renderJs.includes('📸+✍️ Cần ảnh & báo cáo AI duyệt'), 'Badge for required combined proof');
-  assert.ok(renderJs.includes('📸+✍️ Bằng chứng đã duyệt'), 'Badge for verified combined proof');
+  assert.ok(questDetail.includes('📸+✍️ Cần ảnh & báo cáo AI duyệt'), 'Badge for required combined proof');
+  assert.ok(questDetail.includes('📸+✍️ Bằng chứng đã duyệt'), 'Badge for verified combined proof');
   assert.ok(renderJs.includes('📸+📝 Xem bằng chứng'), 'Ledger button for combined proof');
 });

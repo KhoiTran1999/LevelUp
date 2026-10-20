@@ -7,12 +7,15 @@ console.log('=== Kiểm thử Hệ Thống Cấp Độ, Kinh Nghiệm (EXP) & Da
 // 1. Kiểm tra mã nguồn giao diện HTML
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const js = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const page = fs.readFileSync(path.resolve('app/page.tsx'), 'utf8');
+const levelAndStreak = fs.readFileSync(path.resolve('components/profile/LevelAndStreakInfoModals.tsx'), 'utf8');
 
 assert.ok(html.includes('id="btn-level-info"'), 'Phải có nút bấm xem thông tin cấp độ trên Header (#btn-level-info)');
-assert.ok(html.includes('id="modal-level-info"'), 'Phải có modal hướng dẫn cấp độ & EXP (#modal-level-info)');
-assert.ok(html.includes('id="btn-open-level-info-from-profile"'), 'Phải có nút mở hướng dẫn cấp độ từ Profile Modal');
-assert.ok(html.includes('id="modal-level-exp-bar"'), 'Modal phải có thanh tiến trình EXP');
-assert.ok(js.includes('function openLevelInfoModal'), 'Mã nguồn app.js phải có hàm openLevelInfoModal()');
+assert.ok(page.includes('<LevelAndStreakInfoModals />'), 'Next.js page phải render Level và Streak dialogs');
+assert.ok(levelAndStreak.includes('ModalFrame id="modal-level-info"'), 'React phải sở hữu modal hướng dẫn cấp độ & EXP (#modal-level-info)');
+assert.ok(levelAndStreak.includes('Cấp độ hiện tại'), 'React modal phải hiển thị cấp độ hiện tại');
+assert.ok(levelAndStreak.includes('legacyWindow.openLevelInfoModal = openLevel'), 'React phải duy trì API mở modal cho header và profile');
+assert.ok(!html.includes('id="modal-level-info"'), 'Legacy HTML không được chứa modal cấp độ');
 
 console.log('✓ Test 1: Giao diện Header, Profile Modal và Modal Hướng dẫn Cấp độ tích hợp đầy đủ.');
 

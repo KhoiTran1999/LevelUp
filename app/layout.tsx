@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Be_Vietnam_Pro, Roboto_Flex } from 'next/font/google';
 import '@/src/tailwind.css';
+import '@/public/style.css';
 
 const beVietnamPro = Be_Vietnam_Pro({
   weight: ['400', '500', '600', '700', '800', '900'],
@@ -69,9 +70,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
           rel="stylesheet"
         />
-
-        {/* Global Custom Stylesheet */}
-        <link rel="stylesheet" href="/style.css?v=1.0.3" />
 
         {/* Critical Anti-FOUT: lock icon dimensions and hide ligature text until font is active */}
         <style

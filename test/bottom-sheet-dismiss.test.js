@@ -7,20 +7,28 @@ console.log('=== KIỂM THỬ BOTTOM SHEET PULL-TO-DISMISS & SLIDE-DOWN EXIT ANI
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const css = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const js = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const reactQuestDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');
+const reactRewardDetail = fs.readFileSync(path.resolve('components/shop/RewardDetailModal.tsx'), 'utf8');
 
-// 1. Kiểm tra HTML của Bottom Sheet
-console.log('Test 1: Kiểm tra cấu trúc HTML của Bottom Sheet...');
-assert.ok(html.includes('id="modal-quest-detail"'), 'index.html phải có modal-quest-detail');
-assert.ok(html.includes('id="modal-reward-detail"'), 'index.html phải có modal-reward-detail');
+// 1. Kiểm tra React owns bottom-sheet markup.
+console.log('Test 1: Kiểm tra cấu trúc React của Bottom Sheet...');
+assert.ok(!html.includes('id="modal-quest-detail"'), 'index.html không còn markup modal quest legacy');
+assert.ok(!html.includes('id="modal-reward-detail"'), 'index.html không còn markup modal reward legacy');
 assert.ok(
-  html.includes('id="modal-quest-detail"') && html.includes('data-sheet-dismiss="true"'),
-  'modal-quest-detail phải có thuộc tính data-sheet-dismiss="true"'
+  reactQuestDetail.includes('id="modal-quest-detail"') && reactQuestDetail.includes('data-sheet-dismiss="true"'),
+  'React quest sheet phải có thuộc tính data-sheet-dismiss="true"'
 );
 assert.ok(
-  html.includes('class="m3-drag-handle sm:hidden" role="button" aria-label="Kéo xuống để đóng"'),
-  'modal-quest-detail phải có drag handle với aria-label hỗ trợ accessibility'
+  reactQuestDetail.includes('className="m3-drag-handle sm:hidden" role="button" aria-label="Kéo xuống để đóng"'),
+  'React quest sheet phải có drag handle accessible'
 );
-console.log('✓ Test 1: Cấu trúc HTML và thuộc tính data-sheet-dismiss hợp lệ 100%.\n');
+assert.ok(reactRewardDetail.includes('id="modal-reward-detail"') && reactRewardDetail.includes('data-sheet-dismiss="true"'), 'React reward sheet must retain swipe-dismiss marker.');
+assert.ok(reactRewardDetail.includes('m3-drag-handle sm:hidden'), 'React reward sheet must retain accessible drag handle.');
+assert.ok(reactQuestDetail.includes('data-sheet-dismiss="true"'), 'React quest sheet must retain swipe-dismiss marker.');
+assert.ok(reactQuestDetail.includes('m3-drag-handle sm:hidden'), 'React quest sheet must retain accessible drag handle.');
+assert.ok(reactQuestDetail.includes('initBottomSheetGestures;') && reactQuestDetail.includes('initializeGestures()'), 'React quest sheet must initialize shared pull-to-dismiss gestures.');
+assert.ok(reactRewardDetail.includes('win.initBottomSheetGestures()'), 'React reward sheet must initialize shared pull-to-dismiss gestures.');
+console.log('✓ Test 1: React owns quest/reward sheet markup and gestures.\n');
 
 // 2. Kiểm tra CSS Animation (Slide-up khi mở, Slide-down khi đóng, Fade backdrop)
 console.log('Test 2: Kiểm tra CSS Animation slide-down và styling drag handle...');

@@ -7,6 +7,7 @@ import { extractPlainTextPreview } from './markdown';
 interface NoteSidebarProps {
   notes: NoteItem[];
   activeNoteId: string | null;
+  idPrefix?: string;
   onSelectNote: (noteId: string) => void;
   onTogglePin: (noteId: string) => void;
   onDeleteNote: (noteId: string) => void;
@@ -31,6 +32,7 @@ export function formatNoteDate(timestamp: number): string {
 export function NoteSidebar({
   notes,
   activeNoteId,
+  idPrefix = '',
   onSelectNote,
   onTogglePin,
   onDeleteNote,
@@ -39,14 +41,14 @@ export function NoteSidebar({
   return (
     <>
       <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-500 dark:text-slate-400 font-mono uppercase tracking-wider">
-        <span id="notes-list-header-label">Danh Sách Ghi Chú</span>
-        <span id="notes-list-count" className="text-[11px] font-normal text-slate-400">
+        <span id={`${idPrefix}notes-list-header-label`}>Danh Sách Ghi Chú</span>
+        <span id={`${idPrefix}notes-list-count`} className="text-[11px] font-normal text-slate-400">
           {notes.length} mục
         </span>
       </div>
 
       <div
-        id="react-notes-card-list"
+        id={`${idPrefix}react-notes-card-list`}
         className="flex flex-col gap-2 max-h-[calc(100vh-270px)] lg:max-h-[620px] overflow-y-auto custom-scrollbar pr-0.5"
       >
         {notes.length === 0 ? (
