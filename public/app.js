@@ -11760,9 +11760,25 @@ function renderInventory() {
 // ──────────────────────────────────────────────────────────────────
 function openRewardDetailModal(itemId, source) {
   const isShop = source === 'shop';
-  const item = isShop
-    ? appState.shopItems.find(x => x.id === itemId)
-    : appState.inventory.find(x => x.id === itemId);
+  let item = null;
+  if (typeof itemId === 'object' && itemId !== null && itemId.id) {
+    item = itemId;
+    if (isShop && typeof appState === 'object' && Array.isArray(appState.shopItems)) {
+      const idx = appState.shopItems.findIndex(x => x.id === item.id);
+      if (idx === -1) appState.shopItems.unshift(item); else appState.shopItems[idx] = { ...appState.shopItems[idx], ...item };
+    }
+  } else if (typeof appState === 'object') {
+    item = isShop ? (appState.shopItems || []).find(x => x.id === itemId) : (appState.inventory || []).find(x => x.id === itemId);
+  }
+  if (!item && typeof window !== 'undefined') {
+    if (isShop && Array.isArray(window.appState?.shopItems)) {
+      item = window.appState.shopItems.find(x => x.id === itemId);
+      if (item && typeof appState === 'object' && Array.isArray(appState.shopItems)) appState.shopItems.unshift(item);
+    } else if (!isShop && Array.isArray(window.appState?.inventory)) {
+      item = window.appState.inventory.find(x => x.id === itemId);
+      if (item && typeof appState === 'object' && Array.isArray(appState.inventory)) appState.inventory.unshift(item);
+    }
+  }
   if (!item) return;
 
   const modal = document.getElementById('modal-reward-detail');

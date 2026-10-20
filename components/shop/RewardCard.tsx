@@ -15,15 +15,29 @@ export function RewardCard({ item }: RewardCardProps) {
   const durationMins = item.targetMinutes || 0;
 
   const handleOpenDetail = () => {
-    if (
-      typeof window !== 'undefined' &&
-      typeof (window as unknown as { openRewardDetailModal?: (id: string, src: string) => void })
-        .openRewardDetailModal === 'function'
-    ) {
-      (window as unknown as { openRewardDetailModal: (id: string, src: string) => void }).openRewardDetailModal(
-        item.id,
-        'shop'
-      );
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: { shopItems?: ShopItem[] };
+        openRewardDetailModal?: (itemOrId: string | ShopItem, src: string) => void;
+      };
+
+      // Safely ensure item is present in window.appState
+      if (win.appState) {
+        if (!Array.isArray(win.appState.shopItems)) {
+          win.appState.shopItems = [];
+        }
+        const idx = win.appState.shopItems.findIndex(s => s.id === item.id);
+        if (idx === -1) {
+          win.appState.shopItems.unshift(item);
+        } else {
+          win.appState.shopItems[idx] = { ...win.appState.shopItems[idx], ...item };
+        }
+      }
+
+      if (typeof win.openRewardDetailModal === 'function') {
+        win.openRewardDetailModal(item, 'shop');
+        return;
+      }
     }
   };
 

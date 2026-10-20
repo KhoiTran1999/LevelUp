@@ -718,11 +718,11 @@ export function handleSuggestNegotiationOptions(params = {}) {
   };
 }
 
-export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
+export function runDeterministicQuestDebate(quest, argument = '', selectedOpt = null) {
   if (selectedOpt) {
     return handleUpdateQuestParameters({
       accepted: true,
-      reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số đã được cập nhật chuẩn xác. Chúc bạn làm việc thật hiệu quả! ✨`,
+      reply: `Mình hoàn toàn nhất trí chốt theo ${selectedOpt.label || 'phương án bạn chọn'} nhé! Thông số nhiệm vụ đã được cập nhật chuẩn xác. Chúc bạn hoàn thành thật tốt! ✨`,
       newRewardCoins: selectedOpt.newRewardCoins,
       newTargetMinutes: selectedOpt.newTargetMinutes,
       newType: selectedOpt.newType,
@@ -731,6 +731,14 @@ export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
       newTitle: selectedOpt.newTitle
     }, quest);
   }
+
+  const curMins = quest.targetMinutes !== undefined ? quest.targetMinutes : (quest.type === 'focus' ? 25 : 0);
+  const curCoins = quest.rewardCoins || 10;
+  const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau|nấu)/i.test((quest.title || '') + ' ' + (argument || ''));
+
+  // Question & agreement detection
+  const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+  const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
 
   // Explicit user parameters extraction (e.g. "10 phút", "7 vàng", "không cần bấm giờ")
   const explicitMinsMatch = argument.match(/(\d+)\s*(?:phút|min|p\b)/i);
@@ -744,47 +752,16 @@ export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
   const wantsTextExplicit = !wantsBoth && /(?:đổi\s*sang|chuyển\s*sang|chỉ\s*(?:cần\s*)?|thay\s*bằng|muốn|xin)\s*(?:nộp\s*)?(?:báo\s*cáo(?:\s*nội\s*dung)?|viết\s*(?:báo\s*cáo|tóm\s*tắt)|tóm\s*tắt(?:\s*nội\s*dung)?)|(?:báo\s*cáo(?:\s*nội\s*dung)?|viết\s*(?:báo\s*cáo|tóm\s*tắt))\s*(?:thôi|được\s*không|thay\s*vì)/i.test(argument);
   const wantsWaive = /(?:miễn|không\s*cần|bỏ)\s*(?:chụp\s*ảnh|bằng\s*chứng|xác\s*thực)/i.test(argument);
 
-  if (requestedMins !== null || requestedCoins !== null) {
-    const finalMins = requestedMins !== null
-      ? Math.min(180, Math.max(0, requestedMins))
-      : (quest.targetMinutes !== undefined ? quest.targetMinutes : (quest.type === 'focus' ? 25 : 0));
-    const finalCoins = requestedCoins !== null
-      ? Math.min(40, Math.max(1, requestedCoins))
-      : (quest.rewardCoins || 10);
-    const finalType = finalMins > 0 ? 'focus' : 'bounty';
-    const minsText = finalMins > 0 ? `${finalMins} phút` : 'không cần bấm giờ';
+  const wantsMoreCoins = /(?:tăng|thêm|nâng).*(?:thưởng|vàng)|xin.*(?:thưởng|vàng)/i.test(argument);
+  const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
 
-    const proofParams = {};
-    if (wantsBoth) {
-      proofParams.newRequiresProof = true;
-      proofParams.newProofType = 'both';
-      proofParams.newProofGuidance = 'Chụp ảnh kết quả thực tế và viết tóm tắt ngắn gọn nội dung đã hoàn thành.';
-    } else if (wantsPhoto) {
-      proofParams.newRequiresProof = true;
-      proofParams.newProofType = 'photo';
-      proofParams.newProofGuidance = 'Chụp ảnh kết quả thực tế khi hoàn thành nhiệm vụ.';
-    } else if (wantsTextExplicit) {
-      proofParams.newRequiresProof = true;
-      proofParams.newProofType = 'text';
-      proofParams.newProofGuidance = 'Ghi lại các ý chính hoặc kết quả nội dung đã hoàn thành.';
-    } else if (wantsWaive) {
-      proofParams.newRequiresProof = false;
-    }
-
-    return handleUpdateQuestParameters({
-      accepted: true,
-      reply: `Mình hoàn toàn đồng ý điều chỉnh thời gian thành ${minsText} và mức thưởng ${finalCoins} Vàng theo đề xuất của bạn nhé! Chúc bạn thực hiện thật vui vẻ và sảng khoái! ✨`,
-      newTargetMinutes: finalMins,
-      newRewardCoins: finalCoins,
-      newType: finalType,
-      ...proofParams
-    }, quest, argument);
-  }
-
+  // 1. Proof upgrades / updates take precedence when explicitly requested
   if (wantsBoth) {
+    const bonusCoins = (curCoins < 30) ? Math.min(30, curCoins + 2) : curCoins;
     return handleUpdateQuestParameters({
       accepted: true,
-      reply: `Rất tuyệt vời! Tinh thần tự giác nâng cao kỷ luật kết hợp cả ảnh thực tế lẫn báo cáo tóm tắt rất đáng khen ngợi. Mình đã cập nhật sang hình thức kết hợp cả hai nhé! 📸+✍️`,
+      reply: `Rất tuyệt vời! Tinh thần tự giác nâng cao kỷ luật kết hợp cả ảnh thực tế lẫn báo cáo tóm tắt rất đáng khen ngợi. Mình đã cập nhật sang hình thức kết hợp cả hai và tặng thêm 2 Vàng khích lệ nhé! 📸+✍️`,
+      newRewardCoins: bonusCoins,
       newRequiresProof: true,
       newProofType: 'both',
       newProofGuidance: 'Chụp ảnh kết quả thực tế và viết tóm tắt ngắn gọn nội dung đã hoàn thành.'
@@ -862,46 +839,28 @@ export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
     }, quest, argument);
   }
 
-  const isChore = /(?:rửa|dọn|quét|giặt|đổ\s*rác|lau|nấu)/i.test(quest.title + ' ' + argument);
-  const isBountyReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|hoàn\s*thành\s*ngay|bounty)/i.test(argument);
-  const wantsMoreCoins = /(?:tăng|thêm|nâng).*(?:thưởng|vàng)|xin.*(?:thưởng|vàng)/i.test(argument);
-  const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
-  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
-
-  if (isBountyReq || (isChore && wantsMoreCoins)) {
-    const coins = Math.min(5, Math.max(quest.rewardCoins || 3, 5));
+  // 2. Chores & quick housework handling
+  if (isChore) {
+    if (requestedCoins !== null && requestedCoins > 5) {
+      return {
+        ...handleUpdateQuestParameters({ accepted: false, reply: `Các công việc nhà hoặc sinh hoạt nhanh chỉ có khung thưởng chuẩn từ 3 đến 5 Vàng để giữ cân bằng bạn nhé. Yêu cầu ${requestedCoins} Vàng là quá cao cho việc này nè!` }, quest),
+        options: [
+          { id: 1, label: 'Mức chuẩn 5 Vàng (Không bấm giờ)', argument: 'Chốt 5 Vàng không cần bấm giờ theo chuẩn việc nhà', newTargetMinutes: 0, newRewardCoins: 5, newType: 'bounty' },
+          { id: 2, label: 'Tổng vệ sinh 25 phút (10 Vàng)', argument: 'Mình chuyển sang tổng vệ sinh tập trung 25 phút để nhận 10 Vàng', newTargetMinutes: 25, newRewardCoins: 10, newType: 'focus' }
+        ]
+      };
+    }
+    const choreCoins = Math.min(5, Math.max(quest.rewardCoins || 3, requestedCoins || 5));
     return handleUpdateQuestParameters({
       accepted: true,
-      reply: `Việc này là việc nhanh gọn, mình đồng ý để bạn hoàn thành ngay không cần bấm giờ với mức thưởng ${coins} Vàng nhé! ✨`,
+      reply: `Việc này là việc nhà nhanh gọn, mình đồng ý để bạn hoàn thành ngay không cần bấm giờ với mức thưởng ${choreCoins} Vàng nhé! ✨`,
       newType: 'bounty',
       newTargetMinutes: 0,
-      newRewardCoins: coins
+      newRewardCoins: choreCoins
     }, quest, argument);
   }
 
-  if (wantsLessTime) {
-    const newMins = Math.max(10, Math.floor((quest.targetMinutes || 25) * 0.7));
-    const newCoins = Math.max(5, Math.floor((quest.rewardCoins || 10) * 0.8));
-    return handleUpdateQuestParameters({
-      accepted: true,
-      reply: `Mình đồng ý điều chỉnh thời gian tập trung xuống ${newMins} phút và mức thưởng ${newCoins} Vàng để bạn bắt đầu dễ dàng hơn nhé! ✨`,
-      newTargetMinutes: newMins,
-      newRewardCoins: newCoins,
-      newType: 'focus'
-    }, quest, argument);
-  }
-
-  if (wantsMoreCoins) {
-    const newCoins = Math.min(25, (quest.rewardCoins || 10) + 3);
-    return handleUpdateQuestParameters({
-      accepted: true,
-      reply: `Lý do của bạn rất xác đáng! Mình đồng ý nâng mức thưởng lên ${newCoins} Vàng nhé. Cố gắng hoàn thành thật tốt nha! ✨`,
-      newRewardCoins: newCoins,
-      newTargetMinutes: quest.targetMinutes || 25,
-      newType: quest.type || 'focus'
-    }, quest, argument);
-  }
-
+  // 3. User agreed
   if (userAgreed) {
     return handleUpdateQuestParameters({
       accepted: true,
@@ -912,6 +871,81 @@ export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
     }, quest, argument);
   }
 
+  // 4. Non-chore focus tasks trade-off analysis
+  const isAskingMoreCoins = (requestedCoins !== null && requestedCoins > curCoins) || wantsMoreCoins;
+  const isAskingLessTime = (requestedMins !== null && requestedMins < curMins) || wantsLessTime;
+
+  // 4a. If user asks for NO TIMER on intellectual / non-chore focus task:
+  if (isNoTimerMatch && curMins > 0) {
+    return {
+      ...handleUpdateQuestParameters({ accepted: false, reply: `Công việc này cần có sự tập trung thực sự để đạt hiệu quả cao, nên Trọng Tài AI không thể bỏ hoàn toàn đồng hồ bấm giờ với mức thưởng này bạn nhé.` }, quest),
+      options: [
+        { id: 1, label: `Phiên ngắn 15 phút (${Math.max(4, Math.floor(curCoins * 0.6))} Vàng)`, argument: `Rút ngắn còn 15 phút và nhận ${Math.max(4, Math.floor(curCoins * 0.6))} Vàng`, newTargetMinutes: 15, newRewardCoins: Math.max(4, Math.floor(curCoins * 0.6)), newType: 'focus' },
+        { id: 2, label: `Giữ ${curMins} phút (${curCoins} Vàng)`, argument: `Giữ nguyên ${curMins} phút và nhận trọn ${curCoins} Vàng`, newTargetMinutes: curMins, newRewardCoins: curCoins, newType: 'focus' }
+      ]
+    };
+  }
+
+  // 4b. User asks for MORE coins WITHOUT increasing time: REJECT (Anti-Pushover)
+  if (isAskingMoreCoins && (requestedMins === null || requestedMins <= curMins)) {
+    const higherMins = (curMins || 25) + 15;
+    const higherCoins = curCoins + 4;
+    return {
+      ...handleUpdateQuestParameters({
+        accepted: false,
+        reply: `Để giữ vững tính kỷ luật và công bằng, mức thưởng Vàng luôn phải đi liền với thời gian và nỗ lực bỏ ra bạn nhé. Bạn muốn nhận thêm Vàng thì hãy cam kết thêm thời gian tập trung hoặc nâng cấp bằng chứng nè:`
+      }, quest),
+      options: [
+        { id: 1, label: `Tăng lên ${higherMins} phút (${higherCoins} Vàng)`, argument: `Mình cam kết tập trung ${higherMins} phút để nhận ${higherCoins} Vàng`, newTargetMinutes: higherMins, newRewardCoins: higherCoins, newType: 'focus' },
+        { id: 2, label: `Kỷ luật kép 📸+✍️ (+2 Vàng)`, argument: `Mình cam kết nộp bằng chứng kép cả ảnh và tóm tắt để nhận thêm 2 Vàng`, newRequiresProof: true, newProofType: 'both', newRewardCoins: curCoins + 2 }
+      ]
+    };
+  }
+
+  // 4c. User asks for LESS time BUT keeps or asks more coins: REJECT (Anti-Pushover)
+  if (isAskingLessTime && requestedCoins !== null && requestedCoins >= curCoins) {
+    const reducedMins = requestedMins !== null ? requestedMins : Math.max(10, Math.floor(curMins * 0.7));
+    const fairCoins = Math.max(3, Math.floor(reducedMins * 0.35));
+    return {
+      ...handleUpdateQuestParameters({
+        accepted: false,
+        reply: `Nếu rút ngắn thời gian tập trung xuống còn ${reducedMins} phút thì mức thưởng cũng cần điều chỉnh giảm tương ứng để công bằng với các nhiệm vụ khác bạn nhé.`
+      }, quest),
+      options: [
+        { id: 1, label: `${reducedMins} phút (${fairCoins} Vàng)`, argument: `Đồng ý ${reducedMins} phút với mức thưởng ${fairCoins} Vàng`, newTargetMinutes: reducedMins, newRewardCoins: fairCoins, newType: 'focus' },
+        { id: 2, label: `Giữ nguyên ${curMins} phút (${curCoins} Vàng)`, argument: `Giữ nguyên ${curMins} phút để nhận trọn vẹn ${curCoins} Vàng`, newTargetMinutes: curMins, newRewardCoins: curCoins, newType: 'focus' }
+      ]
+    };
+  }
+
+  // 4d. User proposed a BALANCED trade-off:
+  // e.g. User increased time for more coins (Yoga test case: 0 -> 10 mins, 7 coins)
+  if (requestedMins !== null && requestedMins > curMins) {
+    const finalMins = Math.min(180, requestedMins);
+    const finalCoins = requestedCoins !== null ? Math.min(40, requestedCoins) : Math.min(40, curCoins + Math.floor((finalMins - curMins) * 0.3));
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Mình hoàn toàn đồng ý điều chỉnh thời gian thành ${finalMins} phút và mức thưởng ${finalCoins} Vàng theo đề xuất tăng nỗ lực rất đáng khen ngợi của bạn nhé! ✨`,
+      newTargetMinutes: finalMins,
+      newRewardCoins: finalCoins,
+      newType: 'focus'
+    }, quest, argument);
+  }
+
+  // e.g. User reduced time with proportionally reduced coins
+  if (isAskingLessTime && (requestedCoins === null || requestedCoins < curCoins)) {
+    const finalMins = requestedMins !== null ? requestedMins : Math.max(10, Math.floor(curMins * 0.7));
+    const finalCoins = requestedCoins !== null ? requestedCoins : Math.max(3, Math.floor(curCoins * 0.7));
+    return handleUpdateQuestParameters({
+      accepted: true,
+      reply: `Mình đồng ý điều chỉnh thời gian tập trung xuống ${finalMins} phút và mức thưởng ${finalCoins} Vàng để bạn bắt đầu dễ dàng hơn nhé! ✨`,
+      newTargetMinutes: finalMins,
+      newRewardCoins: finalCoins,
+      newType: 'focus'
+    }, quest, argument);
+  }
+
+  // 5. Default negotiation fallback: Keep current, offer 2 options
   const optRes = handleSuggestNegotiationOptions({
     domain: 'quest',
     reply: `Mình rất hiểu mong muốn của bạn! Tuy nhiên để cân bằng nỗ lực, tụi mình giữ mức này nhé. Dưới đây là các phương án khả thi hơn nè:\n- Phương án 1: Giữ nguyên mức thưởng ${quest.rewardCoins} Vàng và rút ngắn còn 20 phút.\n- Phương án 2: Hoàn thành ngay không cần bấm giờ với mức thưởng 5 Vàng.`,
@@ -926,7 +960,7 @@ export function runDeterministicQuestDebate(quest, argument, selectedOpt) {
   };
 }
 
-export function runDeterministicRewardDebate(reward, argument, selectedOpt) {
+export function runDeterministicRewardDebate(reward, argument = '', selectedOpt = null) {
   if (selectedOpt) {
     return handleUpdateRewardParameters({
       accepted: true,
@@ -938,15 +972,108 @@ export function runDeterministicRewardDebate(reward, argument, selectedOpt) {
     }, reward);
   }
 
+  const curPrice = reward.price || 20;
+  const curMins = reward.targetMinutes || 0;
+
+  // Question & agreement detection
+  const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+  const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
+
   // Explicit user parameters extraction (e.g. "15 vàng", "20 phút")
   const explicitCoinsMatch = argument.match(/(\d+)\s*vàng/i);
   const explicitMinsMatch = argument.match(/(\d+)\s*(?:phút|min|p\b)/i);
   const requestedCoins = explicitCoinsMatch ? parseInt(explicitCoinsMatch[1], 10) : null;
   const requestedMins = explicitMinsMatch ? parseInt(explicitMinsMatch[1], 10) : null;
 
+  const isLowerPriceReq = /(?:giảm|hạ|bớt|rẻ).*(?:giá|vàng)/i.test(argument);
+  const isLowerTimeReq = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
+  const isNoTimerReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ)/i.test(argument);
+
+  // 1. User agreed to previous offer
+  if (userAgreed) {
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Tuyệt vời, tụi mình đã chốt xong phần thưởng này nhé! ✨`,
+      newPrice: curPrice,
+      newTargetMinutes: curMins,
+      newTier: reward.tier
+    }, reward);
+  }
+
+  // 2. Requesting no timer on a duration reward: REJECT (Anti-Pushover)
+  if (isNoTimerReq) {
+    if (curMins > 0) {
+      return {
+        ...handleUpdateRewardParameters({
+          accepted: false,
+          reply: `Phần thưởng như "${reward.name || 'này'}" cần có mốc thời gian rõ ràng để tránh bị cuốn vào giải trí quá lâu ảnh hưởng đến công việc tiếp theo bạn nhé.`
+        }, reward),
+        options: [
+          { id: 1, label: `Giữ ${curMins} phút (${curPrice} Vàng)`, argument: `Giữ nguyên ${curMins} phút hẹn giờ để yên tâm giải trí`, newPrice: curPrice, newTargetMinutes: curMins },
+          { id: 2, label: `Giải lao nhanh 15 phút (${Math.max(5, Math.floor(curPrice * 0.4))} Vàng)`, argument: `Rút ngắn còn 15 phút với giá ${Math.max(5, Math.floor(curPrice * 0.4))} Vàng`, newPrice: Math.max(5, Math.floor(curPrice * 0.4)), newTargetMinutes: 15 }
+        ]
+      };
+    }
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Được chứ! Mình chuyển phần thưởng này sang dạng đổi quà nhận ngay không cần bấm giờ nhé. ✨`,
+      newPrice: curPrice,
+      newTargetMinutes: 0,
+      newTier: reward.tier
+    }, reward);
+  }
+
+  // 3. User asks to LOWER PRICE:
+  const isAskingLowerPrice = (requestedCoins !== null && requestedCoins < curPrice) || isLowerPriceReq;
+  const isReducingDuration = (requestedMins !== null && requestedMins < curMins) || isLowerTimeReq;
+
+  // 3a. Fair trade-off: User REDUCES BOTH price AND duration: ACCEPT!
+  if (isAskingLowerPrice && isReducingDuration) {
+    const finalPrice = requestedCoins !== null ? Math.max(5, requestedCoins) : Math.max(10, Math.floor(curPrice * 0.7));
+    const finalMins = requestedMins !== null ? Math.max(5, requestedMins) : Math.max(10, Math.floor(curMins * 0.7));
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Phương án này rất hợp lý! Mình đồng ý giảm giá xuống ${finalPrice} Vàng tương ứng với ${finalMins} phút tận hưởng nhé! ✨`,
+      newPrice: finalPrice,
+      newTargetMinutes: finalMins,
+      newTier: finalPrice < 30 ? 'common' : (finalPrice < 70 ? 'rare' : reward.tier)
+    }, reward);
+  }
+
+  // 3b. One-sided discount request: user asks lower price WITHOUT reducing duration: REJECT (Anti-Pushover)
+  if (isAskingLowerPrice) {
+    const opt1Price = Math.max(5, Math.floor(curPrice * 0.6));
+    const opt1Mins = Math.max(15, Math.floor(curMins * 0.6));
+    const optRes = handleSuggestNegotiationOptions({
+      domain: 'reward',
+      reply: `Món quà này rất giá trị nên mình giữ mức giá ${curPrice} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${opt1Price} Vàng nhưng rút ngắn thời lượng còn ${opt1Mins > 0 ? opt1Mins : 20} phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
+      options: [
+        { id: 1, label: `Phương án 1 (${opt1Mins > 0 ? opt1Mins + ' phút • ' : ''}${opt1Price} Vàng)`, argument: `Chốt phương án 1: ${opt1Mins > 0 ? opt1Mins + ' phút, ' : ''}${opt1Price} Vàng`, newPrice: opt1Price, newTargetMinutes: opt1Mins > 0 ? opt1Mins : 20, newTier: opt1Price < 30 ? 'common' : 'rare' },
+        { id: 2, label: `Phương án 2 (Giữ nguyên ${curPrice} Vàng)`, argument: `Giữ nguyên giá ${curPrice} Vàng`, newPrice: curPrice, newTargetMinutes: curMins, newTier: reward.tier }
+      ]
+    });
+    return {
+      ...handleUpdateRewardParameters({ accepted: false, reply: optRes.reply }, reward),
+      options: optRes.options
+    };
+  }
+
+  // 4. User explicitly proposed duration reduction without mentioning price:
+  if (requestedMins !== null && requestedMins < curMins) {
+    const newPrice = Math.max(5, Math.floor(curPrice * (requestedMins / curMins)));
+    return handleUpdateRewardParameters({
+      accepted: true,
+      reply: `Bạn chủ động rút ngắn thời gian còn ${requestedMins} phút, mình đồng ý giảm giá tương ứng còn ${newPrice} Vàng nhé! ✨`,
+      newPrice,
+      newTargetMinutes: requestedMins,
+      newTier: newPrice < 30 ? 'common' : reward.tier
+    }, reward);
+  }
+
+  // 5. Explicit user parameters extraction if user increased or set valid custom non-discounted params
   if (requestedCoins !== null || requestedMins !== null) {
-    const finalPrice = requestedCoins !== null ? Math.max(5, requestedCoins) : (reward.price || 20);
-    const finalMins = requestedMins !== null ? Math.max(0, requestedMins) : (reward.targetMinutes || 0);
+    const finalPrice = requestedCoins !== null ? Math.max(5, requestedCoins) : curPrice;
+    const finalMins = requestedMins !== null ? Math.max(0, requestedMins) : curMins;
     return handleUpdateRewardParameters({
       accepted: true,
       reply: `Mình nhất trí điều chỉnh phần thưởng thành giá ${finalPrice} Vàng${finalMins > 0 ? ` và thời gian ${finalMins} phút` : ''} theo đề xuất của bạn nhé! ✨`,
@@ -956,61 +1083,19 @@ export function runDeterministicRewardDebate(reward, argument, selectedOpt) {
     }, reward);
   }
 
-  const isLowerPriceReq = /(?:giảm|hạ|bớt|rẻ).*(?:giá|vàng)/i.test(argument);
-  const isLowerTimeReq = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
-  const isNoTimerReq = /(?:không\s*(?:cần\s*)?bấm\s*giờ|bỏ\s*(?:hẹn\s*)?giờ)/i.test(argument);
-  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
-
-  if (isNoTimerReq) {
-    return handleUpdateRewardParameters({
-      accepted: true,
-      reply: `Được chứ! Mình chuyển phần thưởng này sang dạng đổi quà nhận ngay không cần bấm giờ nhé. ✨`,
-      newPrice: reward.price,
-      newTargetMinutes: 0,
-      newTier: reward.tier
-    }, reward);
-  }
-
-  if (isLowerPriceReq && isLowerTimeReq) {
-    const newPrice = Math.max(10, Math.floor(reward.price * 0.7));
-    const newMins = Math.max(10, Math.floor((reward.targetMinutes || 30) * 0.7));
-    return handleUpdateRewardParameters({
-      accepted: true,
-      reply: `Phương án này rất hợp lý! Mình đồng ý giảm giá xuống ${newPrice} Vàng tương ứng với ${newMins} phút tận hưởng nhé! ✨`,
-      newPrice,
-      newTargetMinutes: newMins,
-      newTier: newPrice < 30 ? 'common' : reward.tier
-    }, reward);
-  }
-
-  if (isLowerPriceReq) {
-    const optRes = handleSuggestNegotiationOptions({
-      domain: 'reward',
-      reply: `Món quà này rất giá trị nên mình giữ mức giá ${reward.price} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${Math.floor(reward.price * 0.6)} Vàng nhưng rút ngắn thời lượng còn 20 phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
-      options: [
-        { id: 1, label: `Phương án 1 (20 phút • ${Math.floor(reward.price * 0.6)} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${Math.floor(reward.price * 0.6)} Vàng`, newTargetMinutes: 20, newPrice: Math.floor(reward.price * 0.6), newTier: 'common' }
-      ]
-    });
-    return {
-      ...handleUpdateRewardParameters({ accepted: false, reply: optRes.reply }, reward),
-      options: optRes.options
-    };
-  }
-
-  if (userAgreed) {
-    return handleUpdateRewardParameters({
-      accepted: true,
-      reply: `Tuyệt vời, tụi mình đã chốt xong phần thưởng này nhé! ✨`,
-      newPrice: reward.price,
-      newTargetMinutes: reward.targetMinutes,
-      newTier: reward.tier
-    }, reward);
-  }
-
-  return handleUpdateRewardParameters({
-    accepted: false,
-    reply: `Mình rất hiểu mong muốn của bạn, nhưng tụi mình tạm giữ thông số này để bạn có thêm động lực hoàn thành nhiệm vụ nhé! ✨`
-  }, reward);
+  // 6. Default negotiation fallback: Keep current price, offer 2 options
+  const optRes = handleSuggestNegotiationOptions({
+    domain: 'reward',
+    reply: `Món quà này rất giá trị nên mình giữ mức giá ${curPrice} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể tham khảo phương án này nè:\n- Phương án 1: Giảm còn ${Math.floor(curPrice * 0.6)} Vàng nhưng rút ngắn thời lượng còn 20 phút.\n- Phương án 2: Giữ nguyên giá và bạn làm thêm 1 nhiệm vụ nữa là đủ Vàng nè!`,
+    options: [
+      { id: 1, label: `Phương án 1 (20 phút • ${Math.floor(curPrice * 0.6)} Vàng)`, argument: `Chốt phương án 1: 20 phút, ${Math.floor(curPrice * 0.6)} Vàng`, newTargetMinutes: 20, newPrice: Math.floor(curPrice * 0.6), newTier: 'common' },
+      { id: 2, label: `Phương án 2 (Giữ nguyên ${curPrice} Vàng)`, argument: `Giữ nguyên giá ${curPrice} Vàng`, newPrice: curPrice, newTargetMinutes: curMins, newTier: reward.tier }
+    ]
+  });
+  return {
+    ...handleUpdateRewardParameters({ accepted: false, reply: optRes.reply }, reward),
+    options: optRes.options
+  };
 }
 
 export function runDeterministicLoanDebate(loan, argument, callerSub, macro = {}, selectedOption, profile = {}) {
@@ -1049,7 +1134,8 @@ export function runDeterministicLoanDebate(loan, argument, callerSub, macro = {}
 
   const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp/i.test(argument);
   const isLimitNegotiate = /nâng\s*hạn\s*mức|tăng\s*hạn\s*mức|hạn\s*mức\s*cao/i.test(argument);
-  const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+  const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+        const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
 
   if (isRateNegotiate && (streak >= 2 || level >= 2)) {
     const floor = macro.depositFloor || 0.015;
@@ -3555,14 +3641,26 @@ QUY TẮC PHÂN LOẠI & THƯƠNG LƯỢNG KỶ LUẬT (BẮT BUỘC TUÂN THỦ
    - CHUYỂN ĐỔI LOẠI:
      * Nếu người dùng chủ động muốn chuyển việc vặt sang hẹn giờ tập trung sâu (hoặc ngược lại), cập nhật cả 'newType' và 'newTargetMinutes'.
 
-2. NGUYÊN TẮC CHỐT PHƯƠNG ÁN (QUYẾT ĐOÁN, ĐỒNG BỘ THÔNG SỐ):
-   - Khi lý lẽ của người dùng hợp lý và mức đề xuất nằm trong khung chuẩn:
-     * BẮT BUỘC đặt "accepted": true và cập nhật 'newRewardCoins', 'newType', 'newTargetMinutes' ngay lập tức!
-     * Lời thoại: Xác nhận vui vẻ, khích lệ và chốt luôn thông số đã cập nhật để người dùng quay ra nhận nhiệm vụ.
-   - Khi người dùng đồng ý với một phương án đã gợi ý ở lượt trước (VD: "mình ok phương án 2", "mình chọn cách 2", "ok nha"):
-     * BẮT BUỘC đặt "accepted": true và cập nhật thông số theo đúng phương án đó ngay lập tức!
-   - Khi yêu cầu vô lý hoặc vượt khung (VD: việc nhà đòi 50 Vàng):
-     * Đặt "accepted": false, giải thích nhẹ nhàng vì sao không thể duyệt và giữ nguyên thông số.
+2. NGUYÊN TẮC TRỌNG TÀI KỶ LUẬT (ANTI-PUSHOVER — TUYỆT ĐỐI KHÔNG DỄ DÃI / KHÔNG ĐỒNG Ý MỘT CHIỀU):
+   - NGUYÊN TẮC ĐỐI ỨNG (TRADE-OFF): Vàng là thước đo công sức và kỷ luật. Không bao giờ duyệt tăng Vàng vô cớ!
+   - KHI NGƯỜI DÙNG XIN TĂNG VÀNG MỘT CHIỀU:
+     * Nếu người dùng chỉ xin tăng Vàng mà KHÔNG cam kết tăng thời gian tập trung (hoặc đòi giảm thời gian):
+       -> BẮT BUỘC ĐẶT "accepted": false!
+       -> Giải thích thân thiện, ân cần nhưng kiên định: Để giữ tính công bằng và kỷ luật, mức thưởng Vàng luôn phải đi liền với thời gian tập trung và nỗ lực bỏ ra.
+       -> Luôn đưa ra 2 "options" đối ứng:
+          + Phương án 1: Tăng thêm thời gian tập trung (+10 đến +15 phút) để nhận mức Vàng cao hơn.
+          + Phương án 2: Giữ nguyên thời gian nhưng cam kết nộp bằng chứng kép (ảnh 📸 + báo cáo ✍️) để nhận thêm 2 Vàng.
+   - KHI NGƯỜI DÙNG XIN GIẢM THỜI GIAN:
+     * Nếu người dùng xin giảm thời gian nhưng muốn giữ nguyên hoặc tăng Vàng:
+       -> BẮT BUỘC ĐẶT "accepted": false! Giảm thời gian thì mức thưởng phải giảm tương ứng.
+   - KHI NGƯỜI DÙNG XIN BỎ BẤM GIỜ CHO VIỆC HỌC / TRÍ ÓC:
+     * -> BẮT BUỘC ĐẶT "accepted": false! Học tập cần thời gian tập trung sâu; chỉ cho phép việc nhà chuyển sang không bấm giờ.
+   - CHỈ ĐỒNG Ý ("accepted": true) KHI:
+     * Người dùng chủ động tăng thời gian tập trung tương xứng với mức Vàng yêu cầu.
+     * Người dùng đồng ý giảm thời gian kèm giảm mức thưởng tương ứng để bắt đầu dễ dàng hơn.
+     * Người dùng tự nguyện nâng cấp lên bằng chứng kép (kết hợp cả ảnh và báo cáo).
+     * Việc nhà nhanh xin chuyển sang không cần bấm giờ trong khung chuẩn 3 - 5 Vàng.
+     * Người dùng chốt một phương án bạn đã đề xuất trước đó.
 
 3. QUY TẮC BẮT BUỘC KHI ĐIỀU CHỈNH YÊU CẦU BẰNG CHỨNG (PROOF TYPE & REQUIRES PROOF):
    Khi người dùng đề xuất hoặc thảo luận về hình thức xác thực/bằng chứng, bạn (Model Brain) PHẢI đọc hiểu ngôn ngữ tự nhiên và ra quyết định dứt khoát bằng cách gọi tool update_quest_parameters:
@@ -3671,7 +3769,8 @@ Trả về ĐÚNG định dạng JSON:
           });
         } catch (_) {}
 
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+        const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
@@ -3955,13 +4054,17 @@ PHONG CÁCH PHẢN HỒI — ĐƠN GIẢN, GẦN GŨI, TRÁNH MỌI THUẬT NG�
   * Chia câu trả lời thành các đoạn ngắn bằng dấu xuống dòng để người dùng dễ đọc.
   * Khi gợi ý các phương án thay thế, BẮT BUỘC xuống dòng cho từng phương án.
   * Có thể in đậm các từ khóa quan trọng (như **30 phút**, **25 Vàng**) để làm nổi bật phương án cho bạn ấy.
-- KHI TỪ CHỐI GIẢM GIÁ (accepted: false):
-  1. Thấu hiểu tâm lý: Thể hiện sự đồng cảm (Ví dụ: "Mình rất hiểu bạn đang rất háo hức muốn trải nghiệm món quà này và muốn đổi được sớm nè...").
-  2. Giải thích giá trị phần thưởng một cách tinh tế, giản dị: "Tuy nhiên, món quà này hơi tốn công một chút nên mình giữ mức giá này nhé. Khi bạn hoàn thành xong công việc và đổi được quà, cảm giác sẽ rất đã và xứng đáng luôn!".
-  3. Đưa ra phương án thay thế/giải pháp đơn giản: "Nếu bạn muốn đổi quà nhanh hơn với số Vàng hiện tại, mình gợi ý bạn có thể thử một món nhỏ hơn (như chơi game 30 phút hoặc 1 ly đồ uống tự pha) thì mức giá sẽ nhẹ nhàng hơn rất nhiều đấy!".
-  4. Động viên tích cực: "Cố lên bạn ơi, hoàn thành thêm 1-2 việc nữa là bạn đã hoàn toàn tự tin rước phần thưởng này về rồi! ✨".
-- KHI CHẤP THUẬN (accepted: true):
-  - Nhiệt tình, vui vẻ duyệt khi người dùng chủ động điều chỉnh quy mô phần thưởng, thời gian hoặc giải thích hợp lý.
+QUY TẮC BẢO VỆ KINH TẾ CỬA HÀNG (ANTI-PUSHOVER — TUYỆT ĐỐI KHÔNG PHÁ GIÁ DỄ DÃI):
+- BẢO VỆ GIÁ TRỊ PHẦN THƯỞNG: Phần thưởng là bảo chứng cho sự nỗ lực. Nếu giảm giá dễ dãi, phần thưởng sẽ mất đi ý nghĩa và tính kỷ luật.
+- KHI NGƯỜI DÙNG XIN GIẢM GIÁ MỘT CHIỀU (chỉ xin bớt Vàng mà không giảm thời gian, hoặc đòi bỏ hẹn giờ):
+  -> BẮT BUỘC ĐẶT "accepted": false!
+  -> Phản hồi lịch thiệp, thấu hiểu tâm lý nhưng kiên định giải thích giá trị của phần thưởng: Món quà này rất giá trị, cần xứng đáng với công sức bỏ ra.
+  -> BẮT BUỘC trả về 2 "options" đối ứng:
+     + Phương án 1 (Rút ngắn thời gian hưởng thụ): Giảm thời lượng trải nghiệm (ví dụ từ 60 phút xuống 30 phút) để giảm giá Vàng tương ứng.
+     + Phương án 2 (Tích lũy nỗ lực trọn vẹn): Giữ nguyên trọn vẹn phần thưởng và khích lệ người dùng hoàn thành thêm 1 nhiệm vụ nữa để đủ Vàng đổi quà xứng đáng.
+- CHỈ CHẤP THUẬN ("accepted": true) KHI:
+  + Người dùng đồng ý rút ngắn thời gian hoặc giảm quy mô phần thưởng tương xứng với mức giá xin giảm (Ví dụ: từ 60 phút xuống 40 phút và giảm từ 60 Vàng xuống 40 Vàng).
+  + Người dùng chốt một phương án bạn đã đề xuất trước đó.
   - BẮT BUỘC cập nhật các trường dữ liệu số tương ứng với thỏa thuận:
     * 'newPrice': Số Vàng mới sau khi chốt (nếu đồng ý giảm giá, BẮT BUỘC ghi số Vàng mới, ví dụ: 20).
     * 'newTargetMinutes': Số phút tận hưởng mới sau khi chốt (ví dụ giảm xuống 15 phút thì ghi 15; nếu không cần đếm giờ thì ghi 0).
@@ -4039,7 +4142,8 @@ Trả về ĐÚNG định dạng JSON:
           });
         } catch (_) {}
 
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+        const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(result.reply);
 
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {
@@ -4799,7 +4903,8 @@ ${questSummary}
           });
         } catch (_) {}
 
-        const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument);
+        const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
+        const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
         const aiAgreed = result && typeof result.reply === 'string' && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|sẵn sàng|mình duyệt|mình chấp thuận)\b/i.test(result.reply);
 
         if (result && typeof result.reply === 'string' && (result.reply.trim().startsWith('{') || result.reply.trim().startsWith('```json'))) {

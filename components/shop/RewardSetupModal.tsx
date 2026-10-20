@@ -583,27 +583,51 @@ export function RewardSetupModal() {
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
                 <div
                   id="reward-locked-time-box"
-                  className="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs"
+                  onClick={() => {
+                    setShowDebate(true);
+                    triggerToast(
+                      'Thời gian phần thưởng do AI thẩm định. Hãy thương lượng với AI ở khung bên dưới!',
+                      'info'
+                    );
+                  }}
+                  className="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs cursor-pointer hover:border-purple-400/50 transition group"
+                  title="Thời gian do AI thẩm định. Bấm để thương lượng với AI ở khung bên dưới."
                 >
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                     Thời gian:
                   </span>
-                  <span
-                    id="reward-locked-time-label"
-                    className="font-bold text-xs text-purple-600 dark:text-purple-400 font-mono"
-                  >
-                    {!pendingReward.targetMinutes ? 'Không cần bấm giờ' : `${pendingReward.targetMinutes} Phút`}
+                  <span className="flex items-center gap-1">
+                    <span
+                      id="reward-locked-time-label"
+                      className="font-bold text-xs text-purple-600 dark:text-purple-400 font-mono"
+                    >
+                      {!pendingReward.targetMinutes ? 'Không cần bấm giờ' : `${pendingReward.targetMinutes} Phút`}
+                    </span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-purple-500 transition" title="Do AI thẩm định">🔒</span>
                   </span>
                 </div>
-                <div className="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                <div
+                  onClick={() => {
+                    setShowDebate(true);
+                    triggerToast(
+                      'Giá Vàng phần thưởng do AI thẩm định. Hãy thương lượng với AI ở khung bên dưới!',
+                      'info'
+                    );
+                  }}
+                  className="bg-white dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs cursor-pointer hover:border-amber-400/50 transition group"
+                  title="Giá Vàng do AI thẩm định. Bấm để thương lượng với AI ở khung bên dưới."
+                >
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                     Giá đổi:
                   </span>
-                  <span
-                    id="reward-locked-price-label"
-                    className="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"
-                  >
-                    <span className="coin-icon"></span> {pendingReward.price || 35} Vàng
+                  <span className="flex items-center gap-1">
+                    <span
+                      id="reward-locked-price-label"
+                      className="font-bold text-amber-600 dark:text-amber-400 font-mono inline-flex items-center gap-1"
+                    >
+                      <span className="coin-icon"></span> {pendingReward.price || 35} Vàng
+                    </span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-amber-500 transition" title="Do AI thẩm định">🔒</span>
                   </span>
                 </div>
               </div>

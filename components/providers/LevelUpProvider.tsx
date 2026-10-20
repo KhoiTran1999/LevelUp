@@ -1703,21 +1703,52 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const addShopItem = useCallback((newItemData: Partial<ShopItem>) => {
     const newItem: ShopItem = {
-      id: `shop_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: newItemData.id || `shop_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: newItemData.name || 'Phần thưởng mới',
       description: newItemData.description || '',
       price: Math.max(1, Number(newItemData.price) || 10),
       tier: newItemData.tier || 'common',
       icon: newItemData.icon || '🎁',
       targetMinutes: Math.max(0, Number(newItemData.targetMinutes) || 0),
-      history: {},
+      history: newItemData.history || {},
       verdict: newItemData.verdict || 'Phần thưởng tự tạo khích lệ tinh thần.',
     };
 
-    setState(prev => ({
-      ...prev,
-      shopItems: [newItem, ...prev.shopItems],
-    }));
+    setState(prev => {
+      const existingIdx = prev.shopItems.findIndex(s => s.id === newItem.id);
+      const nextShopItems =
+        existingIdx >= 0
+          ? prev.shopItems.map((s, i) => (i === existingIdx ? { ...s, ...newItem } : s))
+          : [newItem, ...prev.shopItems];
+      return {
+        ...prev,
+        shopItems: nextShopItems,
+      };
+    });
+
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: LevelUpAppState;
+        triggerSave?: (immediate?: boolean) => void;
+      };
+      if (win.appState) {
+        if (!Array.isArray(win.appState.shopItems)) {
+          win.appState.shopItems = [];
+        }
+        const existingIdx = win.appState.shopItems.findIndex(s => s.id === newItem.id);
+        if (existingIdx >= 0) {
+          win.appState.shopItems[existingIdx] = { ...win.appState.shopItems[existingIdx], ...newItem };
+        } else {
+          win.appState.shopItems.unshift(newItem);
+        }
+        win.triggerSave?.(true);
+      }
+      window.dispatchEvent(
+        new CustomEvent('levelup:state-updated', {
+          detail: win.appState || { shopItems: [newItem] },
+        })
+      );
+    }
   }, []);
 
   const deleteShopItem = useCallback((itemId: string) => {
@@ -1725,6 +1756,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       shopItems: prev.shopItems.filter(s => s.id !== itemId),
     }));
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as {
+        appState?: LevelUpAppState;
+        triggerSave?: (immediate?: boolean) => void;
+      };
+      if (win.appState && Array.isArray(win.appState.shopItems)) {
+        win.appState.shopItems = win.appState.shopItems.filter(s => s.id !== itemId);
+        win.triggerSave?.(true);
+      }
+    }
   }, []);
 
   const startRewardTimer = useCallback((item: InventoryItem) => {
