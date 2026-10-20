@@ -20061,8 +20061,8 @@ function initLevelUpApp() {
   }
 
   // Profile Modal & Avatar Picker
-  document.getElementById('open-profile-btn').addEventListener('click', () => {
-    document.getElementById('input-hero-nickname').value = appState.profile.nickname;
+  document.getElementById('open-profile-btn')?.addEventListener('click', () => {
+    const nickInput = document.getElementById('input-hero-nickname'); if (nickInput) nickInput.value = appState.profile.nickname;
 
     const roleBadge = document.getElementById('profile-role-badge');
     if (roleBadge) {
@@ -20234,8 +20234,8 @@ function initLevelUpApp() {
     });
   });
 
-  document.getElementById('btn-save-profile').addEventListener('click', async () => {
-    const nick = document.getElementById('input-hero-nickname').value.trim();
+  document.getElementById('btn-save-profile')?.addEventListener('click', async () => {
+    const nick = document.getElementById('input-hero-nickname')?.value?.trim() || '';
     if (!nick) {
       showToast('Tên hiển thị không được để trống.', 'error');
       return;
@@ -20348,7 +20348,7 @@ function initLevelUpApp() {
     });
   }
 
-  document.getElementById('btn-submit-to-ai').addEventListener('click', submitQuestToAI);
+  document.getElementById('btn-submit-to-ai')?.addEventListener('click', submitQuestToAI);
   ['input-quest-title', 'input-quest-estimate', 'input-quest-duration'].forEach(id => {
     const input = document.getElementById(id);
     if (input) {
@@ -20360,7 +20360,7 @@ function initLevelUpApp() {
       });
     }
   });
-  document.getElementById('btn-accept-verdict').addEventListener('click', acceptVerdictAndCreateQuest);
+  document.getElementById('btn-accept-verdict')?.addEventListener('click', acceptVerdictAndCreateQuest);
 
   const verdictRepeatToggle = document.getElementById('verdict-repeat-toggle');
   if (verdictRepeatToggle) {
@@ -20393,8 +20393,9 @@ function initLevelUpApp() {
   }
 
   // Quest Debate features
-  document.getElementById('btn-open-debate').addEventListener('click', () => {
+  document.getElementById('btn-open-debate')?.addEventListener('click', () => {
     const debateBox = document.getElementById('debate-container');
+    if (!debateBox) return;
     const isOpening = debateBox.classList.contains('hidden');
     debateBox.classList.toggle('hidden');
     if (isOpening) {
@@ -20411,7 +20412,7 @@ function initLevelUpApp() {
       }
     }
   });
-  document.getElementById('btn-send-debate').addEventListener('click', sendDebateArgument);
+  document.getElementById('btn-send-debate')?.addEventListener('click', sendDebateArgument);
   const inputDebateArg = document.getElementById('input-debate-arg');
   if (inputDebateArg) {
     inputDebateArg.addEventListener('keydown', (e) => {
@@ -20744,7 +20745,7 @@ function initLevelUpApp() {
     }
   });
 
-  document.getElementById('btn-eval-reward').addEventListener('click', evaluateRewardItem);
+  document.getElementById('btn-eval-reward')?.addEventListener('click', evaluateRewardItem);
   ['input-reward-name', 'input-reward-estimate', 'input-reward-duration'].forEach(id => {
     const input = document.getElementById(id);
     if (input) {
@@ -20756,7 +20757,7 @@ function initLevelUpApp() {
       });
     }
   });
-  document.getElementById('btn-save-reward').addEventListener('click', savePendingReward);
+  document.getElementById('btn-save-reward')?.addEventListener('click', savePendingReward);
 
   // Reward Debate features
   const btnOpenRewardDebate = document.getElementById('btn-open-reward-debate');

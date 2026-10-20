@@ -17,7 +17,12 @@ import type {
   BankLoan,
   BankDepositItem,
 } from '@/types/levelup';
-import { triggerToast } from '@/components/bank/bank-utils';
+
+function notifyBankToast(msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
+  if (typeof window !== 'undefined') {
+    (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(msg, type);
+  }
+}
 
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
@@ -764,7 +769,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const executeBankDeposit = useCallback(async (amount: number, termDays: number): Promise<boolean> => {
     if (amount <= 0 || amount > state.profile.coins) {
-      triggerToast('Số dư Vàng không đủ để gửi tiết kiệm!', 'error');
+      notifyBankToast('Số dư Vàng không đủ để gửi tiết kiệm!', 'error');
       return false;
     }
     try {
@@ -803,7 +808,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           ...prev.ledger,
         ],
       }));
-      triggerToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      notifyBankToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
       return true;
     } catch {
       // Fallback local execution
@@ -845,10 +850,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           ],
         };
       });
-      triggerToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
+      notifyBankToast(`Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
       return true;
     }
-  }, [state.profile.coins, state.profile.bank, triggerToast]);
+  }, [state.profile.coins, state.profile.bank]);
 
   const executeBankWithdraw = useCallback(async (amount?: number, depositId?: string): Promise<boolean> => {
     try {
@@ -876,7 +881,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
               id: `ledger_wd_${Date.now()}`,
               type: 'earn',
               category: 'bank_withdraw',
-              amount: payout,
+              amount,
               title: 'Rút tiền tiết kiệm',
               description: `Rút ${payout} Vàng từ Ngân Hàng về ví.`,
               timestamp: Date.now(),
@@ -884,7 +889,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        triggerToast(`Đã rút thành công +${payout} Vàng về ví!`, 'success');
+        notifyBankToast(`Đã rút thành công +${payout} Vàng về ví!`, 'success');
         return true;
       }
     } catch {}
@@ -959,9 +964,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ],
       };
     });
-    triggerToast('Đã rút tiền tiết kiệm thành công!', 'success');
+    notifyBankToast('Đã rút tiền tiết kiệm thành công!', 'success');
     return true;
-  }, [triggerToast]);
+  }, []);
 
   const executeBankBorrow = useCallback(async (amount: number, termDays: number, autoDeductPercent: number): Promise<boolean> => {
     try {
@@ -997,7 +1002,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        triggerToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
+        notifyBankToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
         return true;
       }
     } catch {}
@@ -1038,14 +1043,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ...prev.ledger,
       ],
     }));
-    triggerToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
+    notifyBankToast(`Đã vay thành công +${amount} Vàng vào ví!`, 'success');
     return true;
-  }, [triggerToast]);
+  }, []);
 
   const executeBankRepay = useCallback(async (_amount?: number): Promise<boolean> => {
     const loan = state.profile.bank?.loan;
     if (!loan || (loan.debt || 0) <= 0) {
-      triggerToast('Bạn không có khoản nợ nào cần thanh toán!', 'info');
+      notifyBankToast('Bạn không có khoản nợ nào cần thanh toán!', 'info');
       return false;
     }
     const currentDebt = loan.debt;
@@ -1054,7 +1059,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     const userCoins = state.profile.coins;
 
     if (userCoins < totalToPay) {
-      triggerToast(`Số dư không đủ! Cần ${totalToPay} Vàng (${currentDebt} nợ + ${penalty} phí tất toán sớm).`, 'error');
+      notifyBankToast(`Số dư không đủ! Cần ${totalToPay} Vàng (${currentDebt} nợ + ${penalty} phí tất toán sớm).`, 'error');
       return false;
     }
 
@@ -1089,7 +1094,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        triggerToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
+        notifyBankToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
         return true;
       }
     } catch {}
@@ -1119,9 +1124,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ...prev.ledger,
       ],
     }));
-    triggerToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
+    notifyBankToast('Đã tất toán toàn bộ khoản nợ thành công!', 'success');
     return true;
-  }, [state.profile.bank?.loan, state.profile.coins, triggerToast]);
+  }, [state.profile.bank?.loan, state.profile.coins]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
