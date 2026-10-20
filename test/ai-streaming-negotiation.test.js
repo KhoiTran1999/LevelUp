@@ -251,4 +251,3 @@ console.log('=== KIỂM THỬ TÍCH HỢP SERVER-SENT EVENTS (SSE) STREAMING TH�
 console.log('\n======================================================================');
 console.log('🎉 TẤT CẢ 4 NHÓM KIỂM THỬ SSE STREAMING THỜI GIAN THỰC ĐÃ HOÀN TẤT!');
 console.log('======================================================================\n');
-process.exit(0);

@@ -1742,12 +1742,14 @@ let currentLedgerPage = 1;
 const LEDGER_PAGE_SIZE = 10; // ponytail: Cố định 10 giao dịch/trang, nâng cấp dropdown chọn page size nếu người dùng yêu cầu
 
 function changeLedgerPage(delta) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   currentLedgerPage += delta;
   renderLedger();
 }
 window.changeLedgerPage = changeLedgerPage;
 
 function setLedgerFilter(filter) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   currentLedgerFilter = filter;
   currentLedgerPage = 1;
   const filterBtns = {
@@ -1771,6 +1773,7 @@ window.setLedgerFilter = setLedgerFilter;
 let currentLedgerSubtab = 'transactions';
 
 function switchLedgerSubtab(subtab) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   currentLedgerSubtab = subtab;
   const btnTrans = document.getElementById('btn-ledger-subtab-transactions');
   const btnPhotos = document.getElementById('btn-ledger-subtab-photos');
@@ -1868,6 +1871,7 @@ function getAllProofPhotos() {
 window.getAllProofPhotos = getAllProofPhotos;
 
 function renderProofPhotos() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   const grid = document.getElementById('ledger-photos-grid');
   const empty = document.getElementById('ledger-photos-empty');
   const badge = document.getElementById('ledger-photos-badge');
@@ -1977,6 +1981,10 @@ function groupLedgerByDate(entries) {
 }
 
 function renderLedger() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
   // Update photo badge and photo gallery
   const allPhotos = getAllProofPhotos();
   const badge = document.getElementById('ledger-photos-badge');
@@ -2177,6 +2185,7 @@ function renderLedger() {
  * Cho phép nhấn nút toggle hoặc nhấn trực tiếp vào dòng mô tả để mở rộng / thu gọn.
  */
 function setupLedgerDescToggles() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   const list = document.getElementById('ledger-list');
   if (!list) return;
   const items = list.querySelectorAll('.ledger-item');

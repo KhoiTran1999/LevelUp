@@ -25,7 +25,7 @@ export function ProofPhotosView({ photos }: ProofPhotosViewProps) {
   const hasPhotos = photos.length > 0;
 
   return (
-    <div id="view-ledger-photos">
+    <>
       {/* Header Thống Kê Album */}
       <div className="flex items-center justify-between gap-3 mb-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900/80 border border-sky-500/20 shadow-xs">
         <div className="flex items-center gap-3">
@@ -181,6 +181,6 @@ export function ProofPhotosView({ photos }: ProofPhotosViewProps) {
           </p>
         </div>
       )}
-    </div>
+    </>
   );
 }

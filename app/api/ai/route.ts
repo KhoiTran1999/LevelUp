@@ -25,12 +25,15 @@ export async function GET() {
   );
 }
 
-export async function POST(request: NextRequest | Request): Promise<Response> {
-  const url = new URL(request.url);
+export async function POST(request?: NextRequest | Request): Promise<Response> {
+  const reqUrl = request?.url || 'http://localhost:3000/api/ai';
+  const url = new URL(reqUrl);
   const headersObj: Record<string, string> = {};
-  request.headers.forEach((val, key) => {
-    headersObj[key.toLowerCase()] = val;
-  });
+  if (request?.headers) {
+    request.headers.forEach((val, key) => {
+      headersObj[key.toLowerCase()] = val;
+    });
+  }
 
   const queryObj: Record<string, string> = {};
   url.searchParams.forEach((val, key) => {
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest | Request): Promise<Response> {
 
   let body: any = {};
   try {
-    const text = await request.text();
+    const text = request?.text ? await request.text() : '';
     if (text) {
       body = JSON.parse(text);
     }

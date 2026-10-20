@@ -110,6 +110,7 @@ export default function RootLayout({
         {/* Early script for font-active class, theme palette and dark mode before paint */}
         <script
           id="early-theme-font-init"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
             (function() {

@@ -601,6 +601,10 @@ async function loadBankState() {
 }
 
 function renderBank() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: appState }));
+    return;
+  }
   ensureUserBankProfile();
   const pool = typeof currentBankPool === 'object' && currentBankPool ? currentBankPool : {};
   const userBank = appState?.profile?.bank || {};
@@ -612,6 +616,7 @@ function renderBank() {
 window.renderBank = renderBank;
 
 function renderBankUI(pool, userBank, creditLimit) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   // 1. Kiểm tra nợ quá hạn theo kỳ hạn
   const loanTermDays = Math.max(1, parseInt(userBank?.loan?.termDays, 10) || 7);
   const isOverdue = userBank?.loan?.isOverdue || (userBank?.loan && (Date.now() - (parseInt(userBank.loan.borrowedAt, 10) || Date.now())) >= loanTermDays * 24 * 60 * 60 * 1000);
@@ -1481,6 +1486,7 @@ function confirmAndExecuteWithdraw() {
 window.confirmAndExecuteWithdraw = confirmAndExecuteWithdraw;
 
 function renderBankDepositsList(userBank) {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
   const container = document.getElementById('bank-deposits-list');
   if (!container) return;
 

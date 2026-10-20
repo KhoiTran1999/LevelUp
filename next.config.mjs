@@ -32,6 +32,53 @@ const nextConfig = {
         ]
       },
       {
+        source: '/download/:path*',
+        headers: [
+          {
+            key: 'Content-Disposition',
+            value: 'attachment; filename="levelup-shield.zip"'
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/zip'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate'
+          }
+        ]
+      },
+      {
+        source: '/:path*.ps1',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'text/plain; charset=utf-8'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate'
+          }
+        ]
+      },
+      {
+        source: '/:path*.bat',
+        headers: [
+          {
+            key: 'Content-Disposition',
+            value: 'attachment; filename="install.bat"'
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/x-bat'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate'
+          }
+        ]
+      },
+      {
         source: '/:all*(png|svg|ico|webp|jpg|jpeg|gif|woff|woff2)',
         headers: [
           {

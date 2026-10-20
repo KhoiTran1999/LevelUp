@@ -71,15 +71,21 @@ export function LedgerContainer() {
       </div>
 
       {/* VIEW 1: TRANSACTIONS (THU CHI VÀNG) */}
-      {subtab === 'transactions' && (
-        <div className="space-y-4">
-          <LedgerStatsSummary ledger={state.ledger} bank={state.profile.bank} />
-          <TransactionsView ledger={state.ledger} />
-        </div>
-      )}
+      <div
+        id="view-ledger-transactions"
+        className={subtab === 'transactions' ? 'space-y-4' : 'hidden space-y-4'}
+      >
+        <LedgerStatsSummary ledger={state.ledger} bank={state.profile.bank} />
+        <TransactionsView ledger={state.ledger} />
+      </div>
 
       {/* VIEW 2: PROOF PHOTOS ALBUM (LỊCH SỬ ẢNH BẰNG CHỨNG) */}
-      {subtab === 'photos' && <ProofPhotosView photos={allPhotos} />}
+      <div
+        id="view-ledger-photos"
+        className={subtab === 'photos' ? '' : 'hidden'}
+      >
+        <ProofPhotosView photos={allPhotos} />
+      </div>
     </div>
   );
 }

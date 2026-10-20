@@ -56,7 +56,7 @@ export function TransactionsView({ ledger }: TransactionsViewProps) {
   };
 
   return (
-    <div id="view-ledger-transactions">
+    <>
       {/* 4 Bộ Lọc Giao Dịch */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <button
@@ -265,6 +265,6 @@ export function TransactionsView({ ledger }: TransactionsViewProps) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

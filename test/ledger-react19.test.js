@@ -139,7 +139,7 @@ assert(statsCode.includes('id="ledger-stat-bank-deposit"'), 'Phải có id="ledg
 assert(statsCode.includes('id="ledger-stat-bank-debt"'), 'Phải có id="ledger-stat-bank-debt"');
 
 // Transactions View & Filters & Pagination
-assert(transCode.includes('id="view-ledger-transactions"'), 'Phải có id="view-ledger-transactions"');
+assert(containerCode.includes('id="view-ledger-transactions"') || transCode.includes('id="view-ledger-transactions"'), 'Phải có id="view-ledger-transactions"');
 assert(transCode.includes('id="ledger-filter-all"'), 'Phải có id="ledger-filter-all"');
 assert(transCode.includes('id="ledger-filter-earn"'), 'Phải có id="ledger-filter-earn"');
 assert(transCode.includes('id="ledger-filter-spend"'), 'Phải có id="ledger-filter-spend"');
@@ -152,7 +152,7 @@ assert(transCode.includes('id="ledger-next-btn"'), 'Phải có id="ledger-next-b
 assert(transCode.includes('btn-view-proof-img'), 'Phải có class btn-view-proof-img');
 
 // Proof Photos View
-assert(photosCode.includes('id="view-ledger-photos"'), 'Phải có id="view-ledger-photos"');
+assert(containerCode.includes('id="view-ledger-photos"') || photosCode.includes('id="view-ledger-photos"'), 'Phải có id="view-ledger-photos"');
 assert(photosCode.includes('id="ledger-photos-summary"'), 'Phải có id="ledger-photos-summary"');
 assert(photosCode.includes('id="ledger-photos-count"'), 'Phải có id="ledger-photos-count"');
 assert(photosCode.includes('id="ledger-photos-grid"'), 'Phải có id="ledger-photos-grid"');

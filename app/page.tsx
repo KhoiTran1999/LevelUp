@@ -23,7 +23,14 @@ import { LedgerContainer } from '@/components/ledger/LedgerContainer';
 
 export const dynamic = 'force-dynamic';
 
-export default function LevelUpPage() {
+let cachedLegacyTabs: string | null = null;
+let cachedLegacyOverlays: string | null = null;
+
+function getLegacyTemplates(): { tabs: string; overlays: string } {
+  if (cachedLegacyTabs !== null && cachedLegacyOverlays !== null) {
+    return { tabs: cachedLegacyTabs, overlays: cachedLegacyOverlays };
+  }
+
   const htmlFilePath = path.join(process.cwd(), 'public', 'index.html');
   let legacyTabsContent = '';
   let legacyOverlaysContent = '';
@@ -57,6 +64,14 @@ export default function LevelUpPage() {
   } catch (err) {
     console.error('Error reading LevelUp public/index.html template:', err);
   }
+
+  cachedLegacyTabs = legacyTabsContent;
+  cachedLegacyOverlays = legacyOverlaysContent;
+  return { tabs: legacyTabsContent, overlays: legacyOverlaysContent };
+}
+
+export default function LevelUpPage() {
+  const { tabs: legacyTabsContent, overlays: legacyOverlaysContent } = getLegacyTemplates();
 
   return (
     <LevelUpProvider>
