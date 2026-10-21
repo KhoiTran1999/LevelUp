@@ -157,69 +157,48 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
 }
 
 // -----------------------------------------------------------------------------
-// 5. Kiểm tra Luồng 2 Tầng: Model Brain (Thinking ON) -> Model Worker (Thinking OFF) -> Model Brain (Synthesis)
+// 5. Kiểm tra Luồng Single-Turn: Model Brain (Thinking OFF) -> Model Worker Execution
 // -----------------------------------------------------------------------------
 {
   setApiKeyForTesting('test_mock_ai_key');
   const originalFetch = globalThis.fetch;
   const capturedPayloads = [];
-  let callCount = 0;
 
   globalThis.fetch = async (url, opts) => {
     const body = JSON.parse(opts.body);
     capturedPayloads.push(body);
-    callCount++;
 
-    if (callCount === 1) {
-      // Phase 1: Model Brain phân tích và quyết định cần Model Worker tạo nhiệm vụ
-      return {
-        ok: true,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  thought: 'Người dùng muốn tạo nhiệm vụ ôn thi tiếng Anh 25 phút. Tôi sẽ giao Model Worker tạo nhiệm vụ và tính thưởng chuẩn Pomodoro.',
-                  needWorker: true,
-                  workerTasks: [
-                    {
-                      tool: 'create_quest',
-                      params: {
-                        title: 'Ôn thi từ vựng tiếng Anh',
-                        targetMinutes: 25,
-                        rewardCoins: 9,
-                        type: 'focus',
-                        requiresProof: true
-                      }
+    // Single-Turn: Model Brain đưa ra câu trả lời hoàn chỉnh và giao tác vụ Worker trong 1 lượt duy nhất
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                thought: 'Người dùng muốn tạo nhiệm vụ ôn thi tiếng Anh 25 phút. Tôi sẽ tạo nhiệm vụ và tính thưởng chuẩn Pomodoro trong 1 lượt duy nhất.',
+                reply: 'Chào bạn! Mình đã giao cho Model Worker tạo cho bạn nhiệm vụ "Ôn thi từ vựng tiếng Anh" (25 phút tập trung • 9 Vàng). Hãy bấm nhận ngay và bắt đầu nhé! ✨',
+                workerTasks: [
+                  {
+                    tool: 'create_quest',
+                    params: {
+                      title: 'Ôn thi từ vựng tiếng Anh',
+                      targetMinutes: 25,
+                      rewardCoins: 9,
+                      type: 'focus',
+                      requiresProof: true
                     }
-                  ]
-                })
-              }
+                  }
+                ],
+                options: [
+                  { id: 1, label: '💡 Mẹo học nhanh từ vựng', argument: 'Mẹo học từ vựng hiệu quả là gì?' }
+                ]
+              })
             }
-          ]
-        })
-      };
-    } else {
-      // Phase 3: Model Brain tổng hợp kết quả từ Model Worker và trả về lời khuyên hoàn chỉnh
-      return {
-        ok: true,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  thought: 'Worker đã tạo nhiệm vụ thành công với mã chữ ký HMAC. Tôi sẽ khích lệ hiệp sĩ bắt đầu phiên học tập ngay.',
-                  reply: 'Chào bạn! Mình đã giao cho Model Worker tạo cho bạn nhiệm vụ "Ôn thi từ vựng tiếng Anh" (25 phút tập trung • 9 Vàng). Hãy bấm nhận ngay và bắt đầu nhé! ✨',
-                  options: [
-                    { id: 1, label: '💡 Mẹo học nhanh từ vựng', argument: 'Mẹo học từ vựng hiệu quả là gì?' }
-                  ]
-                })
-              }
-            }
-          ]
-        })
-      };
-    }
+          }
+        ]
+      })
+    };
   };
 
   try {
@@ -235,13 +214,10 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
       onEvent
     });
 
-    // Xác minh Phase 1: Brain được gọi với MODEL_BRAIN và reasoning_effort: 'none' (tắt thinking để tối ưu tốc độ)
-    assert.strictEqual(capturedPayloads[0].model, MODEL_BRAIN, 'Phase 1 phải dùng MODEL_BRAIN');
-    assert.strictEqual(capturedPayloads[0].reasoning_effort, 'none', 'Phase 1 Brain phải tắt thinking');
-
-    // Xác minh Phase 3: Brain tổng hợp cũng dùng MODEL_BRAIN và reasoning_effort: 'none' (tắt thinking để tối ưu tốc độ)
-    assert.strictEqual(capturedPayloads[1].model, MODEL_BRAIN, 'Phase 3 phải dùng MODEL_BRAIN');
-    assert.strictEqual(capturedPayloads[1].reasoning_effort, 'none', 'Phase 3 Brain phải tắt thinking');
+    // Xác minh Single-Turn: Chỉ có duy nhất 1 lượt gọi LLM đến Model Brain
+    assert.strictEqual(capturedPayloads.length, 1, 'Trợ lý AI phải vận hành Single-Turn (chỉ 1 lượt gọi LLM duy nhất)');
+    assert.strictEqual(capturedPayloads[0].model, MODEL_BRAIN, 'Brain phải dùng MODEL_BRAIN');
+    assert.strictEqual(capturedPayloads[0].reasoning_effort, 'none', 'Brain phải tắt thinking để tối ưu tốc độ');
 
     // Xác minh Worker đã thực thi nhiệm vụ tạo quest
     assert.ok(assistantResult.workerResults.some(r => r.tool === 'create_quest'));
@@ -249,14 +225,14 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
     const quest = assistantResult.suggestedActions[0].quest;
     assert.strictEqual(quest.title, 'Ôn thi từ vựng tiếng Anh');
     assert.strictEqual(verifyQuestSignature(quest), true, 'Nhiệm vụ phải có chữ ký HMAC hợp lệ');
+    assert.ok(assistantResult.reply.includes('Ôn thi từ vựng tiếng Anh'));
 
-    // Xác minh Tiến trình sự kiện SSE (1 -> 4)
-    assert.ok(stepsRecorded.length >= 3, 'Phải có đầy đủ các bước thông báo tiến trình thời gian thực');
+    // Xác minh Tiến trình sự kiện SSE
+    assert.ok(stepsRecorded.length >= 2, 'Phải có đầy đủ các bước thông báo tiến trình thời gian thực');
     assert.ok(stepsRecorded.some(s => s.icon === '🧠'), 'Phải có bước Brain suy nghĩ');
     assert.ok(stepsRecorded.some(s => s.icon === '⚡'), 'Phải có bước Worker thực thi');
-    assert.ok(stepsRecorded.some(s => s.icon === '✨'), 'Phải có bước Brain tổng hợp');
 
-    console.log('✓ Test 5: Quy trình phối hợp 2 tầng (Brain Deliberation -> Worker Execution -> Brain Synthesis) diễn ra hoàn hảo.');
+    console.log('✓ Test 5: Quy trình phối hợp Single-Turn (Brain Deliberation -> Worker Execution) diễn ra hoàn hảo.');
   } finally {
     globalThis.fetch = originalFetch;
   }

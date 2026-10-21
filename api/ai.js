@@ -1313,7 +1313,7 @@ export async function runNegotiationAgent({
     }
   }
 
-  // Try calling AI with tools if API_KEY configured
+  // Try calling AI in Single-Turn (1 call) if API_KEY configured
   if (API_KEY) {
     try {
       let userContext = '';
@@ -1324,120 +1324,80 @@ export async function runNegotiationAgent({
         }
       } catch (_) {}
 
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `${userPrompt}${userContext}` }
-      ];
+      let bankContext = '';
+      if (domain === 'loan') {
+        try {
+          const market = await handleGetBankMarketStatus(redis, callerSub);
+          bankContext = `\n[Thị trường kho bạc]: Thanh khoản ${market.macro?.liquidityStatus || 'normal'}, Trần lãi vay ${(market.effectiveBorrowRate * 100).toFixed(1)}%/ngày, Sàn bảo vệ ${(market.depositFloor * 100).toFixed(1)}%/ngày, Hạn mức vay tối đa ${market.creditLimit} Vàng.`;
+        } catch (_) {}
+      }
 
-      for (let step = 0; step < 3; step++) {
-        notify(3, '🧠', 'Model Brain đang suy luận & phân tích yêu cầu đàm phán...', 55);
-        const assistantMsg = await callAIWithTools(messages, tools, { role: 'brain', thinking: false, temperature: 0.3 });
-        messages.push(assistantMsg);
+      notify(3, '🧠', 'Model Brain đang suy luận & đàm phán trong 1 lượt duy nhất...', 60);
 
-        const toolCalls = assistantMsg.tool_calls;
-        if (!toolCalls || toolCalls.length === 0) {
-          const rawContent = assistantMsg.content || '';
-          const parsedJson = parseAIJsonContent(rawContent);
-          const reply = (parsedJson && typeof parsedJson.reply === 'string')
-            ? parsedJson.reply
-            : rawContent;
-          const options = (parsedJson && Array.isArray(parsedJson.options) && parsedJson.options.length > 0)
-            ? normalizeDebateOptions(parsedJson.options, domain)
-            : parseDebateOptionsFromText(reply, domain);
-          const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(userArgument);
-          const aiAgreed = /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(reply);
-          const accepted = (parsedJson && parsedJson.accepted !== undefined)
-            ? Boolean(parsedJson.accepted)
-            : (userAgreed && aiAgreed);
+      const debateSystemPrompt = `${systemPrompt}
+BẠN ĐANG ĐÀM PHÁN TRONG 1 LƯỢT DUY NHẤT (SINGLE-TURN).
+Phân tích yêu cầu và trả về JSON cấu trúc theo DebateOutputSchema:
+{
+  "accepted": boolean,
+  "reply": "string (giải thích thân thiện, dùng 'mình' - 'bạn', TUYỆT ĐỐI KHÔNG dùng thuật ngữ kỹ thuật, không nhắc pomodoro/zen mode/tier/amm/đòn bẩy)",
+  "options": [
+    { "id": 1, "label": "Phương án 1...", "argument": "...", "newTargetMinutes": 25, "newRewardCoins": 10 }
+  ],
+  "newRewardCoins": number (nếu là quest),
+  "newTargetMinutes": number (nếu là quest/reward),
+  "newType": "focus" | "bounty" (nếu là quest),
+  "newRequiresProof": boolean (nếu là quest),
+  "newProofType": "photo" | "text" | "both" (nếu là quest),
+  "newPrice": number (nếu là reward),
+  "newTier": "common" | "rare" | "epic" | "legendary" (nếu là reward),
+  "newAmount": number (nếu là loan),
+  "newBorrowRate": number (nếu là loan),
+  "newAutoDeductPercent": number (nếu là loan)
+}`;
 
-          notify(5, '🛡️', 'Đang hoàn tất phản hồi & đóng dấu xác thực...', 95);
-          const params = {
-            ...(parsedJson || {}),
-            accepted,
-            reply,
-            fromAI: true
-          };
+      // ponytail: single-turn debate eliminates multi-roundtrip chaining by injecting context upfront
+      const parsedJson = await callAI(
+        debateSystemPrompt,
+        `${userPrompt}${userContext}${bankContext}`,
+        { role: 'brain', thinking: false, temperature: 0.3 }
+      );
 
-          if (domain === 'quest') {
-            const res = handleUpdateQuestParameters(params, targetEntity, userArgument);
-            return { ...res, options, toolsExecuted, fromAI: true };
-          }
-          if (domain === 'reward') {
-            const res = handleUpdateRewardParameters(params, targetEntity);
-            return { ...res, options, toolsExecuted, fromAI: true };
-          }
-          if (domain === 'loan') {
-            const res = handleUpdateLoanTerms(params, targetEntity, callerSub, macro);
-            return { ...res, options, toolsExecuted, fromAI: true };
-          }
-        }
+      const reply = (parsedJson && typeof parsedJson.reply === 'string')
+        ? parsedJson.reply
+        : (typeof parsedJson === 'string' ? parsedJson : '');
+      const options = (parsedJson && Array.isArray(parsedJson.options) && parsedJson.options.length > 0)
+        ? normalizeDebateOptions(parsedJson.options, domain)
+        : parseDebateOptionsFromText(reply, domain);
+      const userAgreed = /\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|được|duoc|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(userArgument);
+      const aiAgreed = /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|chốt|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(reply);
+      const accepted = (parsedJson && parsedJson.accepted !== undefined)
+        ? Boolean(parsedJson.accepted)
+        : (userAgreed && aiAgreed);
 
-        let finalActionDone = false;
-        let actionResult = null;
+      notify(5, '🛡️', 'Đang hoàn tất phản hồi & đóng dấu xác thực...', 95);
+      const params = {
+        ...(parsedJson && typeof parsedJson === 'object' ? parsedJson : {}),
+        accepted,
+        reply,
+        fromAI: true
+      };
 
-        for (const tc of toolCalls) {
-          const fnName = tc.function?.name;
-          toolsExecuted.push(fnName);
-          let fnArgs = {};
-          try { fnArgs = JSON.parse(tc.function?.arguments || '{}'); } catch (_) {}
-          if (!fnArgs.reply && assistantMsg.content) {
-            fnArgs.reply = assistantMsg.content;
-          }
+      toolsExecuted.push('single_turn_brain_deliberation');
 
-          if (fnName === 'get_my_user_data') {
-            notify(2, '📊', 'AI vừa tra cứu hồ sơ cá nhân & dữ liệu hiệp sĩ của bạn...', 40);
-            const data = await handleGetMyUserData(fnArgs.category, callerSub, redis, { targetEntity });
-            messages.push({
-              role: 'tool',
-              tool_call_id: tc.id,
-              content: JSON.stringify(data)
-            });
-          } else if (fnName === 'get_bank_market_status') {
-            notify(2, '🏦', 'AI vừa kiểm tra thanh khoản kho bạc & trần lãi suất...', 40);
-            const status = await handleGetBankMarketStatus(redis, callerSub);
-            messages.push({
-              role: 'tool',
-              tool_call_id: tc.id,
-              content: JSON.stringify(status)
-            });
-          } else if (fnName === 'update_quest_parameters') {
-            notify(4, '⚡', 'AI đang kích hoạt công cụ cập nhật thông số nhiệm vụ...', 80);
-            actionResult = handleUpdateQuestParameters(fnArgs, targetEntity, userArgument);
-            finalActionDone = true;
-          } else if (fnName === 'update_reward_parameters') {
-            notify(4, '⚡', 'AI đang gọi công cụ cập nhật giá & phân hạng quà...', 80);
-            actionResult = handleUpdateRewardParameters(fnArgs, targetEntity);
-            finalActionDone = true;
-          } else if (fnName === 'update_loan_terms') {
-            notify(4, '⚡', 'AI đang gọi công cụ thiết lập gói vay ưu đãi...', 80);
-            actionResult = handleUpdateLoanTerms(fnArgs, targetEntity, callerSub, macro);
-            finalActionDone = true;
-          } else if (fnName === 'suggest_negotiation_options') {
-            notify(4, '💡', 'AI đang tạo các phương án lựa chọn tối ưu...', 80);
-            actionResult = handleSuggestNegotiationOptions(fnArgs);
-            finalActionDone = true;
-          }
-        }
-
-        if (finalActionDone && actionResult) {
-          if (typeof actionResult.reply === 'string' && (actionResult.reply.trim().startsWith('{') || actionResult.reply.trim().startsWith('```json'))) {
-            const parsed = parseAIJsonContent(actionResult.reply);
-            if (parsed && typeof parsed.reply === 'string') {
-              actionResult.reply = parsed.reply;
-              if ((!actionResult.options || actionResult.options.length === 0) && Array.isArray(parsed.options)) {
-                actionResult.options = normalizeDebateOptions(parsed.options, domain);
-              }
-            }
-          }
-          if (!actionResult.options || actionResult.options.length === 0) {
-            actionResult.options = parseDebateOptionsFromText(actionResult.reply, domain);
-          }
-          notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
-          return { ...actionResult, toolsExecuted, fromAI: true };
-        }
+      if (domain === 'quest') {
+        const res = handleUpdateQuestParameters(params, targetEntity, userArgument);
+        return { ...res, options, toolsExecuted, fromAI: true };
+      }
+      if (domain === 'reward') {
+        const res = handleUpdateRewardParameters(params, targetEntity);
+        return { ...res, options, toolsExecuted, fromAI: true };
+      }
+      if (domain === 'loan') {
+        const res = handleUpdateLoanTerms(params, targetEntity, callerSub, macro);
+        return { ...res, options, toolsExecuted, fromAI: true };
       }
     } catch (err) {
-      console.warn('[ToolCalling] Falling back to deterministic dispatcher:', err.message);
+      console.warn('[SingleTurnNegotiation] Falling back to deterministic dispatcher:', err.message);
     }
   }
 
@@ -2763,31 +2723,31 @@ export async function runAssistantAgent({
   }
 
   // =========================================================================
-  // PHASE 1: MODEL BRAIN DELIBERATION (Thinking OFF, reasoning_effort: 'none')
+  // SINGLE-TURN ASSISTANT: MODEL BRAIN (Thinking OFF, reasoning_effort: 'none')
   // =========================================================================
-  notify(1, '🧠', 'Model Brain đang suy nghĩ & phân tích yêu cầu của bạn...', 25);
+  notify(1, '🧠', 'Model Brain đang suy nghĩ & hoàn tất câu trả lời trong 1 lượt duy nhất...', 35);
 
   const brainSystemPrompt = `Bạn là CỐ VẤN GUILD (Guild Companion & Personal Productivity Advisor) - Model Brain (Tư duy sâu) của dự án LevelUp RPG.
 Vương quốc LevelUp là hệ thống gamify năng suất và quản lý thói quen cá nhân.
 Thông tin hiệp sĩ đang trò chuyện: ${contextSummary}
 
-BẠN CÓ MỘT TRỢ THỦ ĐẮC LỰC: MODEL WORKER.
+BẠN VẬN HÀNH TRONG 1 LƯỢT DUY NHẤT (SINGLE-TURN):
+Bạn vừa đưa ra lời khuyên/câu trả lời hoàn chỉnh ("reply"), vừa có thể giao các tác vụ tạo mới cho Model Worker thực thi trực tiếp ("workerTasks").
 Worker chuyên chạy các công cụ (tools) với tốc độ siêu nhanh (< 1s), không suy nghĩ lan man, chỉ thực thi lệnh.
 Danh mục công cụ mà Worker có thể làm:
-- get_user_profile: Xem hồ sơ chi tiết (level, exp, vàng, streak).
-- get_user_quests: Xem các nhiệm vụ đang làm và đã hoàn thành.
-- get_user_shop: Xem danh sách quà trong shop và kho đồ.
-- get_bank_account: Xem tiền gửi tiết kiệm, số nợ hiện tại, lãi suất quỹ, hạn mức vay.
-- get_user_ledger: Xem lịch sử thu/chi Vàng gần đây.
-- get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips', 'negotiation', 'proof_verification', 'ui_philosophy', 'frequency_tracker').
 - create_quest: Tạo nhiệm vụ mới (params: title, targetMinutes, rewardCoins, type, requiresProof, description).
 - create_reward: Tạo phần thưởng mới (params: name, price, tier, targetMinutes, description).
 - suggest_action_plan: Đề xuất kế hoạch hành động 3 bước trong ngày.
+- get_user_profile: Xem hồ sơ chi tiết.
+- get_user_quests: Xem danh sách nhiệm vụ.
+- get_user_shop: Xem danh sách quà trong shop.
+- get_bank_account: Xem tiền gửi tiết kiệm, số nợ hiện tại, lãi suất quỹ, hạn mức vay.
+- get_project_knowledge: Tra cứu cơ chế LevelUp (topic: 'quests', 'rewards', 'levels_and_exp', 'bank_and_finance', 'productivity_tips', 'negotiation').
 
 TRIẾT LÝ HỆ THỐNG MỚI (LƯU Ý QUAN TRỌNG):
 1. Hệ thống bằng chứng 3 chế độ (Proof Verification):
    - Ảnh chụp thực tế (photo): Chỉ từ mobile camera, chống gian lận.
-   - Báo cáo nội dung (text): Bắt buộc >= 10 ký tự, có bộ lọc Heuristic chống spam và thú nhận "không biết làm gì", sau đó AI duyệt sâu.
+   - Báo cáo nội dung (text): Bắt buộc >= 10 ký tự, có bộ lọc Heuristic chống spam và thú nhận "không biết làm gì".
    - Kết hợp cả hai (both): Cho bài tập toán/lý/hóa, nấu ăn, làm mô hình để AI đối chiếu chéo tính xác thực.
    - Bằng chứng đã duyệt được lưu trữ trong Sổ Cái và Album ảnh để xem lại.
 2. Giao diện tinh giản đỉnh cao (UI Minimalism):
@@ -2797,32 +2757,24 @@ TRIẾT LÝ HỆ THỐNG MỚI (LƯU Ý QUAN TRỌNG):
    - 3-4 giờ làm việc nghiêm túc đổi lấy 1 giờ giải trí. AI tính thưởng và AI định giá shop luôn cân xứng (~0.35-0.40 Vàng/phút).
 4. Ngân hàng và Sổ cái:
    - Cơ chế trả nợ tự động trích êm ái theo từng nhiệm vụ hoàn thành.
-   - Theo dõi thói quen Heatmap (Ngày/Tuần/Tháng/Năm) trong mục "Xem thêm".
 
 CẨM NANG THƯƠNG LƯỢNG & XIN XỎ (NEGOTIATION):
 Khi người dùng hỏi về thương lượng, xin xỏ hoặc muốn mặc cả vấn đề gì:
-- Tra cứu cẩm nang topic 'negotiation' (get_project_knowledge) để nắm chắc các cơ chế.
-- Cố vấn tận tình cho người dùng về:
-  + Những gì có thể thương lượng trong LevelUp: Tăng Vàng thưởng nhiệm vụ (+2-5 Vàng), giảm bớt số phút tập trung khi mệt mỏi, đổi hình thức nộp bằng chứng (ví dụ đổi từ chụp ảnh sang viết báo cáo khi không tiện chụp), giảm giá Vàng cho phần thưởng trong Cửa Hàng, giảm tỷ lệ trích nợ tự động của Ngân Hàng.
-  + Bí quyết xin xỏ thành công: Trung thực nêu lý do khó khăn, xin con số khiêm tốn hợp lý, cam kết tập trung cao độ (quid pro quo).
-  + Gợi ý các mẫu câu đối thoại hoặc lý lẽ thuyết phục cụ thể để người dùng bấm nút "Thương lượng" trực tiếp trên thẻ trong giao diện.
+- Cố vấn tận tình: Có thể thương lượng Vàng thưởng (+2-5 Vàng), giảm bớt số phút tập trung khi mệt mỏi, đổi hình thức nộp bằng chứng, giảm giá Vàng cho phần thưởng trong Cửa Hàng, giảm tỷ lệ trích nợ tự động của Ngân Hàng.
+- Bí quyết xin xỏ thành công: Trung thực nêu lý do khó khăn, xin con số khiêm tốn hợp lý, cam kết tập trung cao độ (quid pro quo).
+- Nhắc người dùng bấm nút "Thương lượng" trực tiếp trên thẻ trong giao diện.
+- Dùng từ đơn giản, dễ hiểu, tránh thuật ngữ khó hiểu hay tiếng Anh như pomodoro, zen mode, tier, amm, đòn bẩy.
 
-NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
-1. Phân tích câu hỏi của người dùng và lịch sử đối thoại.
-2. Quyết định:
-   - Nếu câu hỏi chỉ là chào hỏi, tư vấn tâm lý, mẹo làm việc, tư vấn cách thương lượng/xin xỏ, động viên, hoặc câu hỏi lý thuyết có thể trả lời ngay:
-     -> Đặt "needWorker": false và trả lời trực tiếp trong "directReply".
-   - Nếu câu hỏi cần thông tin chi tiết người chơi (nhiệm vụ, ngân hàng, sổ cái, cẩm nang) HOẶC người dùng yêu cầu hành động (tạo nhiệm vụ, thêm quà, tạo kế hoạch):
-     -> Đặt "needWorker": true và liệt kê danh sách lệnh cho Worker trong "workerTasks".
-3. TRẢ VỀ JSON:
+TRẢ VỀ JSON:
 {
   "thought": "Phân tích suy nghĩ nội bộ của Brain...",
-  "needWorker": boolean,
+  "reply": "Nội dung phản hồi hoàn chỉnh cho người dùng (ấm áp, tự nhiên, truyền cảm hứng, dùng đại từ 'mình' - 'bạn')...",
   "workerTasks": [
-    { "tool": "get_user_quests", "params": {} },
-    { "tool": "create_quest", "params": { "title": "...", "targetMinutes": 25, "rewardCoins": 9 } }
+    { "tool": "create_quest", "params": { "title": "...", "targetMinutes": 25, "rewardCoins": 9, "type": "focus" } }
   ],
-  "directReply": "..."
+  "options": [
+    { "id": 1, "label": "Gợi ý tương tác tiếp theo", "argument": "Câu hỏi tiếp theo..." }
+  ]
 }`;
 
   let brainAnalysis = null;
@@ -2834,129 +2786,73 @@ NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
     );
     brainAnalysis = brainRes;
   } catch (err) {
-    console.warn('Phase 1 Brain call failed, falling back to deterministic assistant:', err.message);
+    console.warn('Single-Turn Brain call failed, falling back to deterministic assistant:', err.message);
     return runDeterministicAssistant(message, userProfile, callerSub, redis, draftContext);
   }
 
-  // Nếu Brain quyết định không cần Worker
-  if (!brainAnalysis?.needWorker || !Array.isArray(brainAnalysis.workerTasks) || brainAnalysis.workerTasks.length === 0) {
-    notify(4, '✨', 'Model Brain hoàn tất câu trả lời...', 100);
-    return {
-      reply: brainAnalysis?.directReply || brainAnalysis?.reply || 'Mình luôn sẵn sàng đồng hành và hỗ trợ bạn trong mọi nhiệm vụ của LevelUp! ✨',
-      thought: brainAnalysis?.thought || 'Phân tích trực tiếp từ Model Brain.',
-      workerResults: [],
-      suggestedActions: [],
-      options: [
-        { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
-        { id: 2, label: '🪙 Cách kiếm Vàng nhanh', argument: 'Làm sao để kiếm nhiều Vàng và lên cấp?' },
-        { id: 3, label: '⚡ Tạo 1 việc tập trung 25p', argument: 'Tạo giúp tôi 1 nhiệm vụ học tập 25 phút' }
-      ]
-    };
-  }
-
   // =========================================================================
-  // PHASE 2: MODEL WORKER EXECUTION (Thinking OFF, reasoning_effort: 'none')
+  // MODEL WORKER EXECUTION (Node.js Local Tool Execution)
   // =========================================================================
-  notify(2, '⚡', 'Model Brain phân công Model Worker thực thi công cụ siêu tốc...', 50);
-
   const workerResults = [];
   const actionCards = [];
 
-  const workerTasks = brainAnalysis.workerTasks.slice(0, 4);
-  const taskPromises = workerTasks.map(async (task) => {
-    const toolName = task.tool || task.action;
-    const toolArgs = task.params || task.args || {};
-    toolsExecuted.push(toolName);
+  if (Array.isArray(brainAnalysis?.workerTasks) && brainAnalysis.workerTasks.length > 0) {
+    notify(2, '⚡', 'Model Worker đang thực thi tác vụ tạo mới siêu tốc...', 70);
 
-    try {
-      const res = await executeWorkerTool(toolName, toolArgs, { callerSub, redis, draftContext });
-      return { toolName, res };
-    } catch (toolErr) {
-      return {
-        toolName,
-        res: {
-          tool: toolName,
-          status: 'error',
-          error: toolErr.message
-        }
-      };
-    }
-  });
+    const workerTasks = brainAnalysis.workerTasks.slice(0, 4);
+    const taskPromises = workerTasks.map(async (task) => {
+      const toolName = task.tool || task.action;
+      const toolArgs = task.params || task.args || {};
+      toolsExecuted.push(toolName);
 
-  const resolvedTasks = await Promise.all(taskPromises);
-  for (const { toolName, res } of resolvedTasks) {
-    workerResults.push(res);
-    if (toolName === 'create_quest' && res.status === 'success') {
-      actionCards.push({ type: 'quest_created', quest: res.data });
-    } else if (toolName === 'create_reward' && res.status === 'success') {
-      actionCards.push({ type: 'reward_created', reward: res.data });
+      try {
+        const res = await executeWorkerTool(toolName, toolArgs, { callerSub, redis, draftContext });
+        return { toolName, res };
+      } catch (toolErr) {
+        return {
+          toolName,
+          res: {
+            tool: toolName,
+            status: 'error',
+            error: toolErr.message
+          }
+        };
+      }
+    });
+
+    const resolvedTasks = await Promise.all(taskPromises);
+    for (const { toolName, res } of resolvedTasks) {
+      workerResults.push(res);
+      if (toolName === 'create_quest' && res.status === 'success') {
+        actionCards.push({ type: 'quest_created', quest: res.data });
+      } else if (toolName === 'create_reward' && res.status === 'success') {
+        actionCards.push({ type: 'reward_created', reward: res.data });
+      }
     }
   }
 
-  notify(3, '📊', 'Model Worker đã hoàn thành và gửi dữ liệu về cho Brain...', 75);
+  notify(3, '✨', 'Model Brain hoàn tất câu trả lời...', 100);
 
-  // =========================================================================
-  // PHASE 3: MODEL BRAIN SYNTHESIS (Thinking OFF, reasoning_effort: 'none')
-  // =========================================================================
-  notify(4, '✨', 'Model Brain đang tổng hợp dữ liệu & biên soạn câu trả lời hoàn chỉnh...', 95);
+  // ponytail: single-turn assistant returns Brain reply directly without second synthesis LLM roundtrip
+  const reply = brainAnalysis?.reply || brainAnalysis?.directReply || (
+    actionCards.length > 0
+      ? `Chào bạn! Mình đã tạo ${actionCards.map(a => a.type === 'quest_created' ? `nhiệm vụ "${a.quest?.title}"` : `phần thưởng "${a.reward?.name}"`).join(', ')} thành công. Hãy bấm nhận ngay và bắt đầu nhé! ✨`
+      : 'Mình luôn sẵn sàng đồng hành và hỗ trợ bạn trong mọi nhiệm vụ của LevelUp! ✨'
+  );
 
-  const synthesisSystemPrompt = `Bạn là CỐ VẤN GUILD (Guild Companion) - Model Brain của LevelUp RPG.
-Bạn vừa nhận được kết quả thực thi công cụ từ MODEL WORKER.
-Nhiệm vụ của bạn:
-1. Đọc kết quả từ Worker, tổng hợp lại một cách tự nhiên, ấm áp, sâu sắc và truyền cảm hứng.
-2. Trả lời trọn vẹn câu hỏi của người dùng:
-   - Dùng đại từ thân thiện: "mình" - "bạn".
-   - Nếu Worker đã tạo nhiệm vụ hoặc phần thưởng: Khích lệ người dùng bấm nút nhận nhiệm vụ và bắt đầu ngay!
-   - Nếu Worker tra cứu dữ liệu (nhiệm vụ, tài khoản ngân hàng): Tóm lược số liệu rõ ràng, đưa ra nhận xét tinh tế và mẹo hữu ích.
-   - Nếu người dùng hỏi về thương lượng / xin xỏ: Hướng dẫn tận tình các mảng có thể thương lượng (nhiệm vụ, quà shop, ngân hàng), chia sẻ bí quyết và gợi ý mẫu câu xin xỏ khéo léo, nhắc người dùng bấm nút "Thương lượng" trên thẻ.
-   - Tránh mọi thuật ngữ kỹ thuật khó hiểu (không nói "database", "redis", "JSON", "HMAC", "API").
-3. TRẢ VỀ JSON:
-{
-  "thought": "Đánh giá tổng hợp của Brain sau khi có dữ liệu từ Worker...",
-  "reply": "Nội dung phản hồi hoàn chỉnh cho người dùng (có hỗ trợ định dạng markdown đẹp mắt, gạch đầu dòng, icon vui tươi)...",
-  "options": [
-    { "id": 1, "label": "Gợi ý tương tác tiếp theo", "argument": "Câu hỏi tiếp theo..." }
-  ]
-}`;
-
-  const synthesisUserPrompt = `Yêu cầu ban đầu của người dùng: "${message}"
-Phân tích ban đầu của Brain: "${brainAnalysis.thought || ''}"
-Kết quả Model Worker đã thực hiện:
-${JSON.stringify(workerResults, null, 2)}`;
-
-  try {
-    const synthesisRes = await callAI(
-      synthesisSystemPrompt,
-      synthesisUserPrompt,
-      { role: 'brain', thinking: false, temperature: 0.35 }
-    );
-
-    return {
-      reply: synthesisRes?.reply || 'Mình đã tổng hợp xong dữ liệu cho bạn!',
-      thought: synthesisRes?.thought || brainAnalysis.thought || 'Model Brain đã hoàn tất phân tích và tổng hợp.',
-      workerResults,
-      suggestedActions: actionCards,
-      options: Array.isArray(synthesisRes?.options) && synthesisRes.options.length > 0
-        ? synthesisRes.options
-        : [
-            { id: 1, label: '💡 Có mẹo nào khác không?', argument: 'Có mẹo nào giúp tôi tập trung tốt hơn không?' },
-            { id: 2, label: '🏦 Kiểm tra quỹ ngân hàng', argument: 'Tình hình quỹ ngân hàng và lãi suất thế nào?' }
-          ]
-    };
-  } catch (err) {
-    console.warn('Phase 3 Brain synthesis failed, using fallback summary:', err.message);
-    const workerSummaries = workerResults.map(r => r.summary || r.tool).join('\n- ');
-    return {
-      reply: `Chào bạn! Mình đã điều phối Model Worker xử lý yêu cầu của bạn thành công:\n\n- ${workerSummaries}\n\nChúc bạn có một ngày làm việc và rèn luyện thật hiệu quả nhé! ✨`,
-      thought: brainAnalysis.thought || 'Worker đã thực thi thành công các công cụ được giao.',
-      workerResults,
-      suggestedActions: actionCards,
-      options: [
-        { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
-        { id: 2, label: '⚡ Tạo thêm nhiệm vụ', argument: 'Tạo giúp tôi 1 nhiệm vụ 25 phút' }
-      ]
-    };
-  }
+  return {
+    reply,
+    thought: brainAnalysis?.thought || 'Model Brain đã hoàn tất phân tích trong 1 lượt duy nhất.',
+    workerResults,
+    suggestedActions: actionCards,
+    options: Array.isArray(brainAnalysis?.options) && brainAnalysis.options.length > 0
+      ? brainAnalysis.options
+      : [
+          { id: 1, label: '💡 Hôm nay tôi nên làm gì?', argument: 'Hôm nay tôi nên làm gì?' },
+          { id: 2, label: '🪙 Cách kiếm Vàng nhanh', argument: 'Làm sao để kiếm nhiều Vàng và lên cấp?' },
+          { id: 3, label: '⚡ Tạo 1 việc tập trung 25p', argument: 'Tạo giúp tôi 1 nhiệm vụ học tập 25 phút' }
+        ]
+  };
 }
 
 // =========================================================================
