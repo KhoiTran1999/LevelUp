@@ -1863,8 +1863,9 @@ function initLevelUpApp() {
   // Lắng nghe URL Hash (#notes, #shop, ...) để tự động chuyển tab
   function handleUrlTabHash() {
     try {
-      const hash = (window.location.hash || '').replace('#', '').trim();
-      const validTabs = ['quests', 'shop', 'notes', 'gold-bank', 'leaderboard', 'stats', 'skills'];
+      let hash = (window.location.hash || '').replace('#', '').trim();
+      if (hash === 'gold-bank') hash = 'bank';
+      const validTabs = ['quests', 'shop', 'notes', 'bank', 'leaderboard', 'ledger', 'tracker', 'admin'];
       if (hash && validTabs.includes(hash) && typeof switchTab === 'function') {
         switchTab(hash);
       }

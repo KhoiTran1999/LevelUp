@@ -173,7 +173,7 @@ export function convertMarkdownToEditorHtml(md: string): string {
       const checkedAttr = isDone ? ' checked="checked"' : '';
       const doneClass = isDone ? ' is-done' : '';
       out.push(
-        `<div class="note-todo-item${doneClass}"><input type="checkbox" class="note-checkbox"${checkedAttr}><span class="note-todo-text">${parseInlineMarkdown(
+        `<div class="note-todo-item${doneClass}"><input type="checkbox" class="note-checkbox" contenteditable="false"${checkedAttr}><span class="note-todo-text">${parseInlineMarkdown(
           todoMatch[2]
         )}</span></div>`
       );

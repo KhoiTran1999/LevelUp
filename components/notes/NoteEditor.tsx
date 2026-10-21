@@ -131,6 +131,9 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     // 3. Populate new content
     if (editorRef.current && activeNote) {
       editorRef.current.innerHTML = activeNote.content || '';
+      editorRef.current.querySelectorAll('.note-checkbox').forEach(checkbox => {
+        checkbox.setAttribute('contenteditable', 'false');
+      });
       updateStats(editorRef.current.textContent || '');
     }
 
@@ -300,10 +303,56 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   };
 
   const insertChecklist = () => {
-    editorRef.current?.focus();
-    const todoHtml =
-      '<div class="note-todo-item"><input type="checkbox" class="note-checkbox"><span class="note-todo-text">Việc cần làm...</span></div><p></p>';
-    document.execCommand('insertHTML', false, todoHtml);
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    const selection = window.getSelection();
+    let range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (!range || !editor.contains(range.commonAncestorContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+
+    const checklist = document.createElement('div');
+    checklist.className = 'note-todo-item';
+    checklist.innerHTML =
+      '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text">Việc cần làm...</span>';
+
+    const currentElement = range.startContainer.nodeType === Node.ELEMENT_NODE
+      ? range.startContainer as Element
+      : range.startContainer.parentElement;
+    const currentChecklist = currentElement?.closest('.note-todo-item');
+    const currentBlock = currentElement?.closest('p, h1, h2, h3, blockquote, li');
+
+    if (currentChecklist && editor.contains(currentChecklist)) {
+      currentChecklist.after(checklist);
+    } else if (currentBlock && editor.contains(currentBlock)) {
+      range.deleteContents();
+      const trailingRange = document.createRange();
+      trailingRange.selectNodeContents(currentBlock);
+      trailingRange.setStart(range.startContainer, range.startOffset);
+      const trailingContent = trailingRange.extractContents();
+      currentBlock.after(checklist);
+
+      if (trailingContent.textContent?.trim() || trailingContent.querySelector('*')) {
+        const continuation = currentBlock.cloneNode(false) as HTMLElement;
+        continuation.append(trailingContent);
+        checklist.after(continuation);
+      }
+    } else {
+      range.deleteContents();
+      range.insertNode(checklist);
+    }
+
+    const taskText = checklist.querySelector('.note-todo-text');
+    if (taskText) {
+      const taskRange = document.createRange();
+      taskRange.selectNodeContents(taskText);
+      selection?.removeAllRanges();
+      selection?.addRange(taskRange);
+    }
     handleEditorInput();
   };
 
@@ -454,7 +503,9 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     }
   };
 
-  const handleModalEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented || e.nativeEvent?.defaultPrevented || e.nativeEvent?.isComposing) return;
+
     if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
       flushCurrentEditor();
@@ -482,44 +533,79 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
     if (e.key !== 'Enter' && e.key !== 'Backspace') return;
     const selection = window.getSelection();
-    const anchor = selection?.anchorNode;
+    if (!selection || !selection.rangeCount) return;
+    const anchor = selection.anchorNode;
     const item = anchor instanceof Element
       ? anchor.closest('.note-todo-item')
       : anchor?.parentElement?.closest('.note-todo-item');
-    if (!selection || !item) return;
+    if (!item) return;
 
     const textContent = (item.querySelector('.note-todo-text')?.textContent || item.textContent || '')
       .replace(/\u00a0/g, ' ')
       .trim();
     const isEmptyItem = !textContent || textContent === 'Việc cần làm...' || textContent === 'Nhiệm vụ mới...';
 
-    if (e.key === 'Backspace' && !isEmptyItem) return;
-    e.preventDefault();
-    if (e.key === 'Backspace' || isEmptyItem) {
-      const paragraph = document.createElement('p');
-      paragraph.innerHTML = '<br>';
-      item.parentNode?.replaceChild(paragraph, item);
-      const range = document.createRange();
-      range.setStart(paragraph, 0);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    } else {
+    const textSpan = item.querySelector('.note-todo-text');
+
+    if (e.key === 'Backspace') {
+      const range = selection.getRangeAt(0);
+      const isAtStart = range.collapsed && (
+        isEmptyItem ||
+        (textSpan && (range.startContainer === textSpan && range.startOffset === 0) ||
+         (range.startContainer.parentElement === textSpan && range.startOffset === 0))
+      );
+
+      if (isAtStart) {
+        e.preventDefault();
+        const paragraph = document.createElement('p');
+        if (!isEmptyItem && textSpan) {
+          paragraph.innerHTML = textSpan.innerHTML || '<br>';
+        } else {
+          paragraph.innerHTML = '<br>';
+        }
+        item.parentNode?.replaceChild(paragraph, item);
+        const newRange = document.createRange();
+        newRange.setStart(paragraph, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        handleEditorInput();
+      }
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // ponytail: Always create another checkbox item on Enter inside a checklist
+      const range = selection.getRangeAt(0);
+      const trailingRange = document.createRange();
+      const textContainer = textSpan || item;
+      trailingRange.selectNodeContents(textContainer);
+      trailingRange.setStart(range.startContainer, range.startOffset);
+      const trailingContent = trailingRange.extractContents();
+
       const nextItem = document.createElement('div');
       nextItem.className = 'note-todo-item';
       nextItem.innerHTML =
-        '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text">&nbsp;</span>';
-      item.parentNode?.insertBefore(nextItem, item.nextSibling);
-      const text = nextItem.querySelector('.note-todo-text');
-      if (text) {
-        const range = document.createRange();
-        range.setStart(text, 0);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text"></span>';
+      const nextText = nextItem.querySelector('.note-todo-text') as HTMLElement;
+
+      if (trailingContent.textContent?.trim() || trailingContent.querySelector('*')) {
+        nextText.append(trailingContent);
+      } else {
+        nextText.innerHTML = '&nbsp;';
       }
+
+      item.parentNode?.insertBefore(nextItem, item.nextSibling);
+
+      const newRange = document.createRange();
+      newRange.selectNodeContents(nextText);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      handleEditorInput();
+      return;
     }
-    handleEditorInput();
   };
 
   // Copy Note Text
@@ -958,11 +1044,12 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         <div
           ref={editorRef}
           id={idPrefix === 'modal-' ? 'focus-notes-editor' : 'focus-notes-tab-editor'}
+          data-react-notes-editor="true"
           contentEditable="true"
           suppressContentEditableWarning
           spellCheck="false"
-          onFocus={idPrefix === 'modal-' ? () => document.execCommand('defaultParagraphSeparator', false, 'p') : undefined}
-          onKeyDown={idPrefix === 'modal-' ? handleModalEditorKeyDown : undefined}
+          onFocus={() => document.execCommand('defaultParagraphSeparator', false, 'p')}
+          onKeyDown={handleEditorKeyDown}
           onInput={handleEditorInput}
           onClick={handleEditorClick}
           onPaste={handlePaste}

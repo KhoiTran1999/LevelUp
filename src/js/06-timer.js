@@ -1032,8 +1032,10 @@ function getInstalledExtensionVersion() {
 
 function compareExtensionVersions(v1, v2) {
   if (!v1 || !v2) return 0;
-  const p1 = String(v1).split('.').map(n => parseInt(n, 10) || 0);
-  const p2 = String(v2).split('.').map(n => parseInt(n, 10) || 0);
+  const clean1 = String(v1).trim().replace(/^v/i, '');
+  const clean2 = String(v2).trim().replace(/^v/i, '');
+  const p1 = clean1.split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = clean2.split('.').map(n => parseInt(n, 10) || 0);
   const len = Math.max(p1.length, p2.length);
   for (let i = 0; i < len; i++) {
     const a = p1[i] || 0;
@@ -1047,13 +1049,12 @@ function compareExtensionVersions(v1, v2) {
 function isLevelUpExtensionOutdated() {
   if (!isLevelUpExtensionInstalled()) return false;
   const ver = getInstalledExtensionVersion();
-  // Nếu đã cài extension nhưng không báo phiên bản hoặc bản thấp hơn bản yêu cầu -> Đã cũ!
-  if (!ver) return true;
+  if (!ver) return false;
   return compareExtensionVersions(ver, REQUIRED_EXTENSION_VERSION) < 0;
 }
 
 function isLevelUpExtensionReady() {
-  return isLevelUpExtensionInstalled() && !isLevelUpExtensionOutdated();
+  return isLevelUpExtensionInstalled() && Boolean(getInstalledExtensionVersion()) && !isLevelUpExtensionOutdated();
 }
 
 function isMobileUserDevice() {
@@ -1091,8 +1092,8 @@ function updateShieldGateStatus(installedOverride = null) {
 
   const installed = installedOverride !== null ? Boolean(installedOverride) : isLevelUpExtensionInstalled();
   const currentVer = getInstalledExtensionVersion();
-  const outdated = installed && isLevelUpExtensionOutdated();
-  const ready = installed && !outdated;
+  const outdated = installed && Boolean(currentVer) && isLevelUpExtensionOutdated();
+  const ready = installed && Boolean(currentVer) && !outdated;
 
   if (ready) {
     if (header) {
@@ -1206,6 +1207,41 @@ function updateShieldGateStatus(installedOverride = null) {
     if (footerNote) {
       footerNote.innerHTML = '<span class="material-symbols-outlined text-[14px] text-rose-500">warning</span><span>Bắt buộc cập nhật phiên bản mới nhất để mở khóa app. Điện thoại được miễn trừ.</span>';
     }
+  } else if (installed && !currentVer) {
+    if (header) {
+      header.className = 'bg-amber-50/80 dark:bg-amber-950/40 px-6 py-6 border-b border-amber-100 dark:border-amber-900/60 text-center relative';
+    }
+    if (icon) {
+      icon.className = 'w-16 h-16 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg';
+      icon.textContent = '🛡️';
+    }
+    if (badge) {
+      badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/80 border border-amber-200 dark:border-amber-700/60 text-amber-800 dark:text-amber-200 text-[11px] font-black uppercase tracking-wider mb-2';
+      badge.textContent = 'ĐANG XÁC MINH PHIÊN BẢN';
+    }
+    if (title) title.textContent = 'ĐANG KIỂM TRA KHIÊN KỶ LUẬT';
+    if (desc) desc.textContent = 'Đã phát hiện tiện ích. Đang chờ tiện ích xác nhận phiên bản; chưa thể kết luận cần cập nhật.';
+    if (step2Title) step2Title.textContent = 'Kiểm tra kết nối tiện ích';
+    if (step2Body) step2Body.textContent = 'Nếu trạng thái không đổi, bấm “Kiểm tra lại” để gửi yêu cầu xác minh phiên bản.';
+    if (step2Folder) step2Folder.classList.add('hidden');
+    if (statusBox) {
+      statusBox.className = 'p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-600/60 flex items-center justify-between gap-3 text-xs';
+    }
+    if (spinner) {
+      spinner.className = 'w-4 h-4 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0';
+    }
+    if (statusText) {
+      statusText.className = 'text-xs font-bold text-amber-950 dark:text-amber-100 truncate';
+      statusText.textContent = 'Đang chờ phản hồi phiên bản từ tiện ích...';
+    }
+    if (btnSuccess) btnSuccess.classList.add('hidden');
+    if (btnCheckNow) {
+      btnCheckNow.classList.remove('hidden');
+      btnCheckNow.textContent = 'Kiểm tra lại';
+    }
+    if (footerNote) {
+      footerNote.textContent = 'Chỉ yêu cầu cập nhật khi phiên bản cài đặt thấp hơn phiên bản bắt buộc.';
+    }
   } else {
     if (header) {
       header.className = 'bg-indigo-50/80 dark:bg-indigo-950/40 px-6 py-6 border-b border-indigo-100 dark:border-indigo-900/60 text-center relative';
@@ -1294,7 +1330,9 @@ function closeShieldGateModal() {
     if (typeof showToast === 'function') {
       const msg = isLevelUpExtensionOutdated()
         ? `⚠️ Bắt buộc cập nhật tiện ích lên v${REQUIRED_EXTENSION_VERSION} để sử dụng!`
-        : '⚠️ Bắt buộc trang bị Khiên Kỷ Luật để sử dụng!';
+        : isLevelUpExtensionInstalled()
+          ? 'Đang chờ tiện ích xác nhận phiên bản. Hãy thử kiểm tra lại.'
+          : '⚠️ Bắt buộc trang bị Khiên Kỷ Luật để sử dụng!';
       showToast(msg, 'warning');
     }
     return;
@@ -1315,13 +1353,15 @@ function enforceMandatoryShieldGateOnStartup() {
   // Nếu đã cài Khiên bản mới nhất, không hiện modal
   if (isLevelUpExtensionReady()) return;
 
-  // Cho content script 350ms tự nạp nếu vừa mở tab
+  window.postMessage({ type: 'LEVELUP_CHECK_EXTENSION_VERSION' }, '*');
+
+  // Wait for the extension handshake before showing the mandatory gate.
   setTimeout(() => {
     if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) return;
     if (!isLevelUpExtensionReady()) {
       openShieldGateModal(null);
     }
-  }, 350);
+  }, 1500);
 }
 
 function initShieldGateListeners() {
@@ -1349,6 +1389,9 @@ function initShieldGateListeners() {
           confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
         }
       } catch (_) {}
+      closeShieldGateModal();
+    } else if (isReady) {
+      closeShieldGateModal();
     }
   });
 
@@ -1361,6 +1404,9 @@ function initShieldGateListeners() {
         window.__LEVELUP_EXTENSION_VERSION__ = event.data.version;
       }
       updateShieldGateStatus();
+      if (isLevelUpExtensionReady()) {
+        closeShieldGateModal();
+      }
     }
   });
 
@@ -1523,12 +1569,14 @@ function initShieldGateListeners() {
         updateShieldGateStatus();
         if (ready) {
           if (typeof showToast === 'function') showToast(`✅ Đã phát hiện Khiên Kỷ Luật v${ver || REQUIRED_EXTENSION_VERSION} mới nhất!`, 'success');
+        } else if (installed && ver && isLevelUpExtensionOutdated()) {
+          if (typeof showToast === 'function') showToast(`⚠️ Tiện ích hiện tại là bản cũ (v${ver}). Hãy giải nén bản mới và bấm 🔄 Làm Mới trên chrome://extensions/!`, 'warning');
         } else if (installed) {
-          if (typeof showToast === 'function') showToast(`⚠️ Tiện ích hiện tại là bản cũ (v${ver || '1.0.0'}). Hãy giải nén bản mới và bấm 🔄 Làm Mới trên chrome://extensions/!`, 'warning');
+          if (typeof showToast === 'function') showToast('Đã phát hiện tiện ích, nhưng chưa nhận được phiên bản. Thử kiểm tra lại sau giây lát.', 'info');
         } else {
           if (typeof showToast === 'function') showToast('Chưa phát hiện tiện ích. Hãy chắc chắn bạn đã bật Developer mode và bấm Load unpacked!', 'info');
         }
-      }, 150);
+      }, 500);
     });
   }
 

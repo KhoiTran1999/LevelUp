@@ -61,6 +61,13 @@ function isNoteItem(value: unknown): value is NoteItem {
   );
 }
 
+const TAB_TYPES: TabType[] = ['quests', 'shop', 'notes', 'bank', 'leaderboard', 'ledger', 'tracker', 'admin'];
+
+function getTabFromHash(hash: string): TabType | null {
+  const tab = hash.replace(/^#/, '');
+  return TAB_TYPES.includes(tab as TabType) ? (tab as TabType) : null;
+}
+
 const INITIAL_SHOP_ITEMS: ShopItem[] = [
   {
     id: 'shop_seed_1',
@@ -267,10 +274,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<LevelUpAppState>({
     profile: INITIAL_PROFILE,
     focusNotes: '',
-    notes: INITIAL_NOTES,
-    activeNoteId: 'note_seed_1',
-    quests: INITIAL_QUESTS,
-    shopItems: INITIAL_SHOP_ITEMS,
+    notes: [],
+    activeNoteId: '',
+    quests: [],
+    shopItems: [],
     inventory: [],
     completedQuestIds: [],
     proofPhotos: [],
@@ -282,6 +289,8 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const [activeTab, setActiveTabState] = useState<TabType>('quests');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [startupStatus, setStartupStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [startupAttempt, setStartupAttempt] = useState(0);
   const [activeProofQuest, setActiveProofQuest] = useState<Quest | null>(null);
   const [pendingApprovedQuest, setPendingApprovedQuest] = useState<Quest | null>(null);
   const [viewerProofData, setViewerProofData] = useState<ViewerProofData | null>(null);
@@ -479,13 +488,17 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
     async function loadCloudState() {
       try {
+        setStartupStatus('loading');
         setIsSyncing(true);
         const res = await fetch('/api/sync', {
           method: 'GET',
           credentials: 'include',
         });
+        if (!res.ok && res.status !== 401) {
+          throw new Error(`State sync failed with status ${res.status}`);
+        }
         if (res.ok) {
-          const result = await res.json().catch(() => ({}));
+          const result = await res.json();
           if (result.found && result.data && !isCancelled) {
             const cloudData: LevelUpAppState = result.data;
             setState(prev => {
@@ -527,15 +540,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
               lastSyncedHashRef.current = computeStateSyncHash(resolvedState);
               return resolvedState;
             });
-
           }
+        }
+        if (!isCancelled) {
+          setStartupStatus('ready');
+          isHydratedRef.current = true;
         }
       } catch (err) {
         console.warn('[LevelUpProvider] Failed to fetch state from /api/sync:', err);
+        if (!isCancelled) setStartupStatus('error');
       } finally {
         if (!isCancelled) {
           setIsSyncing(false);
-          isHydratedRef.current = true;
         }
       }
     }
@@ -646,7 +662,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('levelup:notes-updated', handleNotesUpdate);
       if (ch) ch.close();
     };
-  }, []);
+  }, [startupAttempt]);
 
   // Auto-persist state to Redis & Supabase Postgres on state changes after hydration
   useEffect(() => {
@@ -698,6 +714,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const setActiveTab = useCallback((tab: TabType) => {
     setActiveTabState(tab);
 
+    if (typeof window !== 'undefined' && window.location.hash !== `#${tab}`) {
+      window.history.pushState(null, '', `${window.location.pathname}${window.location.search}#${tab}`);
+    }
+
     // Synchronize tab panels in DOM (both React & legacy sections)
     if (typeof document !== 'undefined') {
       const allTabs = document.querySelectorAll('.tab-pane');
@@ -721,6 +741,31 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }, [queueSyncToCloud]);
+
+  useEffect(() => {
+    const syncTabFromHash = () => {
+      const tab = getTabFromHash(window.location.hash);
+      if (tab) setActiveTab(tab);
+    };
+
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __syncReactActiveTab?: (tab: string) => void }).__syncReactActiveTab = (tab: string) => {
+        const parsed = getTabFromHash(`#${tab}`);
+        if (parsed) setActiveTabState(parsed);
+      };
+      (window as unknown as { setActiveTab?: (tab: TabType) => void }).setActiveTab = setActiveTab;
+    }
+
+    syncTabFromHash();
+    window.addEventListener('hashchange', syncTabFromHash);
+    return () => {
+      window.removeEventListener('hashchange', syncTabFromHash);
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __syncReactActiveTab?: (tab: string) => void }).__syncReactActiveTab;
+        delete (window as unknown as { setActiveTab?: (tab: TabType) => void }).setActiveTab;
+      }
+    };
+  }, [setActiveTab]);
 
   const toggleTheme = useCallback(() => {
     const nextTheme = state.profile.theme === 'dark' ? 'light' : 'dark';
@@ -2280,6 +2325,35 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {startupStatus !== 'ready' && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50/95 px-5 dark:bg-slate-950/95"
+          role="status"
+          aria-live="polite"
+          aria-busy={startupStatus === 'loading'}
+        >
+          {startupStatus === 'loading' ? (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <span className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-500/20 border-t-indigo-600" />
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đang tải dữ liệu tài khoản...</p>
+            </div>
+          ) : (
+            <div className="max-w-sm rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl dark:border-rose-900 dark:bg-slate-900">
+              <p className="font-bold text-slate-900 dark:text-white">Không tải được dữ liệu</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                Kiểm tra kết nối mạng rồi thử tải lại dữ liệu.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStartupAttempt(attempt => attempt + 1)}
+                className="mt-5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </LevelUpContext.Provider>
   );
 }

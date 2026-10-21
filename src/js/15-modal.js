@@ -62,6 +62,19 @@ function switchTab(tabId) {
     switchRewardSubtab('inventory');
   }
 
+  // ponytail: Persist active tab in URL hash across reloads
+  if (typeof window !== 'undefined' && window.location.hash !== `#${tabId}`) {
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${tabId}`);
+    } catch (_) {
+      window.location.hash = `#${tabId}`;
+    }
+  }
+
+  if (typeof window !== 'undefined' && typeof window.__syncReactActiveTab === 'function') {
+    window.__syncReactActiveTab(tabId);
+  }
+
   const isAdmin = isUserAdmin();
   const isMoreTab = ['leaderboard', 'ledger', 'bank', 'admin', 'tracker'].includes(tabId);
 
@@ -1717,6 +1730,9 @@ function setupNotesEditorListeners() {
   ['focus-notes-tab-editor', 'focus-notes-editor'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+    if (el.getAttribute('data-react-notes-editor') === 'true' || el.dataset?.reactNotesEditor) return;
+    if (el.__hasNotesEditorListeners) return;
+    el.__hasNotesEditorListeners = true;
 
     el.addEventListener('focus', () => {
       try {
@@ -1725,6 +1741,7 @@ function setupNotesEditorListeners() {
     });
 
     el.addEventListener('keydown', (e) => {
+      if (e.defaultPrevented) return;
       // Phím tắt Ctrl+S / Cmd+S để lưu ngay
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -1735,41 +1752,40 @@ function setupNotesEditorListeners() {
         return;
       }
 
-      // Nhấn Enter trong checklist item để sinh item mới
+      // Nhấn Enter trong checklist item: luôn sinh item mới với checkbox
       if (e.key === 'Enter' && !e.shiftKey) {
         const sel = window.getSelection();
-        if (sel && sel.anchorNode) {
+        if (sel && sel.anchorNode && sel.rangeCount > 0) {
           const item = sel.anchorNode.nodeType === 1 ? sel.anchorNode.closest('.note-todo-item') : sel.anchorNode.parentElement?.closest('.note-todo-item');
           if (item) {
-            const spanTextEl = item.querySelector('.note-todo-text');
-            const textContent = (spanTextEl?.textContent || item.textContent || '').replace(/\u00a0/g, ' ').trim();
-            if (!textContent || textContent === 'Việc cần làm...' || textContent === 'Nhiệm vụ mới...') {
-              // Nếu dòng trống, bấm Enter sẽ thoát checklist thành đoạn văn thường
-              e.preventDefault();
-              const p = document.createElement('p');
-              p.innerHTML = '<br>';
-              item.parentNode.replaceChild(p, item);
-              const range = document.createRange();
-              range.setStart(p, 0);
-              range.collapse(true);
-              sel.removeAllRanges();
-              sel.addRange(range);
-              handleNotesInput();
-              return;
-            }
-
             e.preventDefault();
+            const range = sel.getRangeAt(0);
+            const spanTextEl = item.querySelector('.note-todo-text');
+            const textContainer = spanTextEl || item;
+
+            const trailingRange = document.createRange();
+            trailingRange.selectNodeContents(textContainer);
+            trailingRange.setStart(range.startContainer, range.startOffset);
+            const trailingContent = trailingRange.extractContents();
+
             const newItem = document.createElement('div');
             newItem.className = 'note-todo-item';
-            newItem.innerHTML = '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text">&nbsp;</span>';
+            newItem.innerHTML = '<input type="checkbox" class="note-checkbox" contenteditable="false"><span class="note-todo-text"></span>';
+            const nextText = newItem.querySelector('.note-todo-text');
+
+            if (trailingContent.textContent?.trim() || trailingContent.querySelector('*')) {
+              nextText.append(trailingContent);
+            } else {
+              nextText.innerHTML = '&nbsp;';
+            }
+
             item.parentNode.insertBefore(newItem, item.nextSibling);
 
-            const span = newItem.querySelector('.note-todo-text');
-            const range = document.createRange();
-            range.setStart(span, 0);
-            range.collapse(true);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(nextText);
+            newRange.collapse(true);
             sel.removeAllRanges();
-            sel.addRange(range);
+            sel.addRange(newRange);
             handleNotesInput();
             return;
           }

@@ -46,7 +46,7 @@ function compareExtensionVersions(v1, v2) {
   return 0;
 }
 
-const reqVer = '1.3.0';
+const reqVer = manifest.version;
 // Bản cũ
 assert(compareExtensionVersions('0.9.0', reqVer) < 0, '0.9.0 phải là bản cũ');
 assert(compareExtensionVersions('1.0.0', reqVer) < 0, '1.0.0 phải là bản cũ');
@@ -55,17 +55,17 @@ assert(compareExtensionVersions('1.2.0', reqVer) < 0, '1.2.0 phải là bản c�
 assert(compareExtensionVersions('1.2.9', reqVer) < 0, '1.2.9 phải là bản cũ');
 
 // Bản hiện tại hoặc mới hơn
-assert(compareExtensionVersions('1.3.0', reqVer) === 0, '1.3.0 phải là bản chuẩn');
-assert(compareExtensionVersions('1.3.1', reqVer) > 0, '1.3.1 phải là bản hợp lệ');
-assert(compareExtensionVersions('1.4.0', reqVer) > 0, '1.4.0 phải là bản hợp lệ');
+assert(compareExtensionVersions(reqVer, reqVer) === 0, `${reqVer} phải là bản chuẩn`);
+assert(compareExtensionVersions('1.7.0', reqVer) > 0, '1.7.0 phải là bản hợp lệ');
+assert(compareExtensionVersions('1.4.0', reqVer) < 0, '1.4.0 phải là bản cũ');
 assert(compareExtensionVersions('2.0.0', reqVer) > 0, '2.0.0 phải là bản hợp lệ');
 console.log('✓ Test 3: Thuật toán so sánh semver hoạt động chính xác với mọi phiên bản.');
 
 // 4. Kiểm tra mô phỏng trạng thái Ready vs Outdated
 function simulateExtensionStatus(installed, reportedVer) {
   const isInstalled = Boolean(installed);
-  const isOutdated = isInstalled && (!reportedVer || compareExtensionVersions(reportedVer, reqVer) < 0);
-  const isReady = isInstalled && !isOutdated;
+  const isOutdated = isInstalled && Boolean(reportedVer) && compareExtensionVersions(reportedVer, reqVer) < 0;
+  const isReady = isInstalled && Boolean(reportedVer) && !isOutdated;
   return { isInstalled, isOutdated, isReady };
 }
 
@@ -81,11 +81,19 @@ assert.strictEqual(oldInstalled.isOutdated, true);
 assert.strictEqual(oldInstalled.isReady, false);
 
 // Trường hợp cài bản mới 1.3.0
-const upToDateInstalled = simulateExtensionStatus(true, '1.3.0');
+const upToDateInstalled = simulateExtensionStatus(true, reqVer);
 assert.strictEqual(upToDateInstalled.isInstalled, true);
 assert.strictEqual(upToDateInstalled.isOutdated, false);
 assert.strictEqual(upToDateInstalled.isReady, true);
+const versionNotReportedYet = simulateExtensionStatus(true, null);
+assert.strictEqual(versionNotReportedYet.isOutdated, false, 'Chưa nhận handshake không được kết luận extension đã cũ');
+assert.strictEqual(versionNotReportedYet.isReady, false, 'Chưa xác minh version thì chưa mở khóa tính năng cần extension');
 console.log('✓ Test 4: Mô phỏng trạng thái (chưa cài, bản cũ, bản mới) trả về chính xác.');
+
+assert(timerSrc.includes('if (!ver) return false;'), 'Thiếu version phải được xem là chưa xác minh, không phải bản cũ');
+assert(timerSrc.includes('Boolean(getInstalledExtensionVersion())'), 'Extension chỉ ready sau khi xác minh version');
+assert(timerSrc.includes('ĐANG XÁC MINH PHIÊN BẢN'), 'UI cần trạng thái xác minh riêng thay vì cảnh báo cập nhật sai');
+assert(timerSrc.includes('installed && ver && isLevelUpExtensionOutdated()'), 'Không được gắn nhãn bản cũ khi chưa nhận version');
 
 // 5. Kiểm tra ép buộc khóa app và Pomodoro khi bản cũ
 assert(timerSrc.includes('!isLevelUpExtensionReady()'), 'startFocusTimer và startup phải kiểm tra isLevelUpExtensionReady');
