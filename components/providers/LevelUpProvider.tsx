@@ -19,6 +19,7 @@ import type {
   ProofPhotoItem,
 } from '@/types/levelup';
 import { getAllProofPhotos } from '@/components/ledger/ledger-utils';
+import { soundFX } from '@/lib/audio/sound-effects';
 
 function notifyBankToast(msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
   if (typeof window !== 'undefined') {
@@ -250,10 +251,13 @@ interface LevelUpContextType {
   togglePalette: (paletteName?: string) => void;
   startFocusTimer: (quest: Quest) => void;
   startRewardTimer: (item: InventoryItem) => void;
+  startBreakTimer: (minutes?: number) => void;
   pauseFocusTimer: () => void;
   resumeFocusTimer: () => void;
   holdFocusTimer: () => void;
   resetFocusTimer: () => void;
+  adjustFocusTimer: (deltaSeconds: number) => void;
+  setFocusTimerRemaining: (seconds: number) => void;
 }
 
 type InventoryOptimisticAction =
@@ -767,6 +771,86 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setActiveTab]);
 
+  // ponytail: Delta-time countdown runner with native WakeLock & MediaSession synchronization. Upgrade path: Service Worker timer offloading.
+  useEffect(() => {
+    if (state.activeTimer?.status !== 'running') {
+      return;
+    }
+
+    let wakeLockSentinel: WakeLockSentinel | null = null;
+    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(wl => {
+        wakeLockSentinel = wl;
+      }).catch(() => {});
+    }
+
+    let lastTick = Date.now();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = (now - lastTick) / 1000;
+      lastTick = now;
+
+      setState(prev => {
+        if (!prev.activeTimer || prev.activeTimer.status !== 'running') {
+          return prev;
+        }
+
+        const nextRemaining = Math.max(0, prev.activeTimer.remainingSeconds - elapsed);
+        if (nextRemaining <= 0) {
+          if (prev.profile.soundEnabled) {
+            soundFX.playFanfare();
+          }
+          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate([500, 200, 500, 200, 800]);
+            } catch (_) {}
+          }
+          if (typeof window !== 'undefined') {
+            const completedQuest = prev.quests.find(q => q.id === prev.activeTimer?.questId) || {
+              id: prev.activeTimer?.questId || 'quest_completed',
+              title: prev.activeTimer?.questTitle || 'Phiên tập trung',
+              rewardCoins: prev.activeTimer?.questCoins || 10,
+              rank: prev.activeTimer?.questRank || 'C',
+            };
+            window.dispatchEvent(new CustomEvent('levelup:focus-complete', { detail: completedQuest }));
+          }
+
+          return {
+            ...prev,
+            activeTimer: null,
+            lastTimerClearedAt: Date.now(),
+          };
+        }
+
+        // Synchronize DOM timer displays for any legacy elements
+        if (typeof document !== 'undefined') {
+          const mins = Math.floor(nextRemaining / 60);
+          const secs = Math.floor(nextRemaining % 60);
+          const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+          const zenDisplay = document.getElementById('zen-timer-display');
+          if (zenDisplay) zenDisplay.textContent = timeStr;
+          const bannerDisplay = document.getElementById('timer-display');
+          if (bannerDisplay) bannerDisplay.textContent = timeStr;
+        }
+
+        return {
+          ...prev,
+          activeTimer: {
+            ...prev.activeTimer,
+            remainingSeconds: nextRemaining,
+          },
+        };
+      });
+    }, 500);
+
+    return () => {
+      clearInterval(interval);
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+      }
+    };
+  }, [state.activeTimer?.status]);
+
   const toggleTheme = useCallback(() => {
     const nextTheme = state.profile.theme === 'dark' ? 'light' : 'dark';
     if (nextTheme === 'dark') {
@@ -895,15 +979,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         setIsProofModalOpen(false);
         setIsProofApprovedModalOpen(true);
 
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { sfx?: { playFanfare?: () => void } };
-          win.sfx?.playFanfare?.();
-        }
+        soundFX.playFanfare();
       } else {
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { sfx?: { playGong?: () => void } };
-          win.sfx?.playGong?.();
-        }
+        soundFX.playGong();
       }
 
       return data;
@@ -1786,10 +1864,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       });
 
       // SFX & Confetti & Toast
+      if (state.profile.soundEnabled) soundFX.playFanfare();
       if (typeof window !== 'undefined') {
         try {
-          const sfx = (window as unknown as { sfx?: { playFanfare?: () => void } }).sfx;
-          if (sfx?.playFanfare && state.profile.soundEnabled) sfx.playFanfare();
           const confetti = (window as unknown as { confetti?: (opts?: unknown) => void }).confetti;
           if (typeof confetti === 'function') {
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
@@ -1874,10 +1951,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         });
       });
 
+      if (state.profile.soundEnabled) soundFX.playCoin();
       if (typeof window !== 'undefined') {
         try {
-          const sfx = (window as unknown as { sfx?: { playCoin?: () => void } }).sfx;
-          if (sfx?.playCoin && state.profile.soundEnabled) sfx.playCoin();
           const showToast = (window as unknown as { showToast?: (msg: string, type: string) => void }).showToast;
           if (typeof showToast === 'function') {
             showToast(`Đã hoàn trả "${item.name}" (+${refundCoins} Vàng).`, 'gold');
@@ -2021,10 +2097,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
 
       // SFX & Toast
+      if (state.profile.soundEnabled) soundFX.playFanfare();
       if (typeof window !== 'undefined') {
         try {
-          const sfx = (window as unknown as { sfx?: { playFanfare?: () => void } }).sfx;
-          if (sfx?.playFanfare && state.profile.soundEnabled) sfx.playFanfare();
           const showToast = (window as unknown as { showToast?: (msg: string, type: string, opts?: unknown) => void }).showToast;
           if (typeof showToast === 'function') {
             showToast(`🎉 Đã sử dụng "${item.name}"! Chúc mừng bạn đã nỗ lực và tự thưởng xứng đáng!`, 'success', {
@@ -2135,12 +2210,60 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const startBreakTimer = useCallback((breakMins = 5) => {
+    const secs = breakMins * 60;
+    setState(prev => ({
+      ...prev,
+      activeTimer: {
+        status: 'running',
+        remainingSeconds: secs,
+        totalSeconds: secs,
+        isReward: false,
+        questTitle: 'Nghỉ giải lao',
+        startedAt: Date.now(),
+      },
+    }));
+  }, []);
+
   const resetFocusTimer = useCallback(() => {
     setState(prev => ({
       ...prev,
       activeTimer: null,
       lastTimerClearedAt: Date.now(),
     }));
+  }, []);
+
+  const adjustFocusTimer = useCallback((deltaSeconds: number) => {
+    setState(prev => {
+      if (!prev.activeTimer) return prev;
+      const newRemaining = Math.max(0, prev.activeTimer.remainingSeconds + deltaSeconds);
+      const newTotal =
+        deltaSeconds > 0 && newRemaining > prev.activeTimer.totalSeconds
+          ? newRemaining
+          : prev.activeTimer.totalSeconds;
+      return {
+        ...prev,
+        activeTimer: {
+          ...prev.activeTimer,
+          remainingSeconds: newRemaining,
+          totalSeconds: newTotal,
+        },
+      };
+    });
+  }, []);
+
+  const setFocusTimerRemaining = useCallback((seconds: number) => {
+    setState(prev => {
+      if (!prev.activeTimer) return prev;
+      return {
+        ...prev,
+        activeTimer: {
+          ...prev.activeTimer,
+          remainingSeconds: Math.max(0, seconds),
+          totalSeconds: Math.max(prev.activeTimer.totalSeconds, seconds),
+        },
+      };
+    });
   }, []);
 
   const setActiveNoteId = useCallback((id: string) => {
@@ -2318,10 +2441,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         togglePalette,
         startFocusTimer,
         startRewardTimer,
+        startBreakTimer,
         pauseFocusTimer,
         resumeFocusTimer,
         holdFocusTimer,
         resetFocusTimer,
+        adjustFocusTimer,
+        setFocusTimerRemaining,
       }}
     >
       {children}

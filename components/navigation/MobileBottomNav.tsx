@@ -6,23 +6,196 @@ import { Icon } from '@/components/ui/Icon';
 import type { TabType } from '@/types/levelup';
 
 export function MobileBottomNav() {
-  const { activeTab, setActiveTab } = useLevelUp();
+  const { state, optimisticProfile, activeTab, setActiveTab } = useLevelUp();
 
   const handleTabClick = (tab: TabType) => {
     setActiveTab(tab);
+    closeMoreMenu();
+  };
+
+  const openMoreMenu = () => {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { openMobileMoreMenu?: () => void };
+      if (typeof win.openMobileMoreMenu === 'function') {
+        win.openMobileMoreMenu();
+      } else {
+        document.getElementById('mobile-more-menu')?.classList.remove('hidden');
+        document.getElementById('mobile-more-backdrop')?.classList.remove('hidden');
+      }
+    }
+  };
+
+  const closeMoreMenu = () => {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { closeMobileMoreMenu?: () => void };
+      if (typeof win.closeMobileMoreMenu === 'function') {
+        win.closeMobileMoreMenu();
+      } else {
+        document.getElementById('mobile-more-menu')?.classList.add('hidden');
+        document.getElementById('mobile-more-backdrop')?.classList.add('hidden');
+      }
+    }
   };
 
   const handleMobileMore = () => {
     if (typeof window !== 'undefined') {
       const moreMenu = document.getElementById('mobile-more-menu');
-      if (moreMenu) {
-        moreMenu.classList.toggle('hidden');
+      if (moreMenu?.classList.contains('hidden')) {
+        openMoreMenu();
+      } else {
+        closeMoreMenu();
       }
     }
   };
 
+  const handleAboutClick = () => {
+    closeMoreMenu();
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { openAboutModal?: () => void };
+      win.openAboutModal?.();
+    }
+  };
+
+  const isAdmin = (optimisticProfile || state.profile)?.role === 'admin';
+
   return (
-    <nav className="md:hidden m3-navigation-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
+    <>
+      {/* Full-viewport Backdrop overlay for Mobile More Menu */}
+      <div
+        id="mobile-more-backdrop"
+        onClick={closeMoreMenu}
+        className="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-200 cursor-pointer"
+      />
+
+      {/* Mobile More Menu as Modern M3 Bottom Sheet */}
+      <div
+        id="mobile-more-menu"
+        className="hidden fixed inset-x-0 bottom-0 z-50 w-full max-w-lg mx-auto bg-white/98 dark:bg-slate-900/98 rounded-t-3xl border-t border-slate-200/90 dark:border-slate-800 shadow-2xl p-3 pb-6 backdrop-blur-2xl"
+      >
+        <div className="m3-drag-handle" />
+        <div className="flex items-center justify-between px-2 pb-1 mb-1 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Tính năng khác</span>
+          <button
+            type="button"
+            onClick={closeMoreMenu}
+            className="text-slate-400 p-0.5 cursor-pointer"
+            aria-label="Đóng"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+
+        <button
+          data-tab="tracker"
+          type="button"
+          onClick={() => handleTabClick('tracker')}
+          className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">insights</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Tần Suất Thói Quen</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-normal">Biểu đồ heatmap &amp; chuỗi</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+
+        <button
+          data-tab="leaderboard"
+          type="button"
+          onClick={() => handleTabClick('leaderboard')}
+          className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">leaderboard</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Bảng Xếp Hạng</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-normal">Top bảng vinh danh LevelUp</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+
+        <button
+          data-tab="ledger"
+          type="button"
+          onClick={() => handleTabClick('ledger')}
+          className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">receipt_long</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Lịch Sử Giao Dịch</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-normal">Biến động Vàng &amp; nhận thưởng</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+
+        <button
+          data-tab="bank"
+          type="button"
+          onClick={() => handleTabClick('bank')}
+          className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">account_balance</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Ngân Hàng Vàng</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-normal">Gửi tiết kiệm &amp; vay vốn</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+
+        <button
+          id="mobile-nav-admin"
+          data-tab="admin"
+          type="button"
+          onClick={() => handleTabClick('admin')}
+          className={`mobile-nav-btn mobile-more-item group ${isAdmin ? 'flex' : 'hidden'} items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-all text-left cursor-pointer`}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">admin_panel_settings</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-purple-700 dark:text-purple-300 truncate">Quản Trị Hệ Thống</div>
+              <div className="text-[10px] text-purple-400/80 truncate font-normal">Cấu hình &amp; kiểm soát dữ liệu</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-purple-300 dark:text-purple-600 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+
+        <button
+          id="btn-mobile-about"
+          type="button"
+          onClick={handleAboutClick}
+          className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-0.5"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[20px] leading-none">auto_stories</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-violet-700 dark:text-violet-300 truncate">Giới Thiệu Dự Án</div>
+              <div className="text-[10px] text-violet-400/80 truncate font-normal">LevelUp RPG • v1.0.4</div>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-base text-violet-300 dark:text-violet-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
+        </button>
+      </div>
+
+      <nav className="md:hidden m3-navigation-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
       <div className="flex items-center justify-around h-[68px] max-w-md mx-auto px-2 pt-1 pb-[env(safe-area-inset-bottom,0px)]">
         {/* Tab Nhiệm Vụ */}
         <button
@@ -139,5 +312,6 @@ export function MobileBottomNav() {
         </button>
       </div>
     </nav>
+  </>
   );
 }

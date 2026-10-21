@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore
 import syncHandler from '../../../api/sync.js';
+import type {
+  LegacyApiRequest,
+  LegacyApiResponse,
+  SyncRequestBody,
+} from '@/types/server-api';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,11 +15,57 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-export async function OPTIONS(_request?: NextRequest) {
+export async function OPTIONS(_request?: NextRequest): Promise<Response> {
   return new Response(null, {
     status: 204,
-    headers: CORS_HEADERS
+    headers: CORS_HEADERS,
   });
+}
+
+function createMockResponse(
+  responseHeaders: Headers,
+  onDone: (data: unknown, statusCode: number) => void
+): LegacyApiResponse {
+  let statusCode = 200;
+  let finalData: unknown = null;
+
+  return {
+    statusCode: 200,
+    headersSent: false,
+    status(code: number) {
+      statusCode = code;
+      this.statusCode = code;
+      return this;
+    },
+    setHeader(name: string, value: string) {
+      if (name.toLowerCase() === 'set-cookie') {
+        responseHeaders.append(name, value);
+      } else {
+        responseHeaders.set(name, value);
+      }
+      return this;
+    },
+    getHeader(name: string) {
+      return responseHeaders.get(name);
+    },
+    json(data: unknown) {
+      finalData = data;
+      this.headersSent = true;
+      onDone(finalData, statusCode);
+      return this;
+    },
+    send(data: unknown) {
+      finalData = data;
+      this.headersSent = true;
+      onDone(finalData, statusCode);
+      return this;
+    },
+    end() {
+      this.headersSent = true;
+      onDone(finalData, statusCode);
+      return this;
+    },
+  };
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -36,7 +86,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     headersObj['x-real-ip'] ||
     '127.0.0.1';
 
-  const mockReq: any = {
+  const mockReq: LegacyApiRequest<Record<string, unknown>> = {
     method: 'GET',
     url: url.pathname + url.search,
     originalUrl: url.pathname + url.search,
@@ -45,7 +95,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     query: queryObj,
     body: {},
     ip: clientIp,
-    socket: { remoteAddress: clientIp }
+    socket: { remoteAddress: clientIp },
   };
 
   const responseHeaders = new Headers(CORS_HEADERS);
@@ -53,53 +103,24 @@ export async function GET(request: NextRequest): Promise<Response> {
   responseHeaders.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
 
   let finalStatusCode = 200;
-  let finalData: any = null;
+  let finalData: unknown = null;
 
-  const mockRes: any = {
-    statusCode: 200,
-    headersSent: false,
-    status(code: number) {
-      finalStatusCode = code;
-      this.statusCode = code;
-      return this;
-    },
-    setHeader(name: string, value: string) {
-      if (name.toLowerCase() === 'set-cookie') {
-        responseHeaders.append(name, value);
-      } else {
-        responseHeaders.set(name, value);
-      }
-      return this;
-    },
-    getHeader(name: string) {
-      return responseHeaders.get(name);
-    },
-    json(data: any) {
-      finalData = data;
-      this.headersSent = true;
-      return this;
-    },
-    send(data: any) {
-      finalData = data;
-      this.headersSent = true;
-      return this;
-    },
-    end() {
-      this.headersSent = true;
-      return this;
-    }
-  };
+  const mockRes = createMockResponse(responseHeaders, (data, code) => {
+    finalData = data;
+    finalStatusCode = code;
+  });
 
   try {
     await syncHandler(mockReq, mockRes);
     return new Response(JSON.stringify(finalData ?? {}), {
       status: finalStatusCode,
-      headers: responseHeaders
+      headers: responseHeaders,
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Lỗi máy chủ Sync';
     console.error('[Native Sync GET API Error]', err);
     return NextResponse.json(
-      { error: err?.message || 'Lỗi máy chủ Sync' },
+      { error: errorMsg },
       { status: 500, headers: CORS_HEADERS }
     );
   }
@@ -118,9 +139,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     queryObj[key] = val;
   });
 
-  let body: any = {};
+  let body: SyncRequestBody = {};
   try {
-    body = await request.json();
+    body = (await request.json()) as SyncRequestBody;
   } catch {
     return NextResponse.json(
       { error: 'Invalid JSON request body.' },
@@ -128,8 +149,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         status: 400,
         headers: {
           ...CORS_HEADERS,
-          'Cache-Control': 'private, no-cache, no-store, must-revalidate'
-        }
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        },
       }
     );
   }
@@ -139,7 +160,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     headersObj['x-real-ip'] ||
     '127.0.0.1';
 
-  const mockReq: any = {
+  const mockReq: LegacyApiRequest<SyncRequestBody> = {
     method: 'POST',
     url: url.pathname + url.search,
     originalUrl: url.pathname + url.search,
@@ -148,7 +169,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     query: queryObj,
     body,
     ip: clientIp,
-    socket: { remoteAddress: clientIp }
+    socket: { remoteAddress: clientIp },
   };
 
   const responseHeaders = new Headers(CORS_HEADERS);
@@ -156,53 +177,24 @@ export async function POST(request: NextRequest): Promise<Response> {
   responseHeaders.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
 
   let finalStatusCode = 200;
-  let finalData: any = null;
+  let finalData: unknown = null;
 
-  const mockRes: any = {
-    statusCode: 200,
-    headersSent: false,
-    status(code: number) {
-      finalStatusCode = code;
-      this.statusCode = code;
-      return this;
-    },
-    setHeader(name: string, value: string) {
-      if (name.toLowerCase() === 'set-cookie') {
-        responseHeaders.append(name, value);
-      } else {
-        responseHeaders.set(name, value);
-      }
-      return this;
-    },
-    getHeader(name: string) {
-      return responseHeaders.get(name);
-    },
-    json(data: any) {
-      finalData = data;
-      this.headersSent = true;
-      return this;
-    },
-    send(data: any) {
-      finalData = data;
-      this.headersSent = true;
-      return this;
-    },
-    end() {
-      this.headersSent = true;
-      return this;
-    }
-  };
+  const mockRes = createMockResponse(responseHeaders, (data, code) => {
+    finalData = data;
+    finalStatusCode = code;
+  });
 
   try {
     await syncHandler(mockReq, mockRes);
     return new Response(JSON.stringify(finalData ?? {}), {
       status: finalStatusCode,
-      headers: responseHeaders
+      headers: responseHeaders,
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Lỗi máy chủ Sync';
     console.error('[Native Sync POST API Error]', err);
     return NextResponse.json(
-      { error: err?.message || 'Lỗi máy chủ Sync' },
+      { error: errorMsg },
       { status: 500, headers: CORS_HEADERS }
     );
   }

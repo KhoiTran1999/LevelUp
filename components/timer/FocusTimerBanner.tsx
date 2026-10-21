@@ -1,68 +1,25 @@
 'use client';
 
 import React from 'react';
-import { useLevelUp } from '@/hooks/useLevelUp';
+import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { Icon } from '@/components/ui/Icon';
 
 export function FocusTimerBanner() {
   const {
-    state,
-    pauseFocusTimer,
-    resumeFocusTimer,
-    holdFocusTimer,
-    resetFocusTimer,
-  } = useLevelUp();
-
-  const activeTimer = state.activeTimer;
-  const isRunning = activeTimer?.status === 'running';
-  const isPaused = activeTimer?.status === 'paused';
-  const isHeld = activeTimer?.status === 'held';
-  const isVisible = Boolean(activeTimer && activeTimer.status !== 'idle');
-
-  const remainingSeconds = activeTimer?.remainingSeconds ?? 1500;
-  const totalSeconds = activeTimer?.totalSeconds || 1500;
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
-  const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  // SVG dash offset calculation (circumference = 2 * PI * 20 = ~125.66)
-  const circumference = 125.66;
-  const progressRatio = totalSeconds > 0 ? remainingSeconds / totalSeconds : 0;
-  const dashOffset = circumference * (1 - progressRatio);
-
-  const handleToggle = () => {
-    if (isRunning) {
-      pauseFocusTimer();
-    } else {
-      resumeFocusTimer();
-    }
-  };
-
-  const handleOpenEdit = () => {
-    if (typeof window !== 'undefined' && typeof (window as unknown as { openEditTimerModal?: () => void }).openEditTimerModal === 'function') {
-      (window as unknown as { openEditTimerModal: () => void }).openEditTimerModal();
-    }
-  };
-
-  const handleZenMode = () => {
-    if (
-      typeof window !== 'undefined' &&
-      typeof (window as unknown as { toggleZenMode?: (show?: boolean) => void }).toggleZenMode ===
-        'function'
-    ) {
-      (window as unknown as { toggleZenMode: (show?: boolean) => void }).toggleZenMode(true);
-    } else {
-      const overlay = document.getElementById('focus-zen-overlay');
-      if (overlay) {
-        overlay.classList.remove('hidden');
-        try {
-          if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {});
-          }
-        } catch (_) {}
-      }
-    }
-  };
+    activeTimer,
+    isRunning,
+    isPaused,
+    isHeld,
+    isVisible,
+    formattedTime,
+    bannerDashOffset,
+    hold,
+    reset,
+    adjust,
+    toggle,
+    toggleZen,
+    openAdjustmentModal,
+  } = useFocusTimer();
 
   return (
     <div
@@ -94,7 +51,7 @@ export function FocusTimerBanner() {
                 strokeWidth="3.5"
                 strokeLinecap="round"
                 strokeDasharray="125.66"
-                strokeDashoffset={dashOffset}
+                strokeDashoffset={bannerDashOffset}
                 className="text-indigo-500 fill-none transition-[stroke-dashoffset] duration-300"
               />
             </svg>
@@ -146,7 +103,7 @@ export function FocusTimerBanner() {
           <button
             id="btn-open-edit-timer"
             type="button"
-            onClick={handleOpenEdit}
+            onClick={openAdjustmentModal}
             className="flex items-center gap-1.5 group px-2.5 py-1 rounded-xl hover:bg-indigo-500/10 transition cursor-pointer"
             title="Nhấp để chỉnh thời gian"
           >
@@ -166,6 +123,7 @@ export function FocusTimerBanner() {
           <div className="flex items-center gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-full border border-slate-200/50 dark:border-slate-800/50">
             <button
               type="button"
+              onClick={() => adjust(60)}
               className="btn-timer-adjust px-2.5 py-1 text-[11px] font-mono font-bold rounded-full bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs cursor-pointer"
               data-delta="60"
               title="Thêm 1 phút tập trung"
@@ -174,6 +132,7 @@ export function FocusTimerBanner() {
             </button>
             <button
               type="button"
+              onClick={() => adjust(300)}
               className="btn-timer-adjust px-2.5 py-1 text-[11px] font-mono font-bold rounded-full bg-white dark:bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-500 text-slate-700 dark:text-slate-300 transition shadow-xs cursor-pointer"
               data-delta="300"
               title="Thêm 5 phút tập trung"
@@ -187,7 +146,7 @@ export function FocusTimerBanner() {
             <button
               id="btn-timer-toggle"
               type="button"
-              onClick={handleToggle}
+              onClick={toggle}
               className="m3-btn m3-btn-sm m3-btn-filled px-4 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer"
               title="Tạm dừng / Tiếp tục (Phím tắt: Space)"
             >
@@ -197,7 +156,7 @@ export function FocusTimerBanner() {
             <button
               id="btn-timer-hold"
               type="button"
-              onClick={holdFocusTimer}
+              onClick={hold}
               className="m3-btn m3-btn-sm m3-btn-tonal px-3 py-2 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 cursor-pointer"
               title="Bảo lưu thời gian còn lại để làm việc khác"
             >
@@ -208,7 +167,7 @@ export function FocusTimerBanner() {
             <button
               id="btn-timer-zen"
               type="button"
-              onClick={handleZenMode}
+              onClick={() => toggleZen(true)}
               className="m3-icon-btn w-8 h-8 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center justify-center cursor-pointer"
               title="Chế độ Toàn màn hình (Tập trung tối đa)"
             >
@@ -218,7 +177,7 @@ export function FocusTimerBanner() {
             <button
               id="btn-timer-reset"
               type="button"
-              onClick={resetFocusTimer}
+              onClick={reset}
               className="m3-btn m3-btn-sm px-3 py-2 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 transition cursor-pointer"
               title="Hủy phiên tập trung"
             >
