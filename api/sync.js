@@ -888,7 +888,7 @@ export async function authenticateCaller(token, redis, adminConfig) {
       const sessionRaw = await redis.get(`levelup:session:${cleanToken}`);
       if (sessionRaw) {
         const sessionData = JSON.parse(sessionRaw);
-        if (sessionData && sessionData.sub) {
+        if (sessionData && sessionData.sub && !sessionData.isGuest && !String(sessionData.sub).startsWith('guest_')) {
           return sessionData;
         }
       }
@@ -899,7 +899,7 @@ export async function authenticateCaller(token, redis, adminConfig) {
   if (isDbConfigured()) {
     try {
       const dbSession = await getDbSession(cleanToken);
-      if (dbSession && dbSession.sub) {
+      if (dbSession && dbSession.sub && !dbSession.isGuest && !String(dbSession.sub).startsWith('guest_')) {
         if (redis) {
           try { await redis.set(`levelup:session:${cleanToken}`, JSON.stringify(dbSession), 'EX', 90 * 24 * 3600); } catch (_) {}
         }
@@ -1661,35 +1661,11 @@ export default async function handler(req, res) {
         caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
       }
 
-      if (!caller || !caller.sub) {
-        const sessionToken = token && token.length >= 16 ? token : crypto.randomUUID();
-        const guestSub = 'guest_' + sessionToken.replace(/-/g, '').slice(0, 16);
-        caller = {
-          sub: guestSub,
-          email: '',
-          name: 'Hiệp Sĩ',
-          picture: '⚔️',
-          isGuest: true
-        };
-        token = sessionToken;
-        if (redis) {
-          try { await redis.set(`levelup:session:${sessionToken}`, JSON.stringify(caller), 'EX', 90 * 24 * 3600); } catch (_) {}
-        }
-        if (isDbConfigured()) {
-          try { await saveDbSession(sessionToken, caller, 90 * 24 * 3600 * 1000); } catch (_) {}
-        }
+      if (!caller || !caller.sub || caller.isGuest || String(caller.sub).startsWith('guest_')) {
         if (res.setHeader) {
-          const isProd = process.env.NODE_ENV === 'production';
-          const cookieFlags = [
-            `levelup_session=${sessionToken}`,
-            'Path=/',
-            'HttpOnly',
-            'SameSite=Lax',
-            'Max-Age=7776000',
-            isProd ? 'Secure' : ''
-          ].filter(Boolean).join('; ');
-          res.setHeader('Set-Cookie', cookieFlags);
+          res.setHeader('Set-Cookie', 'levelup_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
         }
+        return res.status(401).json({ error: 'Cần đăng nhập tài khoản Google để tải dữ liệu.' });
       }
 
       const targetSub = caller.sub;
@@ -2768,35 +2744,11 @@ export default async function handler(req, res) {
         caller = await authenticateCaller(token, redis, { token: ADMIN_TOKEN, emails: ADMIN_EMAILS });
       }
 
-      if (!caller || !caller.sub) {
-        const sessionToken = token && token.length >= 16 ? token : crypto.randomUUID();
-        const guestSub = 'guest_' + sessionToken.replace(/-/g, '').slice(0, 16);
-        caller = {
-          sub: guestSub,
-          email: '',
-          name: sanitizeNickname(rawNick || state?.profile?.nickname) || 'Hiệp Sĩ',
-          picture: '⚔️',
-          isGuest: true
-        };
-        token = sessionToken;
-        if (redis) {
-          try { await redis.set(`levelup:session:${sessionToken}`, JSON.stringify(caller), 'EX', 90 * 24 * 3600); } catch (_) {}
-        }
-        if (isDbConfigured()) {
-          try { await saveDbSession(sessionToken, caller, 90 * 24 * 3600 * 1000); } catch (_) {}
-        }
+      if (!caller || !caller.sub || caller.isGuest || String(caller.sub).startsWith('guest_')) {
         if (res.setHeader) {
-          const isProd = process.env.NODE_ENV === 'production';
-          const cookieFlags = [
-            `levelup_session=${sessionToken}`,
-            'Path=/',
-            'HttpOnly',
-            'SameSite=Lax',
-            'Max-Age=7776000',
-            isProd ? 'Secure' : ''
-          ].filter(Boolean).join('; ');
-          res.setHeader('Set-Cookie', cookieFlags);
+          res.setHeader('Set-Cookie', 'levelup_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
         }
+        return res.status(401).json({ error: 'Cần đăng nhập Google để đồng bộ dữ liệu.' });
       }
 
       const userSub = caller.sub;

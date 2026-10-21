@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
 
 const DEFAULT_STATE = {
   profile: {
-    nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
+    nickname: '',
     avatar: '⚔️',
     level: 1,
     exp: 0,

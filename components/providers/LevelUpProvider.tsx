@@ -106,7 +106,7 @@ const INITIAL_SHOP_ITEMS: ShopItem[] = [
 ];
 
 const INITIAL_PROFILE: UserProfile = {
-  nickname: 'Hiệp Sĩ',
+  nickname: '',
   avatar: '⚔️',
   level: 1,
   exp: 0,
@@ -121,6 +121,8 @@ const INITIAL_PROFILE: UserProfile = {
   soundEnabled: true,
   theme: 'light',
   role: 'adventurer',
+  googleId: '',
+  hasOnboarded: false,
   bank: {
     deposited: 0,
     depositInterest: 0,
@@ -409,6 +411,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   // Directly sync state to Cloud (Redis + Supabase Postgres via /api/sync)
   const syncToCloud = useCallback(async (stateToSync: LevelUpAppState) => {
+    if (!stateToSync.profile?.googleId || String(stateToSync.profile.googleId).startsWith('guest_') || !stateToSync.profile?.hasOnboarded) {
+      return;
+    }
     const currentHash = computeStateSyncHash(stateToSync);
     if (currentHash && currentHash === lastSyncedHashRef.current) {
       return;
@@ -503,7 +508,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         }
         if (res.ok) {
           const result = await res.json();
-          if (result.found && result.data && !isCancelled) {
+          if (result.found && result.data && result.data.profile?.googleId && !String(result.data.profile.googleId).startsWith('guest_') && !isCancelled) {
             const cloudData: LevelUpAppState = result.data;
             setState(prev => {
               const currentTheme: 'light' | 'dark' = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
@@ -544,7 +549,27 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
               lastSyncedHashRef.current = computeStateSyncHash(resolvedState);
               return resolvedState;
             });
+          } else if (!isCancelled) {
+            setState(prev => ({
+              ...prev,
+              profile: {
+                ...prev.profile,
+                nickname: '',
+                googleId: '',
+                hasOnboarded: false,
+              }
+            }));
           }
+        } else if (res.status === 401 && !isCancelled) {
+          setState(prev => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              nickname: '',
+              googleId: '',
+              hasOnboarded: false,
+            }
+          }));
         }
         if (!isCancelled) {
           setStartupStatus('ready');

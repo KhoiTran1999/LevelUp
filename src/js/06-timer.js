@@ -1340,6 +1340,16 @@ function closeShieldGateModal() {
   const modal = document.getElementById('modal-shield-gate');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
+
+  // Sau khi đóng Shield Gate, nếu người dùng chưa đăng nhập Google thì BẮT BUỘC hiển thị modal đăng nhập
+  if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) {
+    if (typeof openModal === 'function') {
+      openModal('modal-welcome');
+    }
+    if (typeof renderGoogleSignInButton === 'function') {
+      renderGoogleSignInButton();
+    }
+  }
 }
 
 function enforceMandatoryShieldGateOnStartup() {

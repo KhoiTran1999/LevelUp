@@ -411,7 +411,7 @@ async function initStartupFlow() {
 
     if (res.status === 200) {
       const result = await res.json().catch(() => ({}));
-      if (result.found && result.data) {
+      if (result.found && result.data && result.data.profile?.googleId && !String(result.data.profile.googleId).startsWith('guest_')) {
         appState = normalizeObjectNFC({
           ...DEFAULT_STATE,
           ...result.data,
@@ -453,26 +453,29 @@ async function initStartupFlow() {
         }
         return;
       }
-    } else if (res.status === 401) {
-      clearLocalCache();
-      appState = { ...DEFAULT_STATE };
-      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
-      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
-      applyTheme(resolvedTheme, false);
-      renderAll();
-      openModal('modal-welcome');
-      renderGoogleSignInButton();
-      return;
     }
   } catch (err) {
     console.warn('Startup sync check failed:', err.message);
   }
 
+  clearLocalCache();
+  appState = {
+    ...DEFAULT_STATE,
+    profile: {
+      ...DEFAULT_STATE.profile,
+      nickname: '',
+      googleId: '',
+      hasOnboarded: false
+    }
+  };
   const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
   const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
   applyTheme(resolvedTheme, false);
   renderAll();
   openModal('modal-welcome');
   renderGoogleSignInButton();
+  if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+    setTimeout(() => enforceMandatoryShieldGateOnStartup(), 250);
+  }
 }
 

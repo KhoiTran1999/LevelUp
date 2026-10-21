@@ -137,7 +137,7 @@ if (typeof window !== 'undefined') {
 
 const DEFAULT_STATE = {
   profile: {
-    nickname: 'HiepSi_' + Math.floor(1000 + Math.random() * 9000),
+    nickname: '',
     avatar: '⚔️',
     level: 1,
     exp: 0,
@@ -3776,6 +3776,16 @@ function closeShieldGateModal() {
   const modal = document.getElementById('modal-shield-gate');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
+
+  // Sau khi đóng Shield Gate, nếu người dùng chưa đăng nhập Google thì BẮT BUỘC hiển thị modal đăng nhập
+  if (typeof checkIsOnboarded === 'function' && !checkIsOnboarded()) {
+    if (typeof openModal === 'function') {
+      openModal('modal-welcome');
+    }
+    if (typeof renderGoogleSignInButton === 'function') {
+      renderGoogleSignInButton();
+    }
+  }
 }
 
 function enforceMandatoryShieldGateOnStartup() {
@@ -14978,7 +14988,17 @@ function renderStreamingMarkdown(text) {
 }
 
 function checkIsOnboarded() {
-  return Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
+  return Boolean(
+    appState &&
+    appState.profile &&
+    appState.profile.googleId &&
+    !String(appState.profile.googleId).startsWith('guest_') &&
+    appState.profile.nickname &&
+    appState.profile.hasOnboarded
+  );
+}
+if (typeof window !== 'undefined') {
+  window.checkIsOnboarded = checkIsOnboarded;
 }
 
 let googleClientIdCache = null;
@@ -15637,7 +15657,7 @@ async function initStartupFlow() {
 
     if (res.status === 200) {
       const result = await res.json().catch(() => ({}));
-      if (result.found && result.data) {
+      if (result.found && result.data && result.data.profile?.googleId && !String(result.data.profile.googleId).startsWith('guest_')) {
         appState = normalizeObjectNFC({
           ...DEFAULT_STATE,
           ...result.data,
@@ -15679,27 +15699,30 @@ async function initStartupFlow() {
         }
         return;
       }
-    } else if (res.status === 401) {
-      clearLocalCache();
-      appState = { ...DEFAULT_STATE };
-      const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
-      const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
-      applyTheme(resolvedTheme, false);
-      renderAll();
-      openModal('modal-welcome');
-      renderGoogleSignInButton();
-      return;
     }
   } catch (err) {
     console.warn('Startup sync check failed:', err.message);
   }
 
+  clearLocalCache();
+  appState = {
+    ...DEFAULT_STATE,
+    profile: {
+      ...DEFAULT_STATE.profile,
+      nickname: '',
+      googleId: '',
+      hasOnboarded: false
+    }
+  };
   const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('levelup_theme') : null;
   const resolvedTheme = savedTheme || appState.profile.theme || (typeof getSystemTheme === 'function' ? getSystemTheme() : 'light');
   applyTheme(resolvedTheme, false);
   renderAll();
   openModal('modal-welcome');
   renderGoogleSignInButton();
+  if (typeof enforceMandatoryShieldGateOnStartup === 'function') {
+    setTimeout(() => enforceMandatoryShieldGateOnStartup(), 250);
+  }
 }
 
 // =============================================================================

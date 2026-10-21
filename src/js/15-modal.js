@@ -2441,7 +2441,17 @@ function renderStreamingMarkdown(text) {
 }
 
 function checkIsOnboarded() {
-  return Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
+  return Boolean(
+    appState &&
+    appState.profile &&
+    appState.profile.googleId &&
+    !String(appState.profile.googleId).startsWith('guest_') &&
+    appState.profile.nickname &&
+    appState.profile.hasOnboarded
+  );
+}
+if (typeof window !== 'undefined') {
+  window.checkIsOnboarded = checkIsOnboarded;
 }
 
 let googleClientIdCache = null;

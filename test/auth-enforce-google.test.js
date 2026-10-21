@@ -21,8 +21,15 @@ class MockLocalStorage {
 
 // Logic under test replicated directly from app.js
 function checkIsOnboarded(appState, storage) {
-  const hasLocal = storage.getItem('levelup_onboarded') === 'true';
-  const hasGoogleProfile = Boolean(appState.profile && appState.profile.googleId && appState.profile.nickname);
+  const hasLocal = storage ? storage.getItem('levelup_onboarded') === 'true' : true;
+  const hasGoogleProfile = Boolean(
+    appState &&
+    appState.profile &&
+    appState.profile.googleId &&
+    !String(appState.profile.googleId).startsWith('guest_') &&
+    appState.profile.nickname &&
+    appState.profile.hasOnboarded
+  );
   return hasLocal && hasGoogleProfile;
 }
 
@@ -33,8 +40,8 @@ function processLoadedState(rawParsed, defaultState, storage) {
     profile: { ...defaultState.profile, ...(rawParsed?.profile || {}) }
   };
 
-  // Cưỡng chế đăng xuất nếu không có googleId
-  if (!appState.profile?.googleId) {
+  // Cưỡng chế đăng xuất nếu không có googleId hoặc là tài khoản ảo guest_
+  if (!appState.profile?.googleId || String(appState.profile.googleId).startsWith('guest_')) {
     storage.removeItem('levelup_onboarded');
     appState = {
       ...defaultState,
@@ -138,12 +145,33 @@ const DEFAULT_STATE = {
   const incompleteState = {
     profile: {
       nickname: '',
-      googleId: '109876543210'
+      googleId: '109876543210',
+      hasOnboarded: true
     }
   };
 
   assert.strictEqual(checkIsOnboarded(incompleteState, storage), false, 'Thiếu nickname hoặc cờ local phải trả về false');
   console.log('✓ Test 4: Xác thực chặt chẽ đủ 3 điều kiện: googleId, nickname và cờ storage.');
+}
+
+// Test 5: Tài khoản ảo guest (prefix guest_) phải bị từ chối và đăng xuất hoàn toàn
+{
+  const storage = new MockLocalStorage();
+  storage.setItem('levelup_onboarded', 'true');
+  const virtualGuestAccount = {
+    profile: {
+      nickname: 'Hiệp Sĩ',
+      googleId: 'guest_abcdef1234567890',
+      hasOnboarded: true
+    }
+  };
+
+  const processed = processLoadedState(virtualGuestAccount, DEFAULT_STATE, storage);
+  assert.strictEqual(processed.profile.googleId, '', 'googleId của guest phải bị xóa');
+  assert.strictEqual(processed.profile.nickname, '', 'nickname của guest phải bị xóa');
+  assert.strictEqual(processed.profile.hasOnboarded, false, 'hasOnboarded của guest phải là false');
+  assert.strictEqual(checkIsOnboarded(virtualGuestAccount, storage), false, 'checkIsOnboarded với guest_ ID luôn trả về false');
+  console.log('✓ Test 5: Tài khoản ảo guest_ bị chặn đứng, xóa session và buộc đăng nhập Google.');
 }
 
 console.log('\n🎉 TẤT CẢ UNIT TESTS CƯỠNG CHẾ ĐĂNG XUẤT GOOGLE ĐÃ VƯỢT QUA XUẤT SẮC!');
