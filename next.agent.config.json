@@ -1,0 +1,19 @@
+{
+  "$schema": "https://nextjs.org/schemas/agent-config.json",
+  "skills": [
+    "next-dev-loop",
+    "next-bundle-optimizer"
+  ],
+  "context": [
+    "server-actions",
+    "app-router",
+    "streaming-ssr"
+  ],
+  "validation": {
+    "preCommit": [
+      "npm run type-check",
+      "npm test"
+    ],
+    "minTestPassRate": 1.0
+  }
+}

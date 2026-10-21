@@ -19,8 +19,8 @@ export function useFocusTimer() {
 
   const activeTimer = state.activeTimer;
   const isRunning = activeTimer?.status === 'running';
-  const isPaused = activeTimer?.status === 'paused';
-  const isHeld = activeTimer?.status === 'held';
+  const isPaused = activeTimer?.status === 'paused' || activeTimer?.status === 'held';
+  const isHeld = activeTimer?.status === 'held' || activeTimer?.status === 'paused';
   const isVisible = Boolean(activeTimer && activeTimer.status !== 'idle');
 
   const remainingSeconds = activeTimer?.remainingSeconds ?? 1500;
@@ -47,25 +47,7 @@ export function useFocusTimer() {
 
   const toggleZen = useCallback((show?: boolean) => {
     if (typeof window === 'undefined') return;
-    const overlay = document.getElementById('focus-zen-overlay');
-    if (!overlay) return;
-
-    const shouldShow = show !== undefined ? show : overlay.classList.contains('hidden');
-    if (shouldShow) {
-      overlay.classList.remove('hidden');
-      try {
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        }
-      } catch (_) {}
-    } else {
-      overlay.classList.add('hidden');
-      try {
-        if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        }
-      } catch (_) {}
-    }
+    window.dispatchEvent(new CustomEvent('levelup:toggle-zen', { detail: { show } }));
   }, []);
 
   const openAdjustmentModal = useCallback(() => {
@@ -95,6 +77,10 @@ export function useFocusTimer() {
       openEditTimerModal?: () => void;
       saveEditTimer?: (mins: number, secs: number) => boolean;
       startBreakTimer?: (mins?: number) => void;
+      __reactToggleZenMode?: (show?: boolean) => void;
+      __reactToggleFocusTimer?: () => void;
+      __reactHoldFocusTimer?: () => void;
+      __reactResetFocusTimer?: () => void;
     };
 
     win.toggleZenMode = toggleZen;
@@ -102,6 +88,10 @@ export function useFocusTimer() {
     win.holdFocusTimer = holdFocusTimer;
     win.resetFocusTimer = resetFocusTimer;
     win.openEditTimerModal = openAdjustmentModal;
+    win.__reactToggleZenMode = toggleZen;
+    win.__reactToggleFocusTimer = toggle;
+    win.__reactHoldFocusTimer = holdFocusTimer;
+    win.__reactResetFocusTimer = resetFocusTimer;
 
     win.saveEditTimer = (newMins: number, newSecs: number) => {
       const newTotal = newMins * 60 + newSecs;

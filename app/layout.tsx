@@ -158,7 +158,7 @@ export default function RootLayout({
         <Script src="/vendor/confetti.browser.min.js" strategy="afterInteractive" />
 
         {/* Main LevelUp Client Application Bundle */}
-        <Script src="/app.js?v=1.0.5" strategy="afterInteractive" />
+        <Script src="/app.js?v=1.0.7" strategy="afterInteractive" />
 
         {/* PWA Service Worker Registration */}
         <Script id="pwa-sw-registration" strategy="afterInteractive">

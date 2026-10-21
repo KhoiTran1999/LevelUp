@@ -581,6 +581,9 @@ function saveFocusTimerState(syncCloudNow = false, immediate = false, timerActio
 }
 
 function restoreFocusTimer() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   let state = appState.activeTimer;
   let localState = null;
   try {
@@ -728,6 +731,9 @@ function restoreFocusTimer() {
 
 // Delta-Time Tick Engine
 function tickFocusTimer() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   if (!isFocusRunning) return;
 
   // Nếu một thiết bị khác đã tiếp quản quyền runner, thiết bị này phải dừng lại ngay lập tức
@@ -781,6 +787,9 @@ function tickFocusTimer() {
 }
 
 function updateTimerDisplay() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const totalSecs = Math.max(0, Math.round(focusRemainingSeconds));
   const mins = Math.floor(totalSecs / 60);
   const secs = totalSecs % 60;
@@ -830,6 +839,9 @@ function updateTimerDisplay() {
 }
 
 function renderFocusStationUI() {
+  if (typeof document !== 'undefined' && document.getElementById('levelup-app')) {
+    return;
+  }
   const station = document.getElementById('active-focus-banner');
   if (!station) return;
 
@@ -1827,6 +1839,11 @@ function startBreakTimer(breakMinutes = 5) {
 }
 
 async function toggleFocusTimer() {
+  if (typeof window !== 'undefined' && typeof window.__reactToggleFocusTimer === 'function') {
+    window.__reactToggleFocusTimer();
+    return;
+  }
+
   if (isTimerActionPending) return;
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
@@ -1906,6 +1923,11 @@ async function toggleFocusTimer() {
 }
 
 async function holdFocusTimer() {
+  if (typeof window !== 'undefined' && typeof window.__reactHoldFocusTimer === 'function') {
+    window.__reactHoldFocusTimer();
+    return;
+  }
+
   if (isTimerActionPending) return;
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
@@ -2180,6 +2202,11 @@ async function clearSavedRewardTimer(invId) {
 }
 
 async function resetFocusTimer() {
+  if (typeof window !== 'undefined' && typeof window.__reactResetFocusTimer === 'function') {
+    window.__reactResetFocusTimer();
+    return;
+  }
+
   if (isTimerActionPending) return;
   isTimerActionPending = true;
   setTimeout(() => { isTimerActionPending = false; }, 300);
@@ -2248,11 +2275,13 @@ function clearFocusTimerSession(syncToCloud = true) {
   } catch (_) {}
   document.title = 'LevelUp — Biến Công Việc & Thói Quen Thành Trò Chơi';
 
-  const banner = document.getElementById('active-focus-banner');
-  if (banner) banner.classList.add('hidden');
+  if (typeof document !== 'undefined' && !document.getElementById('levelup-app')) {
+    const banner = document.getElementById('active-focus-banner');
+    if (banner) banner.classList.add('hidden');
 
-  const zenOverlay = document.getElementById('focus-zen-overlay');
-  if (zenOverlay) zenOverlay.classList.add('hidden');
+    const zenOverlay = document.getElementById('focus-zen-overlay');
+    if (zenOverlay) zenOverlay.classList.add('hidden');
+  }
 
   if (appState.activeTimer || hadActiveSession) {
     appState.activeTimer = null;
@@ -2389,6 +2418,11 @@ window.saveEditTimer = saveEditTimer;
 window.startBreakTimer = startBreakTimer;
 
 function toggleZenMode(show) {
+  if (typeof window !== 'undefined' && typeof window.__reactToggleZenMode === 'function') {
+    window.__reactToggleZenMode(show);
+    return;
+  }
+
   const overlay = document.getElementById('focus-zen-overlay');
   if (!overlay) return;
   const willShow = show !== undefined ? Boolean(show) : overlay.classList.contains('hidden');

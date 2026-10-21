@@ -38,6 +38,7 @@ function initLevelUpApp() {
     try {
       const syncChannel = new BroadcastChannel('levelup_sync_channel');
       syncChannel.onmessage = (event) => {
+        if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
         if (event.data?.tabId === CURRENT_TAB_ID) return; // Bỏ qua thông điệp phát từ chính tab này
         if (event.data?.type === 'TIMER_SYNC_UPDATE') {
           // Nếu tab khác đã giành quyền runner, dừng ngay lập tức tại tab này (0ms delay)
@@ -690,50 +691,55 @@ function initLevelUpApp() {
   const modalSoundBtn = document.getElementById('modal-sound-btn');
   if (modalSoundBtn) modalSoundBtn.addEventListener('click', toggleSound);
 
-  // Focus Station Banner & Focus Timer controls
-  const btnTimerToggle = document.getElementById('btn-timer-toggle');
-  if (btnTimerToggle) btnTimerToggle.addEventListener('click', toggleFocusTimer);
+  const isReactApp = Boolean(document.getElementById('levelup-app'));
 
-  const btnTimerReset = document.getElementById('btn-timer-reset');
-  if (btnTimerReset) btnTimerReset.addEventListener('click', resetFocusTimer);
+  // Focus Station Banner & Focus Timer controls (only attach legacy handlers when NOT running React App)
+  if (!isReactApp) {
+    const btnTimerToggle = document.getElementById('btn-timer-toggle');
+    if (btnTimerToggle) btnTimerToggle.addEventListener('click', toggleFocusTimer);
 
-  const btnTimerHold = document.getElementById('btn-timer-hold');
-  if (btnTimerHold) btnTimerHold.addEventListener('click', holdFocusTimer);
+    const btnTimerReset = document.getElementById('btn-timer-reset');
+    if (btnTimerReset) btnTimerReset.addEventListener('click', resetFocusTimer);
 
-  // Quick adjust buttons (-5m, +1m, +5m)
-  document.querySelectorAll('.btn-timer-adjust').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const delta = parseInt(btn.dataset.delta, 10) || 0;
-      adjustTimer(delta);
+    const btnTimerHold = document.getElementById('btn-timer-hold');
+    if (btnTimerHold) btnTimerHold.addEventListener('click', holdFocusTimer);
+
+    // Quick adjust buttons (-5m, +1m, +5m)
+    document.querySelectorAll('.btn-timer-adjust').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const delta = parseInt(btn.dataset.delta, 10) || 0;
+        adjustTimer(delta);
+      });
     });
-  });
 
-  // Clickable time display to open direct editor
-  const btnOpenEditTimer = document.getElementById('btn-open-edit-timer');
-  if (btnOpenEditTimer) {
-    btnOpenEditTimer.addEventListener('click', openEditTimerModal);
-  }
+    // Clickable time display to open direct editor
+    const btnOpenEditTimer = document.getElementById('btn-open-edit-timer');
+    if (btnOpenEditTimer) {
+      btnOpenEditTimer.addEventListener('click', openEditTimerModal);
+    }
 
-  // Fullscreen Focus Overlay controls
-  const btnZen = document.getElementById('btn-timer-zen');
-  if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
+    // Fullscreen Focus Overlay controls
+    const btnZen = document.getElementById('btn-timer-zen');
+    if (btnZen) btnZen.addEventListener('click', () => toggleZenMode(true));
 
-  const btnZenExit = document.getElementById('btn-zen-exit');
-  if (btnZenExit) btnZenExit.addEventListener('click', () => toggleZenMode(false));
+    const btnZenExit = document.getElementById('btn-zen-exit');
+    if (btnZenExit) btnZenExit.addEventListener('click', () => toggleZenMode(false));
 
-  const btnZenToggle = document.getElementById('btn-zen-toggle');
-  if (btnZenToggle) btnZenToggle.addEventListener('click', toggleFocusTimer);
+    const btnZenToggle = document.getElementById('btn-zen-toggle');
+    if (btnZenToggle) btnZenToggle.addEventListener('click', toggleFocusTimer);
 
-  const btnZenHold = document.getElementById('btn-zen-hold');
-  if (btnZenHold) {
-    btnZenHold.addEventListener('click', () => {
-      toggleZenMode(false);
-      holdFocusTimer();
-    });
+    const btnZenHold = document.getElementById('btn-zen-hold');
+    if (btnZenHold) {
+      btnZenHold.addEventListener('click', () => {
+        toggleZenMode(false);
+        holdFocusTimer();
+      });
+    }
   }
 
   // Multi-tab Focus Timer Sync
   window.addEventListener('storage', (e) => {
+    if (typeof document !== 'undefined' && document.getElementById('levelup-app')) return;
     if (e.key === TIMER_STORAGE_KEY) {
       if (!e.newValue) {
         clearFocusTimerSession(false);
@@ -1493,6 +1499,7 @@ function initLevelUpApp() {
 
     // Phím Space: Dừng / Tiếp tục đếm ngược thời gian (hoạt động trên cả màn hình chính và Chế độ Toàn màn hình Zen)
     if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+      if (document.getElementById('levelup-app')) return; // React 19 FocusZenOverlay and FocusTimerBanner handle Space
       if (e.repeat) return;
       const hasActiveTimer = Boolean(activeFocusQuest || isBreakMode || activeRewardItem || appState?.activeTimer);
       const isOtherModalOpen = Boolean(document.querySelector('.fixed.inset-0:not(.hidden):not(#focus-zen-overlay)'));
@@ -1649,19 +1656,21 @@ function initLevelUpApp() {
     }
   });
 
-  // Button triggers for Sổ Ghi Chú & Dopamine Guide in Zen Mode
-  const btnZenBrainDump = document.getElementById('btn-zen-brain-dump');
-  if (btnZenBrainDump) {
-    btnZenBrainDump.addEventListener('click', () => {
-      openBrainDumpModal();
-    });
-  }
+  // Button triggers for Sổ Ghi Chú & Dopamine Guide in Zen Mode (only attach legacy handlers when NOT running React App)
+  if (!isReactApp) {
+    const btnZenBrainDump = document.getElementById('btn-zen-brain-dump');
+    if (btnZenBrainDump) {
+      btnZenBrainDump.addEventListener('click', () => {
+        openBrainDumpModal();
+      });
+    }
 
-  const btnZenDopamineGuide = document.getElementById('btn-zen-dopamine-guide');
-  if (btnZenDopamineGuide) {
-    btnZenDopamineGuide.addEventListener('click', () => {
-      openDopamineGuideModal();
-    });
+    const btnZenDopamineGuide = document.getElementById('btn-zen-dopamine-guide');
+    if (btnZenDopamineGuide) {
+      btnZenDopamineGuide.addEventListener('click', () => {
+        openDopamineGuideModal();
+      });
+    }
   }
 
   // Confirmation Dialog controls

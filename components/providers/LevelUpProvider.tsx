@@ -435,6 +435,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       setIsSyncing(true);
+      const timerAction = stateToSync.activeTimer?.status === 'running'
+        ? 'start'
+        : (stateToSync.activeTimer?.status === 'held' ? 'hold' : undefined);
       const res = await fetch('/api/sync', {
         method: 'POST',
         credentials: 'include',
@@ -442,16 +445,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           nickname: stateToSync.profile?.nickname || 'Hiệp Sĩ',
           state: stateToSync,
+          timerAction,
         }),
       });
       if (res.ok) {
         lastSyncedHashRef.current = currentHash;
         const data = await res.json().catch(() => ({}));
         if (data.conflict && data.state) {
-          // ponytail: Remote state is strictly newer; rehydrate to resolve conflict
+          // ponytail: Remote state is strictly newer; rehydrate to resolve conflict while preserving local active timer
           setState(prev => ({
             ...prev,
             ...data.state,
+            activeTimer: prev.activeTimer?.status === 'running' ? prev.activeTimer : (data.state.activeTimer ?? null),
             lastSyncedAt: data.syncedAt || Date.now(),
             lastModified: data.syncedAt || Date.now(),
           }));
@@ -625,6 +630,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             notes: prev.notes,
             activeNoteId: prev.activeNoteId,
             focusNotes: prev.focusNotes,
+            activeTimer: prev.activeTimer?.status === 'running' ? prev.activeTimer : (customEvent.detail.activeTimer ?? prev.activeTimer ?? null),
           };
           return next;
         });
@@ -837,26 +843,41 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
         const nextRemaining = Math.max(0, prev.activeTimer.remainingSeconds - elapsed);
         if (nextRemaining <= 0) {
-          if (prev.profile.soundEnabled) {
-            soundFX.playFanfare();
-          }
-          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-            try {
-              navigator.vibrate([500, 200, 500, 200, 800]);
-            } catch (_) {}
-          }
-          if (typeof window !== 'undefined') {
-            const completedQuest = prev.quests.find(q => q.id === prev.activeTimer?.questId) || {
-              id: prev.activeTimer?.questId || 'quest_completed',
-              title: prev.activeTimer?.questTitle || 'Phiên tập trung',
-              rewardCoins: prev.activeTimer?.questCoins || 10,
-              rank: prev.activeTimer?.questRank || 'C',
-            };
-            window.dispatchEvent(new CustomEvent('levelup:focus-complete', { detail: completedQuest }));
-          }
+          const soundEnabled = prev.profile.soundEnabled;
+          const completedQuest = prev.quests.find(q => q.id === prev.activeTimer?.questId) || {
+            id: prev.activeTimer?.questId || 'quest_completed',
+            title: prev.activeTimer?.questTitle || 'Phiên tập trung',
+            rewardCoins: prev.activeTimer?.questCoins || 10,
+            rank: prev.activeTimer?.questRank || 'C',
+          };
+          queueMicrotask(() => {
+            if (soundEnabled) {
+              soundFX.playFanfare();
+            }
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              try {
+                navigator.vibrate([500, 200, 500, 200, 800]);
+              } catch (_) {}
+            }
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('levelup:focus-complete', { detail: completedQuest }));
+            }
+          });
+
+          const finishedQuestId = prev.activeTimer?.questId;
+          const nextQuests = finishedQuestId
+            ? prev.quests.map(q => {
+                if (q.id === finishedQuestId && q.savedTimer) {
+                  const { savedTimer: _, ...rest } = q;
+                  return rest as Quest;
+                }
+                return q;
+              })
+            : prev.quests;
 
           return {
             ...prev,
+            quests: nextQuests,
             activeTimer: null,
             lastTimerClearedAt: Date.now(),
           };
@@ -890,6 +911,52 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [state.activeTimer?.status]);
+
+  // Synchronize timer state with Chrome extension capsule, localStorage, and external listeners
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const t = state.activeTimer;
+    if (t && t.status !== 'idle') {
+      const timerStateObj = {
+        status: t.status,
+        questId: t.questId || null,
+        questTitle: t.questTitle || '',
+        questRank: t.questRank || 'C',
+        questIcon: '🎯',
+        rewardCoins: t.questCoins || 10,
+        remainingSeconds: Math.max(0, Math.round(t.remainingSeconds)),
+        totalSeconds: Math.max(0, Math.round(t.totalSeconds)),
+        isRunning: t.status === 'running',
+        isBreakMode: false,
+        updatedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem('levelup_focus_timer', JSON.stringify(timerStateObj));
+      } catch (_) {}
+      if (typeof window.postMessage === 'function') {
+        window.postMessage({
+          type: 'LEVELUP_TIMER_STATE_BROADCAST',
+          state: timerStateObj,
+        }, '*');
+      }
+    } else {
+      try {
+        localStorage.removeItem('levelup_focus_timer');
+      } catch (_) {}
+      if (typeof window.postMessage === 'function') {
+        window.postMessage({
+          type: 'LEVELUP_TIMER_STATE_BROADCAST',
+          state: {
+            status: 'idle',
+            isRunning: false,
+            remainingSeconds: 0,
+            totalSeconds: 0,
+            updatedAt: Date.now(),
+          },
+        }, '*');
+      }
+    }
+  }, [state.activeTimer?.status, state.activeTimer?.questId, Math.floor((state.activeTimer?.remainingSeconds || 0) / 2)]);
 
   const toggleTheme = useCallback(() => {
     const nextTheme = state.profile.theme === 'dark' ? 'light' : 'dark';
@@ -1857,63 +1924,140 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   }, [queueSyncToCloud]);
 
   const startFocusTimer = useCallback((quest: Quest) => {
-    const minutes = quest.targetMinutes || 25;
-    const totalSeconds = minutes * 60;
+    const hasSaved = Boolean(quest.savedTimer && quest.savedTimer.remainingSeconds > 0);
+    const totalSeconds = quest.savedTimer?.totalSeconds || (quest.targetMinutes || 25) * 60;
+    const remainingSeconds = hasSaved ? quest.savedTimer!.remainingSeconds : totalSeconds;
 
-    setState(prev => ({
-      ...prev,
-      activeTimer: {
-        status: 'running',
-        remainingSeconds: totalSeconds,
-        totalSeconds,
-        questId: quest.id,
-        questTitle: quest.title,
-        questCoins: quest.rewardCoins,
-        questRank: quest.rank,
-        startedAt: Date.now(),
-      },
-    }));
-  }, []);
+    setState(prev => {
+      const nextQuests = prev.quests.map(q => {
+        if (q.id === quest.id && q.savedTimer) {
+          const { savedTimer: _, ...rest } = q;
+          return rest as Quest;
+        }
+        return q;
+      });
 
+      const next = {
+        ...prev,
+        quests: nextQuests,
+        activeTimer: {
+          status: 'running' as const,
+          remainingSeconds,
+          totalSeconds,
+          questId: quest.id,
+          questTitle: quest.title,
+          questCoins: quest.rewardCoins,
+          questRank: quest.rank,
+          startedAt: Date.now(),
+        },
+      };
+
+      queueMicrotask(() => {
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as { appState?: LevelUpAppState };
+          if (win.appState) {
+            win.appState.quests = nextQuests;
+            win.appState.activeTimer = next.activeTimer;
+          }
+        }
+        queueSyncToCloud(next, true);
+      });
+      return next;
+    });
+  }, [queueSyncToCloud]);
+
+  // ponytail: "Tạm dừng" đồng nghĩa với bảo lưu: tự động lưu lại remainingSeconds và actualFocusedSeconds vào quest.savedTimer
   const pauseFocusTimer = useCallback(() => {
     setState(prev => {
       if (!prev.activeTimer) return prev;
-      return {
+      const currentTimer = prev.activeTimer;
+      const remainingSeconds = Math.max(1, Math.round(currentTimer.remainingSeconds));
+      const totalSeconds = currentTimer.totalSeconds || 1500;
+      const actualFocusedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+
+      let nextQuests = prev.quests;
+      if (currentTimer.questId) {
+        nextQuests = prev.quests.map(q => {
+          if (q.id === currentTimer.questId) {
+            return {
+              ...q,
+              savedTimer: {
+                remainingSeconds,
+                actualFocusedSeconds,
+                totalSeconds,
+                savedAt: Date.now(),
+              },
+            };
+          }
+          return q;
+        });
+      }
+
+      const next = {
         ...prev,
+        quests: nextQuests,
         activeTimer: {
-          ...prev.activeTimer,
-          status: 'paused',
+          ...currentTimer,
+          status: 'held' as const,
+          heldAt: Date.now(),
         },
       };
+
+      queueMicrotask(() => {
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as {
+            appState?: LevelUpAppState;
+            showToast?: (msg: string, type: string) => void;
+          };
+          if (win.appState) {
+            win.appState.quests = nextQuests;
+            win.appState.activeTimer = next.activeTimer;
+          }
+          win.showToast?.(`Đã tạm dừng & bảo lưu (${Math.ceil(remainingSeconds / 60)} phút còn lại). Nhấn Tiếp Tục để tiếp tục!`, 'info');
+        }
+        queueSyncToCloud(next, true);
+      });
+      return next;
     });
-  }, []);
+  }, [queueSyncToCloud]);
 
   const resumeFocusTimer = useCallback(() => {
     setState(prev => {
       if (!prev.activeTimer) return prev;
-      return {
-        ...prev,
-        activeTimer: {
-          ...prev.activeTimer,
-          status: 'running',
-        },
-      };
-    });
-  }, []);
+      const currentTimer = prev.activeTimer;
+      const nextQuests = currentTimer.questId
+        ? prev.quests.map(q => {
+            if (q.id === currentTimer.questId && q.savedTimer) {
+              const { savedTimer: _, ...rest } = q;
+              return rest as Quest;
+            }
+            return q;
+          })
+        : prev.quests;
 
-  const holdFocusTimer = useCallback(() => {
-    setState(prev => {
-      if (!prev.activeTimer) return prev;
-      return {
+      const next = {
         ...prev,
+        quests: nextQuests,
         activeTimer: {
-          ...prev.activeTimer,
-          status: 'held',
-          heldAt: Date.now(),
+          ...currentTimer,
+          status: 'running' as const,
         },
       };
+      queueMicrotask(() => {
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as { appState?: LevelUpAppState };
+          if (win.appState) {
+            win.appState.quests = nextQuests;
+            win.appState.activeTimer = next.activeTimer;
+          }
+        }
+        queueSyncToCloud(next, true);
+      });
+      return next;
     });
-  }, []);
+  }, [queueSyncToCloud]);
+
+  const holdFocusTimer = pauseFocusTimer;
 
   const buyShopItem = useCallback(
     async (item: ShopItem): Promise<boolean> => {
@@ -2358,12 +2502,39 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetFocusTimer = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      activeTimer: null,
-      lastTimerClearedAt: Date.now(),
-    }));
-  }, []);
+    setState(prev => {
+      const activeQuestId = prev.activeTimer?.questId;
+      const nextQuests = activeQuestId
+        ? prev.quests.map(q => {
+            if (q.id === activeQuestId && q.savedTimer) {
+              const { savedTimer: _, ...rest } = q;
+              return rest as Quest;
+            }
+            return q;
+          })
+        : prev.quests;
+
+      const next = {
+        ...prev,
+        quests: nextQuests,
+        activeTimer: null,
+        lastTimerClearedAt: Date.now(),
+      };
+      // ponytail: Dispatch DOM events and cloud sync asynchronously in microtask outside render phase
+      queueMicrotask(() => {
+        if (typeof window !== 'undefined') {
+          const win = window as unknown as { appState?: LevelUpAppState };
+          if (win.appState) {
+            win.appState.quests = nextQuests;
+            win.appState.activeTimer = null;
+          }
+          window.dispatchEvent(new CustomEvent('levelup:toggle-zen', { detail: { show: false } }));
+        }
+        queueSyncToCloud(next, true);
+      });
+      return next;
+    });
+  }, [queueSyncToCloud]);
 
   const adjustFocusTimer = useCallback((deltaSeconds: number) => {
     setState(prev => {
@@ -2373,7 +2544,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         deltaSeconds > 0 && newRemaining > prev.activeTimer.totalSeconds
           ? newRemaining
           : prev.activeTimer.totalSeconds;
-      return {
+      const next = {
         ...prev,
         activeTimer: {
           ...prev.activeTimer,
@@ -2381,20 +2552,32 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           totalSeconds: newTotal,
         },
       };
+      if (typeof window !== 'undefined') {
+        const win = window as unknown as { appState?: LevelUpAppState };
+        if (win.appState) win.appState.activeTimer = next.activeTimer;
+      }
+      return next;
     });
   }, []);
 
   const setFocusTimerRemaining = useCallback((seconds: number) => {
     setState(prev => {
       if (!prev.activeTimer) return prev;
-      return {
+      const newRemaining = Math.max(0, seconds);
+      const newTotal = Math.max(prev.activeTimer.totalSeconds, newRemaining);
+      const next = {
         ...prev,
         activeTimer: {
           ...prev.activeTimer,
-          remainingSeconds: Math.max(0, seconds),
-          totalSeconds: Math.max(prev.activeTimer.totalSeconds, seconds),
+          remainingSeconds: newRemaining,
+          totalSeconds: newTotal,
         },
       };
+      if (typeof window !== 'undefined') {
+        const win = window as unknown as { appState?: LevelUpAppState };
+        if (win.appState) win.appState.activeTimer = next.activeTimer;
+      }
+      return next;
     });
   }, []);
 

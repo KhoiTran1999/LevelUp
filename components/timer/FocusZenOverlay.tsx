@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 
 interface ZenOverlayWindow extends Window {
@@ -9,6 +9,7 @@ interface ZenOverlayWindow extends Window {
 }
 
 export function FocusZenOverlay() {
+  const [isOpen, setIsOpen] = useState(false);
   const {
     activeTimer,
     isRunning,
@@ -16,16 +17,92 @@ export function FocusZenOverlay() {
     zenDashOffset,
     toggle,
     hold,
+    reset,
     toggleZen,
   } = useFocusTimer();
 
+  // Synchronize overlay with native browser fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Listen for zen-mode toggle events
+  useEffect(() => {
+    const handleToggleZen = (e: Event) => {
+      const customEvent = e as CustomEvent<{ show?: boolean }>;
+      const show = customEvent.detail?.show;
+      // ponytail: Defer state update outside caller render phase
+      queueMicrotask(() => {
+        setIsOpen(prev => {
+          const next = show !== undefined ? Boolean(show) : !prev;
+          try {
+            if (next) {
+              if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }
+            } else {
+              if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+              }
+            }
+          } catch (_) {}
+          return next;
+        });
+      });
+    };
+
+    window.addEventListener('levelup:toggle-zen', handleToggleZen);
+    return () => window.removeEventListener('levelup:toggle-zen', handleToggleZen);
+  }, []);
+
+  // Auto-close when timer ends or is cancelled
+  useEffect(() => {
+    if (!activeTimer && isOpen) {
+      setIsOpen(false);
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      } catch (_) {}
+    }
+  }, [activeTimer, isOpen]);
+
   const handleExit = () => {
+    setIsOpen(false);
     toggleZen(false);
   };
 
   const handleHold = () => {
     handleExit();
     hold();
+  };
+
+  const handleReset = async () => {
+    if (typeof window !== 'undefined' && typeof (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction === 'function') {
+      const isReward = Boolean(activeTimer?.isReward);
+      const title = isReward ? 'Dừng Tận Hưởng Quà?' : 'Dừng Phiên Tập Trung?';
+      const message = isReward
+        ? `Bạn có chắc muốn kết thúc sớm phần thưởng "${activeTimer?.rewardTitle || 'phần thưởng'}"?`
+        : `Bạn có chắc muốn dừng phiên tập trung cho "${activeTimer?.questTitle || 'nhiệm vụ'}"? Thời gian đã đếm sẽ không được tính.`;
+      const ok = await (window as unknown as { levelupConfirmAction: (opts: unknown) => Promise<boolean> }).levelupConfirmAction({
+        title,
+        message,
+        detail: '💡 Mẹo: Bạn có thể nhấn nút "Tạm Dừng" để giữ lại số phút còn lại và tiếp tục sau!',
+        confirmText: 'Dừng Phiên ⏹️',
+        cancelText: 'Tiếp Tục Đếm',
+        icon: isReward ? '🎁' : '⏹️',
+        btnColor: 'rose',
+      });
+      if (!ok) return;
+    }
+    handleExit();
+    reset();
   };
 
   const handleBrainDump = () => {
@@ -45,10 +122,13 @@ export function FocusZenOverlay() {
   // Keyboard shortcuts (Space = toggle, Alt+D = brain dump, Esc = exit)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const overlay = document.getElementById('focus-zen-overlay');
-      if (!overlay || overlay.classList.contains('hidden')) return;
+      if (!isOpen) return;
 
-      if (e.code === 'Space' && e.target === document.body) {
+      const activeTag = (document.activeElement?.tagName || '').toUpperCase();
+      const isInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || (document.activeElement as HTMLElement)?.isContentEditable;
+      if (isInput) return;
+
+      if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
         toggle();
       } else if (e.altKey && (e.key === 'd' || e.key === 'D')) {
@@ -61,12 +141,12 @@ export function FocusZenOverlay() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggle]);
+  }, [isOpen, toggle]);
 
   return (
     <div
       id="focus-zen-overlay"
-      className="fixed inset-0 z-[90] hidden bg-black flex flex-col items-center justify-center select-none text-white p-4"
+      className={`fixed inset-0 z-[90] ${isOpen ? 'flex' : 'hidden'} bg-black flex-col items-center justify-center select-none text-white p-4`}
     >
       <div className="relative flex flex-col items-center justify-center text-center space-y-6 max-w-md w-full">
         <div className="flex items-center gap-2">
@@ -158,14 +238,24 @@ export function FocusZenOverlay() {
             <span>🧠</span>
             <span>Cẩm Nang Dopamine</span>
           </button>
+          {/* ponytail: Gộp bảo lưu vào nút Tạm Dừng cho đỡ rối, ẩn nút bảo lưu riêng */}
           <button
             id="btn-zen-hold"
             type="button"
             onClick={handleHold}
-            className="px-4 py-2.5 rounded-xl font-semibold text-xs bg-sky-600/30 border border-sky-500/50 text-sky-300 hover:bg-sky-600/50 transition active:scale-95 cursor-pointer"
-            title="Bảo lưu thời gian còn lại"
+            className="hidden"
+            aria-hidden="true"
           >
-            ⏸️ Bảo Lưu
+            Bảo Lưu
+          </button>
+          <button
+            id="btn-zen-reset"
+            type="button"
+            onClick={handleReset}
+            className="px-4 py-2.5 rounded-xl font-medium text-xs bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30 transition cursor-pointer"
+            title="Hủy phiên tập trung"
+          >
+            Hủy Phiên
           </button>
           <button
             id="btn-zen-exit"

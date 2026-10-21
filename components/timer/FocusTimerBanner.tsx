@@ -21,6 +21,27 @@ export function FocusTimerBanner() {
     openAdjustmentModal,
   } = useFocusTimer();
 
+  const handleReset = async () => {
+    if (typeof window !== 'undefined' && typeof (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction === 'function') {
+      const isReward = Boolean(activeTimer?.isReward);
+      const title = isReward ? 'Dừng Tận Hưởng Quà?' : 'Dừng Phiên Tập Trung?';
+      const message = isReward
+        ? `Bạn có chắc muốn kết thúc sớm phần thưởng "${activeTimer?.rewardTitle || 'phần thưởng'}"?`
+        : `Bạn có chắc muốn dừng phiên tập trung cho "${activeTimer?.questTitle || 'nhiệm vụ'}"? Thời gian đã đếm sẽ không được tính.`;
+      const ok = await (window as unknown as { levelupConfirmAction: (opts: unknown) => Promise<boolean> }).levelupConfirmAction({
+        title,
+        message,
+        detail: '💡 Mẹo: Bạn có thể nhấn nút "Tạm Dừng" để giữ lại số phút còn lại và tiếp tục sau!',
+        confirmText: 'Dừng Phiên ⏹️',
+        cancelText: 'Tiếp Tục Đếm',
+        icon: isReward ? '🎁' : '⏹️',
+        btnColor: 'rose',
+      });
+      if (!ok) return;
+    }
+    reset();
+  };
+
   return (
     <div
       id="active-focus-banner"
@@ -59,7 +80,7 @@ export function FocusTimerBanner() {
               id="focus-status-icon"
               className="absolute font-mono text-[9px] font-black text-indigo-600 dark:text-indigo-400"
             >
-              {isRunning ? 'CHẠY' : isPaused ? 'DỪNG' : isHeld ? 'LƯU' : 'CHỜ'}
+              {isRunning ? 'CHẠY' : 'DỪNG'}
             </span>
           </div>
 
@@ -71,8 +92,8 @@ export function FocusTimerBanner() {
               >
                 {activeTimer?.isReward
                   ? 'ĐANG TẬN HƯỞNG PHẦN THƯỞNG 🎁'
-                  : isHeld
-                  ? 'ĐANG BẢO LƯU THỜI GIAN'
+                  : !isRunning
+                  ? 'ĐANG TẠM DỪNG (ĐÃ BẢO LƯU)'
                   : 'ĐANG BẤM GIỜ TẬP TRUNG'}
               </span>
               <span id="timer-quest-rank" className="hidden">
@@ -141,27 +162,28 @@ export function FocusTimerBanner() {
             </button>
           </div>
 
-          {/* Primary Control Buttons: Toggle, Hold, Fullscreen, Cancel */}
+          {/* Primary Control Buttons: Toggle (Tạm Dừng / Tiếp Tục), Fullscreen, Cancel */}
           <div className="flex items-center gap-1.5">
             <button
               id="btn-timer-toggle"
               type="button"
               onClick={toggle}
-              className="m3-btn m3-btn-sm m3-btn-filled px-4 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer"
-              title="Tạm dừng / Tiếp tục (Phím tắt: Space)"
+              className="m3-btn m3-btn-sm m3-btn-filled px-4 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer flex items-center gap-1.5"
+              title="Tạm dừng & Bảo lưu / Tiếp tục (Phím tắt: Space)"
             >
-              {isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
+              <Icon name={isRunning ? 'pause' : 'play_arrow'} className="text-[16px] leading-none" />
+              <span>{isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}</span>
             </button>
 
+            {/* ponytail: Gộp bảo lưu vào nút Tạm Dừng cho đỡ rối, ẩn nút bảo lưu riêng */}
             <button
               id="btn-timer-hold"
               type="button"
               onClick={hold}
-              className="m3-btn m3-btn-sm m3-btn-tonal px-3 py-2 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 transition flex items-center gap-1 cursor-pointer"
-              title="Bảo lưu thời gian còn lại để làm việc khác"
+              className="hidden"
+              aria-hidden="true"
             >
-              <Icon name="pause_circle" className="text-[16px] leading-none" />
-              <span className="hidden sm:inline">Bảo Lưu</span>
+              Bảo Lưu
             </button>
 
             <button
@@ -177,7 +199,7 @@ export function FocusTimerBanner() {
             <button
               id="btn-timer-reset"
               type="button"
-              onClick={reset}
+              onClick={handleReset}
               className="m3-btn m3-btn-sm px-3 py-2 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 transition cursor-pointer"
               title="Hủy phiên tập trung"
             >
