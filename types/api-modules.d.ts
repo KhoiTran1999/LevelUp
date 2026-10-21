@@ -6,6 +6,7 @@ declare module '*/api/ai.js' {
   export function handleGetBankMarketStatus(req: unknown, res: unknown): Promise<unknown>;
   export function verifyGoogleToken(token: string): Promise<unknown>;
   export function getRedisClient(): unknown;
+  export function setApiKeyForTesting(key: string): void;
 }
 
 declare module '*/api/sync.js' {

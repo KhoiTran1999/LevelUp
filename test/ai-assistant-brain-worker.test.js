@@ -6,7 +6,8 @@ import {
   ASSISTANT_TOOLS,
   executeWorkerTool,
   runDeterministicAssistant,
-  runAssistantAgent
+  runAssistantAgent,
+  setApiKeyForTesting
 } from '../api/ai.js';
 import {
   verifyQuestSignature,
@@ -159,6 +160,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
 // 5. Kiểm tra Luồng 2 Tầng: Model Brain (Thinking ON) -> Model Worker (Thinking OFF) -> Model Brain (Synthesis)
 // -----------------------------------------------------------------------------
 {
+  setApiKeyForTesting('test_mock_ai_key');
   const originalFetch = globalThis.fetch;
   const capturedPayloads = [];
   let callCount = 0;
@@ -374,6 +376,8 @@ Bạn muốn bắt đầu ngay với nhiệm vụ nào đầu tiên?`;
 {
   const eventsCaptured = [];
   const mockRes = {
+    status(code) { this.statusCode = code; return this; },
+    json(data) { this.body = data; return this; },
     setHeader() {},
     flushHeaders() {},
     write(chunk) {

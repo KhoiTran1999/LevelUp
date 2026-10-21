@@ -48,7 +48,11 @@ export {
 dotenv.config();
 
 const BASE_URL = (process.env.CUSTOM_AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-const API_KEY = process.env.CUSTOM_AI_API_KEY || '';
+// ponytail: mock key in test env enables offline/CI test execution without real LLM credentials
+let API_KEY = process.env.CUSTOM_AI_API_KEY || (process.env.NODE_ENV === 'test' ? 'test_mock_key' : '');
+export function setApiKeyForTesting(key) {
+  API_KEY = key;
+}
 export const MODEL_WORKER = process.env.MODEL_WORKER || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini';
 export const MODEL_BRAIN = process.env.MODEL_BRAIN || process.env.CUSTOM_AI_MODEL || 'gpt-4o-mini';
 export const MODEL = MODEL_WORKER; // ponytail: backward compatibility alias

@@ -6,7 +6,8 @@ console.log('=== Bắt đầu kiểm thử Toàn Diện Giao Diện Đa Thiết 
 const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const syncJs = fs.readFileSync(new URL('../api/sync.js', import.meta.url), 'utf8');
-const env = fs.readFileSync(new URL('../.env', import.meta.url), 'utf8');
+const envPath = fs.existsSync(new URL('../.env', import.meta.url)) ? new URL('../.env', import.meta.url) : new URL('../.env.example', import.meta.url);
+const env = fs.readFileSync(envPath, 'utf8');
 
 // =============================================================================
 // Test 1: Desktop Navigation Bar (1280px, 1440px, 1920px Full HD)
