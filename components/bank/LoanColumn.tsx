@@ -43,6 +43,7 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
     newCreditLimit?: number;
     newAutoDeductPercent?: number;
     newAmount?: number;
+    signature?: string;
   } | null>(null);
 
   const [isBorrowing, setIsBorrowing] = useState(false);
@@ -116,7 +117,7 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
     if (isNaN(amt) || amt <= 0 || amt > calculatedLimit) return;
     setIsBorrowing(true);
     try {
-      await executeBankBorrow(amt, selectedTerm, deductPercent / 100);
+      await executeBankBorrow(amt, selectedTerm, deductPercent / 100, negotiatedTerms?.signature);
       setBorrowAmountInput('');
       setNegotiatedTerms(null);
       setShowDebate(false);
@@ -277,9 +278,9 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
               </span>
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-              <span>Tất toán sớm:</span>
+              <span>Tất toán:</span>
               <span id="bank-early-repay-penalty-label" className="font-semibold text-amber-600 dark:text-amber-400">
-                5% phí trả trước hạn
+                {loanCountdownInfo?.isOverdue ? '0% phí phạt (khoản vay quá hạn)' : '5% phí trả trước hạn'}
               </span>
             </div>
           </div>
@@ -602,7 +603,7 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
           disabled={!hasActiveLoan || isRepaying || userCoins <= 0}
           className="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-rose-500/40 hover:bg-rose-500/15 active:scale-95 text-rose-700 dark:text-rose-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span>💳</span> <span>{isRepaying ? 'Đang Trả...' : 'Trả Nợ Sớm'}</span>
+          <span>💳</span> <span>{isRepaying ? 'Đang Trả...' : (loanCountdownInfo?.isOverdue ? 'Trả Nợ Quá Hạn' : 'Trả Nợ Sớm')}</span>
         </button>
       </div>
     </div>

@@ -96,6 +96,11 @@ export function Header() {
           <button
             id="btn-level-info"
             type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                (window as unknown as { openLevelInfoModal?: () => void }).openLevelInfoModal?.();
+              }
+            }}
             className="flex flex-col justify-center shrink-0 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-lg px-0.5 sm:px-1.5 py-0.5 transition cursor-pointer text-left group"
             title="Xem thông tin Cấp độ & Cách tăng LV"
           >
@@ -146,6 +151,11 @@ export function Header() {
           <button
             id="btn-streak-info"
             type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                (window as unknown as { openStreakInfoModal?: () => void }).openStreakInfoModal?.();
+              }
+            }}
             className="flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-1.5 py-0.5 rounded-lg hover:bg-orange-500/10 dark:hover:bg-orange-500/20 transition cursor-pointer text-left group shrink-0"
             title="Xem Chuỗi ngày & Thưởng"
           >

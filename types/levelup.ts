@@ -145,6 +145,7 @@ export interface BankLoan {
   lastAccruedAt?: number;
   dueTimestamp?: number;
   isOverdue: boolean;
+  isNegotiated?: boolean;
   creditLimit?: number;
   signature?: string;
 }

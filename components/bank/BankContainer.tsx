@@ -10,12 +10,18 @@ import type { BankRates, BankPoolState } from '@/types/levelup';
 export function BankContainer() {
   const {
     state,
+    bankPool,
     openBankRulesModal,
     loadBankState,
   } = useLevelUp();
 
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Initial load of live bank state
+  useEffect(() => {
+    loadBankState?.();
+  }, [loadBankState]);
 
   // Live timer tick every 1000ms for bank countdowns
   useEffect(() => {
@@ -30,8 +36,8 @@ export function BankContainer() {
   const loan = bank?.loan;
   const isOverdue = Boolean(loan?.isOverdue || bank?.isFrozen);
 
-  // Pool state fallback
-  const poolState: BankPoolState = {
+  // Pool state from Server Actions or fallback
+  const poolState: BankPoolState = bankPool || {
     poolGold: 500,
     totalBorrowed: loan?.debt ? Math.min(loan.debt, 500) : 0,
     reserveFund: 150,

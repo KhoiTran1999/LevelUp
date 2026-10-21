@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLevelUp } from '@/components/providers/LevelUpProvider';
+import { BANK_TERMS } from './bank-utils';
 
 export function BankWithdrawModal() {
   const {
@@ -12,41 +13,94 @@ export function BankWithdrawModal() {
     selectedWithdrawDepositId,
   } = useLevelUp();
 
+  const [selectedSource, setSelectedSource] = useState<string>('all');
   const [withdrawInput, setWithdrawInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const bank = state.profile?.bank;
-  const deposited = bank?.deposited || 0;
-  const depositInterest = bank?.depositInterest || 0;
-  const totalAvailable = deposited + depositInterest;
+  const deposits = Array.isArray(bank?.deposits) ? bank.deposits : [];
+  const now = Date.now();
 
-  // Selected single deposit if any
-  const singleDeposit = selectedWithdrawDepositId && Array.isArray(bank?.deposits)
-    ? bank.deposits.find(d => d.id === selectedWithdrawDepositId)
-    : null;
+  // Nguồn khả dụng rút linh hoạt (0 ngày hoặc đã đáo hạn)
+  const safeDeposits = deposits.filter(
+    d => d.termDays === 0 || d.status === 'matured' || (d.maturityAt && (d.maturityAt - now) <= 5000)
+  );
+  const safeDeposited = safeDeposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+  const safeInterest = safeDeposits.reduce((sum, d) => sum + (d.interest || 0), 0);
+  const safeTotal = safeDeposited + safeInterest;
 
-  const currentDeposited = singleDeposit ? singleDeposit.amount : deposited;
-  const currentInterest = singleDeposit ? singleDeposit.interest : depositInterest;
-  const currentTotal = currentDeposited + currentInterest;
-
-  // Reset input when modal opens or deposit changes
+  // Khởi tạo nguồn tiền khi mở modal
   useEffect(() => {
     if (isBankWithdrawModalOpen) {
+      if (selectedWithdrawDepositId && deposits.some(d => d.id === selectedWithdrawDepositId)) {
+        setSelectedSource(selectedWithdrawDepositId);
+      } else if (safeTotal > 0) {
+        setSelectedSource('all');
+      } else if (deposits.length > 0) {
+        setSelectedSource(deposits[0].id);
+      } else {
+        setSelectedSource('all');
+      }
+    }
+  }, [isBankWithdrawModalOpen, selectedWithdrawDepositId, deposits, safeTotal]);
+
+  // Tìm sổ được chọn nếu chọn sổ cụ thể
+  const targetDeposit = selectedSource !== 'all'
+    ? deposits.find(d => d.id === selectedSource)
+    : null;
+
+  const isTermDeposit = Boolean(targetDeposit && targetDeposit.termDays > 0);
+  const isEarlyTerm = Boolean(
+    isTermDeposit &&
+    targetDeposit &&
+    targetDeposit.status !== 'matured' &&
+    (!targetDeposit.maturityAt || (targetDeposit.maturityAt - now) > 5000)
+  );
+
+  // Số dư tính toán theo nguồn được chọn
+  let currentDeposited = 0;
+  let currentInterest = 0;
+  let currentTotal = 0;
+
+  if (targetDeposit) {
+    currentDeposited = targetDeposit.amount || 0;
+    currentInterest = isEarlyTerm ? 0 : (targetDeposit.interest || 0);
+    currentTotal = isEarlyTerm ? targetDeposit.amount : ((targetDeposit.amount || 0) + (targetDeposit.interest || 0));
+  } else {
+    currentDeposited = safeDeposited;
+    currentInterest = safeInterest;
+    currentTotal = safeTotal;
+  }
+
+  // Tự động điền số tiền rút khi đổi nguồn
+  useEffect(() => {
+    if (isTermDeposit) {
+      setWithdrawInput(String(currentTotal));
+    } else {
       setWithdrawInput('');
     }
-  }, [isBankWithdrawModalOpen, selectedWithdrawDepositId]);
+  }, [selectedSource, isTermDeposit, currentTotal]);
 
   if (!isBankWithdrawModalOpen) return null;
 
-  const parsedAmount = Math.max(0, parseInt(withdrawInput, 10) || 0);
+  const parsedAmount = isTermDeposit
+    ? currentTotal
+    : Math.max(0, parseInt(withdrawInput, 10) || 0);
 
-  // Allocation calculation (Interest is withdrawn first)
-  const allocInterest = Math.min(currentInterest, parsedAmount);
-  const allocPrincipal = Math.min(currentDeposited, Math.max(0, parsedAmount - allocInterest));
-  const allocTotal = allocInterest + allocPrincipal;
+  // Phân bổ tiền rút (ưu tiên rút lãi trước, gốc sau)
+  const allocInterest = isEarlyTerm
+    ? 0
+    : Math.min(currentInterest, parsedAmount);
+  const allocPrincipal = isEarlyTerm
+    ? parsedAmount
+    : Math.min(currentDeposited, Math.max(0, parsedAmount - allocInterest));
+  const allocTotal = isEarlyTerm
+    ? parsedAmount
+    : (allocInterest + allocPrincipal);
   const remainingPrincipal = Math.max(0, currentDeposited - allocPrincipal);
 
   const handlePreset = (preset: number | 'interest' | 'all') => {
+    if (isTermDeposit) return;
     if (preset === 'interest') {
       setWithdrawInput(String(currentInterest));
     } else if (preset === 'all') {
@@ -58,11 +112,12 @@ export function BankWithdrawModal() {
   };
 
   const handleConfirm = async () => {
-    const amt = parseInt(withdrawInput, 10);
-    if (isNaN(amt) || amt <= 0) return;
+    const amt = isTermDeposit ? currentTotal : parseInt(withdrawInput, 10);
+    if (isNaN(amt) || amt <= 0 || amt > currentTotal) return;
     setIsSubmitting(true);
     try {
-      await executeBankWithdraw(amt, selectedWithdrawDepositId || undefined);
+      const depositIdToPass = targetDeposit ? targetDeposit.id : undefined;
+      await executeBankWithdraw(amt, depositIdToPass);
       closeBankWithdrawModal();
     } finally {
       setIsSubmitting(false);
@@ -86,7 +141,7 @@ export function BankWithdrawModal() {
               id="modal-bank-withdraw-title"
               className="font-rpg-title font-extrabold text-sm sm:text-base text-emerald-600 dark:text-emerald-400"
             >
-              {singleDeposit ? `RÚT SỔ TIẾT KIỆM (${singleDeposit.termDays} NGÀY)` : 'RÚT TIỀN TIẾT KIỆM'}
+              RÚT TIỀN TIẾT KIỆM
             </h3>
           </div>
           <button
@@ -101,22 +156,86 @@ export function BankWithdrawModal() {
 
         {/* Body */}
         <div className="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
-          {/* Thẻ thống kê số dư hiện có */}
+          {/* Nguồn rút tiền: Cho phép chọn nếu có nhiều sổ */}
+          {deposits.length > 0 && (
+            <div className="space-y-1.5">
+              <label htmlFor="select-withdraw-source" className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                Chọn nguồn rút:
+              </label>
+              <select
+                id="select-withdraw-source"
+                value={selectedSource}
+                onChange={e => setSelectedSource(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                {safeTotal > 0 && (
+                  <option value="all">
+                    ⚡ Rút linh hoạt ({safeTotal} Vàng khả dụng)
+                  </option>
+                )}
+                {deposits.map(dep => {
+                  const cfg = BANK_TERMS[dep.termDays] || BANK_TERMS[0];
+                  const isMatured = dep.status === 'matured' || (dep.termDays > 0 && dep.maturityAt && now >= dep.maturityAt);
+                  const statusLabel = dep.termDays === 0
+                    ? 'Linh hoạt'
+                    : isMatured
+                    ? 'Đã đáo hạn'
+                    : 'Đang khóa';
+                  return (
+                    <option key={dep.id} value={dep.id}>
+                      {cfg.icon} Sổ {cfg.label} ({dep.amount} Vàng) • {statusLabel}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
+          {/* Ghi chú trạng thái nếu là sổ kỳ hạn */}
+          {isEarlyTerm && targetDeposit && (
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-[11px] space-y-0.5">
+              <span className="font-bold flex items-center gap-1">
+                <span>⚠️</span> <span>Rút trước hạn:</span>
+              </span>
+              <p>
+                Sổ này chưa đáo hạn. Rút sớm sẽ bị hủy <strong>+{targetDeposit.interest || 0} Vàng</strong> tiền lãi và nhận lại đúng <strong>{targetDeposit.amount} Vàng</strong> gốc.
+              </p>
+            </div>
+          )}
+
+          {isTermDeposit && !isEarlyTerm && targetDeposit && (
+            <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] space-y-0.5">
+              <span className="font-bold flex items-center gap-1">
+                <span>🎉</span> <span>Sổ đã đáo hạn:</span>
+              </span>
+              <p>
+                Nhận trọn vẹn <strong>{targetDeposit.amount} Vàng gốc</strong> + <strong>{targetDeposit.interest || 0} Vàng lãi</strong> về ví.
+              </p>
+            </div>
+          )}
+
+          {/* Thẻ thống kê số dư */}
           <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">🏦 Vốn gốc đã gửi:</span>
+              <span className="text-slate-500 dark:text-slate-400">🏦 Vốn gốc:</span>
               <span className="font-mono font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1">
                 <span id="withdraw-modal-deposited">{currentDeposited}</span> <span className="coin-icon"></span>
               </span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">🌱 Tiền lãi tích lũy:</span>
-              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
-                +<span id="withdraw-modal-interest">{currentInterest}</span> <span className="coin-icon"></span>
+              <span className="text-slate-500 dark:text-slate-400">
+                {isEarlyTerm ? '🌱 Tiền lãi (Hủy khi rút sớm):' : '🌱 Tiền lãi tích lũy:'}
+              </span>
+              <span
+                className={`font-mono font-bold inline-flex items-center gap-1 ${
+                  isEarlyTerm ? 'text-rose-500 line-through' : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
+                {isEarlyTerm ? `+${targetDeposit?.interest || 0}` : `+${currentInterest}`} <span className="coin-icon"></span>
               </span>
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20 text-xs">
-              <span className="font-bold text-slate-700 dark:text-slate-300">💰 Tổng khả dụng rút:</span>
+              <span className="font-bold text-slate-700 dark:text-slate-300">💰 Tổng nhận về ví:</span>
               <span className="font-mono font-extrabold text-amber-500 dark:text-amber-400 text-sm inline-flex items-center gap-1">
                 <span id="withdraw-modal-total">{currentTotal}</span> <span className="coin-icon"></span>
               </span>
@@ -127,9 +246,9 @@ export function BankWithdrawModal() {
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label htmlFor="input-withdraw-amount" className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                Nhập số Vàng muốn rút:
+                {isTermDeposit ? 'Số Vàng tất toán:' : 'Nhập số Vàng muốn rút:'}
               </label>
-              <span className="text-[10px] text-slate-400">Tối thiểu: 1 Vàng</span>
+              {!isTermDeposit && <span className="text-[10px] text-slate-400">Tối thiểu: 1 Vàng</span>}
             </div>
             <div className="relative flex items-center">
               <input
@@ -138,9 +257,11 @@ export function BankWithdrawModal() {
                 min="1"
                 max={currentTotal}
                 placeholder="Nhập số Vàng..."
-                value={withdrawInput}
+                value={isTermDeposit ? currentTotal : withdrawInput}
+                disabled={isTermDeposit || currentTotal <= 0}
+                readOnly={isTermDeposit}
                 onChange={e => setWithdrawInput(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono font-bold pr-8 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono font-bold pr-8 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:opacity-80"
               />
               <span className="absolute right-2.5 pointer-events-none flex items-center scale-90">
                 <span className="coin-icon"></span>
@@ -148,55 +269,61 @@ export function BankWithdrawModal() {
             </div>
           </div>
 
-          {/* Các nút chọn nhanh */}
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Chọn nhanh số tiền rút:</span>
-            <div className="grid grid-cols-5 gap-1.5">
-              <button
-                type="button"
-                id="btn-withdraw-preset-interest"
-                onClick={() => handlePreset('interest')}
-                disabled={currentInterest <= 0}
-                className="px-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition text-center truncate cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Chỉ rút tiền lãi đã sinh"
-              >
-                Chỉ rút Lãi
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePreset(0.25)}
-                className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer"
-              >
-                25%
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePreset(0.5)}
-                className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer"
-              >
-                50%
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePreset(0.75)}
-                className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer"
-              >
-                75%
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePreset('all')}
-                className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition text-center cursor-pointer"
-              >
-                Tất cả
-              </button>
+          {/* Các nút chọn nhanh (khi rút linh hoạt) */}
+          {!isTermDeposit && (
+            <div className="space-y-1">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Chọn nhanh số tiền:</span>
+              <div className="grid grid-cols-5 gap-1.5">
+                <button
+                  type="button"
+                  id="btn-withdraw-preset-interest"
+                  onClick={() => handlePreset('interest')}
+                  disabled={currentInterest <= 0 || currentTotal <= 0}
+                  className="px-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition text-center truncate cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Chỉ rút tiền lãi đã sinh"
+                >
+                  Chỉ rút Lãi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset(0.25)}
+                  disabled={currentTotal <= 0}
+                  className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  25%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset(0.5)}
+                  disabled={currentTotal <= 0}
+                  className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  50%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset(0.75)}
+                  disabled={currentTotal <= 0}
+                  className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  75%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('all')}
+                  disabled={currentTotal <= 0}
+                  className="py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Tất cả
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Bảng phân bổ số tiền rút */}
           <div
             id="withdraw-allocation-box"
-            className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2"
+            className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2"
           >
             <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
               <span>📊</span> <span>Phân bổ số tiền rút:</span>
@@ -222,14 +349,13 @@ export function BankWithdrawModal() {
               </div>
             </div>
 
-            {/* Lời giải thích */}
-            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
+            <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400">
               <p id="withdraw-explanation-note" className="leading-relaxed">
-                💡 <strong>Cơ chế bảo vệ vốn:</strong> Hệ thống luôn ưu tiên rút hết Tiền Lãi trước. Phần Vốn Gốc còn lại (
+                💡 Ưu tiên rút hết tiền lãi trước. Phần vốn gốc còn lại (
                 <strong id="withdraw-remaining-principal" className="font-mono text-slate-700 dark:text-slate-300">
                   {remainingPrincipal}
                 </strong>{' '}
-                Vàng) sẽ tiếp tục ở lại ngân hàng và sinh lời mỗi ngày!
+                Vàng) tiếp tục sinh lãi.
               </p>
             </div>
           </div>
@@ -247,10 +373,10 @@ export function BankWithdrawModal() {
               type="button"
               id="btn-confirm-withdraw-action"
               onClick={handleConfirm}
-              disabled={isSubmitting || parsedAmount <= 0 || parsedAmount > currentTotal}
+              disabled={isSubmitting || parsedAmount <= 0 || parsedAmount > currentTotal || currentTotal <= 0}
               className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>{isSubmitting ? 'Đang Xử Lý...' : 'Rút Về Ví'}</span> <span>📤</span>
+              <span>{isSubmitting ? 'Đang Xử Lý...' : `Rút Về Ví (${allocTotal} 🪙)`}</span> <span>📤</span>
             </button>
           </div>
         </div>

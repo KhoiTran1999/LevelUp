@@ -213,7 +213,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
                 return (
                   <div
                     key={dep.id}
-                    className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/40 transition flex items-center justify-between gap-2 text-xs"
+                    className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/30 transition flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="min-w-0 flex items-center gap-2">
                       <span className="text-base shrink-0">{cfg.icon}</span>
@@ -225,17 +225,19 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          Lãi: +{dep.interest || 0} 🪙 {isMatured && <span className="text-amber-500 font-bold">• Đáo Hạn</span>}
+                          Lãi: +{dep.interest || 0} 🪙
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openBankWithdrawModal(dep.id)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition shrink-0 cursor-pointer"
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                        isMatured
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold'
+                          : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                      }`}
                     >
-                      Rút Sổ
-                    </button>
+                      {dep.termDays === 0 ? 'Linh hoạt' : isMatured ? '🎉 Đã đáo hạn' : 'Đang sinh lãi'}
+                    </span>
                   </div>
                 );
               })
@@ -390,7 +392,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
           onClick={() => openBankWithdrawModal()}
           className="py-2.5 px-4 rounded-xl text-xs font-bold transition border border-emerald-500/40 hover:bg-emerald-500/15 active:scale-95 text-emerald-700 dark:text-emerald-300 cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
         >
-          <span>📤</span> <span>Rút Nhanh</span>
+          <span>📤</span> <span>Rút Tiền</span>
         </button>
       </div>
     </div>

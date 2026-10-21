@@ -29,6 +29,7 @@ interface AiNegotiationChatProps {
     newCreditLimit?: number;
     newAutoDeductPercent?: number;
     newAmount?: number;
+    signature?: string;
   }) => void;
 }
 
@@ -243,6 +244,8 @@ export function AiNegotiationChat({
         newCreditLimit?: number;
         newAutoDeductPercent?: number;
         newAmount?: number;
+        signature?: string;
+        loanSignature?: string;
       }>(
         '/api/ai',
         {
@@ -298,13 +301,16 @@ export function AiNegotiationChat({
           data.newBorrowRate !== undefined ||
           data.newCreditLimit !== undefined ||
           data.newAutoDeductPercent !== undefined ||
-          data.newAmount !== undefined
+          data.newAmount !== undefined ||
+          data.signature !== undefined ||
+          data.loanSignature !== undefined
         ) {
           onLoanTermsUpdated?.({
             newBorrowRate: data.newBorrowRate,
             newCreditLimit: data.newCreditLimit,
             newAutoDeductPercent: data.newAutoDeductPercent,
             newAmount: data.newAmount,
+            signature: (data.signature || data.loanSignature) as string | undefined,
           });
         }
       } else {
