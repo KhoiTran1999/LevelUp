@@ -3917,7 +3917,7 @@ function initShieldGateListeners() {
       // 2. Thử sao chép tự động
       const origin = typeof window !== 'undefined' && window.location?.origin
         ? window.location.origin
-        : 'https://level-up-seven-blue.vercel.app';
+        : 'https://level-up-nu-two.vercel.app';
       const cmd = `irm ${origin}/install.ps1 | iex`;
 
       if (navigator.clipboard?.writeText) {
@@ -19476,7 +19476,7 @@ function initLevelUpApp() {
   function copyUninstallCommand() {
     const origin = typeof window !== 'undefined' && window.location?.origin
       ? window.location.origin
-      : 'https://level-up-seven-blue.vercel.app';
+      : 'https://level-up-nu-two.vercel.app';
     const cmd = `irm ${origin}/uninstall.ps1 | iex`;
 
     if (codeUninstallCmd) {

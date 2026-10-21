@@ -92,7 +92,7 @@ async function initBlockedPage() {
         await chrome.runtime.sendMessage({ type: 'FOCUS_OR_OPEN_LEVELUP' });
         window.close();
       } catch (_) {
-        window.location.href = 'https://level-up-seven-blue.vercel.app';
+        window.location.href = 'https://level-up-nu-two.vercel.app';
       }
     });
   }

@@ -37,7 +37,7 @@ export function CleanupModal() {
                 </button>
               </div>
               <div id="container-uninstall-cmd" className="bg-black/90 rounded-xl p-2.5 border border-slate-800 flex items-center justify-between cursor-pointer" title="Bấm để sao chép">
-                <code id="code-uninstall-cmd" className="text-[11px] font-mono text-rose-400 select-all overflow-x-auto whitespace-nowrap block">irm https://level-up-seven-blue.vercel.app/uninstall.ps1 | iex</code>
+                <code id="code-uninstall-cmd" className="text-[11px] font-mono text-rose-400 select-all overflow-x-auto whitespace-nowrap block">irm https://level-up-nu-two.vercel.app/uninstall.ps1 | iex</code>
               </div>
               <p className="text-[10px] text-slate-400 leading-normal">
                 💡 Lệnh trên sẽ tự động xóa sạch toàn bộ thư mục <code className="font-mono text-slate-300">%LOCALAPPDATA%\LevelUpShield</code> khỏi máy tính của bạn.

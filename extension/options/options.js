@@ -35,7 +35,7 @@ async function loadOptions() {
 
   const blacklist = Array.isArray(data.blacklist) ? data.blacklist : [];
   const whitelist = Array.isArray(data.whitelist) ? data.whitelist : [];
-  const webUrl = data.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+  const webUrl = data.levelupWebUrl || 'https://level-up-nu-two.vercel.app';
   const strictMode = Boolean(data.strictMode);
 
   // Set Textareas

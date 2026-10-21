@@ -25,7 +25,7 @@ if (!(Test-Path $targetDir)) {
 }
 
 # 2. Xác định URL tải
-$baseUrl = "https://level-up-seven-blue.vercel.app"
+$baseUrl = "https://level-up-nu-two.vercel.app"
 if ($args.Count -gt 0 -and $args[0]) {
     $baseUrl = $args[0].TrimEnd('/')
 }
@@ -34,7 +34,16 @@ $zipUrl = "$baseUrl/download/levelup-shield.zip"
 $tempZip = Join-Path $targetDir "shield_temp.zip"
 
 Write-Host "[1/2] Đang tải gói tiện ích mới nhất từ máy chủ..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip -UseBasicParsing
+try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip -UseBasicParsing
+} catch {
+    $fallbackUrl = "https://level-up-nu-two.vercel.app/download/levelup-shield.zip"
+    if ($zipUrl -ne $fallbackUrl) {
+        Invoke-WebRequest -Uri $fallbackUrl -OutFile $tempZip -UseBasicParsing
+    } else {
+        throw $_
+    }
+}
 
 Write-Host "[2/2] Đang giải nén vào thư mục:" -ForegroundColor Yellow
 Write-Host "      $targetDir" -ForegroundColor Cyan

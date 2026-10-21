@@ -28,7 +28,7 @@ export function ShieldGateModal() {
               </button>
             </div>
             <div id="container-install-cmd" className="bg-black/90 rounded-xl p-2.5 border border-slate-800 flex items-center justify-between cursor-pointer" title="Bấm để copy">
-              <code id="code-install-cmd" className="text-[11.5px] font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none font-semibold">irm https://level-up-seven-blue.vercel.app/install.ps1 | iex</code>
+              <code id="code-install-cmd" className="text-[11.5px] font-mono text-emerald-400 select-all overflow-x-auto whitespace-nowrap scrollbar-none font-semibold">irm https://level-up-nu-two.vercel.app/install.ps1 | iex</code>
             </div>
             <p className="text-[10px] text-slate-400 leading-normal">💡 Mở PowerShell, dán lệnh rồi nhấn Enter để tải bộ cài tiện ích vào máy tính.</p>
           </div>

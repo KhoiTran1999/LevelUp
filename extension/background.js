@@ -489,7 +489,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         case 'FOCUS_OR_OPEN_LEVELUP': {
           const storage = await chrome.storage.local.get(['levelupWebUrl']);
-          const targetUrl = message.targetUrl || storage.levelupWebUrl || 'https://level-up-seven-blue.vercel.app';
+          const targetUrl = message.targetUrl || storage.levelupWebUrl || 'https://level-up-nu-two.vercel.app';
           const tabs = await chrome.tabs.query({ url: ['*://localhost/*', '*://127.0.0.1/*', '*://*.vercel.app/*'] });
           let targetTabId = null;
 
