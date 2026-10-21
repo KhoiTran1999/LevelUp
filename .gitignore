@@ -14,3 +14,6 @@ node_modules
 out/
 .turbopack/
 tsconfig.tsbuildinfo
+
+# Claude Code local config and agent symlinks
+.claude/
