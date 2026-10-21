@@ -11,15 +11,17 @@ export function CreditLimitModal() {
   const profile = state.profile;
   const level = Math.max(1, profile?.level || 1);
   const streak = Math.max(0, profile?.streak || 0);
-  const totalEarned = Math.max(0, profile?.totalCoinsEarned || 0);
+  const totalEarned = Math.max(20, profile?.totalCoinsEarned || 20);
   const autoDeduct = profile?.bank?.loan?.autoDeductPercent || 0.5;
 
-  const levelVal = 25 + level * 5;
-  const streakVal = Math.min(30, streak * 2);
-  const earnedBonus = Math.min(25, Math.floor(totalEarned / 20));
-  const baseLimit = levelVal + streakVal + earnedBonus;
+  const levelVal = level * 25;
+  const streakVal = streak * 5;
+  const earnedBonus = Math.floor(totalEarned * 0.1);
+  const rawBase = levelVal + streakVal + earnedBonus;
+  const baseLimit = Math.min(400, rawBase);
 
-  const kDeduct = Number((1.0 + (autoDeduct - 0.5) * 0.4).toFixed(2));
+  const clampedRate = Math.min(0.80, Math.max(0.20, Number(autoDeduct) || 0.50));
+  const kDeduct = Number((0.7 + ((Math.max(0.30, clampedRate) - 0.30) / 0.50) * 0.8).toFixed(2));
   const totalLimit = Math.max(20, Math.floor(baseLimit * kDeduct));
 
   return (

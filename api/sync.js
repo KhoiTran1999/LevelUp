@@ -303,6 +303,22 @@ export function calculateNetWorth(profile = {}) {
   return Math.max(0, coins + deposited + depositInterest - debt);
 }
 
+// ponytail: Format countdown by days and hours; upgrade to localized Intl.DurationFormat when baseline support lands
+export function formatBankDayHourCountdown(ms) {
+  if (!ms || ms <= 0) return '0 giờ';
+  const totalHours = Math.floor(ms / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days > 0) {
+    return `${days} ngày ${hours} giờ`;
+  }
+  if (hours > 0) {
+    return `${hours} giờ`;
+  }
+  return '< 1 giờ';
+}
+
 /**
  * Tính thông tin đếm ngược nhận lãi và số tiền sẽ nhận cho sổ tiết kiệm
  * @param {Object} dep - Sổ tiết kiệm ({ amount, interest, termDays, createdAt, lastAccruedAt, maturityAt, status })

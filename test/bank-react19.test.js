@@ -35,6 +35,7 @@ assert(bankUtilsCode.includes('export function calculateEffectiveDepositBase'), 
 assert(bankUtilsCode.includes('export function calculateDepositPayoutInfo'), 'Cần export calculateDepositPayoutInfo');
 assert(bankUtilsCode.includes('export function calculateLoanCountdownInfo'), 'Cần export calculateLoanCountdownInfo');
 assert(bankUtilsCode.includes('export function formatBankCountdown'), 'Cần export formatBankCountdown');
+assert(bankUtilsCode.includes('export function formatBankDayHourCountdown'), 'Cần export formatBankDayHourCountdown');
 console.log('  -> Tất cả các hàm tính toán tài chính đều được định nghĩa chuẩn xác: OK\n');
 
 // -------------------------------------------------------------
@@ -123,6 +124,7 @@ assert(withdrawModalCode.includes('id="modal-bank-withdraw"'), 'BankWithdrawModa
 assert(withdrawModalCode.includes('id="input-withdraw-amount"'), 'BankWithdrawModal phải có id="input-withdraw-amount"');
 assert(withdrawModalCode.includes('id="withdraw-modal-total"'), 'BankWithdrawModal phải có id="withdraw-modal-total"');
 assert(withdrawModalCode.includes('id="btn-confirm-withdraw-action"'), 'BankWithdrawModal phải có id="btn-confirm-withdraw-action"');
+assert(withdrawModalCode.includes('safeDeposits.length > 1'), 'Chỉ hiển thị tùy chọn gộp khi có nhiều hơn 1 nguồn khả dụng');
 
 // BankRulesModal
 assert(rulesModalCode.includes('id="modal-bank-rules-info"'), 'BankRulesModal phải có id="modal-bank-rules-info"');

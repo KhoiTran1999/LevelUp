@@ -128,6 +128,22 @@ function formatBankCountdown(ms) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
+// ponytail: Format countdown by days and hours; upgrade to localized Intl.DurationFormat when baseline support lands
+function formatBankDayHourCountdown(ms) {
+  if (!ms || ms <= 0) return '0 giờ';
+  const totalHours = Math.floor(ms / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days > 0) {
+    return `${days} ngày ${hours} giờ`;
+  }
+  if (hours > 0) {
+    return `${hours} giờ`;
+  }
+  return '< 1 giờ';
+}
+
 function calculateDepositPayoutInfo(dep, rates = {}, discipline = 1.0, now = Date.now()) {
   if (!dep || typeof dep !== 'object') return null;
   const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
@@ -283,9 +299,9 @@ function updateBankCountdowns() {
     const itemTimerEl = document.querySelector(`.bank-deposit-item-timer[data-dep-id="${dep.id}"]`);
     if (itemTimerEl) {
       if (info.isMatured) {
-        itemTimerEl.textContent = '00:00:00';
+        itemTimerEl.textContent = '0 giờ';
       } else {
-        itemTimerEl.textContent = formatBankCountdown(info.msRemaining);
+        itemTimerEl.textContent = formatBankDayHourCountdown(info.msRemaining);
       }
     }
 
@@ -1524,7 +1540,7 @@ function renderBankDepositsList(userBank) {
       countdownRow = `
         <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
           <span>⏱️ Nhận lãi:</span>
-          <span class="font-mono font-bold bank-deposit-item-timer" data-dep-id="${dep.id}">${formatBankCountdown(payoutInfo ? payoutInfo.msRemaining : 0)}</span>
+          <span class="font-mono font-bold bank-deposit-item-timer" data-dep-id="${dep.id}">${formatBankDayHourCountdown(payoutInfo ? payoutInfo.msRemaining : 0)}</span>
           <span class="text-amber-600 dark:text-amber-400 font-mono font-bold">(+1 ${COIN_ICON_HTML})</span>
         </div>
       `;
@@ -1539,7 +1555,7 @@ function renderBankDepositsList(userBank) {
       `;
     } else {
       const msLeft = Math.max(0, dep.maturityAt - now);
-      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 font-mono bank-deposit-item-timer" data-dep-id="${dep.id}">⏳ ${formatBankCountdown(msLeft)}</span>`;
+      statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 font-mono bank-deposit-item-timer" data-dep-id="${dep.id}">⏳ ${formatBankDayHourCountdown(msLeft)}</span>`;
       countdownRow = `
         <div class="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1">
           <span>⏳ Đáo hạn nhận:</span>
@@ -2815,6 +2831,7 @@ window.renderBankUI = renderBankUI;
 window.calculateDepositPayoutInfo = calculateDepositPayoutInfo;
 window.calculateLoanCountdownInfo = calculateLoanCountdownInfo;
 window.formatBankCountdown = formatBankCountdown;
+window.formatBankDayHourCountdown = formatBankDayHourCountdown;
 window.updateBankCountdowns = updateBankCountdowns;
 window.startBankCountdownLoop = startBankCountdownLoop;
 window.stopBankCountdownLoop = stopBankCountdownLoop;

@@ -10,6 +10,7 @@ import {
   normalizeBankDeposits,
   calculateCreditLimit,
   verifyLoanSignature,
+  deriveTitleForLevel,
   getRedis,
 } from '../../api/sync.js';
 import {
@@ -317,7 +318,12 @@ export async function borrowGoldAction(
 
   const redis = getRedis();
   const poolState = await getGlobalBankState(redis);
+  const serverTimestamp = Date.now();
   const rates = calculateBankRates(poolState);
+
+  // Accrue interest on any existing deposits before borrowing
+  state.profile.bank = accrueUserBank(state.profile.bank, rates, serverTimestamp, state.profile || {});
+
   const autoDeduct = Math.min(0.80, Math.max(0.20, Number(autoDeductPercent) || 0.50));
   const standardLimit = calculateCreditLimit(state.profile, autoDeduct);
   let effectiveLimit = standardLimit;
@@ -351,7 +357,6 @@ export async function borrowGoldAction(
   poolState.poolGold = Math.max(0, poolState.poolGold - borrowAmt);
   poolState.totalBorrowed = (poolState.totalBorrowed || 0) + borrowAmt;
 
-  const serverTimestamp = Date.now();
   state.profile.coins = (parseInt(String(state.profile.coins), 10) || 0) + borrowAmt;
   const newLoan: BankLoan = {
     principal: borrowAmt,
@@ -407,6 +412,15 @@ export async function repayLoanAction(
 
   const userSub = user.sub;
   const state = await fetchUserState(userSub);
+
+  const redis = getRedis();
+  const poolState = await getGlobalBankState(redis);
+  const serverTimestamp = Date.now();
+  const rates = calculateBankRates(poolState);
+
+  // Accrue interest and check overdue before repayment
+  state.profile.bank = accrueUserBank(state.profile.bank, rates, serverTimestamp, state.profile || {});
+
   const loan = state.profile?.bank?.loan;
   const currentDebt = Math.max(0, parseInt(String(loan?.debt), 10) || 0);
   if (!loan || currentDebt <= 0) {
@@ -446,23 +460,39 @@ export async function repayLoanAction(
 
   loan.debt = Math.max(0, currentDebt - payAmt);
   loan.principal = Math.max(0, principal - principalPaid);
+  let debtCleared = false;
   if (loan.debt <= 0) {
+    debtCleared = true;
     state.profile.bank.loan = null;
+    state.profile.bank.isFrozen = false;
+    if (state.profile.title === 'Con Nợ Quá Hạn ⚠️') {
+      state.profile.title = deriveTitleForLevel(state.profile.level || 1);
+    }
   }
 
-  const redis = getRedis();
-  const poolState = await getGlobalBankState(redis);
   poolState.totalBorrowed = Math.max(0, (poolState.totalBorrowed || 0) - principalPaid);
-  poolState.poolGold = (poolState.poolGold || 0) + principalPaid;
 
-  const serverTimestamp = Date.now();
+  // Preserve cash flow: allocate repaid debt, interest, and penalties
+  let treasuryRepaid = 0;
+  if (poolState.bailoutDebt > 0) {
+    treasuryRepaid = Math.min(poolState.bailoutDebt, Math.floor(payAmt * 0.5) + penaltyFee);
+    poolState.bailoutDebt -= treasuryRepaid;
+  }
+  const remainingPaid = totalPaid - treasuryRepaid;
+  const goldToPool = Math.min(principalPaid, remainingPaid);
+  poolState.poolGold = (poolState.poolGold || 0) + goldToPool;
+  const goldToReserve = remainingPaid - goldToPool;
+  if (goldToReserve > 0) {
+    poolState.reserveFund = (poolState.reserveFund || 0) + goldToReserve;
+  }
+
   state.ledger.unshift({
     id: `bank_rep_${serverTimestamp}`,
     type: 'spend',
     category: 'bank_repay',
     amount: totalPaid,
-    title: 'Thanh Toán Khoản Vay',
-    description: `🏦 Đã trả ${payAmt} Vàng${penaltyFee > 0 ? ` (+${penaltyFee} Vàng phí phạt trả sớm)` : ''}.`,
+    title: isOverdue ? 'Thanh toán nợ quá hạn' : 'Tất toán nợ sớm',
+    description: `🏦 Đã trả ${payAmt} Vàng${penaltyFee > 0 ? ` (+${penaltyFee} Vàng phí phạt trả sớm 5%)` : ''}.${debtCleared ? ' Chúc mừng bạn đã tất toán toàn bộ nợ!' : ` Nợ còn lại: ${loan.debt} Vàng.`}`,
     timestamp: serverTimestamp,
   });
   if (state.ledger.length > 100) state.ledger.splice(100);

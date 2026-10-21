@@ -220,4 +220,48 @@ await redisMock.set('levelup:bank:global_pool', JSON.stringify({
   console.log('  -> PASS: Phân tách hoàn hảo giữa Rút Sổ và Rút Nhanh.');
 }
 
+// -----------------------------------------------------------------------------
+// 8. Kiểm thử Tất Toán Khoản Vay Quá Hạn & Đồng Bộ Hạn Mức Tín Dụng
+// -----------------------------------------------------------------------------
+{
+  console.log('Test 8: Kiểm thử Tất toán Khoản vay quá hạn & mở khóa tài khoản...');
+
+  // 8.1 Giả lập khoản vay gói 3 ngày đã quá hạn 4 ngày
+  const rawUserState = await redisMock.get(`levelup:user:google:${TEST_SUB}`);
+  const userState = JSON.parse(rawUserState);
+  const fourDaysAgo = Date.now() - 4 * 24 * 3600 * 1000;
+  userState.profile.title = 'Con Nợ Quá Hạn ⚠️';
+  userState.profile.coins = 200;
+  userState.profile.bank = {
+    deposited: 0,
+    depositInterest: 0,
+    deposits: [],
+    isFrozen: true,
+    loan: {
+      principal: 60,
+      debt: 60,
+      termDays: 3,
+      borrowRate: 0.05,
+      autoDeductPercent: 0.50,
+      borrowedAt: fourDaysAgo,
+      lastAccruedAt: fourDaysAgo,
+      isOverdue: true,
+    },
+  };
+  await redisMock.set(`levelup:user:google:${TEST_SUB}`, JSON.stringify(userState));
+
+  // Trả nợ khoản vay quá hạn -> không bị phạt 5% phí sớm, mở đóng băng và khôi phục danh hiệu
+  const resOverdueRepay = await repayLoanAction('all', TEST_TOKEN);
+  assert.strictEqual(resOverdueRepay.success, true, 'Trả nợ quá hạn phải thành công');
+  assert.strictEqual(resOverdueRepay.data?.bank.loan, null, 'Khoản vay đã được tất toán');
+  assert.strictEqual(resOverdueRepay.data?.bank.isFrozen, false, 'Tài khoản phải được gỡ đóng băng khi sạch nợ');
+
+  const updatedRaw = await redisMock.get(`levelup:user:google:${TEST_SUB}`);
+  const updatedState = JSON.parse(updatedRaw);
+  assert.notStrictEqual(updatedState.profile.title, 'Con Nợ Quá Hạn ⚠️', 'Danh hiệu con nợ phải được xóa bỏ');
+  assert.strictEqual(updatedState.profile.bank.isFrozen, false, 'Trạng thái isFrozen trong DB phải là false');
+
+  console.log('  -> PASS: Tất toán nợ quá hạn miễn 100% phí phạt và tự động gỡ đóng băng.');
+}
+
 console.log('\n=== TẤT CẢ TEST SERVER ACTIONS BANK ĐÃ VƯỢT QUA! ===');

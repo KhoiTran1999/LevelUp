@@ -34,15 +34,17 @@ export function BankWithdrawModal() {
     if (isBankWithdrawModalOpen) {
       if (selectedWithdrawDepositId && deposits.some(d => d.id === selectedWithdrawDepositId)) {
         setSelectedSource(selectedWithdrawDepositId);
-      } else if (safeTotal > 0) {
+      } else if (safeDeposits.length > 1) {
         setSelectedSource('all');
+      } else if (safeDeposits.length === 1) {
+        setSelectedSource(safeDeposits[0].id);
       } else if (deposits.length > 0) {
         setSelectedSource(deposits[0].id);
       } else {
         setSelectedSource('all');
       }
     }
-  }, [isBankWithdrawModalOpen, selectedWithdrawDepositId, deposits, safeTotal]);
+  }, [isBankWithdrawModalOpen, selectedWithdrawDepositId, deposits, safeDeposits.length]);
 
   // Tìm sổ được chọn nếu chọn sổ cụ thể
   const targetDeposit = selectedSource !== 'all'
@@ -168,9 +170,10 @@ export function BankWithdrawModal() {
                 onChange={e => setSelectedSource(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               >
-                {safeTotal > 0 && (
+                {/* ponytail: Chỉ hiển thị tùy chọn gộp khi có từ 2 nguồn khả dụng trở lên để tránh trùng lặp với sổ linh hoạt đơn lẻ */}
+                {safeDeposits.length > 1 && (
                   <option value="all">
-                    ⚡ Rút linh hoạt ({safeTotal} Vàng khả dụng)
+                    ⚡ Rút tất cả nguồn khả dụng ({safeTotal} Vàng)
                   </option>
                 )}
                 {deposits.map(dep => {

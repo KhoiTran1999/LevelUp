@@ -145,16 +145,23 @@ export function calculateBankRates(poolState?: Partial<BankPoolState> | null): B
   };
 }
 
+// ponytail: Canonical credit limit formula matching api/sync.js and src/js/17-bank.js
 export function calculateCreditLimit(
   profile?: Partial<UserProfile> | null,
   autoDeductPercent = 0.5
 ): number {
-  const level = Math.max(1, parseInt(String(profile?.level), 10) || 1);
+  const lvl = Math.max(1, parseInt(String(profile?.level), 10) || 1);
   const streak = Math.max(0, parseInt(String(profile?.streak), 10) || 0);
-  const baseLimit = 25 + level * 5;
-  const streakBonus = Math.min(30, streak * 2);
-  const kDeduct = 1.0 + (autoDeductPercent - 0.5) * 0.4;
-  return Math.max(20, Math.floor((baseLimit + streakBonus) * kDeduct));
+  const totalEarned = Math.max(20, parseInt(String(profile?.totalCoinsEarned), 10) || 20);
+
+  // Base hard cap limit
+  const baseLimit = Math.min(400, (lvl * 25) + (streak * 5) + Math.floor(totalEarned * 0.1));
+
+  // Commitment factor based on user selected deduction rate (0.20 - 0.80)
+  const clampedRate = Math.min(0.80, Math.max(0.20, Number(autoDeductPercent) || 0.50));
+  const kDeduct = 0.7 + ((Math.max(0.30, clampedRate) - 0.30) / 0.50) * 0.8; // 0.7 to 1.5
+
+  return Math.max(20, Math.floor(baseLimit * kDeduct));
 }
 
 export function formatBankCountdown(ms: number): string {
@@ -164,6 +171,22 @@ export function formatBankCountdown(ms: number): string {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+// ponytail: Format countdown by days and hours; upgrade to localized Intl.DurationFormat when baseline support lands
+export function formatBankDayHourCountdown(ms: number): string {
+  if (ms <= 0) return '0 giờ';
+  const totalHours = Math.floor(ms / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days > 0) {
+    return `${days} ngày ${hours} giờ`;
+  }
+  if (hours > 0) {
+    return `${hours} giờ`;
+  }
+  return '< 1 giờ';
 }
 
 export function triggerToast(msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
@@ -177,6 +200,7 @@ export interface DepositPayoutInfo {
   expectedPayoutAmount: number;
   msRemaining: number;
   timerFormatted: string;
+  countdownFormatted: string;
   sourceText: string;
   noteText: string;
 }
@@ -206,6 +230,7 @@ export function calculateDepositPayoutInfo(
       expectedPayoutAmount: expectedAmount,
       msRemaining,
       timerFormatted: formatBankCountdown(msRemaining),
+      countdownFormatted: formatBankDayHourCountdown(msRemaining),
       sourceText: `Sổ Linh Hoạt (${dep.amount} Vàng)`,
       noteText: msRemaining > 0 ? 'Tự động tích lũy vào lãi' : 'Đang cộng lãi...',
     };
@@ -222,6 +247,7 @@ export function calculateDepositPayoutInfo(
       expectedPayoutAmount: totalExpectedInterest,
       msRemaining,
       timerFormatted: formatBankCountdown(msRemaining),
+      countdownFormatted: formatBankDayHourCountdown(msRemaining),
       sourceText: `Gói ${termConfig.label} (${dep.amount} Vàng)`,
       noteText: msRemaining > 0 ? 'Đáo hạn nhận trọn gốc & lãi' : 'Đã đến ngày đáo hạn!',
     };

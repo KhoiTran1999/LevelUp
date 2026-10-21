@@ -6,7 +6,8 @@ import {
   LOAN_TERMS,
   calculateBankRates,
   calculateDepositPayoutInfo,
-  calculateLoanCountdownInfo
+  calculateLoanCountdownInfo,
+  formatBankDayHourCountdown
 } from '../api/sync.js';
 
 console.log('=== Bắt đầu kiểm thử Toàn Diện Hệ Thống Đếm Ngược Ngân Hàng (Bank Countdown Engine) ===\n');
@@ -199,6 +200,36 @@ console.log('Test 5: Kiểm tra các ID countdown trong index.html và app.js');
   assert.ok(appJs.includes('startBankCountdownLoop'), 'app.js phải chứa startBankCountdownLoop');
 
   console.log('  -> Tất cả các phần tử giao diện và hàm xử lý đều có mặt đầy đủ trong client: OK\n');
+}
+
+// -----------------------------------------------------------------------------
+// Test 6: Kiểm thử Format Đếm Ngược Theo Ngày & Giờ (Không đếm giây)
+// -----------------------------------------------------------------------------
+console.log('Test 6: Kiểm thử formatBankDayHourCountdown (Ngày & Giờ, không đếm giây)');
+{
+  // 335 giờ 59 phút 5 giây -> 13 ngày 23 giờ (khớp thực tế gói 14 ngày)
+  const ms335h = (335 * 3600 + 59 * 60 + 5) * 1000;
+  assert.strictEqual(formatBankDayHourCountdown(ms335h), '13 ngày 23 giờ', 'Format chính xác 13 ngày 23 giờ');
+
+  // 24 giờ chẵn -> 1 ngày 0 giờ
+  assert.strictEqual(formatBankDayHourCountdown(24 * 3600 * 1000), '1 ngày 0 giờ', 'Format chính xác 1 ngày 0 giờ');
+
+  // 10 giờ 15 phút -> 10 giờ
+  assert.strictEqual(formatBankDayHourCountdown(10 * 3600 * 1000 + 15 * 60 * 1000), '10 giờ', 'Format chính xác 10 giờ');
+
+  // 45 phút (< 1 giờ) -> < 1 giờ
+  assert.strictEqual(formatBankDayHourCountdown(45 * 60 * 1000), '< 1 giờ', 'Format chính xác < 1 giờ');
+
+  // 0 ms và âm -> 0 giờ
+  assert.strictEqual(formatBankDayHourCountdown(0), '0 giờ', 'Format 0 ms');
+  assert.strictEqual(formatBankDayHourCountdown(-5000), '0 giờ', 'Format ms âm');
+
+  // Kiểm tra SavingsColumn.tsx tích hợp formatBankDayHourCountdown cho từng sổ
+  const savingsCode = fs.readFileSync('components/bank/SavingsColumn.tsx', 'utf8');
+  assert.ok(savingsCode.includes('formatBankDayHourCountdown'), 'SavingsColumn.tsx phải dùng formatBankDayHourCountdown');
+  assert.ok(savingsCode.includes('Nhận lãi sau:'), 'SavingsColumn.tsx phải hiển thị Nhận lãi sau trong từng sổ');
+
+  console.log('  -> Format thời gian theo ngày, giờ và hiển thị riêng từng sổ tiết kiệm: OK\n');
 }
 
 console.log('🎉 TẤT CẢ KIỂM THỬ ĐẾM NGƯỢC NGÂN HÀNG ĐÃ HOÀN TOÀN VƯỢT QUA 100%!');
