@@ -87,7 +87,14 @@ export const DebateOutputSchema = v.looseObject({
   newRank: v.optional(v.string()),
   newRequiresProof: v.optional(v.boolean()),
   newProofType: v.optional(v.picklist(['photo', 'text', 'both'])),
-  newProofGuidance: v.optional(v.string())
+  newProofGuidance: v.optional(v.string()),
+  newPrice: v.optional(v.number()),
+  newTier: v.optional(v.picklist(['common', 'rare', 'epic', 'legendary'])),
+  newName: v.optional(v.string()),
+  newAmount: v.optional(v.number()),
+  newBorrowRate: v.optional(v.number()),
+  newAutoDeductPercent: v.optional(v.number()),
+  newCreditLimit: v.optional(v.number())
 });
 
 /**

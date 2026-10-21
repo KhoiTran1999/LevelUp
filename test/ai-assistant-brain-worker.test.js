@@ -235,13 +235,13 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
       onEvent
     });
 
-    // Xác minh Phase 1: Brain được gọi với MODEL_BRAIN và reasoning_effort: 'low'
+    // Xác minh Phase 1: Brain được gọi với MODEL_BRAIN và reasoning_effort: 'none' (tắt thinking để tối ưu tốc độ)
     assert.strictEqual(capturedPayloads[0].model, MODEL_BRAIN, 'Phase 1 phải dùng MODEL_BRAIN');
-    assert.strictEqual(capturedPayloads[0].reasoning_effort, 'low', 'Phase 1 Brain phải bật thinking mức low');
+    assert.strictEqual(capturedPayloads[0].reasoning_effort, 'none', 'Phase 1 Brain phải tắt thinking');
 
-    // Xác minh Phase 3: Brain tổng hợp cũng dùng MODEL_BRAIN và reasoning_effort: 'low'
+    // Xác minh Phase 3: Brain tổng hợp cũng dùng MODEL_BRAIN và reasoning_effort: 'none' (tắt thinking để tối ưu tốc độ)
     assert.strictEqual(capturedPayloads[1].model, MODEL_BRAIN, 'Phase 3 phải dùng MODEL_BRAIN');
-    assert.strictEqual(capturedPayloads[1].reasoning_effort, 'low', 'Phase 3 Brain phải bật thinking mức low');
+    assert.strictEqual(capturedPayloads[1].reasoning_effort, 'none', 'Phase 3 Brain phải tắt thinking');
 
     // Xác minh Worker đã thực thi nhiệm vụ tạo quest
     assert.ok(assistantResult.workerResults.some(r => r.tool === 'create_quest'));

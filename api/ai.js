@@ -58,12 +58,12 @@ export const MODEL_BRAIN = process.env.MODEL_BRAIN || process.env.CUSTOM_AI_MODE
 export const MODEL = MODEL_WORKER; // ponytail: backward compatibility alias
 
 /**
- * ponytail: Brain uses reasoning_effort 'low' for deep analysis; Worker uses 'none' for sub-second tool execution
+ * ponytail: Thinking disabled across all models for sub-second responses while preserving model selection
  */
 export function getModelAndReasoning(role = 'worker', thinkingOverride = null) {
-  const isBrain = thinkingOverride !== null ? Boolean(thinkingOverride) : (role === 'brain');
+  const isBrain = role === 'brain' || (thinkingOverride !== null && Boolean(thinkingOverride));
   const model = isBrain ? MODEL_BRAIN : MODEL_WORKER;
-  const reasoning_effort = isBrain ? 'low' : 'none';
+  const reasoning_effort = thinkingOverride ? 'low' : 'none';
   return { model, reasoning_effort, isBrain };
 }
 
@@ -103,10 +103,10 @@ export async function callAI(systemPrompt, userPrompt, temperature = 0.3, imageB
     response_format: options.response_format || { type: 'json_object' }
   };
 
-  if (reasoning_effort) {
+  if (reasoning_effort && reasoning_effort !== 'none') {
     payload.reasoning_effort = reasoning_effort;
-  }
-  if (!isBrain) {
+  } else {
+    payload.reasoning_effort = 'none';
     payload.thinking = { type: 'disabled' };
   }
 
@@ -236,10 +236,10 @@ export async function callAIWithTools(messages, tools = [], options = {}) {
     stream: false
   };
 
-  if (reasoning_effort) {
+  if (reasoning_effort && reasoning_effort !== 'none') {
     payload.reasoning_effort = reasoning_effort;
-  }
-  if (!isBrain) {
+  } else {
+    payload.reasoning_effort = 'none';
     payload.thinking = { type: 'disabled' };
   }
 
@@ -559,6 +559,8 @@ export function handleUpdateQuestParameters(params = {}, quest = {}, userArgumen
     if (params.newProofType) {
       cleanProofType = params.newProofType;
       cleanProof = true;
+    } else if (params.newRequiresProof !== undefined) {
+      cleanProof = Boolean(params.newRequiresProof);
     } else if (wantsBoth) {
       cleanProofType = 'both';
       cleanProof = true;
@@ -573,7 +575,7 @@ export function handleUpdateQuestParameters(params = {}, quest = {}, userArgumen
     }
   }
 
-  let cleanGuidance = params.newProofGuidance || quest.proofGuidance || '';
+  let cleanGuidance = params.newProofGuidance !== undefined ? params.newProofGuidance : (quest.proofGuidance || '');
   if (cleanProof) {
     if (!cleanGuidance || (cleanProofType === 'both' && (!cleanGuidance.includes('ảnh') || (!cleanGuidance.includes('báo cáo') && !cleanGuidance.includes('tóm tắt'))))) {
       if (cleanProofType === 'both') {
@@ -1314,14 +1316,22 @@ export async function runNegotiationAgent({
   // Try calling AI with tools if API_KEY configured
   if (API_KEY) {
     try {
+      let userContext = '';
+      try {
+        const userProfile = await handleGetMyUserData('profile', callerSub, redis, { targetEntity });
+        if (userProfile) {
+          userContext = `\n[Hồ sơ hiệp sĩ]: Level ${userProfile.level || 1}, Ví ${userProfile.coins || 0} Vàng, Chuỗi ${userProfile.streak || 0} ngày.`;
+        }
+      } catch (_) {}
+
       const messages = [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: `${userPrompt}${userContext}` }
       ];
 
       for (let step = 0; step < 3; step++) {
         notify(3, '🧠', 'Model Brain đang suy luận & phân tích yêu cầu đàm phán...', 55);
-        const assistantMsg = await callAIWithTools(messages, tools, { role: 'brain', thinking: true, temperature: 0.3 });
+        const assistantMsg = await callAIWithTools(messages, tools, { role: 'brain', thinking: false, temperature: 0.3 });
         messages.push(assistantMsg);
 
         const toolCalls = assistantMsg.tool_calls;
@@ -1344,20 +1354,21 @@ export async function runNegotiationAgent({
           const params = {
             ...(parsedJson || {}),
             accepted,
-            reply
+            reply,
+            fromAI: true
           };
 
           if (domain === 'quest') {
             const res = handleUpdateQuestParameters(params, targetEntity, userArgument);
-            return { ...res, options, toolsExecuted };
+            return { ...res, options, toolsExecuted, fromAI: true };
           }
           if (domain === 'reward') {
             const res = handleUpdateRewardParameters(params, targetEntity);
-            return { ...res, options, toolsExecuted };
+            return { ...res, options, toolsExecuted, fromAI: true };
           }
           if (domain === 'loan') {
             const res = handleUpdateLoanTerms(params, targetEntity, callerSub, macro);
-            return { ...res, options, toolsExecuted };
+            return { ...res, options, toolsExecuted, fromAI: true };
           }
         }
 
@@ -1422,7 +1433,7 @@ export async function runNegotiationAgent({
             actionResult.options = parseDebateOptionsFromText(actionResult.reply, domain);
           }
           notify(5, '🛡️', 'Đang đóng dấu chữ ký bảo mật HMAC SHA-256...', 95);
-          return { ...actionResult, toolsExecuted };
+          return { ...actionResult, toolsExecuted, fromAI: true };
         }
       }
     } catch (err) {
@@ -1508,12 +1519,41 @@ export function sanitizeEvaluatedQuest(result, originalTitle = '', originalDesc 
   let modificationReason = (result.modificationReason || '').trim();
   let verdict = (result.verdict || '').trim();
 
+  // Semantic category classification (AI-first, deterministic clamping in code)
+  const category = (result.category || '').toLowerCase() || resolveCategory(normOrig, title, originalDesc, description);
+
+  // If result came directly from AI model structured output, trust AI decision and enforce safety bounds
+  if (result.fromAI) {
+    targetMinutes = Math.max(0, Math.min(180, isNaN(targetMinutes) ? 0 : targetMinutes));
+    if (type === 'bounty') targetMinutes = 0;
+    rewardCoins = Math.max(1, Math.min(60, isNaN(rewardCoins) ? 5 : rewardCoins));
+    const requiresProof = Boolean(result.requiresProof);
+    const proofType = result.proofType === 'text' ? 'text' : (result.proofType === 'both' ? 'both' : 'photo');
+    const proofGuidance = typeof result.proofGuidance === 'string' ? result.proofGuidance.trim() : (requiresProof ? 'Chụp ảnh hoặc viết báo cáo kết quả thực tế.' : '');
+    const icon = (result.icon || (type === 'focus' ? '🎯' : '⚔️')).replace(/<[^>]*>/g, '').trim().slice(0, 10);
+    return {
+      ...result,
+      title,
+      description,
+      category,
+      type,
+      targetMinutes,
+      rewardCoins,
+      rank: calculateRank(rewardCoins),
+      requiresProof,
+      proofType,
+      proofGuidance,
+      icon,
+      verdict: result.verdict || result.reasoning || 'Nhiệm vụ đã được AI thẩm định thành công.',
+      isModified,
+      modificationReason
+    };
+  }
+
   // Composite search text for multi-chapter / workload context
   const fullMatchRaw = `${normOrig} ${title} ${originalDesc} ${description}`.toLowerCase();
   const fullMatchText = `${fullMatchRaw} ${stripDiacritics(fullMatchRaw)}`;
 
-  // Semantic category classification (AI-first, deterministic clamping in code)
-  const category = (result.category || '').toLowerCase() || resolveCategory(normOrig, title, originalDesc, description);
   const isStudyOrWork = category === 'study' || category === 'work';
   const isTrivialTask = category === 'trivial';
   const isQuickChore = category === 'chore';
@@ -1969,6 +2009,26 @@ export function sanitizeEvaluatedReward(result, originalName = '', originalDesc 
 
   // Semantic category classification (AI-first, deterministic clamping in code)
   const category = (result.category || '').toLowerCase() || resolveRewardCategory(normOrig, name, originalDesc, description);
+
+  // If result came directly from AI model structured output, trust AI decision and enforce safety bounds
+  if (result.fromAI) {
+    price = Math.max(1, Math.min(500, isNaN(price) ? 25 : price));
+    const targetMinutes = Math.max(0, Math.min(360, isNaN(parseInt(result.targetMinutes, 10)) ? 0 : parseInt(result.targetMinutes, 10)));
+    const tier = ['common', 'rare', 'epic', 'legendary'].includes(result.tier) ? result.tier : 'common';
+    return {
+      ...result,
+      name,
+      description,
+      category,
+      price,
+      targetMinutes,
+      tier,
+      icon: (result.icon || '🎁').replace(/<[^>]*>/g, '').trim().slice(0, 10),
+      verdict: result.verdict || result.reasoning || 'Phần thưởng đã được AI thẩm định thành công.',
+      isModified,
+      modificationReason
+    };
+  }
   const isHarmful = category === 'harmful';
   const isEntertainment = category === 'entertainment';
 
@@ -2703,7 +2763,7 @@ export async function runAssistantAgent({
   }
 
   // =========================================================================
-  // PHASE 1: MODEL BRAIN DELIBERATION (Thinking ON, reasoning_effort: 'low')
+  // PHASE 1: MODEL BRAIN DELIBERATION (Thinking OFF, reasoning_effort: 'none')
   // =========================================================================
   notify(1, '🧠', 'Model Brain đang suy nghĩ & phân tích yêu cầu của bạn...', 25);
 
@@ -2770,7 +2830,7 @@ NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
     const brainRes = await callAI(
       brainSystemPrompt,
       `Tin nhắn của người dùng: "${message}"\nLịch sử trò chuyện: ${JSON.stringify(history.slice(-4))}`,
-      { role: 'brain', thinking: true, temperature: 0.3 }
+      { role: 'brain', thinking: false, temperature: 0.3 }
     );
     brainAnalysis = brainRes;
   } catch (err) {
@@ -2836,7 +2896,7 @@ NHIỆM VỤ CỦA BẠN (BRAIN - PHASE 1):
   notify(3, '📊', 'Model Worker đã hoàn thành và gửi dữ liệu về cho Brain...', 75);
 
   // =========================================================================
-  // PHASE 3: MODEL BRAIN SYNTHESIS (Thinking ON, reasoning_effort: 'low')
+  // PHASE 3: MODEL BRAIN SYNTHESIS (Thinking OFF, reasoning_effort: 'none')
   // =========================================================================
   notify(4, '✨', 'Model Brain đang tổng hợp dữ liệu & biên soạn câu trả lời hoàn chỉnh...', 95);
 
@@ -2868,7 +2928,7 @@ ${JSON.stringify(workerResults, null, 2)}`;
     const synthesisRes = await callAI(
       synthesisSystemPrompt,
       synthesisUserPrompt,
-      { role: 'brain', thinking: true, temperature: 0.35 }
+      { role: 'brain', thinking: false, temperature: 0.35 }
     );
 
     return {
@@ -3609,6 +3669,9 @@ Trả về ĐÚNG định dạng JSON sau (QUAN TRỌNG: Viết 'chunkingPlan' v
         let rawResult = null;
         try {
           rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+          if (rawResult && typeof rawResult === 'object') {
+            rawResult.fromAI = true;
+          }
         } catch (err) {
           console.warn('[AI evaluate_quest] callAI failed/timeout, falling back to deterministic evaluation:', err?.message);
         }
@@ -3819,6 +3882,58 @@ Trả về ĐÚNG định dạng JSON:
         // Deterministic fallback for quest debate if AI is offline
         if (!result) {
           result = runDeterministicQuestDebate(quest, argument, selectedOpt);
+        }
+
+        // If result already has a valid signature, bypass regex parsing and return directly
+        if (result?.signature) {
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'quest');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
+        }
+
+        // If result came from AI, trust AI's structured output parameters directly
+        if (result?.fromAI) {
+          if (result.accepted) {
+            let cleanReward = parseInt(result.newRewardCoins !== undefined ? result.newRewardCoins : quest.rewardCoins, 10);
+            let cleanMinutes = parseInt(result.newTargetMinutes !== undefined ? result.newTargetMinutes : quest.targetMinutes, 10);
+            let cleanType = result.newType || (cleanMinutes > 0 ? 'focus' : 'bounty');
+            let cleanProof = result.newRequiresProof !== undefined ? Boolean(result.newRequiresProof) : Boolean(quest.requiresProof);
+            let cleanProofType = result.newProofType || quest.proofType || 'photo';
+            let cleanGuidance = result.newProofGuidance !== undefined ? result.newProofGuidance : (quest.proofGuidance || '');
+            let cleanTitle = result.newTitle || quest.title;
+            let cleanDesc = result.newDescription !== undefined ? result.newDescription : (quest.description || '');
+
+            cleanReward = Math.max(1, Math.min(60, isNaN(cleanReward) ? quest.rewardCoins : cleanReward));
+            cleanMinutes = Math.max(0, Math.min(180, isNaN(cleanMinutes) ? quest.targetMinutes : cleanMinutes));
+            if (cleanType === 'bounty') cleanMinutes = 0;
+
+            const isRepeatable = Boolean(payload?.isRepeatable !== undefined ? payload.isRepeatable : (result.newIsRepeatable !== undefined ? result.newIsRepeatable : quest.isRepeatable));
+            result.newTitle = cleanTitle;
+            result.newDescription = cleanDesc;
+            result.newType = cleanType;
+            result.newTargetMinutes = cleanMinutes;
+            result.newRewardCoins = cleanReward;
+            result.newRequiresProof = cleanProof;
+            result.newProofType = cleanProofType;
+            result.newProofGuidance = cleanGuidance;
+            result.isRepeatable = isRepeatable;
+            result.signature = signQuest(cleanTitle, cleanType, cleanMinutes, cleanReward, cleanProof, isRepeatable);
+          }
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'quest');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
         }
 
         const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
@@ -4052,6 +4167,9 @@ Trả về ĐÚNG định dạng JSON:
         let rawResult = null;
         try {
           rawResult = await callAI(systemPrompt, userPrompt, { role: 'worker', thinking: false, temperature: 0.3 });
+          if (rawResult && typeof rawResult === 'object') {
+            rawResult.fromAI = true;
+          }
         } catch (err) {
           console.warn('[AI evaluate_reward] callAI failed/timeout, falling back to deterministic evaluation:', err?.message);
         }
@@ -4212,6 +4330,49 @@ Trả về ĐÚNG định dạng JSON:
         // Deterministic fallback for reward debate if AI is offline
         if (!result) {
           result = runDeterministicRewardDebate(reward, argument, selectedOpt);
+        }
+
+        // If result already has a valid signature, bypass regex parsing and return directly
+        if (result?.signature) {
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'reward');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
+        }
+
+        // If result came from AI, trust AI's structured output parameters directly
+        if (result?.fromAI) {
+          if (result.accepted) {
+            let cleanPrice = parseInt(result.newPrice !== undefined ? result.newPrice : reward.price, 10);
+            let cleanMinutes = parseInt(result.newTargetMinutes !== undefined ? result.newTargetMinutes : (reward.targetMinutes || 0), 10);
+            let cleanTier = result.newTier || reward.tier || 'common';
+            let cleanName = result.newName || reward.name;
+            let cleanDesc = result.newDescription !== undefined ? result.newDescription : (reward.description || '');
+
+            cleanPrice = Math.max(1, Math.min(500, isNaN(cleanPrice) ? reward.price : cleanPrice));
+            cleanMinutes = Math.max(0, Math.min(360, isNaN(cleanMinutes) ? (reward.targetMinutes || 0) : cleanMinutes));
+
+            result.newName = cleanName;
+            result.newDescription = cleanDesc;
+            result.newPrice = cleanPrice;
+            result.newTier = cleanTier;
+            result.newTargetMinutes = cleanMinutes;
+            result.signature = signReward(cleanName, cleanPrice, cleanTier, cleanMinutes);
+          }
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'reward');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
         }
 
         const isAccepted = Boolean(result.accepted) || Boolean(selectedOpt) || (userAgreed && aiAgreed);
@@ -4485,8 +4646,8 @@ Hãy gợi ý 3 phần thưởng mới mẻ, thú vị bám sát chủ đề tr�
           }
         }
 
-        // Programmatic pre-check for text proof (also for 'both')
-        if (proofType === 'text' || proofType === 'both') {
+        // Programmatic pre-check for text proof (fallback when AI API_KEY is absent)
+        if (!API_KEY && (proofType === 'text' || proofType === 'both')) {
           const heuristic = evaluateTextProofHeuristics(title, workContent);
           if (heuristic && heuristic.approved === false) {
             return res.status(200).json({
@@ -4987,6 +5148,52 @@ ${questSummary}
               result.accepted = Boolean(parsed.accepted);
             }
           }
+        }
+
+        // If result already has a valid signature, bypass regex parsing and return directly
+        if (result?.signature) {
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'loan');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
+        }
+
+        // If result came from AI, trust AI's structured output parameters directly
+        if (result?.fromAI) {
+          if (result.accepted) {
+            let cleanAmount = parseInt(result.newAmount !== undefined ? result.newAmount : currentAmount, 10);
+            let cleanRate = Number(result.newBorrowRate !== undefined ? result.newBorrowRate : currentRate);
+            let cleanDeduct = Number(result.newAutoDeductPercent !== undefined ? result.newAutoDeductPercent : currentDeduct);
+            let cleanLimit = parseInt(result.newCreditLimit !== undefined ? result.newCreditLimit : currentLimit, 10);
+
+            if (cleanRate > 0.30) cleanRate = cleanRate / 100;
+            if (cleanDeduct > 1.0) cleanDeduct = cleanDeduct / 100;
+
+            cleanAmount = Math.max(5, Math.min(macro.userCreditLimit, isNaN(cleanAmount) ? currentAmount : cleanAmount));
+            cleanRate = Math.min(0.20, Math.max(macro.depositFloor, isNaN(cleanRate) ? currentRate : cleanRate));
+            cleanDeduct = Math.min(0.80, Math.max(0.20, isNaN(cleanDeduct) ? currentDeduct : cleanDeduct));
+            cleanLimit = Math.max(currentLimit, isNaN(cleanLimit) ? currentLimit : cleanLimit);
+
+            result.newAmount = cleanAmount;
+            result.newBorrowRate = cleanRate;
+            result.newAutoDeductPercent = cleanDeduct;
+            result.newCreditLimit = cleanLimit;
+            result.signature = signLoanOffer(callerSub, cleanAmount, cleanRate, cleanDeduct, cleanLimit);
+          }
+          if (!Array.isArray(result.options) || result.options.length === 0) {
+            result.options = parseDebateOptionsFromText(result.reply, 'loan');
+          }
+          if (sse) {
+            sse.send('step', { step: 5, totalSteps: 5, icon: '🛡️', text: 'Đang đóng dấu xác thực bảo mật & hoàn tất phản hồi...', pct: 100 });
+            sse.end('result', result);
+            return;
+          }
+          return res.status(200).json(result);
         }
 
         // Deterministic fallback for debate if AI is offline
