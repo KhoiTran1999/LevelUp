@@ -76,6 +76,7 @@ function triggerToast(msg: string, type: 'info' | 'success' | 'warning' | 'error
 export function QuestSetupModal() {
   const {
     isQuestModalOpen,
+    isQuestRenegotiating,
     editingQuest,
     closeQuestModal,
     addQuest,
@@ -124,7 +125,37 @@ export function QuestSetupModal() {
       return;
     }
 
-    if (editingQuest) {
+    if (editingQuest && isQuestRenegotiating) {
+      setTitle(editingQuest.title || '');
+      setDescription(editingQuest.description || '');
+      setEstimateCoins(editingQuest.rewardCoins ? String(editingQuest.rewardCoins) : '');
+      setEstimateDuration(editingQuest.targetMinutes ? String(editingQuest.targetMinutes) : '');
+      setIsRepeatable(Boolean(editingQuest.isRepeatable));
+      setPendingVerdict({
+        title: editingQuest.title,
+        description: editingQuest.description || '',
+        type: editingQuest.type || 'focus',
+        rank: editingQuest.rank || calculateRank(editingQuest.rewardCoins || 10),
+        rewardCoins: editingQuest.rewardCoins || 10,
+        targetMinutes:
+          editingQuest.targetMinutes !== undefined
+            ? Number(editingQuest.targetMinutes)
+            : editingQuest.type === 'bounty'
+            ? 0
+            : 25,
+        signature: editingQuest.signature || '',
+        advice: editingQuest.advice || 'Tập trung hoàn thành từng bước một.',
+        icon: editingQuest.icon || '🎯',
+        verdict: editingQuest.verdict || 'Nhiệm vụ hợp lý, đã được tính mức thưởng chuẩn.',
+        isRepeatable: Boolean(editingQuest.isRepeatable),
+        requiresProof: Boolean(editingQuest.requiresProof),
+        proofType: editingQuest.proofType || 'photo',
+        proofGuidance: editingQuest.proofGuidance || '',
+        isModified: false,
+      });
+      setShowDebate(true);
+      setStep(3);
+    } else if (editingQuest) {
       setTitle(editingQuest.title || '');
       setDescription(editingQuest.description || '');
       setEstimateCoins(editingQuest.rewardCoins ? String(editingQuest.rewardCoins) : '');
@@ -141,7 +172,7 @@ export function QuestSetupModal() {
       setPendingVerdict(null);
       setShowDebate(false);
     }
-  }, [isQuestModalOpen, editingQuest]);
+  }, [isQuestModalOpen, editingQuest, isQuestRenegotiating]);
 
   useEffect(() => {
     return () => {
@@ -311,7 +342,7 @@ export function QuestSetupModal() {
         ...editingQuest,
         ...pendingVerdict,
       });
-      triggerToast('Đã cập nhật nhiệm vụ thành công!', 'success');
+      triggerToast(isQuestRenegotiating ? 'Đã cập nhật nhiệm vụ sau thương lượng!' : 'Đã cập nhật nhiệm vụ thành công!', 'success');
     } else {
       addQuest({
         title: pendingVerdict.title,
@@ -358,13 +389,19 @@ export function QuestSetupModal() {
                 id="modal-quest-title"
                 className="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400"
               >
-                {editingQuest ? 'Chỉnh sửa nhiệm vụ' : 'Thêm nhiệm vụ mới'}
+                {isQuestRenegotiating
+                  ? 'THƯƠNG LƯỢNG LẠI NHIỆM VỤ'
+                  : editingQuest
+                  ? 'Chỉnh sửa nhiệm vụ'
+                  : 'Thêm nhiệm vụ mới'}
               </h3>
               <p
                 id="modal-quest-subtitle"
                 className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400"
               >
-                Nhập việc cần làm để AI tính số Vàng thưởng phù hợp
+                {isQuestRenegotiating
+                  ? 'Trực tiếp trao đổi với AI để điều chỉnh độ khó, thời gian hoặc phần thưởng'
+                  : 'Nhập việc cần làm để AI tính số Vàng thưởng phù hợp'}
               </p>
             </div>
           </div>

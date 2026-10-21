@@ -53,6 +53,7 @@ export function QuestDetailModal() {
     startFocusTimer,
     pauseFocusTimer,
     resumeFocusTimer,
+    openQuestRenegotiateModal,
   } = useLevelUp();
   const [questId, setQuestId] = useState<string | null>(null);
   const [fallbackQuest, setFallbackQuest] = useState<Quest | null>(null);
@@ -180,7 +181,9 @@ export function QuestDetailModal() {
     const win = window as QuestDetailWindow;
     win.parentDetailQuestId = quest.id;
     close(false);
-    if (win.openQuestRenegotiateModal) {
+    if (openQuestRenegotiateModal) {
+      openQuestRenegotiateModal(quest.id);
+    } else if (win.openQuestRenegotiateModal) {
       win.openQuestRenegotiateModal(quest.id);
     } else {
       console.error('[QuestDetailModal] Missing legacy action: openQuestRenegotiateModal');

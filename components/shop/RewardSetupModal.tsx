@@ -67,6 +67,7 @@ function triggerToast(msg: string, type: 'info' | 'success' | 'warning' | 'error
 export function RewardSetupModal() {
   const {
     isRewardModalOpen,
+    isRewardRenegotiating,
     editingReward,
     closeRewardModal,
     addShopItem,
@@ -113,7 +114,25 @@ export function RewardSetupModal() {
       return;
     }
 
-    if (editingReward) {
+    if (editingReward && isRewardRenegotiating) {
+      setName(editingReward.name || '');
+      setDescription(editingReward.description || '');
+      setEstimatePrice(editingReward.price ? String(editingReward.price) : '');
+      setEstimateDuration(editingReward.targetMinutes ? String(editingReward.targetMinutes) : '');
+      setPendingReward({
+        id: editingReward.id,
+        name: editingReward.name,
+        description: editingReward.description || '',
+        price: editingReward.price || 30,
+        tier: editingReward.tier || 'rare',
+        targetMinutes: editingReward.targetMinutes || 0,
+        icon: editingReward.icon || '🎁',
+        verdict: editingReward.verdict || 'Phần thưởng hợp lý.',
+        isModified: false,
+      });
+      setShowDebate(true);
+      setStep(3);
+    } else if (editingReward) {
       setName(editingReward.name || '');
       setDescription(editingReward.description || '');
       setEstimatePrice(editingReward.price ? String(editingReward.price) : '');
@@ -128,7 +147,7 @@ export function RewardSetupModal() {
       setPendingReward(null);
       setShowDebate(false);
     }
-  }, [isRewardModalOpen, editingReward]);
+  }, [isRewardModalOpen, editingReward, isRewardRenegotiating]);
 
   useEffect(() => {
     return () => {
@@ -305,13 +324,19 @@ export function RewardSetupModal() {
                 id="modal-reward-title"
                 className="font-rpg-title font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400"
               >
-                {editingReward ? 'Chỉnh sửa phần thưởng' : 'Thêm phần thưởng mới'}
+                {isRewardRenegotiating
+                  ? 'THƯƠNG LƯỢNG LẠI PHẦN THƯỞNG'
+                  : editingReward
+                  ? 'Chỉnh sửa phần thưởng'
+                  : 'Thêm phần thưởng mới'}
               </h3>
               <p
                 id="modal-reward-subtitle"
                 className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400"
               >
-                Nhập phần thưởng bạn muốn để AI định giá Vàng phù hợp
+                {isRewardRenegotiating
+                  ? 'Trực tiếp trao đổi với AI để điều chỉnh giá trị hoặc thời lượng phần thưởng'
+                  : 'Nhập phần thưởng bạn muốn để AI định giá Vàng phù hợp'}
               </p>
             </div>
           </div>

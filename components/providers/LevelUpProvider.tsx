@@ -212,12 +212,16 @@ interface LevelUpContextType {
   // Quest & Reward Setup Modals
   isQuestModalOpen: boolean;
   isRewardModalOpen: boolean;
+  isQuestRenegotiating: boolean;
+  isRewardRenegotiating: boolean;
   editingQuest: Quest | null;
   editingReward: ShopItem | null;
   openQuestModal: (questToEdit?: Quest) => void;
   closeQuestModal: () => void;
+  openQuestRenegotiateModal: (questOrId: Quest | string) => void;
   openRewardModal: (rewardToEdit?: ShopItem) => void;
   closeRewardModal: () => void;
+  openRewardRenegotiateModal: (rewardOrId: ShopItem | string) => void;
   // Bank Modals & Actions
   isBankWithdrawModalOpen: boolean;
   isBankRulesModalOpen: boolean;
@@ -305,6 +309,8 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const [isProofViewerModalOpen, setIsProofViewerModalOpen] = useState(false);
   const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
+  const [isQuestRenegotiating, setIsQuestRenegotiating] = useState(false);
+  const [isRewardRenegotiating, setIsRewardRenegotiating] = useState(false);
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
   const [editingReward, setEditingReward] = useState<ShopItem | null>(null);
   const [isBankWithdrawModalOpen, setIsBankWithdrawModalOpen] = useState(false);
@@ -1128,23 +1134,67 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   const openQuestModal = useCallback((questToEdit?: Quest) => {
     setEditingQuest(questToEdit || null);
+    setIsQuestRenegotiating(false);
     setIsQuestModalOpen(true);
   }, []);
 
   const closeQuestModal = useCallback(() => {
     setIsQuestModalOpen(false);
     setEditingQuest(null);
+    setIsQuestRenegotiating(false);
   }, []);
+
+  const openQuestRenegotiateModal = useCallback((questOrId: Quest | string) => {
+    const quest = typeof questOrId === 'string'
+      ? state.quests.find(q => q.id === questOrId) || ((window as unknown as { appState?: LevelUpAppState }).appState?.quests?.find(q => q.id === questOrId))
+      : questOrId;
+
+    if (!quest) {
+      notifyBankToast('Không tìm thấy nhiệm vụ để thương lượng.', 'error');
+      return;
+    }
+
+    if (quest.status === 'completed' && !quest.isRepeatable) {
+      notifyBankToast('Nhiệm vụ đã hoàn thành không thể thương lượng lại.', 'info');
+      return;
+    }
+
+    if (state.activeTimer?.questId === quest.id && state.activeTimer?.status === 'running') {
+      notifyBankToast('Vui lòng tạm dừng phiên tập trung trước khi thương lượng lại nhiệm vụ này.', 'info');
+      return;
+    }
+
+    setEditingQuest(quest);
+    setIsQuestRenegotiating(true);
+    setIsQuestModalOpen(true);
+  }, [state.quests, state.activeTimer]);
 
   const openRewardModal = useCallback((rewardToEdit?: ShopItem) => {
     setEditingReward(rewardToEdit || null);
+    setIsRewardRenegotiating(false);
     setIsRewardModalOpen(true);
   }, []);
 
   const closeRewardModal = useCallback(() => {
     setIsRewardModalOpen(false);
     setEditingReward(null);
+    setIsRewardRenegotiating(false);
   }, []);
+
+  const openRewardRenegotiateModal = useCallback((rewardOrId: ShopItem | string) => {
+    const item = typeof rewardOrId === 'string'
+      ? state.shopItems.find(i => i.id === rewardOrId) || ((window as unknown as { appState?: LevelUpAppState }).appState?.shopItems?.find(i => i.id === rewardOrId))
+      : rewardOrId;
+
+    if (!item) {
+      notifyBankToast('Không tìm thấy phần thưởng để thương lượng.', 'error');
+      return;
+    }
+
+    setEditingReward(item);
+    setIsRewardRenegotiating(true);
+    setIsRewardModalOpen(true);
+  }, [state.shopItems]);
 
   // Bank Modals Handlers
   const openBankWithdrawModal = useCallback((depositId?: string) => {
@@ -1575,7 +1625,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         timestamp?: number | null
       ) => void;
       openQuestModal?: (q?: Quest) => void;
+      openQuestRenegotiateModal?: (questId: string) => void;
       openRewardModal?: (r?: ShopItem) => void;
+      openRewardRenegotiateModal?: (itemId: string) => void;
       openBankRulesModal?: (sectionId?: string) => void;
       openBankWithdrawModal?: (depositId?: string) => void;
       openCreditLimitModal?: () => void;
@@ -1606,8 +1658,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     win.openQuestModal = (q?: Quest) => {
       openQuestModal(q);
     };
+    win.openQuestRenegotiateModal = (questId: string) => {
+      openQuestRenegotiateModal(questId);
+    };
     win.openRewardModal = (r?: ShopItem) => {
       openRewardModal(r);
+    };
+    win.openRewardRenegotiateModal = (itemId: string) => {
+      openRewardRenegotiateModal(itemId);
     };
     win.openBankRulesModal = (sectionId?: string) => {
       openBankRulesModal(sectionId);
@@ -1660,7 +1718,9 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     openProofModal,
     openProofViewer,
     openQuestModal,
+    openQuestRenegotiateModal,
     openRewardModal,
+    openRewardRenegotiateModal,
     openBankRulesModal,
     openBankWithdrawModal,
     openCreditLimitModal,
@@ -2429,12 +2489,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         closeProofViewer,
         isQuestModalOpen,
         isRewardModalOpen,
+        isQuestRenegotiating,
+        isRewardRenegotiating,
         editingQuest,
         editingReward,
         openQuestModal,
         closeQuestModal,
+        openQuestRenegotiateModal,
         openRewardModal,
         closeRewardModal,
+        openRewardRenegotiateModal,
         isBankWithdrawModalOpen,
         isBankRulesModalOpen,
         isCreditLimitModalOpen,

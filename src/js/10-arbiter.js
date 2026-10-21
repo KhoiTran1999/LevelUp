@@ -898,6 +898,12 @@ function renderVerdictStep() {
 }
 
 function openQuestRenegotiateModal(questId) {
+  // ponytail: Delegate to React 19 openQuestRenegotiateModal when mounted; legacy DOM fallback below.
+  if (typeof window !== 'undefined' && typeof window.openQuestRenegotiateModal === 'function' && window.openQuestRenegotiateModal !== openQuestRenegotiateModal) {
+    window.openQuestRenegotiateModal(questId);
+    return;
+  }
+
   const quest = appState.quests.find(q => q.id === questId);
   if (!quest) return;
 

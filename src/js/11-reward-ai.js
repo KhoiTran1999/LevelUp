@@ -347,6 +347,12 @@ async function sendRewardDebateArgument(customArg = null, selectedOption = null)
 }
 
 function openRewardRenegotiateModal(itemId) {
+  // ponytail: Delegate to React 19 openRewardRenegotiateModal when mounted; legacy DOM fallback below.
+  if (typeof window !== 'undefined' && typeof window.openRewardRenegotiateModal === 'function' && window.openRewardRenegotiateModal !== openRewardRenegotiateModal) {
+    window.openRewardRenegotiateModal(itemId);
+    return;
+  }
+
   const item = appState.shopItems.find(i => i.id === itemId);
   if (!item) return;
 

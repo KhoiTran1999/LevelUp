@@ -60,7 +60,7 @@ function invokeLegacy(
 }
 
 export function RewardDetailModal() {
-  const { state } = useLevelUp();
+  const { state, openRewardRenegotiateModal } = useLevelUp();
   const stateRef = useRef(state);
   stateRef.current = state;
   const [target, setTarget] = useState<RewardDetailTarget | null>(null);
@@ -199,6 +199,10 @@ export function RewardDetailModal() {
   const openDebate = () => {
     if (!item) return;
     close();
+    if (openRewardRenegotiateModal) {
+      openRewardRenegotiateModal(item.id);
+      return;
+    }
     const win = window as RewardDetailWindow;
     const open = win.openRewardRenegotiateModal;
     if (!open) {
