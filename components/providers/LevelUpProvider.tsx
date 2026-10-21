@@ -1781,11 +1781,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         quests: dedupeById(nextQuests),
       };
       queueSyncToCloud(next, true);
-      // ponytail: Optimistic client update with native Server Action persistence in background
-      saveQuestAction(newQuest).catch(err => {
-        console.warn('[ServerAction] saveQuestAction error:', err);
-      });
       return next;
+    });
+
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await saveQuestAction(newQuest);
+      } catch (err) {
+        console.warn('[ServerAction] saveQuestAction error:', err);
+      }
     });
 
     if (typeof window !== 'undefined') {
@@ -1822,12 +1827,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         quests: nextQuests,
       };
       queueSyncToCloud(next, true);
-      // ponytail: Optimistic client update with native Server Action persistence in background
-      deleteQuestAction(questId).catch(err => {
-        console.warn('[ServerAction] deleteQuestAction error:', err);
-      });
       return next;
     });
+
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await deleteQuestAction(questId);
+      } catch (err) {
+        console.warn('[ServerAction] deleteQuestAction error:', err);
+      }
+    });
+
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
@@ -2239,11 +2250,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         shopItems: dedupeById(nextShopItems),
       };
       queueSyncToCloud(next, true);
-      // ponytail: Optimistic client update with native Server Action persistence in background
-      saveShopItemAction(newItem).catch(err => {
-        console.warn('[ServerAction] saveShopItemAction error:', err);
-      });
       return next;
+    });
+
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await saveShopItemAction(newItem);
+      } catch (err) {
+        console.warn('[ServerAction] saveShopItemAction error:', err);
+      }
     });
 
     if (typeof window !== 'undefined') {
@@ -2280,12 +2296,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         shopItems: nextShopItems,
       };
       queueSyncToCloud(next, true);
-      // ponytail: Optimistic client update with native Server Action persistence in background
-      deleteShopItemAction(itemId).catch(err => {
-        console.warn('[ServerAction] deleteShopItemAction error:', err);
-      });
       return next;
     });
+
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await deleteShopItemAction(itemId);
+      } catch (err) {
+        console.warn('[ServerAction] deleteShopItemAction error:', err);
+      }
+    });
+
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
         appState?: LevelUpAppState;
@@ -2411,9 +2433,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    // ponytail: Optimistic client update with native Server Action persistence in background
-    saveNoteAction(newNote).catch(err => {
-      console.warn('[ServerAction] saveNoteAction error:', err);
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await saveNoteAction(newNote);
+      } catch (err) {
+        console.warn('[ServerAction] saveNoteAction error:', err);
+      }
     });
 
     return newNoteId;
@@ -2437,9 +2463,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    // ponytail: Optimistic client update with native Server Action persistence in background
-    saveNoteAction({ id, ...updates, updatedAt }).catch(err => {
-      console.warn('[ServerAction] saveNoteAction error:', err);
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await saveNoteAction({ id, ...updates, updatedAt });
+      } catch (err) {
+        console.warn('[ServerAction] saveNoteAction error:', err);
+      }
     });
   }, [setOptimisticNotes]);
 
@@ -2471,9 +2501,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    // ponytail: Optimistic client update with native Server Action persistence in background
-    deleteNoteAction(id).catch(err => {
-      console.warn('[ServerAction] deleteNoteAction error:', err);
+    // ponytail: Execute native Server Action outside render phase via startTransition
+    startTransition(async () => {
+      try {
+        await deleteNoteAction(id);
+      } catch (err) {
+        console.warn('[ServerAction] deleteNoteAction error:', err);
+      }
     });
 
     return true;
