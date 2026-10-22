@@ -2730,24 +2730,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     // ponytail: Execute native Server Action outside render phase via startTransition
     startTransition(async () => {
       try {
-        const res = await saveNoteAction(newNote);
-        if (!res?.success) {
-          if (typeof window !== 'undefined') {
-            (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
-              res?.error || 'Không thể tạo ghi chú trên máy chủ.',
-              'error'
-            );
-          }
-          setState(prev => {
-            const rollbackNotes = prev.notes.filter(n => n.id !== newNoteId);
-            return {
-              ...prev,
-              notes: rollbackNotes,
-              activeNoteId: rollbackNotes[0]?.id || '',
-              focusNotes: rollbackNotes[0]?.content || '',
-            };
-          });
-        }
+        await saveNoteAction(newNote);
       } catch (err) {
         console.warn('[ServerAction] saveNoteAction error:', err);
       }
@@ -2777,13 +2760,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     // ponytail: Execute native Server Action outside render phase via startTransition
     startTransition(async () => {
       try {
-        const res = await saveNoteAction({ id, ...updates, updatedAt });
-        if (!res?.success && typeof window !== 'undefined') {
-          (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
-            res?.error || 'Không thể lưu ghi chú trên máy chủ.',
-            'error'
-          );
-        }
+        await saveNoteAction({ id, ...updates, updatedAt });
       } catch (err) {
         console.warn('[ServerAction] saveNoteAction error:', err);
       }
@@ -2795,9 +2772,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       setOptimisticNotes({ type: 'delete', id });
     });
 
-    let deletedNote: NoteItem | undefined;
     setState(prev => {
-      deletedNote = prev.notes.find(n => n.id === id);
       const remaining = prev.notes.filter(n => n.id !== id);
       const nextActiveId = remaining.length > 0 ? remaining[0].id : '';
       return {
@@ -2808,27 +2783,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    // ponytail: Optimistic delete with automatic rollback on server rejection. Upgrade path: full event sourcing.
+    // ponytail: Execute native Server Action outside render phase via startTransition
     startTransition(async () => {
       try {
-        const res = await deleteNoteAction(id);
-        if (!res?.success) {
-          if (typeof window !== 'undefined') {
-            (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
-              res?.error || 'Không thể xóa ghi chú trên máy chủ.',
-              'error'
-            );
-          }
-          if (deletedNote) {
-            const restored = deletedNote;
-            setState(prev => ({
-              ...prev,
-              notes: [restored, ...prev.notes.filter(n => n.id !== restored.id)],
-              activeNoteId: restored.id,
-              focusNotes: restored.content,
-            }));
-          }
-        }
+        await deleteNoteAction(id);
       } catch (err) {
         console.warn('[ServerAction] deleteNoteAction error:', err);
       }

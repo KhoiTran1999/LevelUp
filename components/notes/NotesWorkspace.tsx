@@ -120,7 +120,10 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     // 1. Flush previous note
     editorHandleRef.current?.flush();
 
-    // 2. Create note
+    // 2. Reset search query so newly created note isn't filtered out
+    setSearchQuery('');
+
+    // 3. Create note
     const newId = createNote('Ghi Chép Nhanh');
     setActiveNoteId(newId);
     if (typeof window !== 'undefined') {

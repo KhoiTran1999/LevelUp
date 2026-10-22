@@ -139,4 +139,17 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(html.includes('<strong>Quan trọng</strong>'), 'Phải parse bold');
     assert.ok(html.includes('<blockquote>Trích dẫn bài học</blockquote>'), 'Phải parse blockquote');
   });
+
+  it('8. Đảm bảo tạo ghi chú hoạt động mượt mà, không bị rollback hay nhảy note trong chế độ khách/local', () => {
+    // createNote không được rollback xóa note khi unauthenticated
+    assert.ok(
+      !providerContent.includes('const rollbackNotes = prev.notes.filter'),
+      'createNote không được xóa ghi chú vừa tạo khi Server Action trả về unauthenticated'
+    );
+    // handleCreateNewNote phải reset search query
+    assert.ok(
+      workspaceContent.includes("setSearchQuery('')"),
+      'handleCreateNewNote phải xóa bộ lọc tìm kiếm để hiển thị ghi chú mới'
+    );
+  });
 });
