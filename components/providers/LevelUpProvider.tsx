@@ -2730,7 +2730,24 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     // ponytail: Execute native Server Action outside render phase via startTransition
     startTransition(async () => {
       try {
-        await saveNoteAction(newNote);
+        const res = await saveNoteAction(newNote);
+        if (!res?.success) {
+          if (typeof window !== 'undefined') {
+            (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
+              res?.error || 'Không thể tạo ghi chú trên máy chủ.',
+              'error'
+            );
+          }
+          setState(prev => {
+            const rollbackNotes = prev.notes.filter(n => n.id !== newNoteId);
+            return {
+              ...prev,
+              notes: rollbackNotes,
+              activeNoteId: rollbackNotes[0]?.id || '',
+              focusNotes: rollbackNotes[0]?.content || '',
+            };
+          });
+        }
       } catch (err) {
         console.warn('[ServerAction] saveNoteAction error:', err);
       }
@@ -2760,7 +2777,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     // ponytail: Execute native Server Action outside render phase via startTransition
     startTransition(async () => {
       try {
-        await saveNoteAction({ id, ...updates, updatedAt });
+        const res = await saveNoteAction({ id, ...updates, updatedAt });
+        if (!res?.success && typeof window !== 'undefined') {
+          (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
+            res?.error || 'Không thể lưu ghi chú trên máy chủ.',
+            'error'
+          );
+        }
       } catch (err) {
         console.warn('[ServerAction] saveNoteAction error:', err);
       }
@@ -2772,33 +2795,40 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       setOptimisticNotes({ type: 'delete', id });
     });
 
+    let deletedNote: NoteItem | undefined;
     setState(prev => {
+      deletedNote = prev.notes.find(n => n.id === id);
       const remaining = prev.notes.filter(n => n.id !== id);
-      if (remaining.length === 0) {
-        remaining.push({
-          id: `note_${crypto.randomUUID()}`,
-          title: 'Ghi Chú Mới',
-          topic: 'Ghi Chép Nhanh',
-          content: '<p></p>',
-          pinned: false,
-          isPinned: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
-      const nextActiveId = remaining[0].id;
+      const nextActiveId = remaining.length > 0 ? remaining[0].id : '';
       return {
         ...prev,
         notes: remaining,
         activeNoteId: nextActiveId,
-        focusNotes: remaining[0].content,
+        focusNotes: remaining.length > 0 ? remaining[0].content : '',
       };
     });
 
-    // ponytail: Execute native Server Action outside render phase via startTransition
+    // ponytail: Optimistic delete with automatic rollback on server rejection. Upgrade path: full event sourcing.
     startTransition(async () => {
       try {
-        await deleteNoteAction(id);
+        const res = await deleteNoteAction(id);
+        if (!res?.success) {
+          if (typeof window !== 'undefined') {
+            (window as unknown as { showToast?: (m: string, t: string) => void }).showToast?.(
+              res?.error || 'Không thể xóa ghi chú trên máy chủ.',
+              'error'
+            );
+          }
+          if (deletedNote) {
+            const restored = deletedNote;
+            setState(prev => ({
+              ...prev,
+              notes: [restored, ...prev.notes.filter(n => n.id !== restored.id)],
+              activeNoteId: restored.id,
+              focusNotes: restored.content,
+            }));
+          }
+        }
       } catch (err) {
         console.warn('[ServerAction] deleteNoteAction error:', err);
       }
@@ -2812,11 +2842,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       setOptimisticNotes({ type: 'togglePin', id });
     });
 
+    let nextPinned = false;
+    const updatedAt = Date.now();
     setState(prev => {
       const updatedNotes = prev.notes.map(n => {
         if (n.id === id) {
-          const nextPinned = !(n.pinned ?? n.isPinned);
-          return { ...n, pinned: nextPinned, isPinned: nextPinned, updatedAt: Date.now() };
+          nextPinned = !(n.pinned ?? n.isPinned);
+          return { ...n, pinned: nextPinned, isPinned: nextPinned, updatedAt };
         }
         return n;
       });
@@ -2824,6 +2856,15 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         notes: updatedNotes,
       };
+    });
+
+    // Persist pin change to server action
+    startTransition(async () => {
+      try {
+        await saveNoteAction({ id, isPinned: nextPinned, pinned: nextPinned, updatedAt });
+      } catch (err) {
+        console.warn('[ServerAction] togglePinNote error:', err);
+      }
     });
   }, [setOptimisticNotes]);
 

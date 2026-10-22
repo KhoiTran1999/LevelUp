@@ -166,25 +166,40 @@ export async function saveNoteAction(
     return { success: false, error: 'Chưa đăng nhập hoặc phiên đã hết hạn.' };
   }
 
-  const noteId = (noteData.id || `note_${crypto.randomUUID()}`).trim();
-  const normalizedNote: NoteItem = {
-    id: noteId,
-    title: (noteData.title || '').trim() || 'Ghi Chú Mới',
-    content: noteData.content ?? '',
-    topic: noteData.topic || 'Ghi Chép Nhanh',
-    isPinned: Boolean(noteData.isPinned || noteData.pinned),
-    pinned: Boolean(noteData.isPinned || noteData.pinned),
-    updatedAt: Date.now(),
-    createdAt: noteData.createdAt || Date.now(),
-  };
-
   const state = await fetchUserState(user.sub);
   if (!Array.isArray(state.notes)) {
     state.notes = [];
   }
+
+  // ponytail: Merge partial update over existing note to prevent data wipeout. Upgrade path: RFC 7396 JSON merge patch.
+  const noteId = (noteData.id || `note_${crypto.randomUUID()}`).trim();
   const existingIdx = state.notes.findIndex(n => n.id === noteId);
+  const existing = existingIdx >= 0 ? state.notes[existingIdx] : null;
+
+  const resolvedPinned =
+    noteData.isPinned !== undefined || noteData.pinned !== undefined
+      ? Boolean(noteData.isPinned ?? noteData.pinned)
+      : existing ? Boolean(existing.isPinned ?? existing.pinned) : false;
+
+  const normalizedNote: NoteItem = {
+    id: noteId,
+    title: noteData.title !== undefined
+      ? (noteData.title.trim() || 'Ghi Chú Mới')
+      : (existing?.title || 'Ghi Chú Mới'),
+    content: noteData.content !== undefined
+      ? noteData.content
+      : (existing?.content ?? ''),
+    topic: noteData.topic !== undefined
+      ? noteData.topic
+      : (existing?.topic || 'Ghi Chép Nhanh'),
+    isPinned: resolvedPinned,
+    pinned: resolvedPinned,
+    updatedAt: Date.now(),
+    createdAt: noteData.createdAt ?? existing?.createdAt ?? Date.now(),
+  };
+
   if (existingIdx >= 0) {
-    state.notes[existingIdx] = { ...state.notes[existingIdx], ...normalizedNote };
+    state.notes[existingIdx] = normalizedNote;
   } else {
     state.notes.unshift(normalizedNote);
   }

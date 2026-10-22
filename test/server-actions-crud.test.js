@@ -196,7 +196,7 @@ await redisMock.set(`levelup:user:google:${TEST_SUB}`, JSON.stringify({
   assert.strictEqual(createdRes.data?.pinned, true);
   const noteId = createdRes.data.id;
 
-  // Update Note
+  // Update Note (Partial update - only content, ensure title and pinned are NOT wiped)
   const updatedRes = await saveNoteAction({
     id: noteId,
     content: '<p>Server Actions tích hợp trực tiếp với React 19 transitions</p>',
@@ -204,6 +204,19 @@ await redisMock.set(`levelup:user:google:${TEST_SUB}`, JSON.stringify({
 
   assert.strictEqual(updatedRes.success, true, 'Cập nhật ghi chú thành công');
   assert.ok(updatedRes.data?.content.includes('React 19'));
+  assert.strictEqual(updatedRes.data?.title, 'Ghi chú kiến trúc Next.js', 'Partial update không được làm mất title');
+  assert.strictEqual(updatedRes.data?.pinned, true, 'Partial update không được làm mất cờ pinned');
+  assert.strictEqual(updatedRes.data?.topic, 'Kiến Trúc', 'Partial update không được làm mất topic');
+
+  // Toggle Pin via Partial update without content
+  const pinRes = await saveNoteAction({
+    id: noteId,
+    pinned: false,
+    isPinned: false,
+  }, TEST_TOKEN);
+  assert.strictEqual(pinRes.success, true, 'Đổi cờ ghim thành công');
+  assert.strictEqual(pinRes.data?.pinned, false);
+  assert.ok(pinRes.data?.content.includes('React 19'), 'Đổi cờ ghim không được xóa content');
 
   // Delete Note
   const deleteRes = await deleteNoteAction(noteId, TEST_TOKEN);

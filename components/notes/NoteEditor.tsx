@@ -11,6 +11,7 @@ import {
 
 export interface NoteEditorHandle {
   flush: () => void;
+  cancelPendingSave: (id?: string) => void;
 }
 
 interface NoteEditorProps {
@@ -51,6 +52,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     content: activeNote?.content || '',
   });
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // ponytail: Deleted note tombstone set prevents debounce flush resurrecting deleted notes. Upgrade path: AbortController signal.
+  const deletedNoteIdsRef = useRef<Set<string>>(new Set());
 
   const isPinned = Boolean(activeNote?.pinned ?? activeNote?.isPinned);
 
@@ -63,6 +66,17 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     setStats({ words, chars, readTime });
   }, []);
 
+  // Cancel any pending debounced save and tombstone note ID
+  const cancelPendingSave = useCallback((id?: string) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (id) {
+      deletedNoteIdsRef.current.add(id);
+    }
+  }, []);
+
   // Flush current editor content immediately to avoid data loss
   const flushCurrentEditor = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -70,7 +84,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       saveTimeoutRef.current = null;
     }
     const targetId = currentEditingNoteIdRef.current;
-    if (!targetId || !editorRef.current) return;
+    if (!targetId || !editorRef.current || deletedNoteIdsRef.current.has(targetId)) return;
 
     const currentHtml = editorRef.current.innerHTML || '';
     const currentTitle = titleInputRef.current?.value || '';
@@ -110,9 +124,10 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     };
   }, [onSaveNote]);
 
-  // Expose flush handle to parent
+  // Expose flush and cancel handle to parent
   useImperativeHandle(ref, () => ({
     flush: flushCurrentEditor,
+    cancelPendingSave,
   }));
 
   // Handle switching active note safely without cross-over
@@ -120,13 +135,27 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     const prevId = currentEditingNoteIdRef.current;
     const nextId = activeNote?.id || '';
 
-    if (prevId && prevId !== nextId) {
+    if (prevId && prevId !== nextId && !deletedNoteIdsRef.current.has(prevId)) {
       // 1. Flush previous note changes before switching!
       flushCurrentEditor();
     }
 
     // 2. Set current editing id
     currentEditingNoteIdRef.current = nextId;
+
+    if (!activeNote) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+      }
+      if (titleInputRef.current) {
+        titleInputRef.current.value = '';
+      }
+      savedNoteSnapshotRef.current = { id: '', title: '', content: '' };
+      updateStats('');
+      setIsSaving(false);
+      setSaveStatus('Chưa chọn ghi chú');
+      return;
+    }
 
     // 3. Populate new content
     if (editorRef.current && activeNote) {
@@ -726,10 +755,11 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
               ref={titleInputRef}
               id={`${idPrefix}active-note-title`}
               type="text"
-              placeholder="Tiêu đề ghi chú..."
+              placeholder={activeNote ? 'Tiêu đề ghi chú...' : 'Chọn hoặc tạo ghi chú mới...'}
               defaultValue={activeNote?.title || ''}
+              disabled={!activeNote}
               onChange={handleTitleInput}
-              className="w-full text-base sm:text-lg font-bold bg-transparent border-0 focus:outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 truncate px-1"
+              className="w-full text-base sm:text-lg font-bold bg-transparent border-0 focus:outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 truncate px-1 disabled:opacity-50"
             />
           </div>
         </div>
@@ -804,7 +834,10 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
             {/* Delete Note */}
             <button
               type="button"
-              onClick={onDeleteNote}
+              onClick={() => {
+                cancelPendingSave(currentEditingNoteIdRef.current);
+                onDeleteNote();
+              }}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
               title="Xóa ghi chú này"
             >
@@ -1045,7 +1078,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           ref={editorRef}
           id={idPrefix === 'modal-' ? 'focus-notes-editor' : 'focus-notes-tab-editor'}
           data-react-notes-editor="true"
-          contentEditable="true"
+          contentEditable={Boolean(activeNote)}
           suppressContentEditableWarning
           spellCheck="false"
           onFocus={() => document.execCommand('defaultParagraphSeparator', false, 'p')}

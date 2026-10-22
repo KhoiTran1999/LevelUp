@@ -68,14 +68,15 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     });
   }, [optimisticNotes, searchQuery]);
 
-  // Current active note
+  // ponytail: Auto-align active note to filtered search results. Upgrade path: URL search params binding.
   const currentActiveNote = useMemo(() => {
+    const list = searchQuery.trim() ? filteredNotes : optimisticNotes;
     if (activeNoteId) {
-      const found = optimisticNotes.find(n => n.id === activeNoteId);
+      const found = list.find(n => n.id === activeNoteId);
       if (found) return found;
     }
-    return filteredNotes[0] || optimisticNotes[0] || null;
-  }, [optimisticNotes, filteredNotes, activeNoteId]);
+    return list[0] || null;
+  }, [optimisticNotes, filteredNotes, activeNoteId, searchQuery]);
 
   // Ensure activeNoteId stays aligned
   useEffect(() => {
@@ -217,7 +218,11 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
         return;
       }
 
+      // ponytail: Cancel pending save before deletion to avoid zombie saves. Upgrade path: AbortSignal.
+      editorHandleRef.current?.cancelPendingSave(id);
       await deleteNote(id);
+      // Return to note list view on mobile after deletion
+      setMobileActive(false);
       if (
         typeof window !== 'undefined' &&
         typeof (window as unknown as { showToast?: (m: string, t: string) => void }).showToast === 'function'
