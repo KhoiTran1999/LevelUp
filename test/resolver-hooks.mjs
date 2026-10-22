@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === 'next/server') {
@@ -16,6 +16,18 @@ export async function resolve(specifier, context, nextResolve) {
       const fullPath = basePath + ext;
       if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
         return nextResolve(pathToFileURL(fullPath).href, context);
+      }
+    }
+  }
+  if (specifier.startsWith('./') || specifier.startsWith('../')) {
+    if (context.parentURL && context.parentURL.startsWith('file:')) {
+      const parentDir = path.dirname(fileURLToPath(context.parentURL));
+      const basePath = path.resolve(parentDir, specifier);
+      for (const ext of ['', '.ts', '.tsx', '.js', '/index.ts', '/index.js']) {
+        const fullPath = basePath + ext;
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+          return nextResolve(pathToFileURL(fullPath).href, context);
+        }
       }
     }
   }

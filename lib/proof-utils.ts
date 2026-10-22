@@ -3,12 +3,12 @@
  */
 
 export interface DebateOption {
-  id: string;
-  title: string;
-  text: string;
+  id: string | number;
+  title?: string;
+  text?: string;
   label: string;
   argument: string;
-  payload: {
+  payload?: {
     newRewardCoins?: number;
     newTargetMinutes?: number;
     newType?: 'focus' | 'bounty';
@@ -22,6 +22,19 @@ export interface DebateOption {
     newAutoDeductPercent?: number;
     newCreditLimit?: number;
   };
+  newRewardCoins?: number;
+  newTargetMinutes?: number;
+  newType?: 'focus' | 'bounty' | string;
+  newRequiresProof?: boolean;
+  newProofType?: 'photo' | 'text' | 'both';
+  newTitle?: string;
+  newPrice?: number;
+  newTier?: 'common' | 'rare' | 'epic' | 'legendary' | string;
+  newName?: string;
+  newAmount?: number;
+  newBorrowRate?: number;
+  newAutoDeductPercent?: number;
+  newCreditLimit?: number;
 }
 
 /**

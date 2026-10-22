@@ -136,10 +136,12 @@ export function AiNegotiationChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStepText, setCurrentStepText] = useState<string | null>(null);
 
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const chatLogsRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatLogsRef.current) {
+      chatLogsRef.current.scrollTop = chatLogsRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -189,7 +191,7 @@ export function AiNegotiationChat({
     }
   }, [quest, reward, loan, type, messages.length]);
 
-  const handleSendArgument = async (customText?: string) => {
+  const handleSendArgument = async (customText?: string, selectedOption?: DebateOption | null) => {
     const textToSend = (customText || inputArg).trim();
     if (!textToSend || isStreaming) return;
 
@@ -231,6 +233,7 @@ export function AiNegotiationChat({
       const data = await fetchDebateStream<{
         reply?: string;
         text?: string;
+        options?: DebateOption[];
         verdict?: Partial<Quest> & Partial<ShopItem>;
         accepted?: boolean;
         newRewardCoins?: number;
@@ -260,6 +263,7 @@ export function AiNegotiationChat({
               [payloadKey]: targetPayload,
               argument: textToSend,
               history: historyPayload,
+              ...(selectedOption ? { selectedOption } : {}),
             },
           }),
         },
@@ -271,7 +275,12 @@ export function AiNegotiationChat({
       );
 
       const replyText = data.reply || data.text || 'Tôi đã tiếp nhận ý kiến của bạn.';
-      const parsedOptions = parseDebateOptionsFromText(replyText, type);
+      const isFinalChoice = Boolean(selectedOption);
+      const parsedOptions = isFinalChoice
+        ? []
+        : (Array.isArray(data.options) && data.options.length > 0
+            ? data.options
+            : (data.accepted ? [] : parseDebateOptionsFromText(replyText, type)));
 
       setMessages(prev => [
         ...prev,
@@ -344,7 +353,7 @@ export function AiNegotiationChat({
 
   const handleOptionClick = (option: DebateOption) => {
     onOptionSelected?.(option);
-    handleSendArgument(option.argument);
+    handleSendArgument(option.argument, option);
   };
 
   const handleQuickSuggest = (suggestText: string) => {
@@ -370,6 +379,7 @@ export function AiNegotiationChat({
         {/* Chat logs container with smooth scroll */}
         <div
           id="bank-debate-chat-logs"
+          ref={chatLogsRef}
           className="relative min-h-[200px] max-h-72 sm:max-h-80 overflow-y-auto space-y-2.5 text-xs sm:text-[13px] pr-1.5"
         >
           {messages.map(msg => (
@@ -422,8 +432,6 @@ export function AiNegotiationChat({
               </div>
             </div>
           )}
-
-          <div ref={logsEndRef} />
         </div>
 
         {/* Quick Suggestion Chips for Loan */}
@@ -569,6 +577,7 @@ export function AiNegotiationChat({
         {/* Chat logs container with smooth scroll */}
         <div
           id="reward-debate-chat-logs"
+          ref={chatLogsRef}
           className="relative min-h-[220px] max-h-72 sm:max-h-[340px] overflow-y-auto space-y-2.5 text-xs sm:text-[13px] pr-1"
         >
           {messages.map(msg => (
@@ -621,8 +630,6 @@ export function AiNegotiationChat({
               </div>
             </div>
           )}
-
-          <div ref={logsEndRef} />
         </div>
 
         {/* Quick Suggestion Chips for Reward */}
@@ -768,6 +775,7 @@ export function AiNegotiationChat({
       {/* Chat logs container with smooth scroll */}
       <div
         id="debate-chat-logs"
+        ref={chatLogsRef}
         className="relative min-h-[220px] max-h-72 sm:max-h-[340px] overflow-y-auto space-y-2.5 text-xs sm:text-[13px] pr-1"
       >
         {messages.map(msg => (
@@ -820,8 +828,6 @@ export function AiNegotiationChat({
             </div>
           </div>
         )}
-
-        <div ref={logsEndRef} />
       </div>
 
       {/* Quick Suggestion Chips for Quest */}

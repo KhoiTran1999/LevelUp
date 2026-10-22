@@ -92,10 +92,52 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
     setIsAnalyzingRoadmap(true);
     try {
       const quests = state.quests.filter(q => q.status !== 'completed');
+      const targetDebt = parsedBorrowAmt || 30;
+
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bank_consult_loan',
+          payload: {
+            profile,
+            requestedAmount: targetDebt,
+            autoDeductPercent: deductPercent / 100,
+            quests,
+            poolState: rates,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const estDaysNum = data.estimatedDaysToRepay || Math.max(1, Math.ceil(targetDebt / 15));
+        setRoadmapData({
+          advice: data.advice || `Dựa trên năng lực hiện tại (${quests.length} nhiệm vụ sẵn sàng), bạn có thể hoàn tất khoản vay an toàn.`,
+          repaymentPlan: data.repaymentPlan || `Mỗi ngày hoàn thành 2-3 nhiệm vụ, trích ${deductPercent}% thưởng để trả nợ.`,
+          estDays: `${estDaysNum} ngày`,
+          dailyIncome: `Khoản vay: ~${targetDebt} Vàng`,
+        });
+      } else {
+        const avgReward = quests.length > 0
+          ? Math.round(quests.reduce((acc, q) => acc + (q.rewardCoins || 10), 0) / quests.length)
+          : 15;
+        const dailyEarn = Math.max(10, avgReward * 2);
+        const estDaysCount = Math.max(1, Math.ceil(targetDebt / (dailyEarn * (deductPercent / 100))));
+
+        setRoadmapData({
+          advice: `Dựa trên năng lực hiện tại (${quests.length} nhiệm vụ sẵn sàng), bạn có thể hoàn thành khoản vay một cách an toàn và bền vững.`,
+          repaymentPlan: `Mỗi ngày hoàn thành 2-3 nhiệm vụ, trích ${deductPercent}% thưởng (~${Math.round(dailyEarn * (deductPercent / 100))} Vàng/ngày) để trả nợ.`,
+          estDays: `${estDaysCount}-${estDaysCount + 1} ngày`,
+          dailyIncome: `Thu nhập: ~${dailyEarn} Vàng/ngày`,
+        });
+      }
+    } catch {
+      const quests = state.quests.filter(q => q.status !== 'completed');
+      const targetDebt = parsedBorrowAmt || 30;
       const avgReward = quests.length > 0
         ? Math.round(quests.reduce((acc, q) => acc + (q.rewardCoins || 10), 0) / quests.length)
         : 15;
-      const targetDebt = parsedBorrowAmt || 30;
       const dailyEarn = Math.max(10, avgReward * 2);
       const estDaysCount = Math.max(1, Math.ceil(targetDebt / (dailyEarn * (deductPercent / 100))));
 
@@ -105,8 +147,6 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
         estDays: `${estDaysCount}-${estDaysCount + 1} ngày`,
         dailyIncome: `Thu nhập: ~${dailyEarn} Vàng/ngày`,
       });
-    } catch {
-      triggerToast('Không thể phân tích lộ trình lúc này', 'error');
     } finally {
       setIsAnalyzingRoadmap(false);
     }
@@ -398,6 +438,12 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
                     autoDeductPercent: deductPercent / 100,
                     creditLimit: calculatedLimit,
                     termDays: selectedTerm,
+                  }}
+                  onOptionSelected={option => {
+                    const amt = option.newAmount || option.payload?.newAmount;
+                    const deduct = option.newAutoDeductPercent || option.payload?.newAutoDeductPercent;
+                    if (amt) setBorrowAmountInput(String(amt));
+                    if (deduct) setDeductPercent(Math.round(deduct * 100));
                   }}
                   onLoanTermsUpdated={terms => {
                     setNegotiatedTerms(terms);

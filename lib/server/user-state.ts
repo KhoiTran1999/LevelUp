@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { authenticateCaller } from '@/lib/server/auth';
 import { getRedis } from '@/lib/server/redis';
+import { dedupeById } from '@/lib/server/crypto';
 import { getUserById, upsertUser } from '../../src/db/repositories/userRepository.js';
 import { isDbConfigured } from '../../src/db/index.js';
 import type { LevelUpAppState } from '@/types/levelup';
@@ -112,3 +113,30 @@ export async function commitUserState(userSub: string, state: LevelUpAppState): 
     } catch (_) {}
   }
 }
+
+/**
+ * ponytail: Safe, user-scoped cloud state retriever.
+ * Strictly queries data belonging to userSub, preventing cross-tenant leakage.
+ */
+export async function getUserCloudData(redis: any, userSub?: string | null): Promise<any> {
+  if (!redis || !userSub) return null;
+  try {
+    let raw = await redis.get(`levelup:user:google:${userSub}`);
+    if (!raw) raw = await redis.get(`levelup:user:${userSub}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      profile: parsed.profile || {},
+      bank: parsed.profile?.bank || parsed.bank || null,
+      quests: dedupeById(parsed.quests),
+      shopItems: dedupeById(parsed.shopItems),
+      inventory: dedupeById(parsed.inventory),
+      ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
+      proofPhotos: Array.isArray(parsed.proofPhotos) ? parsed.proofPhotos : [],
+      activeTimer: parsed.activeTimer || null
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
