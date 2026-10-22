@@ -125,7 +125,6 @@ export function QuestDetailModal() {
     modal._reactOnDismiss = handleDismiss;
     const initializeGestures = (window as QuestDetailWindow).initBottomSheetGestures;
     if (initializeGestures) initializeGestures();
-    else console.error('[QuestDetailModal] Bottom-sheet gesture runtime is unavailable.');
     return () => {
       if (modal._reactOnDismiss === handleDismiss) delete modal._reactOnDismiss;
     };
@@ -148,7 +147,6 @@ export function QuestDetailModal() {
       modal._reactOnDismiss = finishClose;
       win.dismissModalWithSlideDown(modal);
     } else {
-      if (animate && modal) console.error('[QuestDetailModal] Bottom-sheet close animation is unavailable.');
       finishClose();
     }
   };

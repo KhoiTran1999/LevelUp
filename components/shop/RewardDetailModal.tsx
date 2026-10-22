@@ -143,7 +143,6 @@ export function RewardDetailModal() {
     modal._reactOnDismiss = handleDismiss;
     const win = window as RewardDetailWindow;
     if (win.initBottomSheetGestures) win.initBottomSheetGestures();
-    else console.error('[RewardDetailModal] Bottom-sheet gesture runtime is unavailable.');
     return () => {
       if (modal._reactOnDismiss === handleDismiss) delete modal._reactOnDismiss;
     };
@@ -158,7 +157,6 @@ export function RewardDetailModal() {
       modal._reactOnDismiss = finishClose;
       win.dismissModalWithSlideDown(modal);
     } else {
-      if (animate && modal) console.error('[RewardDetailModal] Bottom-sheet close animation is unavailable.');
       finishClose();
     }
   };

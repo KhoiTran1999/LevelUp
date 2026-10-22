@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
-import { authenticateCaller, getRedis } from '../../api/sync.js';
+import { authenticateCaller } from '@/lib/server/auth';
+import { getRedis } from '@/lib/server/redis';
 import { getUserById, upsertUser } from '../../src/db/repositories/userRepository.js';
 import { isDbConfigured } from '../../src/db/index.js';
 import type { LevelUpAppState } from '@/types/levelup';

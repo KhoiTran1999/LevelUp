@@ -1,7 +1,7 @@
 'use server';
 
 import crypto from 'node:crypto';
-import { dedupeById } from '../../api/sync.js';
+import { dedupeById } from '@/lib/server/crypto';
 import type { Quest, ShopItem, NoteItem, LevelUpAppState } from '@/types/levelup';
 import {
   resolveAuthenticatedUser,

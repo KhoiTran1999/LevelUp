@@ -54,731 +54,124 @@ export {
 
 dotenv.config();
 
-let redisClient = null;
-let googleTokenVerifierForTesting = null;
 let minRedemptionIntervalMs = 24 * 60 * 1000;
-
-// ponytail: test hook for hermetic in-memory mock testing without network
-export function setRedisClientForTesting(client) {
-  redisClient = client;
-}
-
-// ponytail: test hook for mocking Google Token Verification in unit tests
-export function setGoogleTokenVerifierForTesting(verifier) {
-  googleTokenVerifierForTesting = verifier;
-}
 
 // ponytail: test hook for mocking minimum redemption interval in unit tests
 export function setMinRedemptionIntervalForTesting(ms) {
   minRedemptionIntervalMs = ms;
 }
 
-const HMAC_SECRET = process.env.APP_SECRET || process.env.REDIS_URL || 'levelup_vault_secret_2026';
+export {
+  setRedisClientForTesting,
+  getRedis,
+  updateUserPresence,
+  setOfflineUserPresence,
+  getOnlineUsersPresence,
+  checkRateLimit
+} from '../lib/server/redis.ts';
+
+import {
+  setRedisClientForTesting,
+  getRedis,
+  updateUserPresence,
+  setOfflineUserPresence,
+  getOnlineUsersPresence,
+  checkRateLimit
+} from '../lib/server/redis.ts';
+
+export {
+  setGoogleTokenVerifierForTesting,
+  verifyGoogleToken,
+  authenticateCaller,
+  verifyIsAdmin
+} from '../lib/server/auth.ts';
+
+import {
+  setGoogleTokenVerifierForTesting,
+  verifyGoogleToken,
+  authenticateCaller,
+  verifyIsAdmin
+} from '../lib/server/auth.ts';
+
+export {
+  deriveTitleForLevel,
+  dedupeById,
+  signQuest,
+  signQuestLegacyProof,
+  signQuestLegacy,
+  verifyQuestSignature,
+  signReward,
+  signRewardLegacy,
+  verifyRewardSignature,
+  signLoanOffer,
+  verifyLoanSignature,
+  deriveLegitimateBalance
+} from '../lib/server/crypto.ts';
+
+export {
+  BANK_TERMS,
+  LOAN_TERMS,
+  DAILY_DEPOSIT_INTEREST_CAP,
+  calculateEffectiveDepositBase,
+  calculateDisciplineMultiplier,
+  normalizeBankDeposits,
+  calculateBankRates,
+  calculateCreditLimit,
+  calculateNetWorth,
+  formatBankDayHourCountdown,
+  formatBankCountdown,
+  calculateDepositPayoutInfo,
+  calculateLoanCountdownInfo,
+  accrueUserBank
+} from '../lib/server/bank-math.ts';
+
+import {
+  deriveTitleForLevel,
+  dedupeById,
+  signQuest,
+  signQuestLegacyProof,
+  signQuestLegacy,
+  verifyQuestSignature,
+  signReward,
+  signRewardLegacy,
+  verifyRewardSignature,
+  signLoanOffer,
+  verifyLoanSignature,
+  deriveLegitimateBalance
+} from '../lib/server/crypto.ts';
+
+import {
+  BANK_TERMS,
+  LOAN_TERMS,
+  DAILY_DEPOSIT_INTEREST_CAP,
+  calculateEffectiveDepositBase,
+  calculateDisciplineMultiplier,
+  normalizeBankDeposits,
+  calculateBankRates,
+  calculateCreditLimit,
+  calculateNetWorth,
+  formatBankDayHourCountdown,
+  formatBankCountdown,
+  calculateDepositPayoutInfo,
+  calculateLoanCountdownInfo,
+  accrueUserBank
+} from '../lib/server/bank-math.ts';
+
+export {
+  reconcileGlobalBankPool,
+  getGlobalBankState,
+  saveGlobalBankState
+} from '../lib/server/bank-service.ts';
 
-// ponytail: Deduplicate array of objects by id/questId to prevent duplicate React keys. Upgrade path: DB primary key constraint.
-export function dedupeById(items) {
-  if (!Array.isArray(items)) return [];
-  const seen = new Set();
-  const result = [];
-  for (const item of items) {
-    const id = item?.id || item?.questId;
-    if (id) {
-      if (!seen.has(id)) {
-        seen.add(id);
-        result.push(item);
-      }
-    } else if (item) {
-      result.push(item);
-    }
-  }
-  return result;
-}
+import {
+  reconcileGlobalBankPool,
+  getGlobalBankState,
+  saveGlobalBankState
+} from '../lib/server/bank-service.ts';
 
-export function deriveTitleForLevel(lvl) {
-  const l = parseInt(lvl, 10) || 1;
-  if (l >= 20) return 'Huyền Thoại Kỷ Luật';
-  if (l >= 15) return 'Bậc Thầy Năng Suất';
-  if (l >= 10) return 'Chuyên Gia Tập Trung';
-  if (l >= 6) return 'Chiến Binh Kiên Trì';
-  if (l >= 3) return 'Học Viên Chăm Chỉ';
-  return 'Tân Binh Cấp 1';
-}
+// Anti-Cheat: Validate and derive legitimate coin balance re-exported from lib/server/crypto.ts
 
-export function signQuest(title, type, targetMinutes, rewardCoins, requiresProof = false, isRepeatable = null) {
-  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
-  const t = type === 'bounty' ? 'bounty' : 'focus';
-  const m = parseInt(targetMinutes, 10) || 0;
-  const c = parseInt(rewardCoins, 10) || 0;
-  const p = requiresProof ? '1' : '0';
-  if (isRepeatable !== null && isRepeatable !== undefined) {
-    const r = isRepeatable ? '1' : '0';
-    const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}:${r}`;
-    return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-  }
-  const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function signQuestLegacyProof(title, type, targetMinutes, rewardCoins, requiresProof = false) {
-  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
-  const t = type === 'bounty' ? 'bounty' : 'focus';
-  const m = parseInt(targetMinutes, 10) || 0;
-  const c = parseInt(rewardCoins, 10) || 0;
-  const p = requiresProof ? '1' : '0';
-  const payload = `quest:${normTitle}:${t}:${m}:${c}:${p}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function signQuestLegacy(title, type, targetMinutes, rewardCoins) {
-  const normTitle = (title || '').normalize('NFC').trim().toLowerCase();
-  const t = type === 'bounty' ? 'bounty' : 'focus';
-  const m = parseInt(targetMinutes, 10) || 0;
-  const c = parseInt(rewardCoins, 10) || 0;
-  const payload = `quest:${normTitle}:${t}:${m}:${c}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function verifyQuestSignature(q) { return true; }
-
-export function signReward(name, price, tier, targetMinutes = 0) {
-  const normName = (name || '').normalize('NFC').trim().toLowerCase();
-  const p = parseInt(price, 10) || 0;
-  const tr = (tier || 'common').toLowerCase();
-  const m = parseInt(targetMinutes, 10) || 0;
-  if (m > 0) {
-    const payload = `reward:${normName}:${p}:${tr}:${m}`;
-    return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-  }
-  const payload = `reward:${normName}:${p}:${tr}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function signRewardLegacy(name, price, tier) {
-  const normName = (name || '').normalize('NFC').trim().toLowerCase();
-  const p = parseInt(price, 10) || 0;
-  const tr = (tier || 'common').toLowerCase();
-  const payload = `reward:${normName}:${p}:${tr}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function verifyRewardSignature(r, items) { return true; }
-
-/**
- * Anti-Cheat: Sign and verify AI-negotiated loan offers
- * Protects against tampering of negotiated interest rates and credit limits
- */
-export function signLoanOffer(userId, amount, borrowRate, autoDeductPercent, creditLimit) {
-  const normUser = (userId || '').trim().toLowerCase();
-  const a = parseInt(amount, 10) || 0;
-  const r = Number(borrowRate).toFixed(4);
-  const d = Number(autoDeductPercent).toFixed(2);
-  const lim = parseInt(creditLimit, 10) || 0;
-  const payload = `loan:${normUser}:${a}:${r}:${d}:${lim}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex').slice(0, 16);
-}
-
-export function verifyLoanSignature(candidates, amount, rate, autoDeduct, limit, sig) { return true; }
-
-export const BANK_TERMS = {
-  0: { id: 'flex', days: 0, label: 'Linh Hoạt', desc: 'Rút bất cứ lúc nào, an toàn tuyệt đối', rateMultiplier: 1.0, icon: '🍃' },
-  7: { id: 'week', days: 7, label: '7 Ngày', desc: 'Tuần tích lũy, tăng trưởng đều đặn', rateMultiplier: 1.3, icon: '⚡' },
-  14: { id: 'two_weeks', days: 14, label: '14 Ngày', desc: 'Thử thách 2 tuần kiên định', rateMultiplier: 1.6, icon: '🛡️' },
-  30: { id: 'month', days: 30, label: '30 Ngày', desc: 'Chiến binh cam kết, lãi suất tối đa', rateMultiplier: 2.0, icon: '👑' }
-};
-
-export const LOAN_TERMS = {
-  3: { id: 'term_3', days: 3, label: '3 Ngày', desc: 'Vay cấp tốc, hoàn nợ trong 3 ngày', rateMultiplier: 0.90, icon: '⚡' },
-  7: { id: 'term_7', days: 7, label: '7 Ngày', desc: 'Gói chuẩn 1 tuần làm nhiệm vụ', rateMultiplier: 1.00, icon: '🛡️' },
-  14: { id: 'term_14', days: 14, label: '14 Ngày', desc: 'Thong thả 2 tuần làm việc', rateMultiplier: 1.10, icon: '⏳' },
-  30: { id: 'term_30', days: 30, label: '30 Ngày', desc: 'Dài hạn 1 tháng, thảnh thơi trả dần', rateMultiplier: 1.20, icon: '👑' }
-};
-
-export const DAILY_DEPOSIT_INTEREST_CAP = 8; // Trần tối đa 8 Vàng lãi / ngày
-
-export function calculateEffectiveDepositBase(amount) {
-  const a = Math.max(0, parseInt(amount, 10) || 0);
-  if (a <= 100) return a;
-  if (a <= 500) return 100 + (a - 100) * 0.70;
-  if (a <= 2000) return 380 + (a - 500) * 0.40;
-  return 980 + (a - 2000) * 0.10;
-}
-
-export function calculateDisciplineMultiplier(profile = {}) {
-  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
-  if (streak >= 7) return { multiplier: 1.5, label: 'Chiến Binh Kỷ Luật (Streak ≥ 7)', icon: '🔥', bonusPct: 50 };
-  if (streak >= 3) return { multiplier: 1.3, label: 'Duy Trì Thói Quen (Streak ≥ 3)', icon: '⚡', bonusPct: 30 };
-  if (streak >= 1) return { multiplier: 1.15, label: 'Khởi Động Ngày Mới (Streak ≥ 1)', icon: '🌱', bonusPct: 15 };
-  return { multiplier: 0.8, label: 'Chưa Có Chuỗi Kỷ Luật (Streak 0)', icon: '⚠️', bonusPct: -20 };
-}
-
-export function normalizeBankDeposits(bank, now = Date.now()) {
-  if (!bank || typeof bank !== 'object') return bank;
-
-  if (!Array.isArray(bank.deposits)) {
-    const dep = Math.max(0, parseInt(bank.deposited, 10) || 0);
-    const int = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-    if (dep > 0 || int > 0) {
-      bank.deposits = [{
-        id: bank.lastDepositAt ? `dep_legacy_${bank.lastDepositAt}` : `dep_legacy_${now}`,
-        amount: dep,
-        termDays: 0,
-        interest: int,
-        createdAt: parseInt(bank.lastDepositAt, 10) || now,
-        lastAccruedAt: parseInt(bank.lastDepositAt, 10) || now,
-        maturityAt: 0,
-        status: 'active'
-      }];
-    } else {
-      bank.deposits = [];
-    }
-  }
-
-  bank.deposits = bank.deposits.filter(d => {
-    if (!d) return false;
-    const amount = parseInt(d.amount, 10) || 0;
-    const interest = parseInt(d.interest, 10) || 0;
-    if (amount <= 0 && interest <= 0) return false;
-    if (!d.status) {
-      d.status = (d.termDays > 0 && d.maturityAt && now >= d.maturityAt) ? 'matured' : 'active';
-    }
-    return d.status === 'active' || d.status === 'matured';
-  });
-  bank.deposited = bank.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
-  bank.depositInterest = bank.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
-  return bank;
-}
-
-/**
- * Dynamic Interest Rate AMM for LevelUp 3-Party Finance
- * U = Total Borrowed / (Pool Gold + Total Borrowed)
- * Base Deposit rate: 0.12% to 0.25% daily (balanced for RPG economy)
- * Borrow rate: 4% to 18% daily (clamp)
- * Spread: Borrow rate - Deposit rate
- */
-export function calculateBankRates(poolState = {}) {
-  const p = Math.max(0, parseInt(poolState?.poolGold, 10) || 0);
-  const b = Math.max(0, parseInt(poolState?.totalBorrowed, 10) || 0);
-  const total = p + b;
-  const u = total > 0 ? b / total : 0;
-  const clampedU = Math.min(1, Math.max(0, u));
-
-  // Dynamic rates (per 24h)
-  const depositRate = Number((Math.min(0.0025, Math.max(0.0010, 0.0012 + 0.0013 * clampedU))).toFixed(4));
-  const borrowRate = Number((Math.min(0.18, Math.max(0.04, 0.05 + 0.10 * clampedU))).toFixed(4));
-  const spread = Number((borrowRate - depositRate).toFixed(4));
-
-  return {
-    utilization: Number(clampedU.toFixed(4)),
-    depositRate,
-    borrowRate,
-    spread
-  };
-}
-
-export function calculateCreditLimit(profile = {}, autoDeductPercent = 0.50) {
-  const lvl = Math.max(1, parseInt(profile?.level, 10) || 1);
-  const streak = Math.max(0, parseInt(profile?.streak, 10) || 0);
-  const totalEarned = Math.max(20, parseInt(profile?.totalCoinsEarned, 10) || 20);
-
-  // Base hard cap limit
-  const baseLimit = Math.min(400, (lvl * 25) + (streak * 5) + Math.floor(totalEarned * 0.1));
-
-  // Commitment factor based on user selected deduction rate (0.20 - 0.80)
-  const clampedRate = Math.min(0.80, Math.max(0.20, Number(autoDeductPercent) || 0.50));
-  const kDeduct = 0.7 + ((Math.max(0.30, clampedRate) - 0.30) / 0.50) * 0.8; // 0.7 to 1.5
-
-  return Math.max(20, Math.floor(baseLimit * kDeduct));
-}
-
-/**
- * Tính tổng tài sản ròng (Net Worth) cho Bảng Xếp Hạng & Chỉ số tài chính:
- * Net Worth = Vàng trong ví + Vàng gửi tiết kiệm + Tiền lãi tích lũy - Dư nợ khoản vay
- */
-export function calculateNetWorth(profile = {}) {
-  const coins = Math.max(0, parseInt(profile?.coins, 10) || 0);
-  const bank = profile?.bank || {};
-  const deposited = Math.max(0, parseInt(bank.deposited, 10) || 0);
-  const depositInterest = Math.max(0, parseInt(bank.depositInterest, 10) || 0);
-  const debt = Math.max(0, parseInt(bank.loan?.debt, 10) || 0);
-  return Math.max(0, coins + deposited + depositInterest - debt);
-}
-
-// ponytail: Format countdown by days and hours; upgrade to localized Intl.DurationFormat when baseline support lands
-export function formatBankDayHourCountdown(ms) {
-  if (!ms || ms <= 0) return '0 giờ';
-  const totalHours = Math.floor(ms / (1000 * 60 * 60));
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-
-  if (days > 0) {
-    return `${days} ngày ${hours} giờ`;
-  }
-  if (hours > 0) {
-    return `${hours} giờ`;
-  }
-  return '< 1 giờ';
-}
-
-/**
- * Tính thông tin đếm ngược nhận lãi và số tiền sẽ nhận cho sổ tiết kiệm
- * @param {Object} dep - Sổ tiết kiệm ({ amount, interest, termDays, createdAt, lastAccruedAt, maturityAt, status })
- * @param {Object} rates - { depositRate }
- * @param {number|Object} discipline - Hệ số kỷ luật streak (số hoặc object { multiplier })
- * @param {number} now - Timestamp hiện tại
- */
-export function calculateDepositPayoutInfo(dep, rates = {}, discipline = 1.0, now = Date.now()) {
-  if (!dep || typeof dep !== 'object') return null;
-  const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
-  if (amount <= 0) return null;
-
-  const termDays = parseInt(dep.termDays, 10) || 0;
-  const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
-  const termMult = termConfig.rateMultiplier || 1.0;
-
-  const discMult = typeof discipline === 'object' && discipline !== null
-    ? (Number(discipline.multiplier) || 1.0)
-    : (Number(discipline) || 1.0);
-
-  const rawBase = Number(rates?.depositRate) || 0.0015;
-  const baseRate = Math.min(0.0025, Math.max(0.0010, rawBase));
-  const effectiveBase = calculateEffectiveDepositBase(amount);
-  const dailyRate = baseRate * termMult * discMult;
-  const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
-
-  const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
-
-  // 1. Sổ có kỳ hạn (termDays > 0)
-  if (termDays > 0 && dep.maturityAt) {
-    const maturityAt = parseInt(dep.maturityAt, 10);
-    const msUntilMaturity = Math.max(0, maturityAt - now);
-    const isMatured = dep.status === 'matured' || now >= maturityAt || msUntilMaturity <= 5000;
-
-    // Tổng lãi dự kiến khi đáo hạn
-    const totalExpectedInterest = Math.max(
-      parseInt(dep.interest, 10) || 0,
-      Math.floor(cappedDailyInterest * termDays)
-    );
-
-    return {
-      type: 'term',
-      termDays,
-      termLabel: termConfig.label,
-      targetTimestamp: maturityAt,
-      msRemaining: isMatured ? 0 : msUntilMaturity,
-      isMatured,
-      expectedPayoutAmount: isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest,
-      totalWithPrincipal: amount + (isMatured ? (parseInt(dep.interest, 10) || 0) : totalExpectedInterest),
-      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
-      cappedDailyInterest
-    };
-  }
-
-  // 2. Sổ linh hoạt (termDays === 0)
-  if (cappedDailyInterest <= 0) {
-    return {
-      type: 'flex',
-      termDays: 0,
-      termLabel: termConfig.label,
-      targetTimestamp: 0,
-      msRemaining: 0,
-      isMatured: false,
-      expectedPayoutAmount: 0,
-      totalWithPrincipal: amount,
-      currentAccruedInterest: parseInt(dep.interest, 10) || 0,
-      cappedDailyInterest: 0
-    };
-  }
-
-  const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
-  const currentEarnedCoins = Math.floor(cappedDailyInterest * elapsedDays);
-  const nextTargetCoinCount = currentEarnedCoins + 1;
-  const daysNeededTotal = nextTargetCoinCount / cappedDailyInterest;
-  const targetTimestamp = lastAcc + Math.ceil(daysNeededTotal * 24 * 60 * 60 * 1000);
-  const msRemaining = Math.max(0, targetTimestamp - now);
-
-  return {
-    type: 'flex',
-    termDays: 0,
-    termLabel: termConfig.label,
-    targetTimestamp,
-    msRemaining,
-    isMatured: false,
-    expectedPayoutAmount: 1,
-    totalWithPrincipal: amount + (parseInt(dep.interest, 10) || 0) + 1,
-    currentAccruedInterest: parseInt(dep.interest, 10) || 0,
-    cappedDailyInterest
-  };
-}
-
-/**
- * Tính thông tin đếm ngược cho khoản vay:
- * 1) Thời gian sẽ tính lãi của lần tiếp theo & số tiền lãi
- * 2) Thời gian hết kỳ hạn vay & trạng thái quá hạn
- * @param {Object} loan - { principal, debt, termDays, borrowRate, borrowedAt, lastAccruedAt, isOverdue }
- * @param {Object} rates - { borrowRate }
- * @param {number} now - Timestamp hiện tại
- */
-export function calculateLoanCountdownInfo(loan, rates = {}, now = Date.now()) {
-  if (!loan || typeof loan !== 'object' || (parseInt(loan.debt, 10) || 0) <= 0) {
-    return null;
-  }
-
-  const debt = Math.max(0, parseInt(loan.debt, 10) || 0);
-  const principal = Math.max(0, parseInt(loan.principal, 10) || 0);
-  const termDays = Math.max(1, parseInt(loan.termDays, 10) || 7);
-  const borrowRate = Number(loan.borrowRate) || Number(rates?.borrowRate) || 0.05;
-
-  const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
-  const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
-
-  // 1. Đếm ngược tính lãi lần tiếp theo (chu kỳ 24h từ lastAccruedAt)
-  const nextAccrualTimestamp = lastAcc + (24 * 60 * 60 * 1000);
-  const msUntilNextAccrual = Math.max(0, nextAccrualTimestamp - now);
-  const nextInterestAmount = Math.ceil(debt * borrowRate);
-
-  // 2. Đếm ngược hết kỳ hạn vay
-  const expireTimestamp = borrowedAt + (termDays * 24 * 60 * 60 * 1000);
-  const msUntilExpire = expireTimestamp - now;
-  const isOverdue = Boolean(loan.isOverdue) || msUntilExpire <= 0;
-
-  return {
-    debt,
-    principal,
-    termDays,
-    borrowRate,
-    nextAccrualTimestamp,
-    msUntilNextAccrual,
-    nextInterestAmount,
-    isAccrualDue: msUntilNextAccrual === 0,
-    expireTimestamp,
-    msUntilExpire: Math.max(0, msUntilExpire),
-    isOverdue,
-    overdueDays: isOverdue ? Math.max(1, Math.floor(Math.abs(now - expireTimestamp) / (24 * 60 * 60 * 1000))) : 0
-  };
-}
-
-/**
- * Accrue user bank interest (deposit yield & loan debt interest)
- * Hỗ trợ A (Lãi suất cân bằng, không floor ảo), B (Bậc thang, trần ngày), C (Kỷ luật streak), D (Đa kỳ hạn)
- * Enforce 7-day overdue freeze rule
- */
-export function accrueUserBank(bankData, rates = {}, now = Date.now(), profile = {}) {
-  if (!bankData || typeof bankData !== 'object') {
-    return {
-      deposited: 0,
-      depositInterest: 0,
-      lastDepositAt: now,
-      deposits: [],
-      loan: null,
-      isFrozen: false
-    };
-  }
-
-  const copy = {
-    ...bankData,
-    deposited: Math.max(0, parseInt(bankData.deposited, 10) || 0),
-    depositInterest: Math.max(0, parseInt(bankData.depositInterest, 10) || 0),
-    isFrozen: Boolean(bankData.isFrozen)
-  };
-
-  normalizeBankDeposits(copy, now);
-
-  const baseRate = Math.min(0.0025, Math.max(0.0010, Number(rates?.depositRate) || 0.0015));
-  const { multiplier: disciplineMult } = calculateDisciplineMultiplier(profile);
-
-  // 1. Accrue deposit interest cho từng sổ
-  if (Array.isArray(copy.deposits) && copy.deposits.length > 0) {
-    for (const dep of copy.deposits) {
-      const amount = Math.max(0, parseInt(dep.amount, 10) || 0);
-      if (amount <= 0) continue;
-
-      const termDays = parseInt(dep.termDays, 10) || 0;
-      const termConfig = BANK_TERMS[termDays] || BANK_TERMS[0];
-      const termMult = termConfig.rateMultiplier || 1.0;
-
-      const lastAcc = parseInt(dep.lastAccruedAt, 10) || parseInt(dep.createdAt, 10) || now;
-      let targetNow = now;
-
-      // Nếu có kỳ hạn, chỉ tính lãi đến lúc đáo hạn
-      if (termDays > 0 && dep.maturityAt) {
-        if (now >= dep.maturityAt || (dep.maturityAt - now) <= 5000) {
-          dep.status = 'matured';
-          targetNow = Math.min(now, dep.maturityAt);
-        }
-      }
-
-      const elapsedDays = Math.max(0, (targetNow - lastAcc) / (24 * 60 * 60 * 1000));
-      if (elapsedDays > 0) {
-        const effectiveBase = calculateEffectiveDepositBase(amount);
-        const dailyRate = baseRate * termMult * disciplineMult;
-        
-        // Giới hạn trần lãi ngày (DAILY_DEPOSIT_INTEREST_CAP = 8 Vàng/ngày)
-        const cappedDailyInterest = Math.min(DAILY_DEPOSIT_INTEREST_CAP, effectiveBase * dailyRate);
-        const earned = Math.floor(cappedDailyInterest * elapsedDays);
-
-        if (earned > 0) {
-          dep.interest = (parseInt(dep.interest, 10) || 0) + earned;
-          const daysConsumed = cappedDailyInterest > 0 ? (earned / cappedDailyInterest) : elapsedDays;
-          dep.lastAccruedAt = Math.min(targetNow, lastAcc + Math.round(daysConsumed * 24 * 60 * 60 * 1000));
-        }
-        if (termDays > 0 && dep.maturityAt && targetNow === dep.maturityAt && now >= dep.maturityAt) {
-          dep.lastAccruedAt = dep.maturityAt;
-        }
-      }
-    }
-
-    copy.deposited = copy.deposits.reduce((sum, d) => sum + (parseInt(d.amount, 10) || 0), 0);
-    copy.depositInterest = copy.deposits.reduce((sum, d) => sum + (parseInt(d.interest, 10) || 0), 0);
-    copy.lastDepositAt = now;
-  }
-
-  // 2. Accrue loan debt interest & check overdue
-  if (copy.loan && parseInt(copy.loan.debt, 10) > 0) {
-    const loanTermDays = Math.max(1, parseInt(copy.loan.termDays, 10) || 7);
-    const loan = {
-      ...copy.loan,
-      principal: Math.max(0, parseInt(copy.loan.principal, 10) || 0),
-      debt: Math.max(0, parseInt(copy.loan.debt, 10) || 0),
-      termDays: loanTermDays,
-      borrowRate: Number(copy.loan.borrowRate) || rates?.borrowRate || 0.06,
-      autoDeductPercent: Math.min(0.80, Math.max(0.20, Number(copy.loan.autoDeductPercent) || 0.50)),
-      isOverdue: Boolean(copy.loan.isOverdue)
-    };
-
-    const borrowedAt = parseInt(loan.borrowedAt, 10) || now;
-    const lastAcc = parseInt(loan.lastAccruedAt, 10) || borrowedAt;
-    const elapsedDays = Math.max(0, (now - lastAcc) / (24 * 60 * 60 * 1000));
-
-    // Check overdue (past loan.termDays since loan creation without full repayment)
-    if ((now - borrowedAt) >= loanTermDays * 24 * 60 * 60 * 1000) {
-      loan.isOverdue = true;
-      copy.isFrozen = true;
-    }
-
-    if (elapsedDays >= 1) {
-      const daysCount = Math.min(365, Math.floor(elapsedDays));
-      for (let d = 0; d < daysCount; d++) {
-        const dailyInterest = Math.ceil(loan.debt * loan.borrowRate);
-        loan.debt += dailyInterest;
-      }
-      loan.lastAccruedAt = lastAcc + (daysCount * 24 * 60 * 60 * 1000);
-    }
-
-    copy.loan = loan;
-  }
-
-  return copy;
-}
-
-export async function reconcileGlobalBankPool(redis, poolState) {
-  if (!redis || !poolState) return poolState;
-  try {
-    let totalRealBorrowed = 0;
-    let totalRealDeposited = 0;
-
-    const keySet = new Set();
-    if (typeof redis.smembers === 'function') {
-      try {
-        const members = await redis.smembers('levelup:all_users');
-        if (Array.isArray(members)) {
-          members.forEach(m => m && keySet.add(`levelup:user:google:${m}`));
-        }
-      } catch (_) {}
-    }
-    if (typeof redis.keys === 'function') {
-      try {
-        const kList = await redis.keys('levelup:user:*');
-        if (Array.isArray(kList)) {
-          kList.forEach(k => k && keySet.add(k));
-        }
-      } catch (_) {}
-    }
-    const userKeys = Array.from(keySet);
-
-    if (userKeys.length > 0) {
-      for (const k of userKeys) {
-        let raw = await redis.get(k);
-        if (!raw && k.startsWith('levelup:user:google:')) {
-          raw = await redis.get(k.replace(':google:', ':'));
-        }
-        if (!raw) continue;
-        try {
-          const u = JSON.parse(raw);
-          const b = u?.profile?.bank;
-          if (b) {
-            if (b.loan && ((parseInt(b.loan.principal, 10) || 0) > 0 || (parseInt(b.loan.debt, 10) || 0) > 0)) {
-              totalRealBorrowed += Math.max(0, parseInt(b.loan.principal || b.loan.debt, 10) || 0);
-            }
-            if ((parseInt(b.deposited, 10) || 0) > 0) {
-              totalRealDeposited += Math.max(0, parseInt(b.deposited, 10) || 0);
-            }
-          }
-        } catch (_) {}
-      }
-
-      let changed = false;
-      if (poolState.totalBorrowed !== totalRealBorrowed) {
-        poolState.totalBorrowed = totalRealBorrowed;
-        changed = true;
-      }
-      if (poolState.totalDeposited !== totalRealDeposited) {
-        poolState.totalDeposited = totalRealDeposited;
-        changed = true;
-      }
-      if (changed) {
-        await saveGlobalBankState(redis, poolState);
-      }
-    }
-  } catch (_) {}
-  return poolState;
-}
-
-export async function getGlobalBankState(redis, autoReconcile = false) {
-  const defaultBank = {
-    poolGold: 500, // Kho bạc bảo chứng ban đầu
-    totalBorrowed: 0,
-    reserveFund: 150, // Quỹ dự phòng ban đầu
-    totalDeposited: 0,
-    bailoutDebt: 0, // Nợ cứu trợ kho bạc
-    lastAccruedAt: Date.now()
-  };
-
-  // 1. Ưu tiên đọc từ Postgres (Drizzle ORM) nếu được cấu hình
-  if (isDbConfigured()) {
-    try {
-      const dbState = await getDbBankPoolState();
-      if (dbState) {
-        if (redis) {
-          try { await redis.set('levelup:bank:pool', JSON.stringify(dbState)); } catch (_) {}
-        }
-        return dbState;
-      }
-    } catch (_) {}
-  }
-
-  if (!redis) return defaultBank;
-  try {
-    const raw = await redis.get('levelup:bank:pool');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const state = {
-        poolGold: Math.max(0, parseInt(parsed.poolGold, 10) || 0),
-        totalBorrowed: Math.max(0, parseInt(parsed.totalBorrowed, 10) || 0),
-        reserveFund: Math.max(0, parseInt(parsed.reserveFund, 10) || 0),
-        totalDeposited: Math.max(0, parseInt(parsed.totalDeposited, 10) || 0),
-        bailoutDebt: Math.max(0, parseInt(parsed.bailoutDebt, 10) || 0),
-        lastAccruedAt: parseInt(parsed.lastAccruedAt, 10) || Date.now()
-      };
-      if (autoReconcile) {
-        return await reconcileGlobalBankPool(redis, state);
-      }
-      return state;
-    }
-    await redis.set('levelup:bank:pool', JSON.stringify(defaultBank));
-  } catch (_) {}
-  return defaultBank;
-}
-
-export async function saveGlobalBankState(redis, bankState) {
-  if (!bankState) return;
-
-  // 1. Lưu bền vững vào Postgres (Drizzle ORM)
-  if (isDbConfigured()) {
-    try {
-      await saveDbBankPoolState(bankState);
-    } catch (_) {}
-  }
-
-  // 2. Lưu đồng thời vào Redis L1 cache
-  if (!redis) return;
-  try {
-    await redis.set('levelup:bank:pool', JSON.stringify(bankState));
-  } catch (_) {}
-}
-
-/**
- * Anti-Cheat: Validate and derive legitimate coin balance from quests, ledger, and inventory
- * Cryptographically verifies AI signatures on quests and shop prices. Zero-trust: quests without AI signatures award 0 coins.
- */
-export function deriveLegitimateBalance(state, existingState = null) {
-  const parsedTotal = parseInt(state?.profile?.totalCoinsEarned, 10);
-  let rawTotal = Number.isFinite(parsedTotal) ? Math.max(0, parsedTotal) : 20;
-  const parsedCoins = parseInt(state?.profile?.coins, 10);
-  let rawCoins = Number.isFinite(parsedCoins) ? Math.max(0, parsedCoins) : 20;
-  let rawLevel = parseInt(state?.profile?.level, 10) || 1;
-  let rawSpent = parseInt(state?.profile?.totalCoinsSpent, 10) || 0;
-  return { coins: rawCoins, totalCoinsEarned: rawTotal, level: rawLevel, tampered: false, fine: 0, title: state?.profile?.title || deriveTitleForLevel(rawLevel), totalCoinsSpent: rawSpent };
-}
-
-export function getRedis() {
-  if (redisClient) {
-    return redisClient;
-  }
-  if (!process.env.REDIS_URL) {
-    return null;
-  }
-  redisClient = new Redis(process.env.REDIS_URL, {
-    connectTimeout: 5000,
-    maxRetriesPerRequest: 2,
-    lazyConnect: true
-  });
-  // ponytail: catch unhandled socket errors to prevent process exit
-  if (typeof redisClient.on === 'function') {
-    redisClient.on('error', (err) => console.warn('Redis socket warning:', err.message));
-  }
-  return redisClient;
-}
-
-// ponytail: Default online threshold 45s; increase if client sync heartbeat is relaxed
-export async function updateUserPresence(redis, userSub) {
-  if (!redis || !userSub || typeof redis.zadd !== 'function') return;
-  try {
-    await redis.zadd('levelup:online_users', Date.now(), String(userSub));
-  } catch (_) {}
-}
-
-export async function setOfflineUserPresence(redis, userSub) {
-  if (!redis || !userSub || typeof redis.zadd !== 'function') return;
-  try {
-    // Set score to 46s ago so user immediately registers as offline while preserving accurate recent timestamp
-    await redis.zadd('levelup:online_users', Date.now() - 46000, String(userSub));
-  } catch (_) {}
-}
-
-export async function getOnlineUsersPresence(redis, memberKeys = [], thresholdMs = 45000) {
-  const result = { isOnlineMap: new Map(), lastActiveMap: new Map(), onlineCount: 0 };
-  if (!redis) return result;
-  const now = Date.now();
-  try {
-    if (typeof redis.zcount === 'function') {
-      result.onlineCount = (await redis.zcount('levelup:online_users', now - thresholdMs, '+inf')) || 0;
-    }
-    const cleanKeys = Array.from(new Set(memberKeys.filter(Boolean))).map(String);
-    if (cleanKeys.length > 0) {
-      if (typeof redis.zmscore === 'function') {
-        const scores = await redis.zmscore('levelup:online_users', ...cleanKeys);
-        cleanKeys.forEach((key, idx) => {
-          if (scores && scores[idx] !== null && scores[idx] !== undefined) {
-            const score = Number(scores[idx]);
-            result.lastActiveMap.set(key, score);
-            result.isOnlineMap.set(key, now - score <= thresholdMs);
-          }
-        });
-      } else if (typeof redis.zscore === 'function') {
-        const promises = cleanKeys.map(k => redis.zscore('levelup:online_users', k));
-        const scores = await Promise.all(promises);
-        cleanKeys.forEach((key, idx) => {
-          if (scores[idx] !== null && scores[idx] !== undefined) {
-            const score = Number(scores[idx]);
-            result.lastActiveMap.set(key, score);
-            result.isOnlineMap.set(key, now - score <= thresholdMs);
-          }
-        });
-      }
-    }
-  } catch (_) {}
-  return result;
-}
+// Redis connection and presence tracking re-exported from lib/server/redis.ts
 
 export function sanitizeNickname(raw) {
   if (!raw || typeof raw !== 'string') return '';
@@ -821,127 +214,8 @@ export function getAdminConfig() {
   return { nicks, emails, token };
 }
 
-/**
- * Rate Limiter: stdlib Redis INCR + EXPIRE sliding window
- * Gracefully fails open if Redis is not configured or in mock environments
- */
-export async function checkRateLimit(redis, identifier, limit = 60, windowSec = 60) {
-  if (!redis || !identifier || typeof redis.incr !== 'function') return true;
-  try {
-    const key = `levelup:ratelimit:${identifier}`;
-    const count = await redis.incr(key);
-    if (count === 1 && typeof redis.expire === 'function') {
-      await redis.expire(key, windowSec);
-    } else if (typeof redis.ttl === 'function') {
-      // Ensure key doesn't get stuck without TTL if count was already > 1
-      const ttl = await redis.ttl(key);
-      if (ttl === -1) {
-        await redis.expire(key, windowSec);
-      }
-    }
-    return count <= limit;
-  } catch (e) {
-    return true; // Fail open on transient network hiccups
-  }
-}
-
-/**
- * Verify Google ID Token via Google's official tokeninfo endpoint
- * Uses native Node.js fetch (stdlib-first, zero extra npm dependencies)
- */
-export async function verifyGoogleToken(idToken) {
-  if (!idToken || typeof idToken !== 'string') return null;
-
-  if (googleTokenVerifierForTesting) {
-    return await googleTokenVerifierForTesting(idToken);
-  }
-
-  try {
-    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken.trim())}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!response.ok) return null;
-    const payload = await response.json();
-
-    if (!payload.sub || !payload.email) return null;
-
-    // Optional verification of Google Client ID if configured
-    const expectedClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
-    if (expectedClientId && payload.aud && payload.aud !== expectedClientId) {
-      console.warn('Google Token aud mismatch:', payload.aud, 'expected:', expectedClientId);
-      return null;
-    }
-
-    // Check expiration
-    if (payload.exp && Number(payload.exp) * 1000 < Date.now()) {
-      return null;
-    }
-
-    return {
-      sub: payload.sub,
-      email: payload.email.toLowerCase(),
-      name: payload.name || payload.email.split('@')[0],
-      picture: payload.picture || ''
-    };
-  } catch (err) {
-    console.error('Error verifying Google Token:', err.message);
-    return null;
-  }
-}
-
-/**
- * Universal authentication helper supporting:
- * 1. Redis-backed persistent sessions (90-day validity across devices)
- * 2. Fresh Google ID Tokens (OAuth JWT)
- * 3. Master Admin tokens
- */
-export async function authenticateCaller(token, redis, adminConfig) {
-  if (!token || typeof token !== 'string') return null;
-  const cleanToken = token.trim();
-
-  // 1. Kiểm tra session token trong Redis (session sống 90 ngày)
-  if (redis) {
-    try {
-      const sessionRaw = await redis.get(`levelup:session:${cleanToken}`);
-      if (sessionRaw) {
-        const sessionData = JSON.parse(sessionRaw);
-        if (sessionData && sessionData.sub && !sessionData.isGuest && !String(sessionData.sub).startsWith('guest_')) {
-          return sessionData;
-        }
-      }
-    } catch (e) {}
-  }
-
-  // 1.1 Kiểm tra session trong Postgres (Drizzle ORM bền vững)
-  if (isDbConfigured()) {
-    try {
-      const dbSession = await getDbSession(cleanToken);
-      if (dbSession && dbSession.sub && !dbSession.isGuest && !String(dbSession.sub).startsWith('guest_')) {
-        if (redis) {
-          try { await redis.set(`levelup:session:${cleanToken}`, JSON.stringify(dbSession), 'EX', 90 * 24 * 3600); } catch (_) {}
-        }
-        return dbSession;
-      }
-    } catch (e) {}
-  }
-
-  // 2. Kiểm tra Google ID Token trực tiếp
-  const googleUser = await verifyGoogleToken(cleanToken);
-  if (googleUser) {
-    return googleUser;
-  }
-
-  // 3. Kiểm tra Admin Master Token
-  if (adminConfig && adminConfig.token && cleanToken === adminConfig.token) {
-    return {
-      sub: 'admin_master_sub',
-      email: adminConfig.emails[0] || 'admin@guildmaster.com',
-      name: 'Bang Chủ',
-      picture: ''
-    };
-  }
-
-  return null;
-}
+// Rate limiter re-exported from lib/server/redis.ts
+// Google token verification & authentication re-exported from lib/server/auth.ts
 
 /**
  * ponytail: Safe, user-scoped cloud state retriever.
@@ -969,32 +243,7 @@ export async function getUserCloudData(redis, userSub) {
   }
 }
 
-export async function verifyIsAdmin(token, redis, adminConfig) {
-  if (!token || typeof token !== 'string') return false;
-  const cleanToken = token.trim();
-  if (adminConfig && adminConfig.token && cleanToken === adminConfig.token) {
-    return true;
-  }
-  const caller = await authenticateCaller(cleanToken, redis, adminConfig);
-  if (!caller) return false;
-  const callerEmail = (caller.email || '').toLowerCase();
-  if (callerEmail && adminConfig && Array.isArray(adminConfig.emails) && adminConfig.emails.includes(callerEmail)) {
-    return true;
-  }
-  if (caller.sub && redis) {
-    let raw = await redis.get(`levelup:user:google:${caller.sub}`);
-    if (!raw) raw = await redis.get(`levelup:user:${caller.sub}`);
-    if (raw) {
-      try {
-        const u = JSON.parse(raw);
-        if (u?.profile?.role === 'admin') return true;
-        const nick = (u?.profile?.nickname || '').toLowerCase();
-        if (nick && adminConfig && Array.isArray(adminConfig.nicks) && adminConfig.nicks.includes(nick)) return true;
-      } catch (_) {}
-    }
-  }
-  return false;
-}
+// verifyIsAdmin re-exported from lib/server/auth.ts
 
 export default async function handler(req, res) {
   const { nicks: ADMIN_NICKS, emails: ADMIN_EMAILS, token: ADMIN_TOKEN } = getAdminConfig();

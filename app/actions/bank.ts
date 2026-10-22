@@ -4,22 +4,26 @@ import {
   BANK_TERMS,
   LOAN_TERMS,
   calculateBankRates,
-  getGlobalBankState,
-  saveGlobalBankState,
   accrueUserBank,
   normalizeBankDeposits,
   calculateCreditLimit,
+} from '@/lib/server/bank-math';
+import {
+  getGlobalBankState,
+  saveGlobalBankState,
+} from '@/lib/server/bank-service';
+import {
   verifyLoanSignature,
   deriveTitleForLevel,
-  getRedis,
-} from '../../api/sync.js';
+} from '@/lib/server/crypto';
+import { getRedis } from '@/lib/server/redis';
 import {
   resolveAuthenticatedUser,
   fetchUserState,
   commitUserState,
   type ActionResponse,
 } from '@/lib/server/user-state';
-import type { BankAccount, BankLoan, LedgerEntry } from '@/types/levelup';
+import type { BankAccount, BankLoan, BankPoolState, BankRates, LedgerEntry } from '@/types/levelup';
 
 export type { ActionResponse };
 
@@ -516,7 +520,7 @@ export async function repayLoanAction(
  */
 export async function getBankStateAction(
   sessionToken?: string
-): Promise<ActionResponse<{ bank: BankAccount; pool: Record<string, unknown>; rates: Record<string, unknown> }>> {
+): Promise<ActionResponse<{ bank: BankAccount; pool: BankPoolState; rates: BankRates }>> {
   const user = await resolveAuthenticatedUser(sessionToken);
   const redis = getRedis();
   const poolState = await getGlobalBankState(redis);
