@@ -1,3 +1,11 @@
+declare module '@/lib/server/sync-handler' {
+  import type { LegacyApiHandler, SyncRequestBody } from '@/types/server-api';
+  const syncHandler: LegacyApiHandler<SyncRequestBody>;
+  export default syncHandler;
+  export function setRedisClientForTesting(client: unknown): void;
+  export function setGoogleTokenVerifierForTesting(verifier: unknown): void;
+}
+
 declare module '*/api/ai.js' {
   import type { LegacyApiHandler, AiRequestBody } from '@/types/server-api';
   const aiHandler: LegacyApiHandler<AiRequestBody>;

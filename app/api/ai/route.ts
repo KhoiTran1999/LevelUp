@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import aiHandler from '../../../api/ai.js';
+import aiHandler from '@/lib/server/ai';
 import type {
   LegacyApiRequest,
   LegacyApiResponse,

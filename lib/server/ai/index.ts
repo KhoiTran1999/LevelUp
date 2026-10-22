@@ -10,6 +10,7 @@ export * from './tools';
 export * from './assistant';
 export * from './suggestions';
 export * from './service';
+export { uploadProofImage } from '../storage';
 
 import { handleAiRequest } from './service';
 export default handleAiRequest;

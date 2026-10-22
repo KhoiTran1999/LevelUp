@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import syncHandler from '../../../api/sync.js';
+import syncHandler from '@/lib/server/sync-handler';
 import type {
   LegacyApiRequest,
   LegacyApiResponse,

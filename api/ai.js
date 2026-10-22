@@ -7,9 +7,9 @@
 import { uploadProofImage } from './storage.js';
 import handleAiRequest, {
   sanitizeEvaluatedQuest as modSanitizeEvaluatedQuest
-} from '../lib/server/ai/index.ts';
+} from '../lib/server/ai/index';
 
-export * from '../lib/server/ai/index.ts';
+export * from '../lib/server/ai/index';
 export { uploadProofImage };
 
 /**

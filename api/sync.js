@@ -68,7 +68,7 @@ export {
   setOfflineUserPresence,
   getOnlineUsersPresence,
   checkRateLimit
-} from '../lib/server/redis.ts';
+} from '../lib/server/redis';
 
 import {
   setRedisClientForTesting,
@@ -77,21 +77,21 @@ import {
   setOfflineUserPresence,
   getOnlineUsersPresence,
   checkRateLimit
-} from '../lib/server/redis.ts';
+} from '../lib/server/redis';
 
 export {
   setGoogleTokenVerifierForTesting,
   verifyGoogleToken,
   authenticateCaller,
   verifyIsAdmin
-} from '../lib/server/auth.ts';
+} from '../lib/server/auth';
 
 import {
   setGoogleTokenVerifierForTesting,
   verifyGoogleToken,
   authenticateCaller,
   verifyIsAdmin
-} from '../lib/server/auth.ts';
+} from '../lib/server/auth';
 
 export {
   deriveTitleForLevel,
@@ -106,7 +106,7 @@ export {
   signLoanOffer,
   verifyLoanSignature,
   deriveLegitimateBalance
-} from '../lib/server/crypto.ts';
+} from '../lib/server/crypto';
 
 export {
   BANK_TERMS,
@@ -123,7 +123,7 @@ export {
   calculateDepositPayoutInfo,
   calculateLoanCountdownInfo,
   accrueUserBank
-} from '../lib/server/bank-math.ts';
+} from '../lib/server/bank-math';
 
 import {
   deriveTitleForLevel,
@@ -138,7 +138,7 @@ import {
   signLoanOffer,
   verifyLoanSignature,
   deriveLegitimateBalance
-} from '../lib/server/crypto.ts';
+} from '../lib/server/crypto';
 
 import {
   BANK_TERMS,
@@ -155,19 +155,19 @@ import {
   calculateDepositPayoutInfo,
   calculateLoanCountdownInfo,
   accrueUserBank
-} from '../lib/server/bank-math.ts';
+} from '../lib/server/bank-math';
 
 export {
   reconcileGlobalBankPool,
   getGlobalBankState,
   saveGlobalBankState
-} from '../lib/server/bank-service.ts';
+} from '../lib/server/bank-service';
 
 import {
   reconcileGlobalBankPool,
   getGlobalBankState,
   saveGlobalBankState
-} from '../lib/server/bank-service.ts';
+} from '../lib/server/bank-service';
 
 // Anti-Cheat: Validate and derive legitimate coin balance re-exported from lib/server/crypto.ts
 

@@ -1,0 +1,7 @@
+# Exclude legacy root api directory from Vercel deployment builds.
+# Next.js 16 App Router natively handles /api/sync and /api/ai routes in app/api/.
+api
+test
+scripts
+extension
+.github
