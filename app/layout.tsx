@@ -49,6 +49,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
     { media: '(prefers-color-scheme: light)', color: '#ffffff' }
@@ -148,7 +149,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen antialiased selection:bg-indigo-500 selection:text-white pb-24 md:pb-12 overflow-x-hidden">
+      <body className="min-h-screen antialiased selection:bg-indigo-500 selection:text-white pb-28 md:pb-12 overflow-x-hidden">
         {children}
 
         {/* Google Identity Services SDK */}

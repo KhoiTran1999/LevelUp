@@ -1452,7 +1452,7 @@ html.dark .quest-dropdown-menu {
 
 /* Mobile Safe-Area Navigation Inset */
 .safe-area-bottom {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.625rem));
 }
 
 /* Coin shine animation & icon */
@@ -3601,12 +3601,12 @@ html.dark #active-focus-banner {
 @media (max-width: 767px) {
   /* Prevent page content from being clipped by the mobile bottom nav on iPhones with home indicator */
   body {
-    padding-bottom: max(6.5rem, calc(5.5rem + env(safe-area-inset-bottom, 0px))) !important;
+    padding-bottom: max(7.25rem, calc(6.5rem + env(safe-area-inset-bottom, 0px))) !important;
   }
 
   /* Ensure Wizard AI FAB floats above the mobile nav bar on all notch/home-indicator iPhones */
   aside[aria-label="Phù Thủy AI LevelUp"] {
-    bottom: max(5.25rem, calc(4.75rem + env(safe-area-inset-bottom, 0px))) !important;
+    bottom: max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom, 0px))) !important;
   }
 
   /* Prevent iOS Safari from automatically zooming into inputs on focus */
