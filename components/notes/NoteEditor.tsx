@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { NoteItem } from '@/types/levelup';
 import {
   isMarkdownText,
@@ -39,6 +40,33 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   ref
 ) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Exit fullscreen on Escape key
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  // Lock background scroll when in fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isFullscreen]);
   const [saveStatus, setSaveStatus] = useState<string>('✓ Đã lưu tự động');
   const [isSaving, setIsSaving] = useState(false);
   const [stats, setStats] = useState({ words: 0, chars: 0, readTime: 0 });
@@ -676,7 +704,17 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   };
 
   const toggleFullscreen = () => {
-    setIsFullscreen(prev => !prev);
+    setIsFullscreen(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        const win = window as unknown as { showToast?: (m: string, t: string) => void };
+        win.showToast?.(
+          next ? '🔲 Chế độ tập trung toàn màn hình (Bấm lại hoặc Esc để thoát)' : 'Đã thoát chế độ toàn màn hình.',
+          'info'
+        );
+      }
+      return next;
+    });
   };
 
   // Expose global window helper functions for backwards compatibility
@@ -728,11 +766,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     handleBackToListMobile,
   ]);
 
-  return (
+  const cardContent = (
     <div
       id={`${idPrefix}active-note-card`}
-      className={`rpg-panel rounded-2xl sm:rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl flex flex-col bg-white dark:bg-slate-900 ${
-        isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : ''
+      className={`rpg-panel rounded-2xl sm:rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl flex flex-col ${
+        isFullscreen
+          ? '!fixed !inset-0 !z-[120] !h-screen !w-screen !max-w-none !rounded-none !border-0 !shadow-none !bg-white dark:!bg-slate-950 !backdrop-blur-none'
+          : 'bg-white dark:bg-slate-900'
       }`}
     >
       {/* 1. Note Header: Title, Custom Topic (hidden), Pin, Tools */}
@@ -830,10 +870,16 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer shrink-0"
-              title="Chế độ tập trung toàn màn hình"
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition cursor-pointer shrink-0 ${
+                isFullscreen
+                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30'
+                  : 'text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/10'
+              }`}
+              title={isFullscreen ? 'Thoát toàn màn hình (Esc)' : 'Chế độ tập trung toàn màn hình'}
             >
-              <span className="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">fullscreen</span>
+              <span className="material-symbols-outlined text-[17px] sm:text-[18px] leading-none">
+                {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+              </span>
             </button>
             {/* Delete Note */}
             <button
@@ -1077,7 +1123,18 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       </div>
 
       {/* 3. Contenteditable Editor Area */}
-      <div className="flex-1 min-h-[350px] max-h-[calc(100vh-280px)] lg:max-h-[62vh] overflow-y-auto custom-scrollbar p-3.5 sm:p-6 bg-white dark:bg-slate-900 select-text">
+      <div
+        className={`flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900 select-text flex flex-col ${
+          isFullscreen
+            ? 'p-4 sm:p-8 min-h-0 max-h-none h-full'
+            : 'p-3.5 sm:p-6 min-h-[280px] sm:min-h-[350px] max-h-[calc(100vh-280px)] lg:max-h-[62vh]'
+        }`}
+        onClick={e => {
+          if (e.target === e.currentTarget && editorRef.current) {
+            editorRef.current.focus();
+          }
+        }}
+      >
         <div
           ref={editorRef}
           id={idPrefix === 'modal-' ? 'focus-notes-editor' : 'focus-notes-tab-editor'}
@@ -1091,7 +1148,11 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           onInput={handleEditorInput}
           onClick={handleEditorClick}
           onPaste={handlePaste}
-          className="notes-editor w-full min-h-[300px] text-sm sm:text-base leading-relaxed text-slate-800 dark:text-slate-100 focus:outline-none select-text"
+          className={`notes-editor w-full text-sm sm:text-base leading-relaxed text-slate-800 dark:text-slate-100 focus:outline-none select-text ${
+            isFullscreen
+              ? 'flex-1 min-h-full max-w-4xl mx-auto py-2'
+              : 'min-h-[260px] sm:min-h-[300px]'
+          }`}
           data-placeholder="Bắt đầu gõ ghi chú, checklist hoặc nội dung chủ đề của bạn tại đây... (Nhấn Ctrl+S để lưu nhanh)"
         />
       </div>
@@ -1146,4 +1207,10 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       </div>
     </div>
   );
+
+  if (mounted && isFullscreen && typeof document !== 'undefined') {
+    return createPortal(cardContent, document.body);
+  }
+
+  return cardContent;
 });

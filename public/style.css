@@ -4910,6 +4910,9 @@ html.dark .notes-editor a:hover {
   background: #ffffff;
   padding: 1rem 1.5rem;
   overflow-y: auto;
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
 }
 
 html.dark #tab-notes.focus-fullscreen {
