@@ -8,13 +8,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
-const appJs = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
 const aiJs = fs.readFileSync(path.join(rootDir, 'api', 'ai.js'), 'utf8');
 const aiSchemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'ai.js'), 'utf8');
 const gameSchemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'game.js'), 'utf8');
-const proofJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '08-proof.js'), 'utf8');
-const renderJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '14-render.js'), 'utf8');
+const proofJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '08-proof.js'), 'utf8');
+const renderJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '14-render.js'), 'utf8');
 
 console.log('=== Bắt đầu kiểm thử: Bằng Chứng Báo Cáo Nội Dung (Text Proof) & Thẩm Định AI ===\n');
 
@@ -113,9 +113,9 @@ function testClientJsIntegration() {
   assert.ok(renderJs.includes("<span>📝 Xem báo cáo</span>"), 'renderLedger phải hiển thị nút Xem báo cáo khi có proofUserNote mà không có ảnh');
 
   // app.js đã bundle
-  assert.ok(appJs.includes('function switchProofTab('), 'public/app.js phải chứa hàm switchProofTab sau khi build');
-  assert.ok(appJs.includes('window.switchProofTab = switchProofTab'), 'public/app.js phải export switchProofTab vào window');
-  assert.ok(appJs.includes('proof-tab-text'), 'public/app.js phải xử lý sự kiện click tab text');
+  assert.ok(appJs.includes('function switchProofTab('), 'test/fixtures/legacy-client/app.js phải chứa hàm switchProofTab sau khi build');
+  assert.ok(appJs.includes('window.switchProofTab = switchProofTab'), 'test/fixtures/legacy-client/app.js phải export switchProofTab vào window');
+  assert.ok(appJs.includes('proof-tab-text'), 'test/fixtures/legacy-client/app.js phải xử lý sự kiện click tab text');
 
   console.log('✓ Test 5: Client JS kết nối trơn tru, hiển thị đúng nhãn nút hành động, huy hiệu và xem lại báo cáo trong sổ cái.');
 }

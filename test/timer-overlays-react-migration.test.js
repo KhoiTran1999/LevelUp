@@ -6,8 +6,8 @@ const read = file => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const page = read('app/page.tsx');
 const html = read('public/index.html');
 const modals = read('components/timer/TimerModals.tsx');
-const timer = read('src/js/06-timer.js');
-const bundle = read('public/app.js');
+const timer = read('test/fixtures/legacy-client/modules/06-timer.js');
+const bundle = read('test/fixtures/legacy-client/app.js');
 
 assert.ok(page.includes('<TimerAdjustmentModal />') && page.includes('<FocusCompleteModal />'), 'Next page must mount both React timer dialogs.');
 assert.ok(modals.includes('id="modal-edit-focus-timer"') && modals.includes('id="modal-focus-complete"'), 'React must own timer adjustment and completion markup.');

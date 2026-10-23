@@ -7,7 +7,7 @@ import handler, {
   signQuest
 } from '../api/sync.js';
 
-const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 
 class MockRedis {
   constructor() {

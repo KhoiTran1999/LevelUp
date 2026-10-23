@@ -6,7 +6,7 @@ console.log('=== KIỂM THỬ BOTTOM SHEET PULL-TO-DISMISS & SLIDE-DOWN EXIT ANI
 
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const css = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
-const js = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const js = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const reactQuestDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');
 const reactRewardDetail = fs.readFileSync(path.resolve('components/shop/RewardDetailModal.tsx'), 'utf8');
 

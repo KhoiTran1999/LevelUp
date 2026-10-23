@@ -17,8 +17,8 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const indexPath = path.join(rootDir, 'components/notes/index.ts');
   const mdPath = path.join(rootDir, 'components/notes/markdown.ts');
   const providerPath = path.join(rootDir, 'components/providers/LevelUpProvider.tsx');
-  const legacyNotesPath = path.join(rootDir, 'src/js/15-modal.js');
-  const storagePath = path.join(rootDir, 'src/js/03-storage.js');
+  const legacyNotesPath = path.join(rootDir, 'test/fixtures/legacy-client/modules/15-modal.js');
+  const storagePath = path.join(rootDir, 'test/fixtures/legacy-client/modules/03-storage.js');
 
   const pageContent = fs.readFileSync(pagePath, 'utf8');
   const workspaceContent = fs.readFileSync(workspacePath, 'utf8');
@@ -61,7 +61,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(providerContent.includes('deleteNote'), 'LevelUpProvider phải có hàm deleteNote');
     assert.ok(providerContent.includes('togglePinNote'), 'LevelUpProvider phải có hàm togglePinNote');
     assert.ok(providerContent.includes('setActiveNoteId'), 'LevelUpProvider phải có hàm setActiveNoteId');
-    assert.ok(providerContent.includes('levelup:notes-updated'), 'LevelUpProvider phải lắng nghe levelup:notes-updated');
+    assert.ok(providerContent.includes("new BroadcastChannel('levelup_sync_channel')"), 'LevelUpProvider phải đồng bộ ghi chú qua BroadcastChannel');
   });
 
   it('3a. Giữ đồng bộ ghi chú theo một nguồn dữ liệu và bỏ qua snapshot cũ', () => {

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Tính Năng Bảo Lưu Thời Gian Đếm Ngược (Quests & Rewards) ===\n');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const syncJs = fs.readFileSync(path.resolve('api/sync.js'), 'utf8').replace(/\r\n/g, '\n');
 

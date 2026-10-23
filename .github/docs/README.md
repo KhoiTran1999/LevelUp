@@ -33,7 +33,7 @@
 flowchart TD
     subgraph Client ["Client Layer (PWA & Material Design 3)"]
         UI["Giao diện RPG Guild (HTML5 / Tailwind M3)"]
-        Modules["19 Modules Nghiệp Vụ (src/js/)"]
+        Modules["Archived legacy fixtures (test/fixtures/legacy-client/)"]
         Timer["Đồng hồ Pomodoro & Audio Synthesizer 8-bit"]
         LocalStore["localStorage Cache (Anti-FOUT / Anti-FOUC)"]
     end
@@ -158,7 +158,7 @@ LevelUp/
 │   └── tailwind.css               # Nguồn cấu hình Tailwind CSS & Custom RPG Tokens
 ├── public/                        # Thư mục Web tĩnh & PWA Assets
 │   ├── index.html                 # Khung giao diện chính và các modal RPG
-│   ├── app.js                     # Bundle client được đóng gói từ src/js/ (< 20ms)
+│   ├── (không có app.js)          # Legacy bundle đã được gỡ khỏi production
 │   ├── tailwind.min.css           # File CSS đã compile và minify
 │   ├── style.css                  # Tùy biến hoạt họa và giao diện M3 RPG
 │   ├── manifest.json              # Khai báo Progressive Web App
@@ -166,7 +166,6 @@ LevelUp/
 │   ├── icon-192.png               # Icon PWA độ phân giải 192x192
 │   └── logo.svg                   # Vector logo thương hiệu LevelUp
 ├── scripts/                       # Scripts tự động hóa và bảo trì
-│   ├── build-client.js            # Đóng gói 19 module thành public/app.js (< 20ms)
 │   └── reset-data.js              # Script dọn dẹp và reset dữ liệu Redis & Cloud Storage
 ├── test/                          # Bộ kiểm thử tự động toàn diện (66 Test Suites)
 │   ├── run-all.js                 # Test runner thực thi toàn bộ 66 bài kiểm tra
@@ -182,9 +181,9 @@ LevelUp/
 
 ---
 
-## 🧩 Hệ Thống 19 Module Client (`src/js/`)
+## 🧩 Archived Legacy Client Fixtures
 
-Toàn bộ logic giao diện được chia tách thành 19 module độc lập, dễ dàng bảo trì và mở rộng:
+Các module dưới đây là bản lưu lịch sử để phục vụ test hồi quy; logic giao diện hiện tại thuộc Next.js/React và không đọc các file này:
 
 | STT | Tệp Module | Phân Vùng Chức Năng & Nghiệp Vụ |
 | :---: | :--- | :--- |
@@ -251,10 +250,8 @@ Toàn bộ logic giao diện được chia tách thành 19 module độc lập, 
 
 | Lệnh | Ý Nghĩa Chức Năng |
 | :--- | :--- |
-| `npm run dev` | Chạy máy chủ Express với chế độ tự động reload khi sửa file server (`node --watch server.js`). |
-| `npm run build` | Đóng gói toàn bộ client JS (`public/app.js`) và biên dịch Tailwind CSS sang `public/tailwind.min.css`. |
-| `npm run build:js` | Đóng gói 19 module trong `src/js/` thành `public/app.js` và kiểm tra cú pháp (tốc độ < 20ms). |
-| `npm run watch:js` | Lắng nghe thay đổi trong `src/js/` và tự động re-bundle ngay lập tức. |
+| `npm run dev` | Biên dịch CSS rồi chạy Next.js với Turbopack. |
+| `npm run build` | Biên dịch Tailwind CSS và tạo production build bằng Next.js. |
 | `npm run build:css` | Biên dịch file Tailwind CSS với chế độ nén tối ưu (Minify). |
 | `npm run watch:css` | Lắng nghe thay đổi trong CSS và HTML để tự động biên dịch lại Tailwind CSS. |
 | `npm run type-check` | Kiểm tra tính toàn vẹn kiểu dữ liệu bằng TypeScript compiler mà không xuất file (`tsc --noEmit`). |

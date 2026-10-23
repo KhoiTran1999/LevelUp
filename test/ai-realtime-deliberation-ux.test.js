@@ -91,10 +91,10 @@ console.log('=== KIỂM THỬ TIẾN TRÌNH THỜI GIAN THỰC & CHÍNH XÁC THA
 }
 
 // -----------------------------------------------------------------------------
-// 4. Kiểm tra cấu trúc Cập Nhật Thời Gian Thực trong public/app.js
+// 4. Kiểm tra cấu trúc Cập Nhật Thời Gian Thực trong test/fixtures/legacy-client/app.js
 // -----------------------------------------------------------------------------
 {
-  const appJsPath = path.join(process.cwd(), 'public', 'app.js');
+  const appJsPath = path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js');
   const appJs = fs.readFileSync(appJsPath, 'utf8');
 
   // Kiểm tra hàm createDebateLoadingBubble

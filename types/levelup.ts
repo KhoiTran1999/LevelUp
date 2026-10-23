@@ -17,6 +17,8 @@ export interface Quest {
   verdict?: string;
   isRepeatable: boolean;
   completedCount: number;
+  previousRepeatCount?: number;
+  canonicalId?: string;
   status: QuestStatus;
   requiresProof?: boolean;
   proofType?: ProofType;
@@ -198,6 +200,8 @@ export interface UserProfile {
   googleToken?: string;
   sessionToken?: string;
   hasOnboarded?: boolean;
+  adminAdjusted?: boolean;
+  isCheater?: boolean;
   bank: BankAccount;
 }
 

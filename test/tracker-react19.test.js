@@ -20,7 +20,7 @@ test('Tracker React replaces legacy tab and renders category/period controls', (
   assert.ok(tracker.includes('id="tab-tracker"'));
   assert.ok(tracker.includes("useState<TrackerPeriod>('monthly')"));
   assert.ok(tracker.includes("useState<TrackerCategory>('quests')"));
-  assert.ok(tracker.includes('openItemFrequencyModal'), 'the existing frequency detail modal remains wired');
+  assert.ok(tracker.includes('levelup:open-frequency-detail'), 'the existing frequency detail modal remains wired');
   assert.ok(tracker.includes('buildTrackerHistory'), 'legacy history backfill behavior is represented in React');
 });
 

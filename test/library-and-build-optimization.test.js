@@ -41,17 +41,17 @@ assert.ok(confettiStat.size > 5000, 'File confetti vendor phải có dung lượ
 assert.ok(indexHtml.includes('src="vendor/confetti.browser.min.js"'), 'index.html phải nhúng vendor/confetti.browser.min.js');
 console.log('✓ Test 4: Thư viện canvas-confetti đã được tích hợp offline-first trong public/vendor/.');
 
-// 5. Kiểm tra hàm triggerRpgCelebration trong public/app.js
-const appJsPath = path.join(publicDir, 'app.js');
+// 5. Kiểm tra archived legacy fixture còn dùng cho hồi quy lịch sử
+const appJsPath = path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
-assert.ok(appJsContent.includes('function triggerRpgCelebration'), 'public/app.js phải định nghĩa hàm triggerRpgCelebration');
+assert.ok(appJsContent.includes('function triggerRpgCelebration'), 'test/fixtures/legacy-client/app.js phải định nghĩa hàm triggerRpgCelebration');
 assert.ok(appJsContent.includes("triggerRpgCelebration('levelup')"), 'addEXP phải gọi triggerRpgCelebration khi lên cấp');
 assert.ok(appJsContent.includes("triggerRpgCelebration('s_rank')"), 'completeQuest phải gọi triggerRpgCelebration khi hoàn thành quest S-Rank');
 
 // Kiểm tra cú pháp syntax của app.js
 assert.doesNotThrow(() => {
-  execSync('node -c public/app.js', { stdio: 'pipe' });
-}, 'public/app.js phải hợp lệ cú pháp không lỗi SyntaxError');
+  execSync('node -c test/fixtures/legacy-client/app.js', { stdio: 'pipe' });
+}, 'test/fixtures/legacy-client/app.js phải hợp lệ cú pháp không lỗi SyntaxError');
 console.log('✓ Test 5: Logic hiệu ứng RPG celebration tích hợp an toàn và cú pháp app.js hợp lệ 100%.');
 
 // 6. Kiểm tra package.json scripts

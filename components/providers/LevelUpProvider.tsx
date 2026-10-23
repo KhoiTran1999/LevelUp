@@ -298,6 +298,7 @@ interface LevelUpContextType {
   toggleTheme: () => void;
   toggleSound: () => void;
   togglePalette: (paletteName?: string) => void;
+  updateProfile: (updates: Partial<UserProfile>) => void;
   startFocusTimer: (quest: Quest) => void;
   startRewardTimer: (item: InventoryItem) => void;
   startBreakTimer: (minutes?: number) => void;
@@ -527,14 +528,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         lastModified: Math.max(Number(stateToSync.lastModified) || 0, Math.max(now, (Number(stateToSync.lastSyncedAt) || 0) + 1)),
       };
 
-      // Synchronize window.appState for any legacy views
-      if (typeof window !== 'undefined') {
-        const win = window as unknown as { appState?: LevelUpAppState };
-        if (win.appState) {
-          Object.assign(win.appState, stateWithTimestamp);
-        }
-      }
-
       const currentHash = computeStateSyncHash(stateWithTimestamp);
       if (currentHash && currentHash === lastSyncedHashRef.current) {
         return;
@@ -656,59 +649,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
     loadCloudState();
 
-    // Listen to vanilla appState sync if legacy app.js updates it
-    const handleStateUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<LevelUpAppState>;
-      if (customEvent.detail) {
-        setState(prev => {
-          // ponytail: Direct assignment of deduplicated incoming array honors deletions and empty arrays without resurrecting dead items
-          const nextQuests = Array.isArray(customEvent.detail.quests)
-            ? dedupeById(customEvent.detail.quests)
-            : prev.quests;
-
-          const nextShop = Array.isArray(customEvent.detail.shopItems)
-            ? dedupeById(customEvent.detail.shopItems)
-            : prev.shopItems;
-
-          const next = {
-            ...prev,
-            ...customEvent.detail,
-            quests: nextQuests,
-            shopItems: nextShop,
-            inventory: Array.isArray(customEvent.detail.inventory) ? dedupeById(customEvent.detail.inventory) : prev.inventory,
-            notes: prev.notes,
-            activeNoteId: prev.activeNoteId,
-            focusNotes: prev.focusNotes,
-            activeTimer: prev.activeTimer?.status === 'running' ? prev.activeTimer : (customEvent.detail.activeTimer ?? prev.activeTimer ?? null),
-          };
-          return next;
-        });
-      }
-    };
-
-    // Listen to custom notes update events
-    const handleNotesUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<{ notes: NoteItem[]; activeNoteId?: string }>;
-      if (customEvent.detail?.notes) {
-        const notes = dedupeById(customEvent.detail.notes);
-        const requestedActiveNoteId = customEvent.detail.activeNoteId;
-        setState(prev => {
-          const activeNoteId = requestedActiveNoteId && notes.some(note => note.id === requestedActiveNoteId)
-            ? requestedActiveNoteId
-            : notes.some(note => note.id === prev.activeNoteId)
-              ? prev.activeNoteId
-              : notes[0]?.id || '';
-          const next = {
-            ...prev,
-            notes,
-            activeNoteId,
-            focusNotes: notes.find(note => note.id === activeNoteId)?.content || '',
-          };
-          return next;
-        });
-      }
-    };
-
     // BroadcastChannel sync across tabs and extension
     let ch: BroadcastChannel | null = null;
     try {
@@ -755,12 +695,8 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (_) {}
 
-    window.addEventListener('levelup:state-updated', handleStateUpdate);
-    window.addEventListener('levelup:notes-updated', handleNotesUpdate);
     return () => {
       isCancelled = true;
-      window.removeEventListener('levelup:state-updated', handleStateUpdate);
-      window.removeEventListener('levelup:notes-updated', handleNotesUpdate);
       if (ch) ch.close();
     };
   }, [startupAttempt]);
@@ -770,24 +706,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     if (!isHydratedRef.current) return;
     queueSyncToCloud(state);
   }, [state, queueSyncToCloud]);
-
-  useEffect(() => {
-    if (!isHydratedRef.current || typeof window === 'undefined') return;
-
-    const win = window as unknown as {
-      appState?: LevelUpAppState;
-      triggerSave?: (needsCloud?: boolean, immediate?: boolean, timerAction?: unknown, skipFullRender?: boolean) => void;
-    };
-    if (!win.appState) return;
-
-    const activeNote = state.notes.find(note => note.id === state.activeNoteId);
-    Object.assign(win.appState, {
-      notes: state.notes,
-      activeNoteId: state.activeNoteId,
-      focusNotes: activeNote?.content || '',
-    });
-    win.triggerSave?.(false, false, null, true);
-  }, [state.notes, state.activeNoteId]);
 
   useEffect(() => {
     if (!isHydratedRef.current) return;
@@ -1034,6 +952,18 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       };
     });
   }, []);
+
+  const updateProfile = useCallback((updates: Partial<UserProfile>) => {
+    setState(prev => {
+      const next = {
+        ...prev,
+        profile: { ...prev.profile, ...updates },
+        lastModified: Date.now(),
+      };
+      queueSyncToCloud(next, true);
+      return next;
+    });
+  }, [queueSyncToCloud]);
 
   const togglePalette = useCallback((paletteName?: string) => {
     const palettes = ['modern-indigo', 'cyberpunk-neon', 'emerald-realm', 'sunset-orange', 'crimson-valkyrie'];
@@ -1406,16 +1336,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState };
-          if (win.appState) {
-            win.appState.profile = { ...win.appState.profile, coins: updatedCoins, bank: updatedBank };
-            if (updatedLedger) win.appState.ledger = updatedLedger;
-          }
-          window.dispatchEvent(new CustomEvent('levelup:state-updated', {
-            detail: win.appState || { profile: { coins: updatedCoins, bank: updatedBank } },
-          }));
-        }
         notifyBankToast(message || `Đã gửi thành công ${amount} Vàng vào sổ tiết kiệm!`, 'success');
         return true;
       }
@@ -1499,16 +1419,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState };
-          if (win.appState) {
-            win.appState.profile = { ...win.appState.profile, coins: updatedCoins, bank: updatedBank || win.appState.profile.bank };
-            if (updatedLedger) win.appState.ledger = updatedLedger;
-          }
-          window.dispatchEvent(new CustomEvent('levelup:state-updated', {
-            detail: win.appState || { profile: { coins: updatedCoins, bank: updatedBank } },
-          }));
-        }
         notifyBankToast(message || `Đã rút thành công +${withdrawn || amount || 0} Vàng về ví!`, 'success');
         return true;
       }
@@ -1620,17 +1530,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ...prev.ledger,
       ];
 
-      if (typeof window !== 'undefined') {
-        const win = window as unknown as { appState?: LevelUpAppState };
-        if (win.appState) {
-          win.appState.profile = nextProfile;
-          win.appState.ledger = nextLedger;
-        }
-        window.dispatchEvent(new CustomEvent('levelup:state-updated', {
-          detail: win.appState || { profile: nextProfile, ledger: nextLedger },
-        }));
-      }
-
       return {
         ...prev,
         profile: nextProfile,
@@ -1671,16 +1570,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState };
-          if (win.appState) {
-            win.appState.profile = { ...win.appState.profile, coins: updatedCoins, bank: updatedBank };
-            if (updatedLedger) win.appState.ledger = updatedLedger;
-          }
-          window.dispatchEvent(new CustomEvent('levelup:state-updated', {
-            detail: win.appState || { profile: { coins: updatedCoins, bank: updatedBank } },
-          }));
-        }
         notifyBankToast(message || `Đã vay thành công +${amount} Vàng vào ví!`, 'success');
         return true;
       }
@@ -1777,16 +1666,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
             ...prev.ledger,
           ],
         }));
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState };
-          if (win.appState) {
-            win.appState.profile = { ...win.appState.profile, coins: updatedCoins, bank: updatedBank || { ...win.appState.profile.bank, loan: null, isFrozen: false } };
-            if (updatedLedger) win.appState.ledger = updatedLedger;
-          }
-          window.dispatchEvent(new CustomEvent('levelup:state-updated', {
-            detail: win.appState || { profile: { coins: updatedCoins, bank: updatedBank } },
-          }));
-        }
         notifyBankToast(message || 'Đã thanh toán nợ thành công!', 'success');
         return true;
       }
@@ -2012,38 +1891,16 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
-      };
-      if (win.appState) {
-        if (!Array.isArray(win.appState.quests)) {
-          win.appState.quests = [];
-        }
-        const existingIdx = win.appState.quests.findIndex(q => q.id === newQuest.id);
-        if (existingIdx >= 0) {
-          win.appState.quests[existingIdx] = { ...win.appState.quests[existingIdx], ...newQuest };
-        } else {
-          win.appState.quests.unshift(newQuest);
-        }
-        win.appState.quests = dedupeById(win.appState.quests);
-        win.triggerSave?.(true, true);
-      }
-      window.dispatchEvent(
-        new CustomEvent('levelup:state-updated', {
-          detail: win.appState || { quests: [newQuest] },
-        })
-      );
-    }
   }, [queueSyncToCloud]);
 
   const deleteQuest = useCallback((questId: string) => {
     setState(prev => {
       const nextQuests = prev.quests.filter(q => q.id !== questId);
+      const isTimerForThisQuest = prev.activeTimer?.questId === questId;
       const next = {
         ...prev,
         quests: nextQuests,
+        ...(isTimerForThisQuest ? { activeTimer: null, lastTimerClearedAt: Date.now() } : {}),
       };
       queueSyncToCloud(next, true);
       return next;
@@ -2058,22 +1915,19 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
-      };
-      if (win.appState && Array.isArray(win.appState.quests)) {
-        win.appState.quests = win.appState.quests.filter(q => q.id !== questId);
-        win.triggerSave?.(true, true);
-      }
-      window.dispatchEvent(
-        new CustomEvent('levelup:state-updated', {
-          detail: win.appState,
-        })
-      );
-    }
   }, [queueSyncToCloud]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const win = window as unknown as { deleteQuest?: (questId: string) => Promise<boolean> };
+    win.deleteQuest = async (questId: string) => {
+      deleteQuest(questId);
+      return true;
+    };
+    return () => {
+      if (win.deleteQuest) delete win.deleteQuest;
+    };
+  }, [deleteQuest]);
 
   const startFocusTimer = useCallback((quest: Quest) => {
     const hasSaved = Boolean(quest.savedTimer && quest.savedTimer.remainingSeconds > 0);
@@ -2313,18 +2167,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           ledger: [newLedgerEntry, ...prev.ledger],
         };
 
-        // Sync with global window.appState if present
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState; triggerSave?: (t: boolean) => void };
-          if (win.appState) {
-            win.appState.profile.coins = nextState.profile.coins;
-            win.appState.profile.totalCoinsSpent = nextState.profile.totalCoinsSpent;
-            win.appState.inventory = nextState.inventory;
-            win.appState.shopItems = nextState.shopItems;
-            win.appState.ledger = nextState.ledger;
-            if (typeof win.triggerSave === 'function') win.triggerSave(true);
-          }
-        }
         return nextState;
       });
 
@@ -2395,17 +2237,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
           ledger: [newLedgerEntry, ...prev.ledger],
         };
 
-        if (typeof window !== 'undefined') {
-          const win = window as unknown as { appState?: LevelUpAppState; triggerSave?: (t: boolean) => void };
-          if (win.appState) {
-            win.appState.profile.coins = nextState.profile.coins;
-            win.appState.profile.totalCoinsSpent = nextState.profile.totalCoinsSpent;
-            win.appState.inventory = nextState.inventory;
-            win.appState.shopItems = nextState.shopItems;
-            win.appState.ledger = nextState.ledger;
-            if (typeof win.triggerSave === 'function') win.triggerSave(true);
-          }
-        }
         return nextState;
       });
     },
@@ -2558,30 +2389,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
-      };
-      if (win.appState) {
-        if (!Array.isArray(win.appState.shopItems)) {
-          win.appState.shopItems = [];
-        }
-        const existingIdx = win.appState.shopItems.findIndex(s => s.id === newItem.id);
-        if (existingIdx >= 0) {
-          win.appState.shopItems[existingIdx] = { ...win.appState.shopItems[existingIdx], ...newItem };
-        } else {
-          win.appState.shopItems.unshift(newItem);
-        }
-        win.appState.shopItems = dedupeById(win.appState.shopItems);
-        win.triggerSave?.(true, true);
-      }
-      window.dispatchEvent(
-        new CustomEvent('levelup:state-updated', {
-          detail: win.appState || { shopItems: [newItem] },
-        })
-      );
-    }
   }, [queueSyncToCloud]);
 
   const deleteShopItem = useCallback((itemId: string) => {
@@ -2604,21 +2411,6 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as {
-        appState?: LevelUpAppState;
-        triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
-      };
-      if (win.appState && Array.isArray(win.appState.shopItems)) {
-        win.appState.shopItems = win.appState.shopItems.filter(s => s.id !== itemId);
-        win.triggerSave?.(true, true);
-      }
-      window.dispatchEvent(
-        new CustomEvent('levelup:state-updated', {
-          detail: win.appState,
-        })
-      );
-    }
   }, [queueSyncToCloud]);
 
   const startRewardTimer = useCallback((item: InventoryItem) => {
@@ -2964,6 +2756,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         toggleTheme,
         toggleSound,
         togglePalette,
+        updateProfile,
         startFocusTimer,
         startRewardTimer,
         startBreakTimer,

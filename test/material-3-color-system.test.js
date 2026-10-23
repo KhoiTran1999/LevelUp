@@ -5,13 +5,13 @@ import { execSync } from 'node:child_process';
 
 console.log('=== Kiểm thử Hệ Thống Màu Sắc Toàn Diện Chuẩn Google Material Design 3 (M3) ===\n');
 
-// 0. Kiểm tra cú pháp JavaScript của public/app.js
+// 0. Kiểm tra cú pháp JavaScript của test/fixtures/legacy-client/app.js
 assert.doesNotThrow(() => {
-  execSync('node -c public/app.js', { stdio: 'pipe' });
-}, 'public/app.js phải hợp lệ cú pháp');
-console.log('✓ Test 0: Cú pháp JavaScript của public/app.js hợp lệ 100%.');
+  execSync('node -c test/fixtures/legacy-client/app.js', { stdio: 'pipe' });
+}, 'test/fixtures/legacy-client/app.js phải hợp lệ cú pháp');
+console.log('✓ Test 0: Cú pháp JavaScript của test/fixtures/legacy-client/app.js hợp lệ 100%.');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const paletteComponent = fs.readFileSync(path.resolve('components/profile/PaletteStudioModal.tsx'), 'utf8');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');

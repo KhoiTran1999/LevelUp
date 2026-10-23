@@ -7,8 +7,8 @@ console.log('=== KIỂM THỬ HỆ THỐNG CHUYỂN ĐỘNG MATERIAL DESIGN 3 (M
 
 // 0. Cú pháp JS hợp lệ
 assert.doesNotThrow(() => {
-  execSync('node -c public/app.js', { stdio: 'pipe' });
-}, 'public/app.js phải hợp lệ cú pháp');
+  execSync('node -c test/fixtures/legacy-client/app.js', { stdio: 'pipe' });
+}, 'test/fixtures/legacy-client/app.js phải hợp lệ cú pháp');
 console.log('✓ Test 0: Cú pháp JavaScript hợp lệ 100%.');
 
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');

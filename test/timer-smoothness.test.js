@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Bắt đầu kiểm thử: Tính Mượt Mà & Chống Giật Lag Hệ Thống Timer ===\n');
 
-const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra cấu trúc hằng số và biến bảo vệ thời gian cục bộ (Grace Period)
 console.log('Test 1: Khai báo lastLocalTimerActionTime và TIMER_MUTATION_GRACE_MS');

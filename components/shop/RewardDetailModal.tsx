@@ -23,7 +23,6 @@ interface RewardDetailWindow extends Window {
   deleteShopItem?: (itemId: string) => void | Promise<void>;
   deleteInventoryItem?: (itemId: string) => void | Promise<void>;
   openRewardRenegotiateModal?: (itemId: string) => void;
-  openItemFrequencyModal?: (item: Quest | ShopItem, isQuest: boolean) => void;
   extractRewardDuration?: (item: RewardItem) => number;
   initBottomSheetGestures?: () => void;
   dismissModalWithSlideDown?: (modal: HTMLElement) => void;
@@ -60,7 +59,16 @@ function invokeLegacy(
 }
 
 export function RewardDetailModal() {
-  const { state, openRewardRenegotiateModal } = useLevelUp();
+  const {
+    state,
+    openRewardRenegotiateModal,
+    buyShopItem,
+    useInventoryItem,
+    refundInventoryItem,
+    undoUseInventoryItem,
+    deleteShopItem,
+    resetFocusTimer,
+  } = useLevelUp();
   const stateRef = useRef(state);
   stateRef.current = state;
   const [target, setTarget] = useState<RewardDetailTarget | null>(null);
@@ -161,25 +169,130 @@ export function RewardDetailModal() {
     }
   };
 
-  const runAction = (name: keyof RewardDetailWindow) => {
+  const runAction = async (name: keyof RewardDetailWindow) => {
     if (!item) return;
     const win = window as RewardDetailWindow;
+    const legacyFn = win[name];
+    if (typeof legacyFn === 'function') {
+      close();
+      (legacyFn as (id: string) => void | Promise<void>)(item.id);
+      return;
+    }
+
+    if (name === 'buyShopItem' && isShop) {
+      close();
+      await buyShopItem(item as ShopItem);
+      return;
+    }
+
+    if (name === 'useInventoryItem' && inventoryItem) {
+      close();
+      await useInventoryItem(inventoryItem.id);
+      return;
+    }
+
+    if (name === 'refundInventoryItem' && inventoryItem) {
+      const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+      let ok = true;
+      if (confirmAction) {
+        ok = await confirmAction({
+          title: 'Hoàn Trả Phần Thưởng?',
+          message: `Trả lại "${inventoryItem.name}" và nhận lại vàng?`,
+          confirmText: 'Hoàn Trả',
+          cancelText: 'Giữ Lại',
+          icon: '↩️',
+          btnColor: 'amber',
+        });
+      }
+      if (!ok) return;
+
+      close();
+      await refundInventoryItem(inventoryItem.id);
+      return;
+    }
+
+    if (name === 'undoUseInventoryItem' && inventoryItem) {
+      close();
+      await undoUseInventoryItem(inventoryItem.id);
+      return;
+    }
+
+    if (name === 'clearSavedRewardTimer' && inventoryItem) {
+      const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+      let ok = true;
+      if (confirmAction) {
+        ok = await confirmAction({
+          title: 'Kết Thúc Phần Thưởng?',
+          message: `Bạn có chắc muốn kết thúc sớm phần thưởng "${inventoryItem.name}"?`,
+          detail: '⚠️ Thời gian còn lại sẽ không thể sử dụng tiếp.',
+          confirmText: 'Kết Thúc Quà ⏹️',
+          cancelText: 'Giữ Lại',
+          icon: '🎁',
+          btnColor: 'rose',
+        });
+      }
+      if (!ok) return;
+
+      close();
+      if (isActiveReward) {
+        resetFocusTimer();
+      }
+      win.showToast?.(`Đã kết thúc phần thưởng "${inventoryItem.name}".`, 'info');
+      return;
+    }
+
+    if (name === 'deleteShopItem' && isShop) {
+      const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+      let ok = true;
+      if (confirmAction) {
+        ok = await confirmAction({
+          title: 'Xóa Phần Thưởng',
+          message: `Bạn có chắc muốn xóa phần thưởng "${item.name}" khỏi Cửa Hàng?`,
+          confirmText: 'Xóa',
+          cancelText: 'Hủy',
+          icon: '🗑️',
+          btnColor: 'rose',
+        });
+      }
+      if (!ok) return;
+
+      close();
+      deleteShopItem(item.id);
+      win.showToast?.(`Đã xóa phần thưởng "${item.name}".`, 'info');
+      return;
+    }
+
+    if (name === 'deleteInventoryItem' && inventoryItem) {
+      const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+      let ok = true;
+      if (confirmAction) {
+        ok = await confirmAction({
+          title: 'Xóa Khỏi Túi Đồ?',
+          message: `Xóa "${inventoryItem.name}" khỏi Túi Đồ?`,
+          confirmText: 'Xóa',
+          cancelText: 'Hủy',
+          icon: '🗑️',
+          btnColor: 'rose',
+        });
+      }
+      if (!ok) return;
+
+      close();
+      if (isActiveReward) {
+        resetFocusTimer();
+      }
+      win.showToast?.(`Đã xóa "${inventoryItem.name}" khỏi Túi Đồ.`, 'info');
+      return;
+    }
+
     close();
-    invokeLegacy(name, item.id, () => {
-      win.showToast?.('Không thể thực hiện thao tác này.', 'error');
-    });
+    console.error(`[RewardDetailModal] Missing legacy action: ${String(name)}`);
+    win.showToast?.('Không thể thực hiện thao tác này.', 'error');
   };
 
   const openFrequency = () => {
     if (!item) return;
     close();
-    const win = window as RewardDetailWindow;
-    const open = win.openItemFrequencyModal;
-    if (!open) {
-      console.error('[RewardDetailModal] Missing legacy action: openItemFrequencyModal');
-      win.showToast?.('Không thể mở lịch sử phần thưởng.', 'error');
-      return;
-    }
     const frequencyItem: ShopItem = isInventoryItem(item)
       ? {
         id: item.id,
@@ -191,7 +304,11 @@ export function RewardDetailModal() {
         targetMinutes: item.targetMinutes || durationMinutes,
       }
       : item;
-    open(frequencyItem, false);
+    queueMicrotask(() => {
+      window.dispatchEvent(new CustomEvent('levelup:open-frequency-detail', {
+        detail: { item: frequencyItem, isQuest: false },
+      }));
+    });
   };
 
   const openDebate = () => {

@@ -4,15 +4,15 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Nhận Diện iPadOS & Miễn Trừ Cài Extension Máy Tính ===\n');
 
-// 1. Kiểm tra mã nguồn trong src/js/06-timer.js và public/app.js
-const timerSrcPath = path.resolve('src/js/06-timer.js');
+// 1. Kiểm tra mã nguồn trong src/js/06-timer.js và test/fixtures/legacy-client/app.js
+const timerSrcPath = path.resolve('test/fixtures/legacy-client/modules/06-timer.js');
 const timerSrc = fs.readFileSync(timerSrcPath, 'utf8');
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJs = fs.readFileSync(appJsPath, 'utf8');
 
 assert(timerSrc.includes('isIPadOS'), '06-timer.js phải chứa logic nhận diện isIPadOS');
 assert(timerSrc.includes('navigator.maxTouchPoints > 1'), '06-timer.js phải kiểm tra maxTouchPoints > 1 cho iPadOS');
-assert(appJs.includes('isIPadOS'), 'public/app.js phải chứa logic nhận diện isIPadOS');
+assert(appJs.includes('isIPadOS'), 'test/fixtures/legacy-client/app.js phải chứa logic nhận diện isIPadOS');
 console.log('✓ Test 1: File nguồn và file bundle app.js đã tích hợp nhận diện iPadOS.\n');
 
 // 2. Định nghĩa hàm mô phỏng logic isMobileUserDevice

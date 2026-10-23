@@ -10,7 +10,7 @@ const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 const cssPath = path.resolve('public/style.css');
 const cssContent = fs.readFileSync(cssPath, 'utf8');
 
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
 // 1. Kiểm tra Global Linear Progress Bar trong index.html

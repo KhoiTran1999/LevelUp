@@ -6,7 +6,7 @@ console.log('=== Bắt đầu kiểm thử: Sổ Ghi Chú (Tab riêng, Đặt t�
 
 const htmlPath = path.resolve('public/index.html');
 const cssPath = path.resolve('public/style.css');
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const manifestPath = path.resolve('extension/manifest.json');
 const capsuleJsPath = path.resolve('extension/capsule.js');
 const backgroundJsPath = path.resolve('extension/background.js');

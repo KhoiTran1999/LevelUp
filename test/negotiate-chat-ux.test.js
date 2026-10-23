@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Trải Nghiệm Chat Thương Lượng AI (Negotiation Chat UX) ===\n');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8').replace(/\r\n/g, '\n');
 
@@ -24,7 +24,7 @@ assert.ok(styleCss.includes('@keyframes messageSlideIn'), 'CSS phải có keyfra
 assert.ok(styleCss.includes('.no-scrollbar'), 'CSS phải có class .no-scrollbar');
 console.log('✓ Test 2: CSS chứa đầy đủ hiệu ứng trượt tin nhắn mượt mà (.message-fade-in) và ẩn cuộn cho thanh gợi ý.');
 
-// 3. Kiểm tra các hàm hỗ trợ Chat UI trong public/app.js
+// 3. Kiểm tra các hàm hỗ trợ Chat UI trong test/fixtures/legacy-client/app.js
 assert.ok(appJs.includes('function appendUserChatBubble('), 'Phải có hàm appendUserChatBubble');
 assert.ok(appJs.includes('function createDebateLoadingBubble('), 'Phải có hàm createDebateLoadingBubble');
 assert.ok(appJs.includes('function appendAiChatBubble('), 'Phải có hàm appendAiChatBubble');

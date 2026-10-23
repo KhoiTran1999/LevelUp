@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Bắt đầu kiểm thử Lớp Hiển Thị Z-Index Cho Menu Dropdown Thẻ & Chống Bị Đè ===\n');
 
 const css = fs.readFileSync(path.join(process.cwd(), 'public', 'style.css'), 'utf8');
-const appJs = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 
 // =============================================================================
 // Test 1: CSS Stacking Context cho .rpg-card & .quest-dropdown-menu

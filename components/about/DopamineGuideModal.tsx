@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 interface GuideStep {
   number: string;
@@ -97,18 +97,42 @@ interface DopamineWindow extends Window {
 }
 
 function closeGuide() {
+  const modal = document.getElementById('modal-dopamine-guide');
+  if (modal) modal.classList.add('hidden');
   const close = (window as DopamineWindow).closeDopamineGuideModal;
-  if (close) close();
-  else console.error('[DopamineGuideModal] Legacy close handler is unavailable.');
+  if (close && close !== closeGuide) close();
 }
 
 function openBrainDump() {
-  const open = (window as DopamineWindow).openBrainDumpModal;
+  closeGuide();
+  const win = window as DopamineWindow & { openReactBrainDumpModal?: () => void };
+  if (typeof win.openReactBrainDumpModal === 'function') {
+    win.openReactBrainDumpModal();
+    return;
+  }
+  const open = win.openBrainDumpModal;
   if (open) open();
   else console.error('[DopamineGuideModal] Legacy notes handler is unavailable.');
 }
 
 export function DopamineGuideModal() {
+  useEffect(() => {
+    const win = window as DopamineWindow & {
+      openDopamineGuideModal?: () => void;
+      closeDopamineGuideModal?: () => void;
+    };
+    const openModal = () => {
+      const modal = document.getElementById('modal-dopamine-guide');
+      if (modal) modal.classList.remove('hidden');
+    };
+    win.openDopamineGuideModal = openModal;
+    win.closeDopamineGuideModal = closeGuide;
+    return () => {
+      if (win.openDopamineGuideModal === openModal) delete win.openDopamineGuideModal;
+      if (win.closeDopamineGuideModal === closeGuide) delete win.closeDopamineGuideModal;
+    };
+  }, []);
+
   return (
     <div id="modal-dopamine-guide" className="fixed inset-0 z-[100] hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-dopamine-guide-title" data-sheet-dismiss="true">
       <div className="rpg-panel rounded-2xl sm:rounded-3xl w-full max-w-2xl border border-amber-500/40 overflow-hidden modal-fade shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
@@ -120,7 +144,7 @@ export function DopamineGuideModal() {
               <p className="text-[11px] text-slate-500 dark:text-slate-400">5 bước chuyển trạng thái từ video ngắn sang Deep Work</p>
             </div>
           </div>
-          <button id="btn-close-dopamine-guide" type="button" className="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
+          <button id="btn-close-dopamine-guide" type="button" onClick={closeGuide} className="modal-close w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition shrink-0 active:scale-95" aria-label="Đóng">
             <span className="material-symbols-outlined text-lg leading-none">close</span>
           </button>
         </div>

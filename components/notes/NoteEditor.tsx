@@ -98,20 +98,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     }
     const updatedAt = Date.now();
 
-    // Synchronously update window.appState to guarantee 0 data loss
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as { appState?: { notes?: NoteItem[]; focusNotes?: string } };
-      if (win.appState?.notes) {
-        const found = win.appState.notes.find(n => n.id === targetId);
-        if (found) {
-          found.content = currentHtml;
-          found.title = currentTitle || 'Chưa đặt tiêu đề';
-          found.updatedAt = updatedAt;
-          win.appState.focusNotes = currentHtml;
-        }
-      }
-    }
-
     onSaveNote(targetId, {
       content: currentHtml,
       title: currentTitle || 'Chưa đặt tiêu đề',
@@ -199,18 +185,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     updateStats(editorRef.current.textContent || '');
 
     const currentHtml = editorRef.current.innerHTML || '';
-
-    // Immediate in-memory sync to window.appState
-    if (typeof window !== 'undefined') {
-      const win = window as unknown as { appState?: { notes?: NoteItem[]; focusNotes?: string } };
-      if (win.appState?.notes) {
-        const found = win.appState.notes.find(n => n.id === targetId);
-        if (found) {
-          found.content = currentHtml;
-          win.appState.focusNotes = currentHtml;
-        }
-      }
-    }
 
     // Debounced state save
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

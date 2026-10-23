@@ -269,7 +269,7 @@ console.log("✓ Test 7: CSS classes cho thẻ gợi ý, scrollbar ẩn và hi�
 // TEST 8: Kiểm tra Logic Client trong app.js (Tức thì 0ms, không phụ thuộc nút đổi)
 // ---------------------------------------------------------------------------
 console.log("--- TEST 8: Kiểm tra Logic Client trong app.js ---");
-const appJsContent = fs.readFileSync(path.join(__dirname, "../public/app.js"), "utf8");
+const appJsContent = fs.readFileSync(path.join(__dirname, "../test/fixtures/legacy-client/app.js"), "utf8");
 
 assert(appJsContent.includes("loadQuestSuggestions"), "Thiếu loadQuestSuggestions trong app.js");
 assert(appJsContent.includes("loadRewardSuggestions"), "Thiếu loadRewardSuggestions trong app.js");

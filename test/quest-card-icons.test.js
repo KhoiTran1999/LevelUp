@@ -5,12 +5,12 @@ import { sanitizeEvaluatedQuest } from '../api/ai.js';
 
 console.log('=== Kiểm thử Hệ Thống Icon Trực Quan Cho Thẻ Nhiệm Vụ (Quest Card Icons) ===\n');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const aiJs = fs.readFileSync(path.resolve('api/ai.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra hàm getQuestIcon tồn tại và được export/gắn window
-assert.ok(appJs.includes('function getQuestIcon('), 'public/app.js phải chứa hàm getQuestIcon');
+assert.ok(appJs.includes('function getQuestIcon('), 'test/fixtures/legacy-client/app.js phải chứa hàm getQuestIcon');
 assert.ok(appJs.includes('window.getQuestIcon = getQuestIcon;'), 'getQuestIcon phải được gắn vào window');
 console.log('✓ Test 1: Hàm getQuestIcon đã được khai báo và gắn global thành công.');
 

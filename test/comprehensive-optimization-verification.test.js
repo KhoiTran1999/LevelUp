@@ -80,24 +80,21 @@ console.log('=== KIỂM THỬ XÁC MINH CÁC TỐI ƯU HÓA ĐÃ TRIỂN KHAI (1
 
 // 4. Kiểm thử 03-storage.js giải phóng BroadcastChannel trong finally
 {
-  const storageCode = fs.readFileSync(path.join(rootDir, 'src', 'js', '03-storage.js'), 'utf8').replace(/\r\n/g, '\n');
+  const storageCode = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '03-storage.js'), 'utf8').replace(/\r\n/g, '\n');
   assert.ok(storageCode.includes('finally {\n        ch.close();\n      }'), '03-storage.js phải đóng channel trong khối finally');
   console.log('✓ Mục 4: src/js/03-storage.js đã bọc ch.close() trong finally để chống rò rỉ tài nguyên.');
 }
 
-// 5. Kiểm thử sw.js và tailwind.config.js và build-client.js
+// 5. Kiểm thử sw.js và tailwind.config.js
 {
   const swCode = fs.readFileSync(path.join(rootDir, 'public', 'sw.js'), 'utf8');
   assert.ok(swCode.includes('ignoreSearch: true'), 'public/sw.js phải sử dụng ignoreSearch: true khi match cache');
 
   const tailwindConfig = fs.readFileSync(path.join(rootDir, 'tailwind.config.js'), 'utf8');
-  assert.ok(!tailwindConfig.includes('./public/**/*.{html,js}'), 'tailwind.config.js không được quét trùng public/app.js');
+  assert.ok(!tailwindConfig.includes('./public/**/*.{html,js}'), 'tailwind.config.js không được quét trùng test/fixtures/legacy-client/app.js');
   assert.ok(tailwindConfig.includes('./public/index.html'), 'tailwind.config.js phải quét public/index.html');
 
-  const buildClientCode = fs.readFileSync(path.join(rootDir, 'scripts', 'build-client.js'), 'utf8');
-  assert.ok(buildClientCode.includes('Syntax Error detected in module: src/js/'), 'scripts/build-client.js phải kiểm tra cú pháp từng module');
-
-  console.log('✓ Mục 5: sw.js có ignoreSearch: true, tailwind.config.js tối ưu scanning, build-client.js kiểm tra cú pháp từng file.');
+  console.log('✓ Mục 5: sw.js có ignoreSearch: true và tailwind.config.js tối ưu scanning.');
 }
 
 console.log('\n🎉 TẤT CẢ CÁC MỤC TỐI ƯU HÓA 1, 2, 4, 5 ĐÃ ĐƯỢC XÁC MINH HOÀN TOÀN!');

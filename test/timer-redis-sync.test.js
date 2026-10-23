@@ -371,11 +371,11 @@ async function runTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // Test 6: Kiểm tra tính nhất quán mã nguồn trong public/app.js
+  // Test 6: Kiểm tra tính nhất quán mã nguồn trong test/fixtures/legacy-client/app.js
   // ---------------------------------------------------------------------------
-  console.log('Test 6: Kiểm tra các cơ chế đồng bộ timer trong public/app.js');
+  console.log('Test 6: Kiểm tra các cơ chế đồng bộ timer trong test/fixtures/legacy-client/app.js');
   {
-    const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+    const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
     // 1. activeTimer trong DEFAULT_STATE
     assert.ok(appCode.includes('activeTimer: null'), 'DEFAULT_STATE phải có activeTimer: null');
@@ -401,7 +401,7 @@ async function runTests() {
   // ---------------------------------------------------------------------------
   console.log('Test 7: Kiểm tra cơ chế triệt tiêu độ trễ (Zero-Delay) khi Bắt đầu & Hủy timer');
   {
-    const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+    const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
     // 1. Phải có định danh duy nhất CURRENT_TAB_ID để lọc broadcast lặp vòng từ chính tab này
     assert.ok(appCode.includes('CURRENT_TAB_ID'), 'Phải khai báo CURRENT_TAB_ID để cô lập tab');
@@ -533,11 +533,11 @@ async function runTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // Test 9: Kiểm tra mã nguồn thực thi Single Active Runner trong public/app.js
+  // Test 9: Kiểm tra mã nguồn thực thi Single Active Runner trong test/fixtures/legacy-client/app.js
   // ---------------------------------------------------------------------------
-  console.log('Test 9: Kiểm tra các cơ chế Single Active Runner trong public/app.js');
+  console.log('Test 9: Kiểm tra các cơ chế Single Active Runner trong test/fixtures/legacy-client/app.js');
   {
-    const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+    const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
     // 1. Khai báo CURRENT_RUNNER_ID
     assert.ok(appCode.includes('const CURRENT_RUNNER_ID = CURRENT_TAB_ID;'), 'Phải khai báo CURRENT_RUNNER_ID');
@@ -761,11 +761,11 @@ async function runTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // Test 13: Kiểm tra các cơ chế bảo vệ bổ sung trong public/app.js
+  // Test 13: Kiểm tra các cơ chế bảo vệ bổ sung trong test/fixtures/legacy-client/app.js
   // ---------------------------------------------------------------------------
-  console.log('Test 13: Kiểm tra Concurrency Lock & Loại bỏ Rogue Push trong public/app.js');
+  console.log('Test 13: Kiểm tra Concurrency Lock & Loại bỏ Rogue Push trong test/fixtures/legacy-client/app.js');
   {
-    const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+    const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
     // 1. Cờ khóa concurrency isTimerActionPending
     assert.ok(appCode.includes('let isTimerActionPending = false;'), 'Phải khai báo isTimerActionPending');

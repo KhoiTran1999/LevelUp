@@ -132,10 +132,10 @@ const sampleJsonPayload = JSON.stringify({
 }
 
 // -----------------------------------------------------------------------------
-// 4. Kiểm thử mã nguồn public/app.js có bộ lọc chống rò rỉ raw JSON ở cả 3 luồng
+// 4. Kiểm thử mã nguồn test/fixtures/legacy-client/app.js có bộ lọc chống rò rỉ raw JSON ở cả 3 luồng
 // -----------------------------------------------------------------------------
 {
-  const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+  const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
   // Kiểm tra bộ lọc trong appendAiChatBubble
   assert.ok(
@@ -146,10 +146,10 @@ const sampleJsonPayload = JSON.stringify({
   // Kiểm tra bộ lọc trong các hàm chat
   assert.ok(
     appJs.includes("data.reply.trim().startsWith('{') || data.reply.trim().startsWith('```json')"),
-    'public/app.js phải có guard bóc tách data.reply trước khi tạo diffTags và lưu history'
+    'test/fixtures/legacy-client/app.js phải có guard bóc tách data.reply trước khi tạo diffTags và lưu history'
   );
 
-  console.log('✓ Test 4: Frontend public/app.js được bảo vệ 2 lớp (defense-in-depth), chặn đứng 100% việc hiển thị raw JSON.');
+  console.log('✓ Test 4: Frontend test/fixtures/legacy-client/app.js được bảo vệ 2 lớp (defense-in-depth), chặn đứng 100% việc hiển thị raw JSON.');
 }
 
 console.log('\n======================================================================');

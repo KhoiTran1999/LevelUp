@@ -7,9 +7,9 @@ const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'components', 'admin', 'AdminDashboard.tsx'), 'utf8');
 const profileModal = fs.readFileSync(path.join(root, 'components', 'profile', 'ProfileModal.tsx'), 'utf8');
-const toast = fs.readFileSync(path.join(root, 'src', 'js', '04-toast.js'), 'utf8');
+const toast = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '04-toast.js'), 'utf8');
 const confirmDialog = fs.readFileSync(path.join(root, 'components', 'ui', 'ConfirmDialog.tsx'), 'utf8');
-const legacyAdmin = fs.readFileSync(path.join(root, 'src', 'js', '13-admin.js'), 'utf8');
+const legacyAdmin = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '13-admin.js'), 'utf8');
 const welcomeModal = fs.readFileSync(path.join(root, 'components', 'onboarding', 'WelcomeModal.tsx'), 'utf8');
 const interactiveTour = fs.readFileSync(path.join(root, 'components', 'onboarding', 'InteractiveTour.tsx'), 'utf8');
 const shieldGate = fs.readFileSync(path.join(root, 'components', 'onboarding', 'ShieldGateModal.tsx'), 'utf8');
@@ -19,7 +19,7 @@ const dopamineGuide = fs.readFileSync(path.join(root, 'components', 'about', 'Do
 const brainDump = fs.readFileSync(path.join(root, 'components', 'notes', 'BrainDumpModal.tsx'), 'utf8');
 const notesWorkspace = fs.readFileSync(path.join(root, 'components', 'notes', 'NotesWorkspace.tsx'), 'utf8');
 const noteEditor = fs.readFileSync(path.join(root, 'components', 'notes', 'NoteEditor.tsx'), 'utf8');
-const legacyModalHandlers = fs.readFileSync(path.join(root, 'src', 'js', '15-modal.js'), 'utf8');
+const legacyModalHandlers = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '15-modal.js'), 'utf8');
 const assistantModal = fs.readFileSync(path.join(root, 'components', 'ai', 'AssistantModal.tsx'), 'utf8');
 
 const adminStart = html.indexOf('<section id="tab-admin"');
@@ -107,11 +107,11 @@ assert.match(page, /<AboutModal\s*\/>/, 'Next page must mount the React About mo
 assert.match(page, /<DopamineGuideModal\s*\/>/, 'Next page must mount the React Dopamine Guide.');
 assert.match(page, /<BrainDumpModal\s*\/>/, 'Next page must mount the React Brain Dump modal.');
 assert.match(page, /<AssistantModal\s*\/>/, 'Next page must mount the React AI Assistant.');
-assert.match(fs.readFileSync(path.join(root, 'src', 'js', '15-modal.js'), 'utf8'), /function openAboutModal\(\)[\s\S]*?openModal\('modal-about'\)/, 'Existing About entry points must still open the React-owned modal.');
-assert.match(profileModal, /levelup:state-updated/, 'Profile edits must update React provider state.');
+assert.match(fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '15-modal.js'), 'utf8'), /function openAboutModal\(\)[\s\S]*?openModal\('modal-about'\)/, 'Existing About entry points must still open the React-owned modal.');
+assert.match(profileModal, /updateProfile/, 'Profile edits must update React provider state.');
 assert.match(profileModal, /action=check_nickname/, 'Profile save must preserve nickname availability checks.');
-assert.match(profileModal, /triggerSave/, 'Profile save must preserve local/cloud persistence.');
-assert.match(fs.readFileSync(path.join(root, 'src', 'js', '18-events.js'), 'utf8'), /if \(!document\.getElementById\('modal-profile'\)\)[\s\S]*?window\.openProfileModal/, 'Legacy profile opener must delegate to React after markup migration.');
+assert.match(profileModal, /updateProfile/, 'Profile save must preserve local/cloud persistence.');
+assert.match(fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '18-events.js'), 'utf8'), /if \(!document\.getElementById\('modal-profile'\)\)[\s\S]*?window\.openProfileModal/, 'Legacy profile opener must delegate to React after markup migration.');
 assert.match(legacyAdmin, /const tbody = document\.getElementById\('admin-users-tbody'\);\s*if \(!tbody\) return;/, 'Legacy tab-switch callers must safely no-op when React owns the Admin UI.');
 
 console.log('✅ Admin and migrated shared overlays are mounted through React, not the legacy bridge.');

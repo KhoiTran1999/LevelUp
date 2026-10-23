@@ -283,9 +283,9 @@ async function runPresenceTests() {
 
   // Test 7: Kiểm tra HTML & JS có các phần tử giao diện
   {
-    console.log('Test 7: Kiểm tra UI trong public/index.html và public/app.js');
+    console.log('Test 7: Kiểm tra UI trong public/index.html và test/fixtures/legacy-client/app.js');
     const html = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf-8');
-    const appJs = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf-8');
+    const appJs = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf-8');
 
     assert.ok(html.includes('id="leaderboard-online-badge"'), 'index.html phải có #leaderboard-online-badge');
     assert.ok(html.includes('id="leaderboard-online-count"'), 'index.html phải có #leaderboard-online-count');

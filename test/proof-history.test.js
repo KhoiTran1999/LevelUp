@@ -7,9 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
-const appJs = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
-const renderJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '14-render.js'), 'utf8');
+const renderJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '14-render.js'), 'utf8');
 const schemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'game.js'), 'utf8');
 const syncJs = fs.readFileSync(path.join(rootDir, 'api', 'sync.js'), 'utf8');
 
@@ -51,7 +51,7 @@ function testHistoryTabMarkup() {
   console.log('✓ Test 2: Tab Lịch Sử tích hợp đầy đủ Sub-tabs switcher, Album Grid và Empty State.');
 }
 
-// 3. Kiểm tra logic JS trong public/app.js
+// 3. Kiểm tra logic JS trong test/fixtures/legacy-client/app.js
 function testAppJsProofHistoryLogic() {
   assert.ok(appJs.includes('function switchLedgerSubtab('), 'app.js phải có hàm switchLedgerSubtab');
   assert.ok(appJs.includes('window.switchLedgerSubtab = switchLedgerSubtab'), 'switchLedgerSubtab phải gắn vào window');
@@ -159,8 +159,8 @@ function testSchemaAndCloudSync() {
 
 // 6. Kiểm tra lưu trữ và hiển thị ghi chú thông tin thêm của người dùng (userNote)
 function testUserNoteStorageAndDisplay() {
-  const proofJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '08-proof.js'), 'utf8');
-  const questJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '07-quest.js'), 'utf8');
+  const proofJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '08-proof.js'), 'utf8');
+  const questJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '07-quest.js'), 'utf8');
 
   // DOM modal xem ảnh
   assert.ok(indexHtml.includes('id="proof-viewer-note-zone"'), 'index.html phải có vùng proof-viewer-note-zone');

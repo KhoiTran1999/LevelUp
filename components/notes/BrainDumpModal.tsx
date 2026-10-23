@@ -37,12 +37,16 @@ export function BrainDumpModal() {
   }, []);
 
   useEffect(() => {
-    const win = window as BrainDumpWindow;
+    const win = window as BrainDumpWindow & { openBrainDumpModal?: () => void; closeBrainDumpModal?: () => void };
     win.openReactBrainDumpModal = open;
     win.closeReactBrainDumpModal = close;
+    if (!win.openBrainDumpModal) win.openBrainDumpModal = open;
+    if (!win.closeBrainDumpModal) win.closeBrainDumpModal = close;
     return () => {
       delete win.openReactBrainDumpModal;
       delete win.closeReactBrainDumpModal;
+      if (win.openBrainDumpModal === open) delete win.openBrainDumpModal;
+      if (win.closeBrainDumpModal === close) delete win.closeBrainDumpModal;
     };
   }, [close, open]);
 

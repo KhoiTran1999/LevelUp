@@ -6,8 +6,8 @@ const root = process.cwd();
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 const component = fs.readFileSync(path.join(root, 'components', 'profile', 'PaletteStudioModal.tsx'), 'utf8');
-const source = fs.readFileSync(path.join(root, 'src', 'js', '03-storage.js'), 'utf8');
-const bundle = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
+const source = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '03-storage.js'), 'utf8');
+const bundle = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 const header = fs.readFileSync(path.join(root, 'components', 'header', 'Header.tsx'), 'utf8');
 
 assert.ok(page.includes('<PaletteStudioModal />'), 'Next page must mount the React Palette Studio.');

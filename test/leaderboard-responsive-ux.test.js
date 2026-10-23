@@ -6,7 +6,7 @@ console.log('=== Bắt đầu kiểm thử Toàn Diện Bảng Xếp Hạng Đa 
 
 const html = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(process.cwd(), 'public', 'style.css'), 'utf8');
-const appJs = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 
 // =============================================================================
 // Test 1: Khung Bảng Xếp Hạng & Bố Cục Responsive trong index.html

@@ -3,8 +3,8 @@ import fs from 'node:fs';
 
 console.log('=== Bắt đầu kiểm thử: Kho Quà, Trích Nợ Ngân Hàng, Hoàn Tác & Thu Hồi EXP/Level ===\n');
 
-// 1. Kiểm tra mã nguồn public/app.js đảm bảo sửa triệt để ReferenceError và tích hợp error boundary
-const appJs = fs.readFileSync('public/app.js', 'utf8').replace(/\r\n/g, '\n');
+// 1. Kiểm tra mã nguồn test/fixtures/legacy-client/app.js đảm bảo sửa triệt để ReferenceError và tích hợp error boundary
+const appJs = fs.readFileSync('test/fixtures/legacy-client/app.js', 'utf8').replace(/\r\n/g, '\n');
 
 assert.ok(appJs.includes('const REWARD_TIER_COLORS = {'), 'Phải khai báo REWARD_TIER_COLORS ở phạm vi module/global');
 assert.ok(appJs.includes('const REWARD_TIER_LABELS = {'), 'Phải khai báo REWARD_TIER_LABELS ở phạm vi module/global');

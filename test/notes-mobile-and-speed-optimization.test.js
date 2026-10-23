@@ -6,7 +6,7 @@ console.log('=== Bắt đầu kiểm thử: Sổ Ghi Chú - Mobile UX & Tối Ư
 
 const htmlPath = path.resolve('public/index.html');
 const cssPath = path.resolve('public/style.css');
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
 const css = fs.readFileSync(cssPath, 'utf8');

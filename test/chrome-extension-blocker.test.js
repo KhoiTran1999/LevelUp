@@ -111,13 +111,13 @@ assert.deepStrictEqual(generatedRules[0].condition.resourceTypes, ['main_frame']
 console.log('✓ Test 4: Thuật toán tạo quy tắc DNR và lọc ngoại lệ Whitelist hoạt động chính xác.');
 
 // Test 5: Kiểm tra Web App LevelUp đã tích hợp broadcast postMessage cho Extension
-const timerSrcPath = path.resolve('src/js/06-timer.js');
+const timerSrcPath = path.resolve('test/fixtures/legacy-client/modules/06-timer.js');
 const timerSrc = fs.readFileSync(timerSrcPath, 'utf8');
 assert(timerSrc.includes('LEVELUP_TIMER_STATE_BROADCAST'), '06-timer.js phải phát event LEVELUP_TIMER_STATE_BROADCAST');
 
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJs = fs.readFileSync(appJsPath, 'utf8');
-assert(appJs.includes('LEVELUP_TIMER_STATE_BROADCAST'), 'public/app.js bundle phải chứa LEVELUP_TIMER_STATE_BROADCAST');
+assert(appJs.includes('LEVELUP_TIMER_STATE_BROADCAST'), 'test/fixtures/legacy-client/app.js bundle phải chứa LEVELUP_TIMER_STATE_BROADCAST');
 console.log('✓ Test 5: Web App LevelUp đã kích hoạt kênh đồng bộ postMessage sang Extension.');
 
 // Test 6: Kiểm tra tài liệu CHROMEWEBSTORE.md
@@ -178,7 +178,7 @@ assert(bgCode.includes('closeCurrentTab'), 'background.js phải hỗ trợ đó
 assert(capsuleCode.includes('closeCurrentTab'), 'capsule.js phải truyền closeCurrentTab khi bấm quay về LevelUp từ cảnh báo');
 
 assert(timerSrc.includes('LEVELUP_FOCUS_COMPLETED'), '06-timer.js phải phát event LEVELUP_FOCUS_COMPLETED');
-assert(appJs.includes('LEVELUP_FOCUS_COMPLETED'), 'public/app.js bundle phải chứa LEVELUP_FOCUS_COMPLETED');
+assert(appJs.includes('LEVELUP_FOCUS_COMPLETED'), 'test/fixtures/legacy-client/app.js bundle phải chứa LEVELUP_FOCUS_COMPLETED');
 
 const contentJsPath = path.join(extDir, 'content.js');
 const contentJsCode = fs.readFileSync(contentJsPath, 'utf8');
@@ -212,11 +212,11 @@ const vercelJsonCode = fs.readFileSync(vercelJsonPath, 'utf8');
 assert(vercelJsonCode.includes('Content-Disposition') && vercelJsonCode.includes('attachment'), 'vercel.json phải đính kèm Content-Disposition: attachment cho download');
 
 assert(timerSrc.includes('btn-download-shield-zip'), '06-timer.js phải lắng nghe nút tải zip');
-assert(appJs.includes('btn-download-shield-zip'), 'public/app.js bundle phải chứa logic tải zip an toàn');
+assert(appJs.includes('btn-download-shield-zip'), 'test/fixtures/legacy-client/app.js bundle phải chứa logic tải zip an toàn');
 console.log('✓ Test 9: Hạ tầng tải file ZIP (ServiceWorker bypass, Next.js/Vercel headers, Blob fallback) hoạt động chuẩn xác.');
 
 // Test 10: Kiểm tra triệt tiêu xung đột giữa Google Login (modal-welcome) và Shield Gate (modal-shield-gate)
-const modalSrcPath = path.resolve('src/js/15-modal.js');
+const modalSrcPath = path.resolve('test/fixtures/legacy-client/modules/15-modal.js');
 const modalSrc = fs.readFileSync(modalSrcPath, 'utf8');
 
 assert(timerSrc.includes('checkIsOnboarded') && timerSrc.includes('!checkIsOnboarded()'), 'enforceMandatoryShieldGateOnStartup phải kiểm tra checkIsOnboarded để không mở đè modal');
@@ -254,8 +254,8 @@ assert(testSemverCompare('1.2.0', '1.3.0') < 0, '1.2.0 phải nhỏ hơn 1.3.0 (
 assert(testSemverCompare('1.3.0', '1.3.0') === 0, '1.3.0 phải bằng 1.3.0 (ready)');
 assert(testSemverCompare('1.4.0', '1.3.0') > 0, '1.4.0 phải lớn hơn 1.3.0 (ready)');
 
-assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'public/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
-assert(appJs.includes('isLevelUpExtensionOutdated'), 'public/app.js bundle phải chứa isLevelUpExtensionOutdated');
+assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'test/fixtures/legacy-client/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
+assert(appJs.includes('isLevelUpExtensionOutdated'), 'test/fixtures/legacy-client/app.js bundle phải chứa isLevelUpExtensionOutdated');
 console.log('✓ Test 11: Cơ chế kiểm tra phiên bản extension và ép buộc nâng cấp (Forced Update) hoạt động chính xác 100%.');
 
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.3.0 thành công 100%!');

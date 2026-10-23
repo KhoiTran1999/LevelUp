@@ -1,8 +1,8 @@
-# ⚔️ LevelUp Client Modules (`src/js/`)
+# Archived LevelUp Client Modules
 
-Thư mục này chứa toàn bộ mã nguồn giao diện và logic client của **LevelUp RPG Guild**, được module hóa thành 19 tệp chuyên biệt theo từng miền nghiệp vụ:
+Thư mục này chỉ lưu fixture lịch sử phục vụ hồi quy trong `test/`. Đây không phải source runtime và không được nạp bởi Next.js.
 
-> **Trạng thái chuyển đổi:** ứng dụng web và API hiện chạy bằng Next.js (`npm run dev`, `npm run build`, `npm start`). Các module này cùng `public/app.js` vẫn được giữ để hỗ trợ những tab/modal và domain actions legacy chưa chuyển sang React; chưa xóa runtime cho đến khi các luồng còn dùng được thay thế và kiểm thử. Markup cùng controller riêng của quest/reward detail và timer adjustment/focus completion đã được gỡ khỏi legacy template/runtime. Express và Vite không còn là runtime web.
+> **Trạng thái:** ứng dụng web và API chạy bằng Next.js. React/Server Actions là runtime duy nhất. Fixture này không được build, bundle hoặc deploy.
 
 | Tệp Module | Phân vùng chức năng & Nhiệm vụ |
 | :--- | :--- |
@@ -28,19 +28,4 @@ Thư mục này chứa toàn bộ mã nguồn giao diện và logic client của
 
 ---
 
-## 🛠️ Quy trình Lập trình (Developer Workflow)
-
-1. **Chỉnh sửa mã nguồn:** Lập trình viên chỉ cần mở và sửa đúng tệp module trong `src/js/`.
-2. **Đóng gói tự động:**
-   ```bash
-   # Build một lần (tốc độ < 20ms):
-   npm run build:js
-
-   # Chế độ theo dõi tự động đóng gói khi lưu file:
-   npm run watch:js
-   ```
-3. **Kiểm tra kiểm thử tự động:**
-   ```bash
-   npm test
-   ```
-Mọi thay đổi trong `src/js/` sẽ được tự động đóng gói và kiểm tra cú pháp an toàn trước khi chạy!
+Các tính năng mới phải viết trong `components/`, `app/actions/` hoặc `app/api/`. Chỉ xóa fixture này khi toàn bộ test hồi quy lịch sử đã được chuyển sang test hành vi React.

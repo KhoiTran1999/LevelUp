@@ -6,7 +6,7 @@ import { deriveLegitimateBalance, signQuest } from '../api/sync.js';
 console.log('=== BẮT ĐẦU BỘ KIỂM THỬ HỆ THỐNG CHUỖI NGÀY (DAILY STREAK ENGINE) ===\n');
 
 // Đọc mã nguồn app.js để kiểm tra và trích xuất hàm
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
 const indexHtmlPath = path.resolve('public/index.html');

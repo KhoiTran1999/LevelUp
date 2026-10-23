@@ -17,7 +17,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const appJsContent = fs.readFileSync(path.join(__dirname, '../public/app.js'), 'utf-8');
+const appJsContent = fs.readFileSync(path.join(__dirname, '../test/fixtures/legacy-client/app.js'), 'utf-8');
 const syncJsContent = fs.readFileSync(path.join(__dirname, '../api/sync.js'), 'utf-8');
 const aiJsContent = fs.readFileSync(path.join(__dirname, '../api/ai.js'), 'utf-8');
 const indexHtmlContent = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf-8');

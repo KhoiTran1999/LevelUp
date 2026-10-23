@@ -15,7 +15,7 @@ const rootDir = path.resolve(__dirname, '..');
 
 test('1. Default quest repeat frequency is "repeatable"', () => {
   const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
-  const eventsJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '18-events.js'), 'utf8');
+  const eventsJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '18-events.js'), 'utf8');
 
   // HTML has repeatable radio checked
   assert.ok(
@@ -32,7 +32,7 @@ test('1. Default quest repeat frequency is "repeatable"', () => {
 });
 
 test('2. Changing frequency in setup modal has no >15 coins block', () => {
-  const eventsJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '18-events.js'), 'utf8');
+  const eventsJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '18-events.js'), 'utf8');
 
   // Verify verdictRepeatToggle does not block > 15
   assert.ok(

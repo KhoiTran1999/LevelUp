@@ -18,7 +18,7 @@ assert(contentJs.includes('LEVELUP_EXTENSION_VERSION_REPORT'), 'content.js phả
 console.log('✓ Test 1: Extension manifest và content script đã cấu hình đồng bộ phiên bản tự động.');
 
 // 2. Kiểm tra logic trong src/js/06-timer.js
-const timerSrcPath = path.resolve('src/js/06-timer.js');
+const timerSrcPath = path.resolve('test/fixtures/legacy-client/modules/06-timer.js');
 const timerSrc = fs.readFileSync(timerSrcPath, 'utf8');
 
 const verMatch = timerSrc.match(/const REQUIRED_EXTENSION_VERSION = ['"]([^'"]+)['"]/);
@@ -99,15 +99,15 @@ assert(timerSrc.includes('installed && ver && isLevelUpExtensionOutdated()'), 'K
 assert(timerSrc.includes('!isLevelUpExtensionReady()'), 'startFocusTimer và startup phải kiểm tra isLevelUpExtensionReady');
 assert(timerSrc.includes('openShieldGateModal(quest)'), 'startFocusTimer phải mở modal khi chưa ready');
 
-const modalSrcPath = path.resolve('src/js/15-modal.js');
+const modalSrcPath = path.resolve('test/fixtures/legacy-client/modules/15-modal.js');
 const modalSrc = fs.readFileSync(modalSrcPath, 'utf8');
 assert(modalSrc.includes('isLevelUpExtensionReady'), '15-modal.js phải kiểm tra isLevelUpExtensionReady trong closeModal');
 
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJs = fs.readFileSync(appJsPath, 'utf8');
-assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'public/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
-assert(appJs.includes('isLevelUpExtensionOutdated'), 'public/app.js bundle phải chứa isLevelUpExtensionOutdated');
-assert(appJs.includes('isLevelUpExtensionReady'), 'public/app.js bundle phải chứa isLevelUpExtensionReady');
+assert(appJs.includes('REQUIRED_EXTENSION_VERSION'), 'test/fixtures/legacy-client/app.js bundle phải chứa REQUIRED_EXTENSION_VERSION');
+assert(appJs.includes('isLevelUpExtensionOutdated'), 'test/fixtures/legacy-client/app.js bundle phải chứa isLevelUpExtensionOutdated');
+assert(appJs.includes('isLevelUpExtensionReady'), 'test/fixtures/legacy-client/app.js bundle phải chứa isLevelUpExtensionReady');
 console.log('✓ Test 5: Logic khóa ứng dụng và chặn Pomodoro khi bản cũ đã được đóng gói thành công.');
 
 console.log('🎉 Toàn bộ bài kiểm tra phiên bản Extension và ép buộc nâng cấp hoàn thành xuất sắc!');

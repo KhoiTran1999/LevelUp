@@ -5,13 +5,13 @@ import { execSync } from 'node:child_process';
 
 console.log('=== Kiểm thử Hệ Thống Màu Nền Phân Loại Thẻ & Sắp Xếp Cao Xuống Thấp ===\n');
 
-// 0. Kiểm tra cú pháp JavaScript của public/app.js (chặn lỗi SyntaxError chặn render DOM)
+// 0. Kiểm tra cú pháp JavaScript của test/fixtures/legacy-client/app.js (chặn lỗi SyntaxError chặn render DOM)
 assert.doesNotThrow(() => {
-  execSync('node -c public/app.js', { stdio: 'pipe' });
-}, 'public/app.js phải hợp lệ cú pháp (không có lỗi redeclaration hay SyntaxError)');
-console.log('✓ Test 0: Cú pháp JavaScript của public/app.js hoàn toàn hợp lệ, không gây crash browser.');
+  execSync('node -c test/fixtures/legacy-client/app.js', { stdio: 'pipe' });
+}, 'test/fixtures/legacy-client/app.js phải hợp lệ cú pháp (không có lỗi redeclaration hay SyntaxError)');
+console.log('✓ Test 0: Cú pháp JavaScript của test/fixtures/legacy-client/app.js hoàn toàn hợp lệ, không gây crash browser.');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8').replace(/\r\n/g, '\n');
 

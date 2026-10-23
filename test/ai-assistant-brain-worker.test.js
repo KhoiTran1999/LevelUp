@@ -270,7 +270,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   const fs = await import('node:fs');
   const html = fs.readFileSync(new URL('../components/ai/AssistantModal.tsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
 
   // 7a. Kiểm tra React UI: Không có nút Nav thừa thãi, có FAB và Modal Phù Thủy AI
   assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
@@ -304,7 +304,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
 // -----------------------------------------------------------------------------
 {
   const fs = await import('node:fs');
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
 
   // Trích xuất hàm renderMarkdown và escapeHtml từ app.js để test độc lập
   const escapeHtmlMatch = appJs.match(/function escapeHtml\([\s\S]*?^}/m);

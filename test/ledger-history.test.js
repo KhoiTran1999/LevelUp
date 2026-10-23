@@ -127,7 +127,7 @@ function testSchemaStandardization() {
 // 6. Kiểm tra loại bỏ hoàn toàn việc lưu trữ state vào localStorage và sử dụng Skeleton
 async function testZeroLocalStorageAndSkeleton() {
   const fs = await import('node:fs');
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
   const normalizedAppJs = appJs.replace(/\r\n/g, '\n');
 
   // Đảm bảo không còn bất kỳ dòng nào setItem CACHE_STORAGE_KEY
@@ -191,7 +191,7 @@ async function testLedgerPagination() {
   assert.ok(indexHtml.includes('id="ledger-next-btn"'), 'index.html phải có nút trang sau');
   assert.ok(indexHtml.includes('id="ledger-page-info"'), 'index.html phải có nhãn hiển thị số trang');
 
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
   assert.ok(appJs.includes('function changeLedgerPage'), 'app.js phải có hàm changeLedgerPage');
   assert.ok(appJs.includes('window.changeLedgerPage = changeLedgerPage'), 'changeLedgerPage phải gắn vào window');
   assert.ok(appJs.includes('currentLedgerPage = 1;'), 'setLedgerFilter phải reset về trang 1');
@@ -203,7 +203,7 @@ async function testLedgerPagination() {
 async function testBankLedgerIntegration() {
   const fs = await import('node:fs');
   const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
   const syncJs = fs.readFileSync(new URL('../api/sync.js', import.meta.url), 'utf8');
 
   // 1. Kiểm tra DOM trong public/index.html
@@ -245,7 +245,7 @@ async function testBankLedgerIntegration() {
 async function testLedgerDescToggle() {
   const fs = await import('node:fs');
   const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
-  const appJs = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
 
   // 1. Kiểm tra CSS cho trạng thái mở rộng và nút toggle trong style.css
   assert.ok(css.includes('.ledger-desc-content.expanded'), 'style.css phải có class .ledger-desc-content.expanded');

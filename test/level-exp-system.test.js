@@ -6,7 +6,7 @@ console.log('=== Kiểm thử Hệ Thống Cấp Độ, Kinh Nghiệm (EXP) & Da
 
 // 1. Kiểm tra mã nguồn giao diện HTML
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
-const js = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const js = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const page = fs.readFileSync(path.resolve('app/page.tsx'), 'utf8');
 const levelAndStreak = fs.readFileSync(path.resolve('components/profile/LevelAndStreakInfoModals.tsx'), 'utf8');
 

@@ -6,7 +6,7 @@ console.log('=== KIỂM THỬ TRẢI NGHIỆM LƯỚT CUỘN GỢI Ý NGANG TRÊ
 
 const htmlContent = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const cssContent = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
-const appJsContent = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const appJsContent = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
 // -----------------------------------------------------------------------------
 // TEST 1: Kiểm tra cấu trúc HTML của tất cả các thanh gợi ý và danh sách tab ngang
@@ -49,9 +49,9 @@ assert.ok(cssContent.includes('pointer-events: none !important'), 'Các phần t
 console.log('✓ Test 2: CSS hỗ trợ con trỏ grab/grabbing và chống cản trở tương tác khi kéo rê.\n');
 
 // -----------------------------------------------------------------------------
-// TEST 3: Kiểm tra định nghĩa hàm trong JS Bundle (public/app.js)
+// TEST 3: Kiểm tra định nghĩa hàm trong JS Bundle (test/fixtures/legacy-client/app.js)
 // -----------------------------------------------------------------------------
-console.log('--- TEST 3: Kiểm tra định nghĩa JS trong public/app.js ---');
+console.log('--- TEST 3: Kiểm tra định nghĩa JS trong test/fixtures/legacy-client/app.js ---');
 assert.ok(appJsContent.includes('function makeHorizontalScrollable(container)'), 'Phải có hàm makeHorizontalScrollable');
 assert.ok(appJsContent.includes('function initHorizontalScrollContainers()'), 'Phải có hàm initHorizontalScrollContainers');
 assert.ok(appJsContent.includes('container.scrollLeft += e.deltaY'), 'Phải chuyển đổi deltaY của con lăn chuột sang scrollLeft');

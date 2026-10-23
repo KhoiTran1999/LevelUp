@@ -12,8 +12,8 @@ test('Quest and Reward renegotiation integration verification', () => {
   const questDetailContent = read('components/quests/QuestDetailModal.tsx');
   const rewardSetupContent = read('components/shop/RewardSetupModal.tsx');
   const rewardDetailContent = read('components/shop/RewardDetailModal.tsx');
-  const arbiterContent = read('src/js/10-arbiter.js');
-  const bundleContent = read('public/app.js');
+  const arbiterContent = read('test/fixtures/legacy-client/modules/10-arbiter.js');
+  const bundleContent = read('test/fixtures/legacy-client/app.js');
 
   // 1. LevelUpProvider must provide openQuestRenegotiateModal and bridge to window
   assert.ok(
@@ -66,7 +66,7 @@ test('Quest and Reward renegotiation integration verification', () => {
   );
   assert.ok(
     bundleContent.includes('window.openQuestRenegotiateModal(questId)'),
-    'public/app.js must include legacy delegation'
+    'test/fixtures/legacy-client/app.js must include legacy delegation'
   );
 
   console.log('✅ Quest & Reward renegotiation flow verified successfully.');

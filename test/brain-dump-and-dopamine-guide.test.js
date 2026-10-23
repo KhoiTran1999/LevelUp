@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Bắt đầu kiểm thử: Sổ Ghi Chú (Chỉ đóng bằng nút x, Đồng bộ Redis, Menu Xem thêm) ===\n');
 
 const htmlPath = path.resolve('public/index.html');
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const schemaPath = path.resolve('src/schemas/game.js');
 const syncApiPath = path.resolve('api/sync.js');
 

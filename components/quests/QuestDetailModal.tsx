@@ -54,6 +54,9 @@ export function QuestDetailModal() {
     pauseFocusTimer,
     resumeFocusTimer,
     openQuestRenegotiateModal,
+    deleteQuest,
+    addQuest,
+    resetFocusTimer,
   } = useLevelUp();
   const [questId, setQuestId] = useState<string | null>(null);
   const [fallbackQuest, setFallbackQuest] = useState<Quest | null>(null);
@@ -151,12 +154,87 @@ export function QuestDetailModal() {
     }
   };
 
-  const invokeAction = (name: keyof QuestDetailWindow) => {
+  const invokeAction = async (name: keyof QuestDetailWindow) => {
     if (!quest) return;
+    const win = window as QuestDetailWindow;
+    const fn = win[name];
+    if (typeof fn === 'function') {
+      close();
+      (fn as (id: string) => void)(quest.id);
+      return;
+    }
+
+    if (name === 'restartQuest') {
+      const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+      let ok = true;
+      if (confirmAction) {
+        ok = await confirmAction({
+          title: 'Làm Lại Nhiệm Vụ',
+          message: `Tạo lại nhiệm vụ "${quest.title}" để làm tiếp?`,
+          detail: '💡 Hệ thống sẽ tạo một bản sao mới vào danh sách nhiệm vụ.',
+          confirmText: 'Làm Lại',
+          cancelText: 'Hủy',
+          icon: '🔄',
+          btnColor: 'amber',
+        });
+      }
+      if (!ok) return;
+
+      close();
+      const newQuest: Partial<Quest> = {
+        ...quest,
+        id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        canonicalId: quest.canonicalId || (quest.id && quest.id.startsWith('q_seed_') ? quest.id : undefined),
+        status: 'active',
+        completedCount: 0,
+        createdAt: Date.now(),
+      };
+      delete (newQuest as Quest).completedAt;
+      delete (newQuest as Quest).focusTimerCompleted;
+      delete (newQuest as Quest)._proofVerified;
+      delete (newQuest as Quest).savedTimer;
+      delete (newQuest as Quest).loanDeductions;
+      delete (newQuest as Quest).lastCompletedAt;
+      addQuest(newQuest);
+      win.showToast?.(`Đã thêm nhiệm vụ "${quest.title}" vào danh sách làm việc!`, 'info');
+      return;
+    }
+
+    if (name === 'cancelQuestFocusSession') {
+      close();
+      if (isFocusing) {
+        resetFocusTimer();
+      }
+      const { savedTimer: _, focusTimerCompleted: __, _proofVerified: ___, ...rest } = quest;
+      addQuest(rest);
+      win.showToast?.('Đã hủy phiên tập trung.', 'info');
+      return;
+    }
+
+    if (name === 'clearSavedQuestTimer') {
+      close();
+      const { savedTimer: _, ...rest } = quest;
+      addQuest(rest);
+      win.showToast?.('Đã hủy thời gian bảo lưu.', 'info');
+      return;
+    }
+
+    if (name === 'undoCompleteQuest') {
+      close();
+      const updated: Quest = {
+        ...quest,
+        status: 'active',
+        completedCount: Math.max(0, (quest.completedCount || 1) - 1),
+      };
+      delete updated.completedAt;
+      addQuest(updated);
+      win.showToast?.(`Đã hoàn tác nhiệm vụ "${quest.title}".`, 'info');
+      return;
+    }
+
     close();
-    invokeLegacy(name, quest.id, () => {
-      (window as QuestDetailWindow).showToast?.('Không thể thực hiện thao tác này.', 'error');
-    });
+    console.error(`[QuestDetailModal] Missing legacy action: ${String(name)}`);
+    win.showToast?.('Không thể thực hiện thao tác này.', 'error');
   };
 
   if (!quest) return null;
@@ -190,12 +268,67 @@ export function QuestDetailModal() {
   };
   const toggleRepeat = () => {
     const win = window as QuestDetailWindow;
-    if (!win.toggleQuestRepeatable) {
-      console.error('[QuestDetailModal] Missing legacy action: toggleQuestRepeatable');
-      win.showToast?.('Không thể đổi chế độ lặp lại.', 'error');
+    if (typeof win.toggleQuestRepeatable === 'function') {
+      win.toggleQuestRepeatable(quest.id);
       return;
     }
-    win.toggleQuestRepeatable(quest.id);
+    if (quest.status === 'completed' && !quest.isRepeatable) {
+      win.showToast?.('Nhiệm vụ đã hoàn thành không thể đổi trạng thái lặp lại.', 'info');
+      return;
+    }
+    const nextRepeatable = !quest.isRepeatable;
+    const updated: Quest = {
+      ...quest,
+      isRepeatable: nextRepeatable,
+      completedCount: nextRepeatable ? (quest.previousRepeatCount ?? quest.completedCount ?? 0) : 0,
+      previousRepeatCount: nextRepeatable ? undefined : (quest.completedCount ?? 0),
+    };
+    if (!nextRepeatable) {
+      delete updated.lastCompletedAt;
+    }
+    addQuest(updated);
+    win.showToast?.(`Nhiệm vụ "${quest.title}": ${nextRepeatable ? 'Đã bật Lặp lại' : 'Chuyển sang Làm 1 lần'}`, 'info');
+  };
+
+  const handleDeleteQuest = async () => {
+    if (!quest) return;
+    const win = window as QuestDetailWindow;
+
+    const confirmAction = (window as unknown as { levelupConfirmAction?: (opts: unknown) => Promise<boolean> }).levelupConfirmAction;
+    let ok = true;
+    if (confirmAction) {
+      ok = await confirmAction({
+        title: 'Xóa Nhiệm Vụ',
+        message: `Bạn có chắc muốn xóa nhiệm vụ "${quest.title}"?`,
+        detail: '💡 Nhiệm vụ sẽ bị xóa khỏi danh sách công việc của bạn.',
+        confirmText: 'Xóa',
+        cancelText: 'Hủy',
+        icon: '🗑️',
+        btnColor: 'rose',
+      });
+    } else if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      ok = window.confirm(`Bạn có chắc muốn xóa nhiệm vụ "${quest.title}"?`);
+    }
+    if (!ok) return;
+
+    if (typeof win.deleteQuest === 'function') {
+      try {
+        const removed = await win.deleteQuest(quest.id);
+        if (removed) {
+          close();
+          return;
+        }
+      } catch (err) {
+        console.warn('[QuestDetailModal] Error invoking legacy deleteQuest, using context deleteQuest:', err);
+      }
+    }
+
+    if (isFocusing) {
+      resetFocusTimer();
+    }
+    deleteQuest(quest.id);
+    win.showToast?.(`Đã xóa nhiệm vụ "${quest.title}".`, 'info');
+    close();
   };
 
   return (
@@ -253,7 +386,7 @@ export function QuestDetailModal() {
             </div>
           ) : quest.type === 'focus' && isTimerDone ? (
             <div className="space-y-2">
-              <button id="mqd-btn-focus-done" type="button" className="w-full animate-pulse rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-bold text-slate-950" onClick={() => { close(); const finish = (window as QuestDetailWindow).focusTimerFinished; if (finish) finish(); else { console.error('[QuestDetailModal] Missing legacy focus completion action.'); void completeQuest(quest.id); } }}>Hoàn Thành & Nhận Thưởng 🎉</button>
+              <button id="mqd-btn-focus-done" type="button" className="w-full animate-pulse rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-bold text-slate-950" onClick={() => { close(); const finish = (window as QuestDetailWindow).focusTimerFinished; if (finish) finish(); else { void completeQuest(quest.id); } }}>Hoàn Thành & Nhận Thưởng 🎉</button>
               <button id="mqd-btn-cancel-session" type="button" className="w-full rounded-xl bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-600" onClick={() => invokeAction('cancelQuestFocusSession')}>Hủy Phiên Tập Trung Này</button>
             </div>
           ) : quest.type === 'focus' && isFocusing ? (
@@ -276,7 +409,7 @@ export function QuestDetailModal() {
             <button id="mqd-btn-debate" type="button" className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-400" onClick={openDebate}>💬 Thương lượng</button>
             <button id="mqd-btn-freq" type="button" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400" onClick={openFrequency}>📊 Xem tần suất</button>
             <button id="mqd-btn-repeat" type="button" className="rounded-xl border border-slate-300/60 bg-slate-200/70 px-3 py-2.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" onClick={toggleRepeat}>{quest.isRepeatable ? 'Đổi sang 1 lần' : 'Đổi lặp lại'}</button>
-            <button id="mqd-btn-delete" type="button" className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400" onClick={async () => { const remove = (window as QuestDetailWindow).deleteQuest; if (!remove) { console.error('[QuestDetailModal] Missing legacy action: deleteQuest'); (window as QuestDetailWindow).showToast?.('Không thể xóa nhiệm vụ.', 'error'); return; } if (await remove(quest.id)) close(); }}>🗑️ Xóa nhiệm vụ</button>
+            <button id="mqd-btn-delete" type="button" className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400" onClick={handleDeleteQuest}>🗑️ Xóa nhiệm vụ</button>
           </div>
         </footer>
       </section>

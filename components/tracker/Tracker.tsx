@@ -13,13 +13,6 @@ import {
 type TrackerCategory = 'quests' | 'rewards';
 type TrackerItem = { item: Quest | ShopItem; isQuest: boolean };
 
-declare global {
-  interface Window {
-    openItemFrequencyModal?: (item: Quest | ShopItem, isQuest: boolean) => void;
-    showToast?: (message: string, type: 'success' | 'error') => void;
-  }
-}
-
 const PERIODS: { id: TrackerPeriod; label: string }[] = [
   { id: 'weekly', label: 'Tuần' },
   { id: 'monthly', label: 'Tháng' },
@@ -237,13 +230,11 @@ export function Tracker() {
   ]);
 
   const openFrequencyModal = (item: Quest | ShopItem, isQuest: boolean) => {
-    if (typeof window.openItemFrequencyModal === 'function') {
-      window.openItemFrequencyModal(item, isQuest);
-      return;
-    }
-    const message = 'Biểu đồ chi tiết chưa sẵn sàng. Vui lòng tải lại trang.';
-    if (window.showToast) window.showToast(message, 'error');
-    else console.error(message);
+    queueMicrotask(() => {
+      window.dispatchEvent(new CustomEvent('levelup:open-frequency-detail', {
+        detail: { item, isQuest },
+      }));
+    });
   };
 
   const isVisible = activeTab === 'tracker';

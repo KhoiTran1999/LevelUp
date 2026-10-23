@@ -6,7 +6,7 @@ console.log('=== Kiểm thử Giao Diện Thẻ Tinh Gọn, Giữ Nguyên Màu S
 
 const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
 const css = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const questDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');
 
 // 1. Kiểm tra HTML Lịch tuần & Modal chi tiết nhiệm vụ

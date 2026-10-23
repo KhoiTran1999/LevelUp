@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Bắt đầu kiểm thử Nút Xem thêm/Thu gọn 1 Dòng & Thanh Cuộn Thẻ Nhiệm vụ & Phần thưởng ===\n');
 
 const css = fs.readFileSync(path.join(process.cwd(), 'public', 'style.css'), 'utf8');
-const appJs = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 
 // =============================================================================
 // Test 1: CSS line-clamp-1 & expanded bung toàn bộ chiều cao trong style.css

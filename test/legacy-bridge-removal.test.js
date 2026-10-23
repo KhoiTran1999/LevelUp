@@ -14,6 +14,10 @@ test('Legacy bridge is completely removed and all remaining overlays are React 1
   assert.ok(!pageCode.includes('fs.readFileSync'), 'app/page.tsx must not execute synchronous template reads');
   assert.ok(!fs.existsSync(path.join(root, 'components', 'bridge', 'LegacyViewsBridge.tsx')), 'LegacyViewsBridge.tsx must be deleted');
 
+  const layoutPath = path.join(root, 'app', 'layout.tsx');
+  const layoutCode = fs.readFileSync(layoutPath, 'utf8');
+  assert.ok(!layoutCode.includes('src="/app.js'), 'app/layout.tsx must not load the legacy runtime bundle');
+
   // 2. Verify new React 19 components are mounted in page.tsx
   assert.ok(pageCode.includes('<FocusZenOverlay />'), 'app/page.tsx must mount FocusZenOverlay');
   assert.ok(pageCode.includes('<ToastContainer />'), 'app/page.tsx must mount ToastContainer');

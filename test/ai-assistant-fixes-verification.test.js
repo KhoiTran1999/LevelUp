@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== KIỂM THỬ 3 SỬA LỖI TRỢ LÝ PHÙ THỦY AI (CARET, SCROLL TOP & QUICK PROMPT INPUT) ===\n');
 
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra fix lỗi 1: Carret của AI streaming được loại bỏ triệt để sau khi streaming hoàn tất

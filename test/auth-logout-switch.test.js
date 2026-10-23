@@ -4,8 +4,8 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Đăng Xuất & Đổi Tài Khoản Google (Auth Logout & Switch Account) ===\n');
 
-// 1. Kiểm tra mã nguồn public/app.js đảm bảo logoutGoogle và switchGoogleAccount được gắn đúng và hoạt động bất đồng bộ
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+// 1. Kiểm tra mã nguồn test/fixtures/legacy-client/app.js đảm bảo logoutGoogle và switchGoogleAccount được gắn đúng và hoạt động bất đồng bộ
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 
 assert.ok(
   appJs.includes('async function logoutGoogle()'),
@@ -239,7 +239,7 @@ function createConfirmEngine() {
   console.log('✓ Test 5: Luồng Đổi Tài Khoản (Switch Account) đưa người dùng về màn hình chọn tài khoản Google mới.');
 }
 
-// 7. Kiểm tra sự tồn tại và liên kết của hệ thống State Cache trong public/app.js
+// 7. Kiểm tra sự tồn tại và liên kết của hệ thống State Cache trong test/fixtures/legacy-client/app.js
 {
   assert.ok(appJs.includes('const CACHE_STORAGE_KEY = \'levelup_user_cache_v1\';'), 'Phải định nghĩa CACHE_STORAGE_KEY');
   assert.ok(appJs.includes('function saveLocalCache()'), 'Phải có hàm saveLocalCache');

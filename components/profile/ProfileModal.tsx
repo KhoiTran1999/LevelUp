@@ -6,7 +6,6 @@ import { useLevelUp } from '@/hooks/useLevelUp';
 interface ProfileWindow extends Window {
   openProfileModal?: () => void;
   levelupReactProfile?: boolean;
-  triggerSave?: (needsCloud?: boolean, immediate?: boolean) => void;
   loadFromCloud?: () => Promise<void>;
   logoutGoogle?: () => Promise<void>;
   switchGoogleAccount?: () => Promise<void>;
@@ -18,12 +17,6 @@ interface ProfileWindow extends Window {
   getStreakBonusPercent?: (streak: number) => number;
   getStreakTitle?: (streak: number) => string;
   showToast?: (message: string, type: string) => void;
-  appState?: {
-    profile: Record<string, unknown>;
-    pendingOldNickname?: string;
-    lastModified?: number;
-    lastSyncedAt?: number;
-  };
   sfx?: { playClick?: () => void };
 }
 
@@ -45,6 +38,7 @@ export function ProfileModal() {
     toggleSound,
     togglePalette,
     toggleTheme,
+    updateProfile,
   } = useLevelUp();
   const [open, setOpen] = useState(false);
   const [nickname, setNickname] = useState('');
@@ -66,7 +60,7 @@ export function ProfileModal() {
   useEffect(() => {
     const target = window as ProfileWindow;
     target.openProfileModal = () => {
-      setNickname(target.appState?.profile?.nickname as string || profile.nickname || '');
+      setNickname(profile.nickname || '');
       setAvatar(profile.avatar || '⚔️');
       setAvatarFailed(false);
       setOpen(true);
@@ -110,27 +104,9 @@ export function ProfileModal() {
       }
     }
 
-    const currentState = legacyWindow?.appState;
-    if (!currentState?.profile) {
-      notify('Không thể lưu hồ sơ: trạng thái ứng dụng chưa sẵn sàng.', 'error');
-      return;
-    }
-    if (linked && oldNickname !== nick) {
-      currentState.pendingOldNickname = currentState.pendingOldNickname || oldNickname;
-    }
-    if (nick === currentState.pendingOldNickname) delete currentState.pendingOldNickname;
-
-    const nextState = {
-      ...state,
-      profile: { ...state.profile, nickname: nick, avatar },
-      lastModified: Date.now(),
-    };
-    Object.assign(currentState, nextState);
-    window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: nextState }));
-
     setSaving(true);
     try {
-      legacyWindow.triggerSave?.(true, true);
+      updateProfile({ nickname: nick, avatar });
       notify('Đã lưu hồ sơ và đồng bộ.', 'info');
       setOpen(false);
     } catch (error) {

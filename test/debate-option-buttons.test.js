@@ -6,7 +6,7 @@ import { signReward, verifyRewardSignature } from '../api/sync.js';
 
 console.log('=== Kiểm thử Nút Bấm Tương Tác Phương Án AI & Khắc Phục Đóng Băng Thông Số Khi Thương Lượng ===\n');
 
-const appJs = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const aiJs = fs.readFileSync(path.resolve('api/ai.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra hàm parseDebateOptionsFromText trích xuất chuẩn xác các phương án từ phản hồi thực tế của AI
@@ -163,14 +163,14 @@ Hiện tại bạn đang có sẵn 30 Vàng, nên bạn hoàn toàn có thể r�
   console.log('✓ Test 3: Lỗi đóng băng thông số (Parameter Freeze) đã được giải quyết triệt để nhờ cơ chế fallback kép và selectedOption.');
 }
 
-// 4. Kiểm tra sự hiện diện của các thành phần UI Option Buttons trong public/app.js
-assert.ok(appJs.includes('parseDebateOptionsFromText('), 'public/app.js phải có hàm parseDebateOptionsFromText');
-assert.ok(appJs.includes('class="debate-option-btn'), 'public/app.js phải render nút bấm lựa chọn với class debate-option-btn');
-assert.ok(appJs.includes('debate-options-wrapper'), 'public/app.js phải có container debate-options-wrapper');
+// 4. Kiểm tra sự hiện diện của các thành phần UI Option Buttons trong test/fixtures/legacy-client/app.js
+assert.ok(appJs.includes('parseDebateOptionsFromText('), 'test/fixtures/legacy-client/app.js phải có hàm parseDebateOptionsFromText');
+assert.ok(appJs.includes('class="debate-option-btn'), 'test/fixtures/legacy-client/app.js phải render nút bấm lựa chọn với class debate-option-btn');
+assert.ok(appJs.includes('debate-options-wrapper'), 'test/fixtures/legacy-client/app.js phải có container debate-options-wrapper');
 assert.ok(appJs.includes('onSelectOption'), 'appendAiChatBubble phải hỗ trợ callback onSelectOption khi người dùng click nút phương án');
 assert.ok(appJs.includes('async function sendDebateArgument(customArg = null, selectedOption = null)'), 'sendDebateArgument phải nhận tham số customArg và selectedOption');
 assert.ok(appJs.includes('async function sendRewardDebateArgument(customArg = null, selectedOption = null)'), 'sendRewardDebateArgument phải nhận tham số customArg và selectedOption');
-console.log('✓ Test 4: Giao diện public/app.js tích hợp đầy đủ nút bấm tương tác 1-chạm và truyền selectedOption.');
+console.log('✓ Test 4: Giao diện test/fixtures/legacy-client/app.js tích hợp đầy đủ nút bấm tương tác 1-chạm và truyền selectedOption.');
 
 // 5. Kiểm tra nâng cấp backend api/ai.js
 assert.ok(aiJs.includes('parseDebateOptionsFromText'), 'api/ai.js phải có parseDebateOptionsFromText');

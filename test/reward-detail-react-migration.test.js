@@ -7,8 +7,8 @@ const page = read('app/page.tsx');
 const html = read('public/index.html');
 const dialog = read('components/shop/RewardDetailModal.tsx');
 const frequency = read('components/tracker/FrequencyDetailModal.tsx');
-const runtime = read('src/js/14-render.js');
-const bundle = read('public/app.js');
+const runtime = read('test/fixtures/legacy-client/modules/14-render.js');
+const bundle = read('test/fixtures/legacy-client/app.js');
 
 assert.ok(page.includes('<RewardDetailModal />'), 'Next page must mount React reward detail dialog.');
 assert.ok(dialog.includes('id="modal-reward-detail"'), 'React must own reward detail dialog markup.');
@@ -19,7 +19,7 @@ assert.ok(dialog.includes('useInventoryItem'), 'React dialog must preserve inven
 assert.ok(dialog.includes('clearSavedRewardTimer'), 'React dialog must preserve saved timer termination.');
 assert.ok(dialog.includes('refundInventoryItem') && dialog.includes('deleteInventoryItem'), 'React dialog must preserve refund and inventory deletion actions.');
 assert.ok(dialog.includes('deleteShopItem') && dialog.includes('openRewardRenegotiateModal'), 'React dialog must preserve shop deletion and negotiation actions.');
-assert.ok(dialog.includes('openItemFrequencyModal') && frequency.includes('levelup:open-frequency-detail'), 'React dialog must preserve nested reward frequency flow.');
+assert.ok(dialog.includes('levelup:open-frequency-detail') && frequency.includes('levelup:open-frequency-detail'), 'React dialog must preserve nested reward frequency flow.');
 assert.ok(dialog.includes('initBottomSheetGestures') && dialog.includes('dismissModalWithSlideDown'), 'React dialog must preserve bottom-sheet gestures and dismissal.');
 assert.ok(dialog.includes('className="m3-modal-sheet') && dialog.includes('data-sheet-dismiss="true"'), 'React dialog must keep shared sheet animation and dismissal selectors.');
 assert.match(runtime, /function openRewardDetailModal\(itemId, source\) \{[\s\S]*?levelup:open-reward-detail/);

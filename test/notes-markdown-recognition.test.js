@@ -9,9 +9,9 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 describe('Sổ Ghi Chú — Tự Động Nhận Diện & Định Dạng Markdown (Markdown Recognition)', () => {
-  const modalJs = fs.readFileSync(path.join(rootDir, 'src/js/15-modal.js'), 'utf8');
+  const modalJs = fs.readFileSync(path.join(rootDir, 'test/fixtures/legacy-client/modules/15-modal.js'), 'utf8');
   const indexHtml = fs.readFileSync(path.join(rootDir, 'public/index.html'), 'utf8');
-  const appJs = fs.readFileSync(path.join(rootDir, 'public/app.js'), 'utf8');
+  const appJs = fs.readFileSync(path.join(rootDir, 'test/fixtures/legacy-client/app.js'), 'utf8');
 
   it('1. Đảm bảo các hàm nhận diện và chuyển đổi Markdown được định nghĩa đầy đủ', () => {
     assert.ok(modalJs.includes('function isMarkdownText('), '15-modal.js phải định nghĩa isMarkdownText');

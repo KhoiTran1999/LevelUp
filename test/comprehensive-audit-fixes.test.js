@@ -9,7 +9,7 @@ import handler, {
 
 console.log('=== Kiểm thử Toàn Diện Các Lỗi Phát Hiện Qua Rà Soát Hệ Thống ===\n');
 
-const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
 const syncCode = fs.readFileSync(path.resolve('api/sync.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // -----------------------------------------------------------------------------

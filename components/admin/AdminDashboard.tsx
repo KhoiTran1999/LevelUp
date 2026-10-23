@@ -61,13 +61,6 @@ interface UserEditForm {
   reason: string;
 }
 
-declare global {
-  interface Window {
-    appState?: { profile?: Record<string, unknown>; lastModified?: number; lastSyncedAt?: number };
-    updateTitleByLevel?: () => void;
-  }
-}
-
 const numberFormat = new Intl.NumberFormat('vi-VN');
 const panelClass = 'rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900';
 const buttonClass = 'rounded-xl border px-3 py-2 text-xs font-bold transition active:scale-95 disabled:opacity-50';
@@ -97,7 +90,7 @@ function getRequestError(data: AdminResponse, status: number) {
 }
 
 export function AdminDashboard() {
-  const { state, activeTab } = useLevelUp();
+  const { state, activeTab, updateProfile } = useLevelUp();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pool, setPool] = useState<BankPool | null>(null);
   const [search, setSearch] = useState('');
@@ -259,20 +252,16 @@ export function AdminDashboard() {
       const data = await response.json() as AdminResponse;
       if (!response.ok) throw new Error(getRequestError(data, response.status));
 
-      if (isCurrentUser(editUser) && window.appState?.profile) {
-        Object.assign(window.appState.profile, {
+      if (isCurrentUser(editUser)) {
+        updateProfile({
           coins,
           level,
           exp: Number.isInteger(exp) ? exp : 0,
-          totalCoinsEarned: Math.max(coins, Number(window.appState.profile.totalCoinsEarned) || 20),
+          totalCoinsEarned: Math.max(coins, Number(state.profile.totalCoinsEarned) || 20),
           adminAdjusted: true,
           isCheater: editForm.isCheater,
           ...(editForm.isCheater ? { title: 'Kẻ Gian Lận ⚠️' } : {}),
         });
-        if (!editForm.isCheater) window.updateTitleByLevel?.();
-        window.appState.lastModified = Date.now();
-        window.appState.lastSyncedAt = window.appState.lastModified;
-        window.dispatchEvent(new CustomEvent('levelup:state-updated', { detail: window.appState }));
         if (typeof BroadcastChannel !== 'undefined') {
           const channel = new BroadcastChannel('levelup_sync_channel');
           channel.postMessage({ type: 'ADMIN_SYNC_UPDATE', targetSub: editUser.sub, timestamp: Date.now() });

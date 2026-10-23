@@ -26,10 +26,10 @@ assert(staticHeader, 'vercel.json phải có rule Cache-Control immutable cho as
 console.log('✓ Test 2: Đã cấu hình Cache-Control (max-age=86400, immutable) đồng bộ cho Next.js và Vercel.');
 
 // 3. Kiểm thử Frontend DocumentFragment và isHydrating guard
-const appJsContent = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf-8');
-assert(appJsContent.includes('createDocumentFragment'), 'public/app.js phải sử dụng DocumentFragment để batching DOM rendering');
-assert(appJsContent.includes('isHydrating = true'), 'public/app.js phải có cờ isHydrating chống spam request');
-console.log('✓ Test 3: Frontend public/app.js đã áp dụng DocumentFragment và cờ guard isHydrating.');
+const appJsContent = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf-8');
+assert(appJsContent.includes('createDocumentFragment'), 'test/fixtures/legacy-client/app.js phải sử dụng DocumentFragment để batching DOM rendering');
+assert(appJsContent.includes('isHydrating = true'), 'test/fixtures/legacy-client/app.js phải có cờ isHydrating chống spam request');
+console.log('✓ Test 3: Frontend test/fixtures/legacy-client/app.js đã áp dụng DocumentFragment và cờ guard isHydrating.');
 
 // 4. Kiểm thử Backend AI AbortSignal timeout
 const aiJsContent = fs.readFileSync(path.join(rootDir, 'api', 'ai.js'), 'utf-8');

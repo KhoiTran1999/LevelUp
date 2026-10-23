@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== KIỂM THỬ TRẢI NGHIỆM CUỘN CHAT PHÙ THỦY AI (SCROLL UX) ===\n');
 
-const appJsPath = path.resolve('public/app.js');
+const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
 // 1. Kiểm tra định nghĩa hàm scrollAssistantToBottom và scrollAssistantToMessage

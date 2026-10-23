@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const appCode = fs.readFileSync(path.resolve('public/app.js'), 'utf8');
+const appCode = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 
 // Helper: normalize whitespace for cross-platform string matching
 function norm(s) {

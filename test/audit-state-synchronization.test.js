@@ -297,7 +297,7 @@ async function runTests() {
   // Test 3: deriveLegitimateBalance Client & Server đồng nhất
   // -------------------------------------------------------------
   {
-    const clientAppFile = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const clientAppFile = fs.readFileSync(path.join(__dirname, '..', 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
     const startIdx = clientAppFile.indexOf('function deriveLegitimateBalance(state) {');
     assert.ok(startIdx !== -1, 'Phải tìm thấy deriveLegitimateBalance trong app.js');
     const endIdx = clientAppFile.indexOf('async function syncWithCloud', startIdx);

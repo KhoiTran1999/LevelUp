@@ -148,8 +148,8 @@ test('4. public/index.html includes the "📸+✍️ Kết Hợp" tab in modal-q
 });
 
 test('5. src/js/08-proof.js and src/js/18-events.js properly support mode "both"', () => {
-  const proofJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '08-proof.js'), 'utf8');
-  const eventsJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '18-events.js'), 'utf8');
+  const proofJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '08-proof.js'), 'utf8');
+  const eventsJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '18-events.js'), 'utf8');
 
   // 08-proof.js
   assert.ok(proofJs.includes("currentProofMode = (mode === 'text' || mode === 'both') ? mode : 'photo'"), 'switchProofTab handles both');
@@ -162,7 +162,7 @@ test('5. src/js/08-proof.js and src/js/18-events.js properly support mode "both"
 });
 
 test('6. src/js/14-render.js displays appropriate labels and badges for proofType "both"', () => {
-  const renderJs = fs.readFileSync(path.join(rootDir, 'src', 'js', '14-render.js'), 'utf8');
+  const renderJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '14-render.js'), 'utf8');
   const questDetail = fs.readFileSync(path.join(rootDir, 'components', 'quests', 'QuestDetailModal.tsx'), 'utf8');
 
   assert.ok(renderJs.includes('Nộp Bằng Chứng Nhận Vàng 📸+✍️'), 'Card button text for both proofType');

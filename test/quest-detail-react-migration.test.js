@@ -6,8 +6,8 @@ const read = file => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const page = read('app/page.tsx');
 const html = read('public/index.html');
 const detail = read('components/quests/QuestDetailModal.tsx');
-const runtime = read('src/js/14-render.js');
-const bundle = read('public/app.js');
+const runtime = read('test/fixtures/legacy-client/modules/14-render.js');
+const bundle = read('test/fixtures/legacy-client/app.js');
 
 assert.ok(page.includes('<QuestDetailModal />'), 'Next page must mount React quest detail dialog.');
 assert.ok(detail.includes('id="modal-quest-detail"'), 'React must own quest detail dialog markup.');
@@ -17,6 +17,8 @@ assert.match(detail, /const handleDismiss = \(\) => \{\s*setQuestId\(null\);\s*s
 assert.match(detail, /const finishClose = \(\) => \{\s*setQuestId\(null\);\s*setFallbackQuest\(null\);/, 'Button dismissal must clear quest dialog state.');
 assert.doesNotMatch(detail, /(?:win|window)\.openQuestDetailModal\s*=|delete\s+(?:win|window)\.openQuestDetailModal/, 'React must not overwrite or delete the legacy global opener.');
 assert.ok(detail.includes('completeQuest(quest.id)'), 'React dialog must keep quest completion action.');
+assert.ok(detail.includes('deleteQuest(quest.id)'), 'React dialog must wire quest deletion through context action.');
+assert.doesNotMatch(detail, /\[QuestDetailModal\] Missing legacy action: deleteQuest/, 'React dialog must not error on missing legacy deleteQuest.');
 assert.ok(detail.includes('openProofModal(quest)'), 'React dialog must retain proof submission flow.');
 assert.ok(detail.includes('open-frequency-detail'), 'React dialog must retain frequency navigation.');
 

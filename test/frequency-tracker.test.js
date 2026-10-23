@@ -49,21 +49,21 @@ test('Frequency Tracker - React tab and detail modal are mounted', async () => {
   assert.ok(html.includes('id="heatmap-floating-tooltip"'), 'index.html should have heatmap-floating-tooltip');
 });
 
-test('Frequency Tracker - Bundled client includes tracker engine in public/app.js', async () => {
-  const jsPath = path.join(process.cwd(), 'public', 'app.js');
+test('Frequency Tracker - Bundled client includes tracker engine in test/fixtures/legacy-client/app.js', async () => {
+  const jsPath = path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js');
   const js = fs.readFileSync(jsPath, 'utf8');
 
-  assert.ok(js.includes('getFrequencyGridData'), 'public/app.js should contain getFrequencyGridData');
-  assert.ok(js.includes('backfillItemHistories'), 'public/app.js should contain backfillItemHistories');
-  assert.ok(js.includes('renderTracker'), 'public/app.js should contain renderTracker');
-  assert.ok(js.includes('openItemFrequencyModal'), 'public/app.js should contain openItemFrequencyModal');
-  assert.ok(js.includes('btn-view-quest-freq'), 'public/app.js should contain btn-view-quest-freq');
-  assert.ok(js.includes('btn-view-shop-freq'), 'public/app.js should contain btn-view-shop-freq');
+  assert.ok(js.includes('getFrequencyGridData'), 'test/fixtures/legacy-client/app.js should contain getFrequencyGridData');
+  assert.ok(js.includes('backfillItemHistories'), 'test/fixtures/legacy-client/app.js should contain backfillItemHistories');
+  assert.ok(js.includes('renderTracker'), 'test/fixtures/legacy-client/app.js should contain renderTracker');
+  assert.ok(js.includes('openItemFrequencyModal'), 'test/fixtures/legacy-client/app.js should contain openItemFrequencyModal');
+  assert.ok(js.includes('btn-view-quest-freq'), 'test/fixtures/legacy-client/app.js should contain btn-view-quest-freq');
+  assert.ok(js.includes('btn-view-shop-freq'), 'test/fixtures/legacy-client/app.js should contain btn-view-shop-freq');
 
   // Interactive tooltip & day detail
-  assert.ok(js.includes('showHeatmapFloatingTooltip'), 'public/app.js should contain showHeatmapFloatingTooltip');
-  assert.ok(js.includes('updateHeatmapDayDetailUI'), 'public/app.js should contain updateHeatmapDayDetailUI');
-  assert.ok(js.includes('tracker-card-day-status'), 'public/app.js should contain tracker-card-day-status');
+  assert.ok(js.includes('showHeatmapFloatingTooltip'), 'test/fixtures/legacy-client/app.js should contain showHeatmapFloatingTooltip');
+  assert.ok(js.includes('updateHeatmapDayDetailUI'), 'test/fixtures/legacy-client/app.js should contain updateHeatmapDayDetailUI');
+  assert.ok(js.includes('tracker-card-day-status'), 'test/fixtures/legacy-client/app.js should contain tracker-card-day-status');
 
   // Verify Gold descending sorting logic in bundle
   assert.ok(js.includes('(b.rewardCoins || 0) - (a.rewardCoins || 0)'), 'Quests should be sorted by rewardCoins descending');
@@ -95,7 +95,7 @@ test('Frequency Tracker - Gold descending sorting logic works correctly', async 
 });
 
 test('Frequency Tracker - backfillItemHistories correctly reconstructs quest and reward history', async () => {
-  const js = fs.readFileSync(path.join(process.cwd(), 'src/js/05-streak.js'), 'utf8');
+  const js = fs.readFileSync(path.join(process.cwd(), 'test/fixtures/legacy-client/modules/05-streak.js'), 'utf8');
   const sandbox = {
     window: {},
     appState: {
