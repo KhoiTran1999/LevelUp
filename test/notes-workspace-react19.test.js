@@ -17,6 +17,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const indexPath = path.join(rootDir, 'components/notes/index.ts');
   const mdPath = path.join(rootDir, 'components/notes/markdown.ts');
   const providerPath = path.join(rootDir, 'components/providers/LevelUpProvider.tsx');
+  const notesServerPath = path.join(rootDir, 'lib/server/notes.ts');
   const legacyNotesPath = path.join(rootDir, 'test/fixtures/legacy-client/modules/15-modal.js');
   const storagePath = path.join(rootDir, 'test/fixtures/legacy-client/modules/03-storage.js');
 
@@ -28,6 +29,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const indexContent = fs.readFileSync(indexPath, 'utf8');
   const mdContent = fs.readFileSync(mdPath, 'utf8');
   const providerContent = fs.readFileSync(providerPath, 'utf8');
+  const notesServerContent = fs.readFileSync(notesServerPath, 'utf8');
   const legacyNotesContent = fs.readFileSync(legacyNotesPath, 'utf8');
   const storageContent = fs.readFileSync(storagePath, 'utf8');
 
@@ -197,5 +199,23 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
       !workspaceContent.includes('win.reloadNotesWorkspace('),
       'handleReloadNotes không được gọi win.reloadNotesWorkspace(true) vì gây lặp vô hạn đệ quy'
     );
+  });
+
+  it('13. Không làm mất nội dung khi refresh hoặc save note đồng thời', () => {
+    assert.ok(
+      providerContent.includes('const mergedNotes = mergeNotesById(prev.notes, notes, deletedNoteIdsRef.current)'),
+      'Refresh phải hợp nhất snapshot server với note local đang chờ lưu'
+    );
+    assert.ok(
+      notesServerContent.includes('const noteWriteQueues = new Map<string, Promise<void>>()') &&
+        notesServerContent.includes('return enqueueNoteWrite(userSub, async () => {'),
+      'Server phải serialize các lần ghi note theo user để tránh lost update'
+    );
+  });
+
+  it('14. Sổ ghi chú không còn chế độ fullscreen gây lỗi dữ liệu', () => {
+    assert.ok(!editorContent.includes('isFullscreen'), 'NoteEditor không còn state fullscreen');
+    assert.ok(!editorContent.includes('createPortal'), 'NoteEditor không còn portal fullscreen');
+    assert.ok(!editorContent.includes('toggleNoteFullscreen'), 'Không còn helper fullscreen cho ghi chú');
   });
 });

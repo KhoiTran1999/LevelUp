@@ -10,6 +10,21 @@ import {
 import type { NoteItem } from '@/types/levelup';
 
 const notesKey = (userSub: string) => `levelup:notes:${userSub}`;
+const noteWriteQueues = new Map<string, Promise<void>>();
+
+function enqueueNoteWrite<T>(userSub: string, operation: () => Promise<T>): Promise<T> {
+  const previous = noteWriteQueues.get(userSub) || Promise.resolve();
+  const queued = previous.then(operation, operation);
+  const queueTail = queued.then(
+    () => undefined,
+    () => undefined
+  );
+  noteWriteQueues.set(userSub, queueTail);
+  queueTail.then(() => {
+    if (noteWriteQueues.get(userSub) === queueTail) noteWriteQueues.delete(userSub);
+  });
+  return queued;
+}
 
 function normalizeNote(input: Partial<NoteItem>, existing?: NoteItem): NoteItem {
   const now = Date.now();
@@ -60,23 +75,27 @@ export async function saveNote(
   userSub: string,
   input: Partial<NoteItem>
 ): Promise<NoteItem> {
-  const notes = await listNotes(userSub);
-  const existing = input.id ? notes.find(note => note.id === input.id) : undefined;
-  const note = normalizeNote(input, existing);
-  const next = existing
-    ? notes.map(item => item.id === note.id ? note : item)
-    : [note, ...notes];
+  return enqueueNoteWrite(userSub, async () => {
+    const notes = await listNotes(userSub);
+    const existing = input.id ? notes.find(note => note.id === input.id) : undefined;
+    const note = normalizeNote(input, existing);
+    const next = existing
+      ? notes.map(item => item.id === note.id ? note : item)
+      : [note, ...notes];
 
-  await writeRedisNotes(userSub, next);
-  if (isDbConfigured()) {
-    if (existing) await updateNote(userSub, note);
-    else await createNote(userSub, note);
-  }
-  return note;
+    await writeRedisNotes(userSub, next);
+    if (isDbConfigured()) {
+      if (existing) await updateNote(userSub, note);
+      else await createNote(userSub, note);
+    }
+    return note;
+  });
 }
 
 export async function removeNote(userSub: string, id: string): Promise<void> {
-  const notes = await listNotes(userSub);
-  await writeRedisNotes(userSub, notes.filter(note => note.id !== id));
-  if (isDbConfigured()) await deleteNote(userSub, id);
+  await enqueueNoteWrite(userSub, async () => {
+    const notes = await listNotes(userSub);
+    await writeRedisNotes(userSub, notes.filter(note => note.id !== id));
+    if (isDbConfigured()) await deleteNote(userSub, id);
+  });
 }

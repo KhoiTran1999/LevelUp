@@ -4901,23 +4901,3 @@ html.dark .notes-editor a:hover {
 .save-status-dot {
   box-shadow: 0 0 8px currentColor;
 }
-
-/* Fullscreen distraction-free mode */
-#tab-notes.focus-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  background: #ffffff;
-  padding: 1rem 1.5rem;
-  overflow-y: auto;
-  animation: none !important;
-  transform: none !important;
-  will-change: auto !important;
-}
-
-html.dark #tab-notes.focus-fullscreen {
-  background: #090d16;
-}
-
-
-

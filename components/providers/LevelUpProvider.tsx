@@ -2669,13 +2669,14 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
     const notes = Array.isArray(result.data.notes) ? dedupeById(result.data.notes) : [];
     setState(prev => {
-      const activeId = notes.some(note => note.id === prev.activeNoteId)
+      const mergedNotes = mergeNotesById(prev.notes, notes, deletedNoteIdsRef.current);
+      const activeId = mergedNotes.some(note => note.id === prev.activeNoteId)
         ? prev.activeNoteId
-        : (notes[0]?.id || '');
-      const activeNote = notes.find(note => note.id === activeId);
+        : (mergedNotes[0]?.id || '');
+      const activeNote = mergedNotes.find(note => note.id === activeId);
       return {
         ...prev,
-        notes,
+        notes: mergedNotes,
         activeNoteId: activeId,
         focusNotes: activeNote?.content || '',
         lastSyncedAt: result.data?.lastSyncedAt || Date.now(),

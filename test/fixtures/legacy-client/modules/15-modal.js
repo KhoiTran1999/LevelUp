@@ -2050,19 +2050,6 @@ async function clearActiveNoteContent() {
 window.clearActiveNoteContent = clearActiveNoteContent;
 window.clearFocusNotes = clearActiveNoteContent;
 
-// 23. Toàn màn hình chế độ tập trung (Focus Distraction-Free Mode)
-function toggleNoteFullscreen() {
-  const section = document.getElementById('tab-notes');
-  if (!section) return;
-  section.classList.toggle('focus-fullscreen');
-  const isFull = section.classList.contains('focus-fullscreen');
-  if (typeof showToast === 'function') {
-    showToast(isFull ? '🔲 Chế độ tập trung toàn màn hình (Bấm lại để thoát)' : 'Đã thoát chế độ toàn màn hình.', 'info');
-  }
-}
-window.toggleNoteFullscreen = toggleNoteFullscreen;
-
-// 24. Nhận đoạn trích từ Chrome Extension (Context Menu Clip)
 function appendClipToNotes(text, sourceUrl = '', pageTitle = '') {
   if (!text) return;
   const notes = getAllNotes();
