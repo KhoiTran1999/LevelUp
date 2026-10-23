@@ -69,7 +69,7 @@ export function AssistantModal() {
           id="assistant-panel"
           className="rpg-panel flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-none border-0 bg-white/95 shadow-2xl dark:bg-slate-900/95 sm:h-[84vh] sm:rounded-2xl sm:border sm:border-violet-500/40"
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-violet-500/20 bg-gradient-to-r from-violet-950/30 via-slate-900/20 to-indigo-950/30 px-3.5 py-3 sm:px-4 sm:py-3.5">
+          <div className="assistant-header flex shrink-0 items-center justify-between gap-2 border-b border-violet-500/20 bg-gradient-to-r from-violet-950/30 via-slate-900/20 to-indigo-950/30 px-3.5 pb-3 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] sm:px-4 sm:py-3.5">
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-xl border border-violet-400/40 bg-gradient-to-br from-violet-600 to-indigo-700 p-1 shadow-md sm:h-10 sm:w-10 sm:p-1.5">
                 <img src="wizard.svg" alt="Phù Thủy" className="pointer-events-none h-full w-full select-none object-contain" />

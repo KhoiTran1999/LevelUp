@@ -2131,6 +2131,11 @@ html.dark .assistant-typing-cursor {
     max-width: 100% !important;
     border: 0 !important;
   }
+  #modal-ai-assistant .assistant-header,
+  #modal-ai-assistant > .rpg-panel > div:first-child {
+    padding-top: max(0.875rem, calc(env(safe-area-inset-top, 0px) + 0.625rem)) !important;
+    padding-bottom: 0.75rem !important;
+  }
   #modal-ai-assistant .assistant-input-area {
     padding-bottom: max(1.75rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
     padding-top: 0.75rem !important;
@@ -4234,6 +4239,7 @@ html.dark .m3-skeleton-bar {
     max-height: 88vh !important;
     margin: 0 !important;
     will-change: transform, opacity;
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem)) !important;
     animation: sheetSlideUp var(--md-sys-motion-duration-long1) var(--md-sys-motion-easing-emphasized-decelerate) forwards !important;
   }
 }
