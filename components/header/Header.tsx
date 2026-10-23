@@ -25,7 +25,7 @@ export function Header() {
   return (
     <header
       suppressHydrationWarning
-      className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/85 backdrop-blur-md transition-colors duration-200"
+      className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/85 backdrop-blur-md transition-colors duration-200 safe-area-top"
     >
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1.5 sm:py-2.5 flex items-center justify-between gap-1 sm:gap-3">
         {/* Profile: Avatar & Nickname Button (Left) */}
