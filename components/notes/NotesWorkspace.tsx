@@ -22,6 +22,7 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     updateNote,
     deleteNote,
     togglePinNote,
+    refreshNotes,
   } = useLevelUp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,31 +245,20 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
   );
 
   // ponytail: Direct sync and toast trigger without self-recursive loop. Upgrade path: SWR/React Query mutate.
-  const handleReloadNotes = useCallback(() => {
+  const handleReloadNotes = useCallback(async () => {
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
-        hydrateFromCloud?: (s: boolean) => void;
         showToast?: (message: string, type: string) => void;
-        appState?: { notes?: NoteItem[] };
       };
-      if (typeof win.hydrateFromCloud === 'function') {
-        win.hydrateFromCloud(false);
-      }
-      try {
-        if (Array.isArray(win.appState?.notes)) {
-          window.dispatchEvent(
-            new CustomEvent('levelup:notes-updated', {
-              detail: { notes: win.appState.notes },
-            })
-          );
-        }
-      } catch (_) {}
+      const refreshed = await refreshNotes();
       win.showToast?.(
-        modalMode ? 'Đang đồng bộ ghi chú...' : '🔄 Đã làm mới danh sách ghi chú!',
-        'info'
+        refreshed
+          ? (modalMode ? 'Đã đồng bộ ghi chú.' : '🔄 Đã làm mới danh sách ghi chú!')
+          : 'Không thể đồng bộ ghi chú.',
+        refreshed ? 'info' : 'error'
       );
     }
-  }, [modalMode]);
+  }, [modalMode, refreshNotes]);
 
   // Expose global window hooks for seamless legacy compatibility
   useEffect(() => {

@@ -293,6 +293,7 @@ interface LevelUpContextType {
   updateNote: (id: string, updates: Partial<NoteItem>) => void;
   deleteNote: (id: string) => Promise<boolean>;
   togglePinNote: (id: string) => void;
+  refreshNotes: () => Promise<boolean>;
   // Global System Actions
   toggleTheme: () => void;
   toggleSound: () => void;
@@ -2867,6 +2868,31 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setOptimisticNotes]);
 
+  const refreshNotes = useCallback(async (): Promise<boolean> => {
+    const result = await getUserStateAction();
+    if (!result.success || !result.data) {
+      console.warn('[Notes] Refresh failed:', result.error || 'Không nhận được dữ liệu ghi chú.');
+      return false;
+    }
+
+    const notes = Array.isArray(result.data.notes) ? dedupeById(result.data.notes) : [];
+    setState(prev => {
+      const activeId = notes.some(note => note.id === prev.activeNoteId)
+        ? prev.activeNoteId
+        : (notes[0]?.id || '');
+      const activeNote = notes.find(note => note.id === activeId);
+      return {
+        ...prev,
+        notes,
+        activeNoteId: activeId,
+        focusNotes: activeNote?.content || '',
+        lastSyncedAt: result.data?.lastSyncedAt || Date.now(),
+      };
+    });
+    deletedNoteIdsRef.current.clear();
+    return true;
+  }, []);
+
   return (
     <LevelUpContext.Provider
       value={{
@@ -2934,6 +2960,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         updateNote,
         deleteNote,
         togglePinNote,
+        refreshNotes,
         toggleTheme,
         toggleSound,
         togglePalette,
