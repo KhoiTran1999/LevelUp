@@ -1,8 +1,8 @@
 'use server';
 
-import crypto from 'node:crypto';
 import { dedupeById } from '@/lib/server/crypto';
 import type { Quest, ShopItem, NoteItem, LevelUpAppState } from '@/types/levelup';
+import { listNotes, removeNote, saveNote } from '@/lib/server/notes';
 import {
   resolveAuthenticatedUser,
   fetchUserState,
@@ -166,46 +166,16 @@ export async function saveNoteAction(
     return { success: false, error: 'Chưa đăng nhập hoặc phiên đã hết hạn.' };
   }
 
-  const state = await fetchUserState(user.sub);
-  if (!Array.isArray(state.notes)) {
-    state.notes = [];
+  if (!noteData || typeof noteData !== 'object' || Array.isArray(noteData)) {
+    return { success: false, error: 'Dữ liệu ghi chú không hợp lệ.' };
+  }
+  for (const field of ['id', 'title', 'content', 'topic'] as const) {
+    if (noteData[field] !== undefined && typeof noteData[field] !== 'string') {
+      return { success: false, error: `Trường ${field} của ghi chú không hợp lệ.` };
+    }
   }
 
-  // ponytail: Merge partial update over existing note to prevent data wipeout. Upgrade path: RFC 7396 JSON merge patch.
-  const noteId = (noteData.id || `note_${crypto.randomUUID()}`).trim();
-  const existingIdx = state.notes.findIndex(n => n.id === noteId);
-  const existing = existingIdx >= 0 ? state.notes[existingIdx] : null;
-
-  const resolvedPinned =
-    noteData.isPinned !== undefined || noteData.pinned !== undefined
-      ? Boolean(noteData.isPinned ?? noteData.pinned)
-      : existing ? Boolean(existing.isPinned ?? existing.pinned) : false;
-
-  const normalizedNote: NoteItem = {
-    id: noteId,
-    title: noteData.title !== undefined
-      ? (noteData.title.trim() || 'Ghi Chú Mới')
-      : (existing?.title || 'Ghi Chú Mới'),
-    content: noteData.content !== undefined
-      ? noteData.content
-      : (existing?.content ?? ''),
-    topic: noteData.topic !== undefined
-      ? noteData.topic
-      : (existing?.topic || 'Ghi Chép Nhanh'),
-    isPinned: resolvedPinned,
-    pinned: resolvedPinned,
-    updatedAt: Date.now(),
-    createdAt: noteData.createdAt ?? existing?.createdAt ?? Date.now(),
-  };
-
-  if (existingIdx >= 0) {
-    state.notes[existingIdx] = normalizedNote;
-  } else {
-    state.notes.unshift(normalizedNote);
-  }
-  state.notes = dedupeById(state.notes);
-
-  await commitUserState(user.sub, state);
+  const normalizedNote = await saveNote(user.sub, noteData);
   return { success: true, data: normalizedNote };
 }
 
@@ -221,17 +191,13 @@ export async function deleteNoteAction(
     return { success: false, error: 'Chưa đăng nhập hoặc phiên đã hết hạn.' };
   }
 
-  if (!noteId || typeof noteId !== 'string') {
+  if (!noteId || typeof noteId !== 'string' || !noteId.trim()) {
     return { success: false, error: 'Mã ghi chú không hợp lệ.' };
   }
 
-  const state = await fetchUserState(user.sub);
-  if (Array.isArray(state.notes)) {
-    state.notes = state.notes.filter(n => n.id !== noteId);
-  }
-  await commitUserState(user.sub, state);
+  await removeNote(user.sub, noteId.trim());
 
-  return { success: true, data: { id: noteId } };
+  return { success: true, data: { id: noteId.trim() } };
 }
 
 /**
@@ -246,5 +212,10 @@ export async function getUserStateAction(
   }
 
   const state = await fetchUserState(user.sub);
+  state.notes = await listNotes(user.sub);
+  state.activeNoteId = state.notes.some(note => note.id === state.activeNoteId)
+    ? state.activeNoteId
+    : (state.notes[0]?.id || '');
+  state.focusNotes = state.notes.find(note => note.id === state.activeNoteId)?.content || '';
   return { success: true, data: state };
 }

@@ -79,6 +79,18 @@ import {
   checkRateLimit
 } from '../lib/server/redis';
 
+async function getCanonicalNotes(redis, userSub) {
+  const raw = await redis.get(`levelup:notes:${userSub}`);
+  if (!raw) return [];
+  try {
+    const notes = JSON.parse(raw);
+    return Array.isArray(notes) ? notes : [];
+  } catch (error) {
+    console.error('[Notes] Invalid canonical notes payload:', error);
+    return [];
+  }
+}
+
 export {
   setGoogleTokenVerifierForTesting,
   verifyGoogleToken,
@@ -1132,7 +1144,7 @@ export default async function handler(req, res) {
           quests: dedupeById(data.quests),
           shopItems: dedupeById(data.shopItems),
           inventory: dedupeById(data.inventory),
-          notes: dedupeById(data.notes),
+          notes: await getCanonicalNotes(redis, targetSub),
           profile: {
             ...(data.profile || {}),
             ...(token ? { sessionToken: token } : {})
@@ -2509,7 +2521,7 @@ export default async function handler(req, res) {
         proofPhotos: Array.isArray(state.proofPhotos) ? state.proofPhotos.slice(0, 100) : (Array.isArray(existingState?.proofPhotos) ? existingState.proofPhotos : []),
         googleId: userSub,
         focusNotes: typeof state.focusNotes === 'string' ? state.focusNotes : (typeof existingState?.focusNotes === 'string' ? existingState.focusNotes : ''),
-        notes: dedupeById(Array.isArray(state.notes) ? state.notes.slice(0, 100) : (Array.isArray(existingState?.notes) ? existingState.notes : [])),
+        notes: await getCanonicalNotes(redis, userSub),
         activeNoteId: typeof state.activeNoteId === 'string' ? state.activeNoteId : (existingState?.activeNoteId || ''),
         lastModified: incomingModified || serverTimestamp,
         profile: {

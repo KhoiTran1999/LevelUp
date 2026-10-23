@@ -2,7 +2,7 @@
  * User & Game State Repository
  * Provides clean CRUD and synchronization abstractions via Drizzle ORM
  */
-import { eq, desc, and, ne, sql, notInArray } from 'drizzle-orm';
+import { eq, desc, and, ne, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
 
 /**
@@ -17,7 +17,7 @@ export function calculateNetWorth(profile = {}) {
   return Math.max(0, coins + deposited + depositInterest - debt);
 }
 
-const { users, userGameStates, notes: notesTable } = schema;
+const { users, userGameStates } = schema;
 
 /**
  * Retrieve user by Google Sub ID
@@ -222,53 +222,6 @@ export async function upsertUser(subId, userPayload = {}, activeTimer = null) {
           },
         });
 
-      // 3. Sync notes table if notes array exists
-      // ponytail: Cascade relational purge via notInArray to keep PostgreSQL table in sync with JSONB state. Upgrade path: foreign key trigger.
-      if (Array.isArray(userPayload.notes)) {
-        const validNotes = userPayload.notes.filter(n => n && n.id && n.title);
-        const validNoteIds = validNotes.map(n => String(n.id));
-
-        if (validNoteIds.length > 0) {
-          await tx
-            .delete(notesTable)
-            .where(
-              and(
-                eq(notesTable.userId, String(subId)),
-                notInArray(notesTable.id, validNoteIds)
-              )
-            );
-
-          for (const note of validNotes) {
-            const category = String(note.topic || note.category || 'general').slice(0, 64);
-            const isPinned = Boolean(note.isPinned ?? note.pinned);
-            await tx
-              .insert(notesTable)
-              .values({
-                id: String(note.id),
-                userId: String(subId),
-                title: String(note.title).slice(0, 500),
-                content: String(note.content || ''),
-                category,
-                isPinned,
-                updatedAt: now,
-              })
-              .onConflictDoUpdate({
-                target: notesTable.id,
-                set: {
-                  title: String(note.title).slice(0, 500),
-                  content: String(note.content || ''),
-                  category,
-                  isPinned,
-                  updatedAt: now,
-                },
-              });
-          }
-        } else {
-          await tx
-            .delete(notesTable)
-            .where(eq(notesTable.userId, String(subId)));
-        }
-      }
     });
 
     return true;
