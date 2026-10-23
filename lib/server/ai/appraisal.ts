@@ -370,20 +370,27 @@ export function sanitizeEvaluatedQuest(
     }
   }
 
-  if (type === 'bounty') {
-    targetMinutes = 0;
-    rewardCoins = Math.min(rewardCoins, result.isNegotiated ? 25 : 10);
-  } else {
-    targetMinutes = Math.max(result.isNegotiated ? 5 : 10, Math.min(180, targetMinutes));
-    const maxCoinsByTime = result.isNegotiated
-      ? (targetMinutes <= 25 ? 35 : (targetMinutes <= 50 ? 50 : 60))
-      : (targetMinutes <= 25 ? 15 : (targetMinutes <= 50 ? 25 : Math.min(45, Math.round(targetMinutes * 0.45))));
-    rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
-  }
-
   let requiresProof = parseBool(result.requiresProof, false);
   let proofType = result.proofType === 'text' ? 'text' : (result.proofType === 'both' ? 'both' : (result.proofType === 'photo' ? 'photo' : null));
   let proofGuidance = typeof result.proofGuidance === 'string' ? result.proofGuidance.trim() : '';
+
+  if (type === 'bounty') {
+    targetMinutes = 0;
+    const bountyCap = isTrivialTask ? 2 : (isChore ? 5 : (result.isNegotiated ? 12 : 10));
+    rewardCoins = Math.min(rewardCoins, bountyCap);
+  } else {
+    targetMinutes = Math.max(result.isNegotiated ? 5 : 10, Math.min(180, targetMinutes));
+    // ponytail: Anti-pushover ceiling locks rewards strictly by focus duration even when isNegotiated is true
+    const isBoth = proofType === 'both';
+    const maxCoinsByTime = targetMinutes <= 25
+      ? (isBoth ? 14 : 12)
+      : targetMinutes <= 35
+      ? (isBoth ? 18 : 16)
+      : targetMinutes <= 50
+      ? (isBoth ? 25 : 22)
+      : Math.min(45, Math.round(targetMinutes * 0.45));
+    rewardCoins = Math.max(1, Math.min(maxCoinsByTime, rewardCoins));
+  }
 
   const isIntangible = /\b(đi\s*ngủ|di\s*ngu|ngủ\s*đủ|ngu\s*du|thiền|thien\s*dinh|nghe\s*podcast|nghe\s*nhạc|nghe\s*nhac|nhịn\s*ăn|nhin\s*an)\b/i.test(fullMatchText);
 
@@ -473,7 +480,7 @@ export function sanitizeEvaluatedReward(
 
   // If result came directly from AI model structured output, trust AI decision and enforce safety bounds
   if (result.fromAI) {
-    price = Math.max(1, Math.min(500, isNaN(price) ? 25 : price));
+    price = Math.max(5, Math.min(500, isNaN(price) ? 25 : price));
     const targetMinutes = Math.max(0, Math.min(360, isNaN(parseInt(result.targetMinutes, 10)) ? 0 : parseInt(result.targetMinutes, 10)));
     const tier = ['common', 'rare', 'epic', 'legendary'].includes(result.tier) ? result.tier : 'common';
     return {
@@ -572,7 +579,8 @@ export function sanitizeEvaluatedReward(
   }
 
   const tierMin: Record<string, number> = { common: 15, rare: 30, epic: 70, legendary: 250 };
-  price = Math.max(tierMin[tier] || 15, Math.min(5000, price));
+  const minFloor = isNegotiated ? 5 : (tierMin[tier] || 15);
+  price = Math.max(minFloor, Math.min(5000, price));
 
   // ponytail: strip HTML tags from icon to prevent stored XSS via AI output
   const icon = (result.icon || '🎁').replace(/<[^>]*>/g, '').trim().slice(0, 10) || '🎁';

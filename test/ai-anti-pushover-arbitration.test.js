@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   runDeterministicQuestDebate,
-  runDeterministicRewardDebate
+  runDeterministicRewardDebate,
+  runDeterministicLoanDebate,
+  sanitizeQuestDebateOptions,
+  sanitizeRewardDebateOptions,
+  sanitizeLoanDebateOptions
 } from '../api/ai.js';
 
 test('1. Quest AI Arbiter stands firm against one-sided demands (Anti-Pushover)', () => {
@@ -137,4 +141,162 @@ test('4. Reward AI Arbiter accepts fair trade-offs (shorter duration for lower p
   assert.strictEqual(optionAccept.accepted, true);
   assert.strictEqual(optionAccept.newPrice, 25);
   assert.strictEqual(optionAccept.newTargetMinutes, 25);
+});
+
+test('5. Bank Loan AI Arbiter protects treasury & disciplines borrowing (Anti-Pushover)', () => {
+  const loan = {
+    amount: 30,
+    borrowRate: 0.05,
+    autoDeductPercent: 0.50,
+    creditLimit: 50
+  };
+  const macro = {
+    standardBorrowRate: 0.05,
+    depositFloor: 0.015,
+    liquidityStatus: 'normal'
+  };
+
+  // Case 5a: New user (level 1, streak 0) asks for lower interest rate
+  const newUserRateCut = runDeterministicLoanDebate(
+    loan,
+    'Giảm lãi suất cho mình với bạn ơi',
+    'user_new',
+    macro,
+    null,
+    { level: 1, streak: 0 }
+  );
+  assert.strictEqual(newUserRateCut.accepted, false, 'Người dùng mới chưa có uy tín không được giảm lãi suất');
+  assert.ok(newUserRateCut.reply.includes('Cấp 2') || newUserRateCut.reply.includes('chuỗi'), 'Thông báo điều kiện giảm lãi');
+
+  // Case 5b: User demands 0% interest rate
+  const zeroInterestDemand = runDeterministicLoanDebate(
+    loan,
+    'Cho mình vay lãi suất 0% được không?',
+    'user_loyal',
+    macro,
+    null,
+    { level: 3, streak: 10 }
+  );
+  assert.ok(zeroInterestDemand.newBorrowRate >= 0.015, 'Lãi suất không bao giờ được giảm về 0% (sàn bảo vệ tối thiểu 1.5%/ngày)');
+
+  // Case 5c: Qualified user (streak >= 2) gets fair rate reduction clamped by floor
+  const loyalUserRateCut = runDeterministicLoanDebate(
+    loan,
+    'Mình có chuỗi chăm chỉ tốt, xin giảm lãi suất nhé',
+    'user_loyal',
+    macro,
+    null,
+    { level: 2, streak: 5 }
+  );
+  assert.strictEqual(loyalUserRateCut.accepted, true, 'Người dùng có uy tín được duyệt giảm lãi suất');
+  assert.ok(loyalUserRateCut.newBorrowRate < loan.borrowRate, 'Lãi suất mới phải thấp hơn lãi ban đầu');
+  assert.ok(loyalUserRateCut.newBorrowRate >= macro.depositFloor, 'Lãi suất không được thấp hơn sàn bảo vệ kho bạc');
+
+  // Case 5d: User requests borrow amount exceeding credit limit
+  const excessiveAmount = runDeterministicLoanDebate(
+    loan,
+    'Cho mình vay 100 Vàng nhé',
+    'user_lvl1',
+    macro,
+    null,
+    { level: 1, streak: 0 }
+  );
+  assert.strictEqual(excessiveAmount.accepted, false, 'Không cho phép vay vượt quá hạn mức tín dụng');
+  assert.ok(excessiveAmount.reply.includes('hạn mức'), 'Thông báo vượt hạn mức');
+
+  // Case 5e: User at limit ceiling requests limit increase
+  const limitAtCeiling = runDeterministicLoanDebate(
+    { ...loan, creditLimit: 50 },
+    'Nâng hạn mức vay cho mình với',
+    'user_lvl1',
+    macro,
+    null,
+    { level: 1, streak: 1 }
+  );
+  assert.strictEqual(limitAtCeiling.accepted, false, 'Cấp 1 không được nâng hạn mức vượt trần 50 Vàng');
+});
+
+test('6. Option Sanitizers filter out pushover options across all 3 domains', () => {
+  // 6a. Quest Sanitizer: strips options keeping time and increasing coins without dual proof
+  const dirtyQuestOpts = [
+    { id: 1, label: 'Giữ 25 phút, nhận 15 Vàng', newTargetMinutes: 25, newRewardCoins: 15 },
+    { id: 2, label: '25 phút nhận 18 Vàng', newTargetMinutes: 25, newRewardCoins: 18 },
+    { id: 3, label: '35 phút nhận 16 Vàng', newTargetMinutes: 35, newRewardCoins: 16 }
+  ];
+  const cleanQuestOpts = sanitizeQuestDebateOptions(dirtyQuestOpts, 25, 12, 'text');
+  for (const opt of cleanQuestOpts) {
+    if (opt.newTargetMinutes <= 25) {
+      assert.ok(opt.newRewardCoins <= 14, 'Không phương án nào <= 25 phút được vượt quá trần 14 Vàng');
+    }
+  }
+
+  // 6b. Reward Sanitizer: strips price cuts without reducing duration or below floor
+  const dirtyRewardOpts = [
+    { id: 1, label: '60 phút - 10 Vàng', newTargetMinutes: 60, newPrice: 10 },
+    { id: 2, label: 'Miễn phí 0 Vàng', newTargetMinutes: 30, newPrice: 0 },
+    { id: 3, label: '30 phút - 25 Vàng', newTargetMinutes: 30, newPrice: 25 }
+  ];
+  const cleanRewardOpts = sanitizeRewardDebateOptions(dirtyRewardOpts, 50, 60);
+  for (const opt of cleanRewardOpts) {
+    assert.ok(opt.newPrice >= 5, 'Giá không được nhỏ hơn sàn tối thiểu 5 Vàng');
+    if (opt.newPrice < 50) {
+      assert.ok(opt.newTargetMinutes < 60, 'Giảm giá bắt buộc phải giảm thời lượng');
+    }
+  }
+
+  // 6c. Loan Sanitizer: strips below-floor interest or invalid auto-deduct percentages
+  const dirtyLoanOpts = [
+    { id: 1, label: 'Lãi 0%', newBorrowRate: 0.0, newAutoDeductPercent: 0.5, newCreditLimit: 50 },
+    { id: 2, label: 'Trích nợ 10%', newBorrowRate: 0.03, newAutoDeductPercent: 0.10, newCreditLimit: 50 },
+    { id: 3, label: 'Nâng hạn mức lên 200', newBorrowRate: 0.03, newAutoDeductPercent: 0.5, newCreditLimit: 200 },
+    { id: 4, label: 'Gói an toàn chuẩn', newBorrowRate: 0.03, newAutoDeductPercent: 0.5, newCreditLimit: 60 }
+  ];
+  const cleanLoanOpts = sanitizeLoanDebateOptions(dirtyLoanOpts, 30, 0.05, 50, 0.5, 0.015);
+  for (const opt of cleanLoanOpts) {
+    assert.ok(opt.newBorrowRate >= 0.015, 'Lãi suất không được thấp hơn sàn bảo vệ 1.5%');
+    assert.ok(opt.newAutoDeductPercent >= 0.30, 'Trích nợ tối thiểu 30%');
+    assert.ok(opt.newCreditLimit <= 75, 'Hạn mức không được tăng vọt quá +25 Vàng');
+  }
+});
+
+test('7. Exact user-reported exploit regression test: cannot escalate 25m focus reward repeatedly', () => {
+  const questAt12 = {
+    title: 'Tập trung hoàn thành từng bước một',
+    type: 'focus',
+    targetMinutes: 25,
+    rewardCoins: 12,
+    requiresProof: true,
+    proofType: 'text'
+  };
+
+  // User repeatedly asks for more coins for the same 25m task:
+  const exploitAttempt = runDeterministicQuestDebate(
+    questAt12,
+    'Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?'
+  );
+
+  assert.strictEqual(exploitAttempt.accepted, false, 'AI tuyệt đối KHÔNG được duyệt tăng Vàng cho nhiệm vụ 25p đã đạt 12 Vàng');
+  assert.ok(Array.isArray(exploitAttempt.options) && exploitAttempt.options.length >= 2);
+
+  // Every suggested option must require more minutes if coins are increased (unless one-time dual proof bonus):
+  for (const opt of exploitAttempt.options) {
+    if (opt.newRewardCoins > 12) {
+      const isDualProof = opt.newProofType === 'both' && opt.newRewardCoins <= 14;
+      const isIncreasedTime = opt.newTargetMinutes >= 35;
+      assert.ok(isDualProof || isIncreasedTime, 'Tăng Vàng bắt buộc phải nâng thời gian tập trung lên >= 35 phút hoặc nâng cấp bằng chứng kép');
+    }
+  }
+
+  // And if user has already upgraded to both proof (+2 bonus already claimed):
+  const questAtBoth = { ...questAt12, proofType: 'both', rewardCoins: 14 };
+  const exploitAttemptBoth = runDeterministicQuestDebate(
+    questAtBoth,
+    'Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?'
+  );
+  assert.strictEqual(exploitAttemptBoth.accepted, false);
+  for (const opt of exploitAttemptBoth.options) {
+    if (opt.newRewardCoins > 14) {
+      assert.ok(opt.newTargetMinutes >= 35, 'Khi đã là bằng chứng kép, tăng Vàng bắt buộc phải nâng thời gian');
+    }
+  }
 });

@@ -79,6 +79,30 @@ function isNoteItem(value: unknown): value is NoteItem {
   );
 }
 
+// ponytail: Merge local and cloud notes by ID and timestamp. Upgrade path: LWW-element-set CRDT.
+function mergeNotesById(localNotes: NoteItem[], cloudNotes: NoteItem[], tombstoneIds?: Set<string>): NoteItem[] {
+  const map = new Map<string, NoteItem>();
+  for (const n of cloudNotes) {
+    if (n && n.id && !tombstoneIds?.has(n.id)) {
+      map.set(n.id, n);
+    }
+  }
+  for (const local of localNotes) {
+    if (!local || !local.id || tombstoneIds?.has(local.id)) continue;
+    const existing = map.get(local.id);
+    if (!existing) {
+      map.set(local.id, local);
+    } else {
+      const localTime = Number(local.updatedAt || local.createdAt || 0);
+      const cloudTime = Number(existing.updatedAt || existing.createdAt || 0);
+      if (localTime >= cloudTime) {
+        map.set(local.id, { ...existing, ...local });
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 const TAB_TYPES: TabType[] = ['quests', 'shop', 'notes', 'bank', 'leaderboard', 'ledger', 'tracker', 'admin'];
 
 function getTabFromHash(hash: string): TabType | null {
@@ -410,6 +434,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   const notesBroadcastRevisionRef = useRef(0);
   const receivedNotesRevisionsRef = useRef(new Map<string, number>());
   const skipNotesBroadcastRef = useRef(false);
+  const deletedNoteIdsRef = useRef<Set<string>>(new Set());
 
   // ponytail: Computes content fingerprint omitting lastSyncedAt to prevent infinite ping-pong sync loop
   const computeStateSyncHash = useCallback((st: LevelUpAppState): string => {
@@ -462,14 +487,25 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         lastSyncedHashRef.current = currentHash;
         const data = await res.json().catch(() => ({}));
         if (data.conflict && data.state) {
-          // ponytail: Remote state is strictly newer; rehydrate to resolve conflict while preserving local active timer
-          setState(prev => ({
-            ...prev,
-            ...data.state,
-            activeTimer: prev.activeTimer?.status === 'running' ? prev.activeTimer : (data.state.activeTimer ?? null),
-            lastSyncedAt: data.syncedAt || Date.now(),
-            lastModified: data.syncedAt || Date.now(),
-          }));
+          // ponytail: Remote state is strictly newer; rehydrate to resolve conflict while preserving local active timer and notes
+          setState(prev => {
+            const remoteNotes = Array.isArray(data.state.notes) ? data.state.notes : [];
+            const mergedNotes = mergeNotesById(prev.notes, remoteNotes, deletedNoteIdsRef.current);
+            const activeNoteId = prev.activeNoteId && mergedNotes.some(n => n.id === prev.activeNoteId)
+              ? prev.activeNoteId
+              : (mergedNotes.some(n => n.id === data.state.activeNoteId) ? data.state.activeNoteId : (mergedNotes[0]?.id || ''));
+
+            return {
+              ...prev,
+              ...data.state,
+              notes: mergedNotes,
+              activeNoteId,
+              focusNotes: mergedNotes.find(n => n.id === activeNoteId)?.content || '',
+              activeTimer: prev.activeTimer?.status === 'running' ? prev.activeTimer : (data.state.activeTimer ?? null),
+              lastSyncedAt: data.syncedAt || Date.now(),
+              lastModified: data.syncedAt || Date.now(),
+            };
+          });
         } else if (data.syncedAt) {
           setState(prev => ({ ...prev, lastSyncedAt: data.syncedAt, lastModified: data.syncedAt }));
         }
@@ -549,11 +585,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
               };
 
               const notes = Array.isArray(cloudData.notes)
-                ? dedupeById(cloudData.notes)
+                ? mergeNotesById(prev.notes, cloudData.notes, deletedNoteIdsRef.current)
                 : dedupeById(prev.notes);
-              const activeNoteId = notes.some(note => note.id === cloudData.activeNoteId)
-                ? cloudData.activeNoteId
-                : notes[0]?.id || '';
+              const activeNoteId = prev.activeNoteId && notes.some(note => note.id === prev.activeNoteId)
+                ? prev.activeNoteId
+                : (notes.some(note => note.id === cloudData.activeNoteId)
+                  ? cloudData.activeNoteId
+                  : notes[0]?.id || '');
               const resolvedState: LevelUpAppState = {
                 ...prev,
                 ...cloudData,
@@ -700,9 +738,11 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         }
         skipNotesBroadcastRef.current = true;
         setState(prev => {
-          const activeNoteId = notes.some(note => note.id === message.activeNoteId)
-            ? message.activeNoteId
-            : notes[0]?.id || '';
+          const activeNoteId = prev.activeNoteId && notes.some(note => note.id === prev.activeNoteId)
+            ? prev.activeNoteId
+            : (notes.some(note => note.id === message.activeNoteId)
+              ? message.activeNoteId
+              : notes[0]?.id || '');
           const activeNote = notes.find(note => note.id === activeNoteId);
           return {
             ...prev,
@@ -2768,6 +2808,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   }, [setOptimisticNotes]);
 
   const deleteNote = useCallback(async (id: string): Promise<boolean> => {
+    deletedNoteIdsRef.current.add(id);
     startTransition(() => {
       setOptimisticNotes({ type: 'delete', id });
     });

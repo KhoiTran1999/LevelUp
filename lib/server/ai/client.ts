@@ -66,10 +66,18 @@ export async function callAI(
       ]
     : userPrompt;
 
+  const priorMessages = Array.isArray(options.history)
+    ? options.history.slice(-6).map((m: any) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: typeof m.content === 'string' ? m.content : ''
+      })).filter((m: any) => Boolean(m.content))
+    : [];
+
   const payload: Record<string, any> = {
     model,
     messages: [
       { role: 'system', content: systemPrompt },
+      ...priorMessages,
       { role: 'user', content: userContent }
     ],
     temperature: temp,

@@ -135,6 +135,7 @@ export function AiNegotiationChat({
   const [inputArg, setInputArg] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStepText, setCurrentStepText] = useState<string | null>(null);
+  const [isConcluded, setIsConcluded] = useState(false);
 
   const chatLogsRef = useRef<HTMLDivElement>(null);
 
@@ -276,11 +277,15 @@ export function AiNegotiationChat({
 
       const replyText = data.reply || data.text || 'Tôi đã tiếp nhận ý kiến của bạn.';
       const isFinalChoice = Boolean(selectedOption);
-      const parsedOptions = isFinalChoice
+      const isDealAccepted = Boolean(data.accepted) || isFinalChoice;
+      if (isDealAccepted) {
+        setIsConcluded(true);
+      }
+      const parsedOptions = isDealAccepted
         ? []
         : (Array.isArray(data.options) && data.options.length > 0
             ? data.options
-            : (data.accepted ? [] : parseDebateOptionsFromText(replyText, type)));
+            : parseDebateOptionsFromText(replyText, type));
 
       setMessages(prev => [
         ...prev,
@@ -401,7 +406,7 @@ export function AiNegotiationChat({
                 {msg.text}
 
                 {/* Parsed Debate Option Chips */}
-                {msg.options && msg.options.length > 0 && (
+                {msg.options && msg.options.length > 0 && !isConcluded && (
                   <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap gap-1.5">
                     {msg.options.map(opt => (
                       <button
@@ -434,126 +439,144 @@ export function AiNegotiationChat({
           )}
         </div>
 
-        {/* Quick Suggestion Chips for Loan */}
-        <div className="relative flex items-center gap-1 group/suggest">
-          <button
-            type="button"
-            onClick={() => loanScroll.scrollBy(-150)}
-            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-            title="Cuộn sang trái"
-            aria-label="Cuộn sang trái"
-          >
-            ◀
-          </button>
-          <div
-            ref={loanScroll.ref}
-            id="bank-suggest-chips"
-            className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
-            title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-          >
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
-            Gợi ý:
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?'
-              )
-            }
-            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
-            data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?"
-          >
-            📉 Xin giảm lãi suất
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?'
-              )
-            }
-            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
-            data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?"
-          >
-            🚀 Xin nâng hạn mức
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!'
-              )
-            }
-            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
-            data-suggest="Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!"
-          >
-            ⚡ Cam kết trích nợ 70%
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?'
-              )
-            }
-            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
-            data-suggest="Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?"
-          >
-            💡 Có nên vay lúc này?
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé.'
-              )
-            }
-            className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
-            data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé."
-          >
-            🧭 Lập kế hoạch trả nợ
-          </button>
-        </div>
-          <button
-            type="button"
-            onClick={() => loanScroll.scrollBy(150)}
-            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-            title="Cuộn sang phải"
-            aria-label="Cuộn sang phải"
-          >
-            ▶
-          </button>
-        </div>
+        {isConcluded ? (
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span>✓</span>
+              <span>Đã thống nhất phương án khoản vay! Nhấn nút bên dưới để áp dụng.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsConcluded(false)}
+              className="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+            >
+              Thương lượng lại
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Quick Suggestion Chips for Loan */}
+            <div className="relative flex items-center gap-1 group/suggest">
+              <button
+                type="button"
+                onClick={() => loanScroll.scrollBy(-150)}
+                className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+                title="Cuộn sang trái"
+                aria-label="Cuộn sang trái"
+              >
+                ◀
+              </button>
+              <div
+                ref={loanScroll.ref}
+                id="bank-suggest-chips"
+                className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+                title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+              >
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+                Gợi ý:
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?'
+                  )
+                }
+                className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+                data-suggest="Mình có chuỗi chăm chỉ tốt và cam kết làm việc đều, xin giảm lãi suất ngày được không?"
+              >
+                📉 Xin giảm lãi suất
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?'
+                  )
+                }
+                className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+                data-suggest="Mình muốn đổi món quà đặc biệt trong Cửa Hàng, bạn nâng thêm hạn mức vay cho mình nhé?"
+              >
+                🚀 Xin nâng hạn mức
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!'
+                  )
+                }
+                className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+                data-suggest="Mình cam kết trích 70% tiền thưởng để trả nợ nhanh, bạn cho mình mức lãi ưu đãi nhất nhé!"
+              >
+                ⚡ Cam kết trích nợ 70%
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?'
+                  )
+                }
+                className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+                data-suggest="Tình hình tài chính của mình hiện tại thì có nên vay không và nên vay bao nhiêu Vàng?"
+              >
+                💡 Có nên vay lúc này?
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé.'
+                  )
+                }
+                className="quick-suggest-bank-btn px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 cursor-pointer text-[11px]"
+                data-suggest="Lập giúp mình kế hoạch trả nợ chi tiết theo các nhiệm vụ mình đang có nhé."
+              >
+                🧭 Lập kế hoạch trả nợ
+              </button>
+            </div>
+              <button
+                type="button"
+                onClick={() => loanScroll.scrollBy(150)}
+                className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+                title="Cuộn sang phải"
+                aria-label="Cuộn sang phải"
+              >
+                ▶
+              </button>
+            </div>
 
-        {/* Chat Input Row */}
-        <div className="flex gap-2 items-center">
-          <input
-            id="input-bank-debate-arg"
-            type="text"
-            value={inputArg}
-            onChange={e => setInputArg(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendArgument();
-              }
-            }}
-            disabled={isStreaming}
-            placeholder="Nhập đề xuất hoặc chọn gợi ý bên trên..."
-            className="flex-1 rpg-input rounded-xl px-3.5 py-2 text-xs transition disabled:opacity-60 disabled:cursor-not-allowed"
-          />
-          <button
-            id="btn-send-bank-debate"
-            type="button"
-            onClick={() => handleSendArgument()}
-            disabled={isStreaming || !inputArg.trim()}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer"
-          >
-            <span>Gửi</span>
-            <span className="text-[10px]">➤</span>
-          </button>
-        </div>
+            {/* Chat Input Row */}
+            <div className="flex gap-2 items-center">
+              <input
+                id="input-bank-debate-arg"
+                type="text"
+                value={inputArg}
+                onChange={e => setInputArg(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendArgument();
+                  }
+                }}
+                disabled={isStreaming}
+                placeholder="Nhập đề xuất hoặc chọn gợi ý bên trên..."
+                className="flex-1 rpg-input rounded-xl px-3.5 py-2 text-xs transition disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              <button
+                id="btn-send-bank-debate"
+                type="button"
+                onClick={() => handleSendArgument()}
+                disabled={isStreaming || !inputArg.trim()}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer"
+              >
+                <span>Gửi</span>
+                <span className="text-[10px]">➤</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -599,7 +622,7 @@ export function AiNegotiationChat({
                 {msg.text}
 
                 {/* Parsed Debate Option Chips */}
-                {msg.options && msg.options.length > 0 && (
+                {msg.options && msg.options.length > 0 && !isConcluded && (
                   <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap gap-1.5">
                     {msg.options.map(opt => (
                       <button
@@ -632,126 +655,144 @@ export function AiNegotiationChat({
           )}
         </div>
 
-        {/* Quick Suggestion Chips for Reward */}
-        <div className="relative flex items-center gap-1 group/suggest">
-          <button
-            type="button"
-            onClick={() => rewardScroll.scrollBy(-150)}
-            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-            title="Cuộn sang trái"
-            aria-label="Cuộn sang trái"
-          >
-            ◀
-          </button>
-          <div
-            ref={rewardScroll.ref}
-            id="reward-suggest-chips"
-            className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
-            title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-          >
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
-            Gợi ý:
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Món này khá đơn giản và nhỏ, mình xin giảm giá Vàng một chút để dễ tự thưởng hơn.'
-              )
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            📉 Giảm giá Vàng
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Món quà này rất giá trị và đặc biệt, mình muốn nâng giá Vàng lên cho xứng đáng với nỗ lực.'
-              )
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            💎 Nâng giá Vàng
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest('Mình muốn tăng thêm thời gian tận hưởng món quà này một chút.')
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            ⏱️ Tăng thời gian
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest('Mình muốn giảm bớt thời gian tự thưởng để tập trung làm việc khác.')
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            ⏱️ Giảm thời gian
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest(
-                'Món quà này mình muốn nhận ngay, không cần hẹn giờ đếm ngược được không?'
-              )
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            ⚡ Không cần bấm giờ
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleQuickSuggest('Mình muốn sửa lại tên phần thưởng cho cụ thể và đúng ý hơn.')
-            }
-            className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          >
-            ✏️ Đổi tên quà
-          </button>
-        </div>
-          <button
-            type="button"
-            onClick={() => rewardScroll.scrollBy(150)}
-            className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-            title="Cuộn sang phải"
-            aria-label="Cuộn sang phải"
-          >
-            ▶
-          </button>
-        </div>
+        {isConcluded ? (
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span>✓</span>
+              <span>Đã thống nhất phương án phần thưởng! Nhấn nút bên dưới để áp dụng.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsConcluded(false)}
+              className="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+            >
+              Thương lượng lại
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Quick Suggestion Chips for Reward */}
+            <div className="relative flex items-center gap-1 group/suggest">
+              <button
+                type="button"
+                onClick={() => rewardScroll.scrollBy(-150)}
+                className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+                title="Cuộn sang trái"
+                aria-label="Cuộn sang trái"
+              >
+                ◀
+              </button>
+              <div
+                ref={rewardScroll.ref}
+                id="reward-suggest-chips"
+                className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+                title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+              >
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+                Gợi ý:
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Món này khá đơn giản và nhỏ, mình xin giảm giá Vàng một chút để dễ tự thưởng hơn.'
+                  )
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                📉 Giảm giá Vàng
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Món quà này rất giá trị và đặc biệt, mình muốn nâng giá Vàng lên cho xứng đáng với nỗ lực.'
+                  )
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                💎 Nâng giá Vàng
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest('Mình muốn tăng thêm thời gian tận hưởng món quà này một chút.')
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                ⏱️ Tăng thời gian
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest('Mình muốn giảm bớt thời gian tự thưởng để tập trung làm việc khác.')
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                ⏱️ Giảm thời gian
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest(
+                    'Món quà này mình muốn nhận ngay, không cần hẹn giờ đếm ngược được không?'
+                  )
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                ⚡ Không cần bấm giờ
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSuggest('Mình muốn sửa lại tên phần thưởng cho cụ thể và đúng ý hơn.')
+                }
+                className="quick-suggest-reward-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              >
+                ✏️ Đổi tên quà
+              </button>
+            </div>
+              <button
+                type="button"
+                onClick={() => rewardScroll.scrollBy(150)}
+                className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+                title="Cuộn sang phải"
+                aria-label="Cuộn sang phải"
+              >
+                ▶
+              </button>
+            </div>
 
-        {/* Chat Input Row */}
-        <div className="flex gap-2 items-center">
-          <input
-            id="input-reward-debate-arg"
-            type="text"
-            value={inputArg}
-            onChange={e => setInputArg(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendArgument();
-              }
-            }}
-            disabled={isStreaming}
-            placeholder="Nhập đề xuất thương lượng giá quà..."
-            className="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-          />
-          <button
-            id="btn-send-reward-debate"
-            type="button"
-            onClick={() => handleSendArgument()}
-            disabled={isStreaming || !inputArg.trim()}
-            className="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
-          >
-            <span>Gửi</span>
-            <span className="text-[10px]">➤</span>
-          </button>
-        </div>
+            {/* Chat Input Row */}
+            <div className="flex gap-2 items-center">
+              <input
+                id="input-reward-debate-arg"
+                type="text"
+                value={inputArg}
+                onChange={e => setInputArg(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendArgument();
+                  }
+                }}
+                disabled={isStreaming}
+                placeholder="Nhập đề xuất thương lượng giá quà..."
+                className="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              <button
+                id="btn-send-reward-debate"
+                type="button"
+                onClick={() => handleSendArgument()}
+                disabled={isStreaming || !inputArg.trim()}
+                className="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+              >
+                <span>Gửi</span>
+                <span className="text-[10px]">➤</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -797,7 +838,7 @@ export function AiNegotiationChat({
               {msg.text}
 
               {/* Parsed Debate Option Chips */}
-              {msg.options && msg.options.length > 0 && (
+              {msg.options && msg.options.length > 0 && !isConcluded && (
                 <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap gap-1.5">
                   {msg.options.map(opt => (
                     <button
@@ -830,135 +871,153 @@ export function AiNegotiationChat({
         )}
       </div>
 
-      {/* Quick Suggestion Chips for Quest */}
-      <div className="relative flex items-center gap-1 group/suggest">
-        <button
-          type="button"
-          onClick={() => questScroll.scrollBy(-150)}
-          className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-          title="Cuộn sang trái"
-          aria-label="Cuộn sang trái"
-        >
-          ◀
-        </button>
-        <div
-          ref={questScroll.ref}
-          id="quest-suggest-chips"
-          className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
-          title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
-        >
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
-          Gợi ý:
-        </span>
-        <button
-          id="btn-suggest-proof"
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-          data-suggest-proof="true"
-        >
-          📸 Xin miễn chụp ảnh
-        </button>
-        <button
-          id="btn-suggest-proof-both"
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Mình muốn nâng cấp lên kết hợp cả ảnh chụp thực tế và viết báo cáo tóm tắt để rèn luyện kỷ luật cao hơn nhé!'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-        >
-          📸+✍️ Kết hợp cả hai
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-        >
-          💰 Xin thêm Vàng
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Mình muốn chia nhỏ việc này thành phiên tập trung ngắn hơn 25 phút để đỡ quá tải.'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-        >
-          ⏱️ Giảm thời gian
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Đây là việc mình làm xong lúc nào thì vào bấm nhận thưởng lúc đó, đổi sang không cần bấm giờ được không?'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-        >
-          ⚡ Không cần bấm giờ
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleQuickSuggest(
-              'Mình muốn điều chỉnh lại tên hoặc mô tả cho rõ ràng và dễ theo dõi hơn.'
-            )
-          }
-          className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
-        >
-          📝 Đổi tên/mô tả
-        </button>
-      </div>
-        <button
-          type="button"
-          onClick={() => questScroll.scrollBy(150)}
-          className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
-          title="Cuộn sang phải"
-          aria-label="Cuộn sang phải"
-        >
-          ▶
-        </button>
-      </div>
+      {isConcluded ? (
+        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-1.5 font-bold">
+            <span>✓</span>
+            <span>Đã thống nhất phương án nhiệm vụ! Nhấn nút bên dưới để áp dụng.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsConcluded(false)}
+            className="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+          >
+            Thương lượng lại
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Quick Suggestion Chips for Quest */}
+          <div className="relative flex items-center gap-1 group/suggest">
+            <button
+              type="button"
+              onClick={() => questScroll.scrollBy(-150)}
+              className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+              title="Cuộn sang trái"
+              aria-label="Cuộn sang trái"
+            >
+              ◀
+            </button>
+            <div
+              ref={questScroll.ref}
+              id="quest-suggest-chips"
+              className="horizontal-scroll-drag flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+              title="Cuộn chuột hoặc kéo rê để xem thêm gợi ý"
+            >
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+              Gợi ý:
+            </span>
+            <button
+              id="btn-suggest-proof"
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Công việc này mình làm trên điện thoại hoặc không tiện chụp ảnh thực tế, bạn giúp mình miễn chụp ảnh được không?'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+              data-suggest-proof="true"
+            >
+              📸 Xin miễn chụp ảnh
+            </button>
+            <button
+              id="btn-suggest-proof-both"
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Mình muốn nâng cấp lên kết hợp cả ảnh chụp thực tế và viết báo cáo tóm tắt để rèn luyện kỷ luật cao hơn nhé!'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+            >
+              📸+✍️ Kết hợp cả hai
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Nhiệm vụ này cần nhiều nỗ lực và thời gian hơn, mình xin tăng thêm một ít Vàng được không?'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+            >
+              💰 Xin thêm Vàng
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Mình muốn chia nhỏ việc này thành phiên tập trung ngắn hơn 25 phút để đỡ quá tải.'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+            >
+              ⏱️ Giảm thời gian
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Đây là việc mình làm xong lúc nào thì vào bấm nhận thưởng lúc đó, đổi sang không cần bấm giờ được không?'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+            >
+              ⚡ Không cần bấm giờ
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleQuickSuggest(
+                  'Mình muốn điều chỉnh lại tên hoặc mô tả cho rõ ràng và dễ theo dõi hơn.'
+                )
+              }
+              className="quick-suggest-btn px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shrink-0 cursor-pointer text-[11px]"
+            >
+              📝 Đổi tên/mô tả
+            </button>
+          </div>
+            <button
+              type="button"
+              onClick={() => questScroll.scrollBy(150)}
+              className="w-6 h-6 shrink-0 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center text-[10px] shadow-xs cursor-pointer active:scale-95 transition"
+              title="Cuộn sang phải"
+              aria-label="Cuộn sang phải"
+            >
+              ▶
+            </button>
+          </div>
 
-      {/* Chat Input Row */}
-      <div className="flex gap-2 items-center">
-        <input
-          id="input-debate-arg"
-          type="text"
-          value={inputArg}
-          onChange={e => setInputArg(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSendArgument();
-            }
-          }}
-          disabled={isStreaming}
-          placeholder="Nhập đề xuất thương lượng hoặc bấm gợi ý ở trên..."
-          className="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-        />
-        <button
-          id="btn-send-debate"
-          type="button"
-          onClick={() => handleSendArgument()}
-          disabled={isStreaming || !inputArg.trim()}
-          className="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
-        >
-          <span>Gửi</span>
-          <span className="text-[10px]">➤</span>
-        </button>
-      </div>
+          {/* Chat Input Row */}
+          <div className="flex gap-2 items-center">
+            <input
+              id="input-debate-arg"
+              type="text"
+              value={inputArg}
+              onChange={e => setInputArg(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendArgument();
+                }
+              }}
+              disabled={isStreaming}
+              placeholder="Nhập đề xuất thương lượng hoặc bấm gợi ý ở trên..."
+              className="flex-1 rpg-input rounded-xl px-4 py-2.5 text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <button
+              id="btn-send-debate"
+              type="button"
+              onClick={() => handleSendArgument()}
+              disabled={isStreaming || !inputArg.trim()}
+              className="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+            >
+              <span>Gửi</span>
+              <span className="text-[10px]">➤</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

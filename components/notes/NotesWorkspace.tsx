@@ -70,6 +70,10 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
 
   // ponytail: Auto-align active note to filtered search results. Upgrade path: URL search params binding.
   const currentActiveNote = useMemo(() => {
+    if (activeNoteId) {
+      const foundInOptimistic = optimisticNotes.find(n => n.id === activeNoteId);
+      if (foundInOptimistic) return foundInOptimistic;
+    }
     const list = searchQuery.trim() ? filteredNotes : optimisticNotes;
     if (activeNoteId) {
       const found = list.find(n => n.id === activeNoteId);
@@ -78,9 +82,9 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     return list[0] || null;
   }, [optimisticNotes, filteredNotes, activeNoteId, searchQuery]);
 
-  // Ensure activeNoteId stays aligned
+  // Ensure activeNoteId stays aligned when unassigned or when current active note was deleted
   useEffect(() => {
-    if (currentActiveNote && (!activeNoteId || activeNoteId !== currentActiveNote.id)) {
+    if (currentActiveNote && (!activeNoteId || !optimisticNotes.some(n => n.id === activeNoteId))) {
       setActiveNoteId(currentActiveNote.id);
       if (typeof window !== 'undefined') {
         const win = window as unknown as { appState?: { activeNoteId?: string } };
@@ -89,13 +93,13 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
         }
       }
     }
-  }, [currentActiveNote, activeNoteId, setActiveNoteId]);
+  }, [currentActiveNote, activeNoteId, optimisticNotes, setActiveNoteId]);
 
   // Safe Note Switching: Always flush pending editor changes first
   const handleSelectNote = useCallback(
     (noteId: string) => {
       // 1. Flush previous note
-      editorHandleRef.current?.flush();
+      editorHandleRef.current?.flush(activeNoteId);
 
       // 2. Set new active note
       setActiveNoteId(noteId);
@@ -112,13 +116,13 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
         window.scrollTo({ top: 0, behavior: 'instant' });
       }
     },
-    [setActiveNoteId]
+    [activeNoteId, setActiveNoteId]
   );
 
   // Safe Note Creation: Always flush pending editor changes first
   const handleCreateNewNote = useCallback(() => {
     // 1. Flush previous note
-    editorHandleRef.current?.flush();
+    editorHandleRef.current?.flush(activeNoteId);
 
     // 2. Reset search query so newly created note isn't filtered out
     setSearchQuery('');
@@ -157,7 +161,7 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
         'success'
       );
     }
-  }, [createNote, idPrefix, setActiveNoteId]);
+  }, [activeNoteId, createNote, idPrefix, setActiveNoteId]);
 
   // Mobile Back Button: Return from Screen 2 (Editor) to Screen 1 (List)
   const handleBackToListMobile = useCallback(() => {
@@ -239,21 +243,30 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     [deleteNote]
   );
 
+  // ponytail: Direct sync and toast trigger without self-recursive loop. Upgrade path: SWR/React Query mutate.
   const handleReloadNotes = useCallback(() => {
     if (typeof window !== 'undefined') {
       const win = window as unknown as {
-        reloadNotesWorkspace?: (t: boolean) => void;
         hydrateFromCloud?: (s: boolean) => void;
         showToast?: (message: string, type: string) => void;
+        appState?: { notes?: NoteItem[] };
       };
-      if (modalMode && typeof win.hydrateFromCloud === 'function') {
-        win.hydrateFromCloud(false);
-        win.showToast?.('Đang đồng bộ ghi chú...', 'info');
-      } else if (typeof win.reloadNotesWorkspace === 'function') {
-        win.reloadNotesWorkspace(true);
-      } else if (typeof win.hydrateFromCloud === 'function') {
+      if (typeof win.hydrateFromCloud === 'function') {
         win.hydrateFromCloud(false);
       }
+      try {
+        if (Array.isArray(win.appState?.notes)) {
+          window.dispatchEvent(
+            new CustomEvent('levelup:notes-updated', {
+              detail: { notes: win.appState.notes },
+            })
+          );
+        }
+      } catch (_) {}
+      win.showToast?.(
+        modalMode ? 'Đang đồng bộ ghi chú...' : '🔄 Đã làm mới danh sách ghi chú!',
+        'info'
+      );
     }
   }, [modalMode]);
 
@@ -374,7 +387,12 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
       <TopicFilterChips id={`${idPrefix}notes-topics-bar`} />
 
       {/* 3. Master-Detail Workspace: Note List + Active Editor */}
-      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-start ${modalMode ? 'min-h-0' : ''}`} id={`${idPrefix}notes-workspace-container`}>
+      <div
+        className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-start ${modalMode ? 'min-h-0' : ''}`}
+        id={`${idPrefix}notes-workspace-container`}
+        data-react-controlled="true"
+        data-react-notes-workspace="true"
+      >
         {/* Left: Notes Sidebar List (4 cols on lg, full on mobile when in list mode) */}
         <div
           id={`${idPrefix}notes-sidebar-column`}
@@ -402,6 +420,7 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
           }`}
         >
           <NoteEditor
+            key={currentActiveNote?.id || 'no-active-note'}
             ref={editorHandleRef}
             activeNote={currentActiveNote}
             idPrefix={idPrefix}

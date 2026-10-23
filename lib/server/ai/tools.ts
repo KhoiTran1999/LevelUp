@@ -505,10 +505,14 @@ export function runDeterministicQuestDebate(quest: any, argument: string = '', s
   const wantsLessTime = /(?:giảm|rút\s*ngắn).*(?:thời\s*gian|phút)/i.test(argument);
 
   if (wantsBoth) {
-    const bonusCoins = (curCoins < 30) ? Math.min(30, curCoins + 2) : curCoins;
+    const isAlreadyBoth = quest.proofType === 'both';
+    const bonusCoins = (!isAlreadyBoth && curCoins < 30) ? Math.min(30, curCoins + 2) : curCoins;
+    const bonusText = !isAlreadyBoth
+      ? ' và tặng thêm 2 Vàng khích lệ nhé! 📸+✍️'
+      : ' và giữ nguyên mức thưởng hiện tại nhé! 📸+✍️';
     return handleUpdateQuestParameters({
       accepted: true,
-      reply: `Rất tuyệt vời! Tinh thần tự giác nâng cao kỷ luật kết hợp cả ảnh thực tế lẫn báo cáo tóm tắt rất đáng khen ngợi. Mình đã cập nhật sang hình thức kết hợp cả hai và tặng thêm 2 Vàng khích lệ nhé! 📸+✍️`,
+      reply: `Rất tuyệt vời! Tinh thần tự giác nâng cao kỷ luật kết hợp cả ảnh thực tế lẫn báo cáo tóm tắt rất đáng khen ngợi. Mình đã cập nhật sang hình thức kết hợp cả hai${bonusText}`,
       newRewardCoins: bonusCoins,
       newRequiresProof: true,
       newProofType: 'both',
@@ -631,8 +635,13 @@ export function runDeterministicQuestDebate(quest: any, argument: string = '', s
   }
 
   if (isAskingMoreCoins && (requestedMins === null || requestedMins <= curMins)) {
-    const higherMins = (curMins || 25) + 15;
-    const higherCoins = curCoins + 4;
+    const isAlreadyBoth = quest.proofType === 'both';
+    const higherMins = curMins <= 25 ? 35 : (curMins <= 35 ? 45 : curMins + 15);
+    const higherCoins = curMins <= 25 ? 16 : (curMins <= 35 ? 20 : Math.min(45, curCoins + 4));
+    const opt2 = isAlreadyBoth
+      ? { id: 2, label: `Tập trung 50 phút (22 Vàng)`, argument: `Mình cam kết tập trung 50 phút để nhận 22 Vàng`, newTargetMinutes: 50, newRewardCoins: 22, newType: 'focus' }
+      : { id: 2, label: `Kỷ luật kép 📸+✍️ (+2 Vàng)`, argument: `Mình cam kết nộp bằng chứng kép cả ảnh và tóm tắt để nhận thêm 2 Vàng`, newRequiresProof: true, newProofType: 'both', newTargetMinutes: curMins, newRewardCoins: curCoins + 2 };
+
     return {
       ...handleUpdateQuestParameters({
         accepted: false,
@@ -640,7 +649,7 @@ export function runDeterministicQuestDebate(quest: any, argument: string = '', s
       }, quest),
       options: [
         { id: 1, label: `Tăng lên ${higherMins} phút (${higherCoins} Vàng)`, argument: `Mình cam kết tập trung ${higherMins} phút để nhận ${higherCoins} Vàng`, newTargetMinutes: higherMins, newRewardCoins: higherCoins, newType: 'focus' },
-        { id: 2, label: `Kỷ luật kép 📸+✍️ (+2 Vàng)`, argument: `Mình cam kết nộp bằng chứng kép cả ảnh và tóm tắt để nhận thêm 2 Vàng`, newRequiresProof: true, newProofType: 'both', newRewardCoins: curCoins + 2 }
+        opt2
       ]
     };
   }
@@ -662,7 +671,8 @@ export function runDeterministicQuestDebate(quest: any, argument: string = '', s
 
   if (requestedMins !== null && requestedMins > curMins) {
     const finalMins = Math.min(180, requestedMins);
-    const finalCoins = requestedCoins !== null ? Math.min(40, requestedCoins) : Math.min(40, curCoins + Math.floor((finalMins - curMins) * 0.3));
+    const maxCoins = finalMins <= 25 ? 12 : (finalMins <= 35 ? 16 : (finalMins <= 50 ? 22 : 45));
+    const finalCoins = requestedCoins !== null ? Math.min(maxCoins, requestedCoins) : Math.min(maxCoins, curCoins + Math.floor((finalMins - curMins) * 0.3));
     return handleUpdateQuestParameters({
       accepted: true,
       reply: `Mình hoàn toàn đồng ý điều chỉnh thời gian thành ${finalMins} phút và mức thưởng ${finalCoins} Vàng theo đề xuất tăng nỗ lực rất đáng khen ngợi của bạn nhé! ✨`,
@@ -801,6 +811,20 @@ export function runDeterministicRewardDebate(reward: any, argument: string = '',
   }
 
   if (requestedCoins !== null || requestedMins !== null) {
+    if (requestedCoins !== null && requestedCoins < curPrice && (requestedMins === null || requestedMins >= curMins) && curMins > 0) {
+      const opt1Price = Math.max(5, Math.floor(curPrice * 0.6));
+      const opt1Mins = Math.max(15, Math.floor(curMins * 0.6));
+      return {
+        ...handleUpdateRewardParameters({
+          accepted: false,
+          reply: `Món quà này rất giá trị nên mình giữ mức giá ${curPrice} Vàng nhé! Nếu muốn đổi nhanh hơn, bạn có thể rút ngắn thời lượng giải trí nè:`
+        }, reward),
+        options: [
+          { id: 1, label: `${opt1Mins > 0 ? opt1Mins + ' phút • ' : ''}${opt1Price} Vàng`, argument: `Chốt ${opt1Mins > 0 ? opt1Mins + ' phút, ' : ''}${opt1Price} Vàng`, newPrice: opt1Price, newTargetMinutes: opt1Mins > 0 ? opt1Mins : 20, newTier: opt1Price < 30 ? 'common' : 'rare' },
+          { id: 2, label: `Giữ nguyên ${curPrice} Vàng`, argument: `Giữ nguyên giá ${curPrice} Vàng`, newPrice: curPrice, newTargetMinutes: curMins, newTier: reward.tier }
+        ]
+      };
+    }
     const finalPrice = requestedCoins !== null ? Math.max(5, requestedCoins) : curPrice;
     const finalMins = requestedMins !== null ? Math.max(0, requestedMins) : curMins;
     return handleUpdateRewardParameters({
@@ -848,6 +872,18 @@ export function runDeterministicLoanDebate(loan: any, argument: string, callerSu
   const explicitAmountMatch = argument.match(/(?:vay|mượn)\s*(\d+)\s*(?:vàng)?/i) || argument.match(/(\d+)\s*vàng/i);
   const requestedAmount = explicitAmountMatch ? parseInt(explicitAmountMatch[1], 10) : null;
   if (requestedAmount !== null && requestedAmount > 0) {
+    if (requestedAmount > currentLimit) {
+      return {
+        ...handleUpdateLoanTerms({
+          accepted: false,
+          reply: `Số Vàng bạn muốn vay (${requestedAmount} Vàng) vượt quá hạn mức tối đa hiện tại (${currentLimit} Vàng). Để an toàn tài chính, tụi mình chốt trong hạn mức này nhé!`
+        }, loan, callerSub || 'guest', macro),
+        options: [
+          { id: 1, label: `Vay tối đa ${currentLimit} Vàng`, argument: `Đồng ý vay tối đa ${currentLimit} Vàng`, newAmount: currentLimit, newBorrowRate: currentRate, newCreditLimit: currentLimit, newAutoDeductPercent: currentDeduct },
+          { id: 2, label: `Vay an toàn ${Math.max(10, Math.floor(currentLimit * 0.6))} Vàng`, argument: `Đồng ý vay ${Math.max(10, Math.floor(currentLimit * 0.6))} Vàng`, newAmount: Math.max(10, Math.floor(currentLimit * 0.6)), newBorrowRate: currentRate, newCreditLimit: currentLimit, newAutoDeductPercent: currentDeduct }
+        ]
+      };
+    }
     const safeAmount = Math.min(currentLimit, Math.max(10, requestedAmount));
     return handleUpdateLoanTerms({
       accepted: true,
@@ -859,30 +895,56 @@ export function runDeterministicLoanDebate(loan: any, argument: string, callerSu
     }, loan, callerSub || 'guest', macro);
   }
 
-  const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp/i.test(argument);
+  const isRateNegotiate = /giảm\s*(?:lãi|phí)|lãi\s*suất\s*thấp|lãi\s*(?:0%|bằng\s*0)/i.test(argument);
   const isLimitNegotiate = /nâng\s*hạn\s*mức|tăng\s*hạn\s*mức|hạn\s*mức\s*cao/i.test(argument);
   const isQuestion = /\b(?:được\s*(?:không|ko|chăng)|có\s*được\s*không)\b|\?/i.test(argument);
   const userAgreed = !isQuestion && (/\b(chốt|đồng\s*ý|dong\s*y|nhất\s*trí|nhat\s*tri|ok|oke|chấp\s*thuận|chap\s*thuan|thống\s*nhất|thong\s*nhat)\b/i.test(argument) || /^(?:được|duoc|ok|oke)[\s.!]*$/i.test(argument.trim()));
 
-  if (isRateNegotiate && (streak >= 2 || level >= 2)) {
-    const floor = macro.depositFloor || 0.015;
-    const discountedRate = Math.max(floor, Number((currentRate - 0.02).toFixed(4)));
-    const suggestDeduct = macro.liquidityStatus === 'tight' ? Math.max(0.60, currentDeduct) : currentDeduct;
-    const tightNote = macro.liquidityStatus === 'tight' && suggestDeduct > currentDeduct
-      ? ' Vì ngân hàng đang hỗ trợ cho nhiều hiệp sĩ khác, bạn hãy trích ' + Math.round(suggestDeduct * 100) + '% tiền thưởng để trả nhanh giúp kho nhé!'
-      : '';
-    return handleUpdateLoanTerms({
-      accepted: true,
-      reply: `Bạn có chuỗi chăm chỉ ${streak} ngày rất ấn tượng! Mình đồng ý giảm lãi suất ngày từ ${(currentRate * 100).toFixed(1)}%/ngày xuống chỉ còn ${(discountedRate * 100).toFixed(1)}%/ngày nhé.${tightNote} Chúc bạn hoàn thành nhiệm vụ thật vui vẻ! ✨`,
-      newAmount: currentAmount,
-      newBorrowRate: discountedRate,
-      newCreditLimit: currentLimit,
-      newAutoDeductPercent: suggestDeduct
-    }, loan, callerSub || 'guest', macro);
+  if (isRateNegotiate) {
+    if (streak >= 2 || level >= 2) {
+      const floor = macro.depositFloor || 0.015;
+      const discountedRate = Math.max(floor, Number((currentRate - 0.02).toFixed(4)));
+      const suggestDeduct = macro.liquidityStatus === 'tight' ? Math.max(0.60, currentDeduct) : currentDeduct;
+      const tightNote = macro.liquidityStatus === 'tight' && suggestDeduct > currentDeduct
+        ? ' Vì ngân hàng đang hỗ trợ cho nhiều hiệp sĩ khác, bạn hãy trích ' + Math.round(suggestDeduct * 100) + '% tiền thưởng để trả nhanh giúp kho nhé!'
+        : '';
+      return handleUpdateLoanTerms({
+        accepted: true,
+        reply: `Bạn có chuỗi chăm chỉ ${streak} ngày rất ấn tượng! Mình đồng ý giảm lãi suất ngày từ ${(currentRate * 100).toFixed(1)}%/ngày xuống chỉ còn ${(discountedRate * 100).toFixed(1)}%/ngày nhé.${tightNote} Chúc bạn hoàn thành nhiệm vụ thật vui vẻ! ✨`,
+        newAmount: currentAmount,
+        newBorrowRate: discountedRate,
+        newCreditLimit: currentLimit,
+        newAutoDeductPercent: suggestDeduct
+      }, loan, callerSub || 'guest', macro);
+    } else {
+      return {
+        ...handleUpdateLoanTerms({
+          accepted: false,
+          reply: `Chính sách giảm lãi suất chỉ dành cho hiệp sĩ có chuỗi chăm chỉ từ 2 ngày trở lên hoặc đạt Cấp 2. Hãy duy trì chuỗi làm việc thêm chút nữa để nhận ưu đãi nhé! ✨`
+        }, loan, callerSub || 'guest', macro),
+        options: [
+          { id: 1, label: `Gói chuẩn: Lãi ${(currentRate * 100).toFixed(1)}%/ngày`, argument: `Đồng ý gói chuẩn lãi ${(currentRate * 100).toFixed(1)}%/ngày`, newAmount: currentAmount, newBorrowRate: currentRate, newAutoDeductPercent: currentDeduct, newCreditLimit: currentLimit },
+          { id: 2, label: `Trích nợ 60% trả nhanh`, argument: `Trích 60% tiền thưởng để hoàn trả sớm`, newAmount: currentAmount, newBorrowRate: currentRate, newAutoDeductPercent: 0.60, newCreditLimit: currentLimit }
+        ]
+      };
+    }
   }
 
   if (isLimitNegotiate) {
-    const bonusLimit = currentLimit + (macro.liquidityStatus === 'tight' ? 15 : 25);
+    const maxLimitForLevel = level === 1 ? 50 : (level === 2 ? 80 : 150);
+    if (currentLimit >= maxLimitForLevel) {
+      return {
+        ...handleUpdateLoanTerms({
+          accepted: false,
+          reply: `Hạn mức ${currentLimit} Vàng hiện tại đã là mức tối đa cho cấp độ hiệp sĩ của bạn rồi. Hãy lên cấp tiếp theo để mở rộng hạn mức thêm nhé! ✨`
+        }, loan, callerSub || 'guest', macro),
+        options: [
+          { id: 1, label: `Vay trong hạn mức ${currentLimit} Vàng`, argument: `Đồng ý vay trong hạn mức ${currentLimit} Vàng`, newAmount: Math.min(currentLimit, currentAmount), newBorrowRate: currentRate, newAutoDeductPercent: currentDeduct, newCreditLimit: currentLimit }
+        ]
+      };
+    }
+    const bonusStep = macro.liquidityStatus === 'tight' ? 15 : 25;
+    const bonusLimit = Math.min(maxLimitForLevel, currentLimit + bonusStep);
     return handleUpdateLoanTerms({
       accepted: true,
       reply: `Thấy bạn có tinh thần làm việc tích cực, mình sẵn sàng nâng hạn mức vay cho bạn từ ${currentLimit} Vàng lên ${bonusLimit} Vàng nè! Hãy cân nhắc vay mức vừa sức để dễ trả nợ nhé. ✨`,
@@ -918,6 +980,64 @@ export function runDeterministicLoanDebate(loan: any, argument: string, callerSu
     ...handleUpdateLoanTerms({ accepted: false, reply: optRes.reply }, loan, callerSub || 'guest', macro),
     options: optRes.options
   };
+}
+
+// ponytail: Strict anti-pushover option filters to ensure AI options enforce fair discipline
+export function sanitizeQuestDebateOptions(options: DebateOption[], curMins: number, curCoins: number, curProofType?: string): DebateOption[] {
+  const filtered = (options || []).filter(opt => {
+    const optMins = opt.newTargetMinutes !== undefined ? opt.newTargetMinutes : curMins;
+    const optCoins = opt.newRewardCoins !== undefined ? opt.newRewardCoins : curCoins;
+    const isBothProofBonus = opt.newProofType === 'both' && curProofType !== 'both' && optCoins <= curCoins + 2;
+    // Reject keeping or reducing time while increasing coins without dual proof
+    if (optMins <= curMins && optCoins > curCoins && !isBothProofBonus) return false;
+    // Reject exceeding duration ceilings
+    if (optMins <= 25 && optCoins > 14) return false;
+    if (optMins <= 35 && optCoins > 18) return false;
+    if (optMins <= 50 && optCoins > 24) return false;
+    return true;
+  });
+  if (filtered.length >= 2) return filtered;
+  const higherMins = Math.max(35, curMins + 10);
+  const higherCoins = Math.min(22, curCoins + 4);
+  return [
+    { id: 1, label: `Tăng lên ${higherMins} phút (${higherCoins} Vàng)`, argument: `Mình cam kết tập trung ${higherMins} phút để nhận ${higherCoins} Vàng`, newTargetMinutes: higherMins, newRewardCoins: higherCoins, newType: 'focus' },
+    { id: 2, label: `Giữ ${curMins} phút (${curCoins} Vàng)`, argument: `Giữ nguyên ${curMins} phút để hoàn thành nhiệm vụ`, newTargetMinutes: curMins, newRewardCoins: curCoins, newType: curMins > 0 ? 'focus' : 'bounty' }
+  ];
+}
+
+export function sanitizeRewardDebateOptions(options: DebateOption[], curPrice: number, curMins: number): DebateOption[] {
+  const filtered = (options || []).filter(opt => {
+    const optPrice = opt.newPrice !== undefined ? opt.newPrice : curPrice;
+    const optMins = opt.newTargetMinutes !== undefined ? opt.newTargetMinutes : curMins;
+    if (optPrice < 5) return false;
+    // Reject lowering price without reducing duration
+    if (optPrice < curPrice && optMins >= curMins && curMins > 0) return false;
+    return true;
+  });
+  if (filtered.length >= 2) return filtered;
+  const reducedMins = Math.max(15, Math.floor(curMins * 0.6));
+  const reducedPrice = Math.max(5, Math.floor(curPrice * 0.6));
+  return [
+    { id: 1, label: `${reducedMins > 0 ? reducedMins + ' phút • ' : ''}${reducedPrice} Vàng`, argument: `Chốt rút ngắn ${reducedMins > 0 ? reducedMins + ' phút, ' : ''}${reducedPrice} Vàng`, newPrice: reducedPrice, newTargetMinutes: reducedMins },
+    { id: 2, label: `Giữ nguyên ${curPrice} Vàng`, argument: `Giữ nguyên giá ${curPrice} Vàng`, newPrice: curPrice, newTargetMinutes: curMins }
+  ];
+}
+
+export function sanitizeLoanDebateOptions(options: DebateOption[], curAmt: number, curRate: number, curLimit: number, curDeduct: number, floorRate: number = 0.015): DebateOption[] {
+  const filtered = (options || []).filter(opt => {
+    const rate = opt.newBorrowRate !== undefined ? opt.newBorrowRate : curRate;
+    const limit = opt.newCreditLimit !== undefined ? opt.newCreditLimit : curLimit;
+    const deduct = opt.newAutoDeductPercent !== undefined ? opt.newAutoDeductPercent : curDeduct;
+    if (rate < floorRate) return false;
+    if (deduct < 0.30 || deduct > 0.80) return false;
+    if (limit > curLimit + 25) return false;
+    return true;
+  });
+  if (filtered.length >= 2) return filtered;
+  return [
+    { id: 1, label: `Gói an toàn: Vay ${curAmt} Vàng (Trích ${Math.round(curDeduct * 100)}%)`, argument: `Chốt gói an toàn: Vay ${curAmt} Vàng, trích ${Math.round(curDeduct * 100)}%`, newAmount: curAmt, newBorrowRate: curRate, newAutoDeductPercent: curDeduct, newCreditLimit: curLimit },
+    { id: 2, label: `Gói ưu đãi: Lãi ${(Math.max(floorRate, curRate - 0.01) * 100).toFixed(1)}%/ngày (Trích 60%)`, argument: `Chốt gói ưu đãi: Vay ${curAmt} Vàng, lãi ${(Math.max(floorRate, curRate - 0.01) * 100).toFixed(1)}%/ngày`, newAmount: curAmt, newBorrowRate: Math.max(floorRate, curRate - 0.01), newAutoDeductPercent: 0.60, newCreditLimit: curLimit }
+  ];
 }
 
 // ponytail: Minimal deterministic fallback options to guarantee interactive 1-tap buttons for users.
@@ -958,6 +1078,7 @@ export async function runNegotiationAgent({
   targetEntity,
   selectedOption,
   userArgument,
+  history,
   onEvent
 }: {
   domain: string;
@@ -968,6 +1089,7 @@ export async function runNegotiationAgent({
   targetEntity?: any;
   selectedOption?: any;
   userArgument?: string;
+  history?: Array<{ role: string; content: string }>;
   tools?: any[];
   onEvent?: (event: string, data: any) => void;
 }): Promise<any> {
@@ -1054,11 +1176,27 @@ export async function runNegotiationAgent({
 BẠN LÀ TRỌNG TÀI AI ĐÀM PHÁN CÔNG BẰNG VÀ THÂN THIỆN TRONG LEVELUP RPG.
 ĐÀM PHÁN TRONG 1 LƯỢT DUY NHẤT (SINGLE-TURN).
 
+QUY TẮC BẢO VỆ KỶ LUẬT & CHỐNG DỄ DÃI (ANTI-PUSHOVER):
+1. NHIỆM VỤ (Quest):
+- Tăng Vàng BẮT BUỘC phải tăng thời gian tập trung (ngoại lệ: nâng cấp bằng chứng kép ảnh + chữ được tối đa +2 Vàng một lần duy nhất).
+- KHÔNG BAO GIỜ giữ 25 phút mà tăng thêm Vàng nếu nhiệm vụ đã có từ 12 Vàng trở lên.
+- Trần Vàng tối đa: <=25 phút: tối đa 12 Vàng (14 nếu ảnh+chữ); <=35 phút: tối đa 16 Vàng (18 nếu ảnh+chữ); <=50 phút: tối đa 22 Vàng. Nhiệm vụ không bấm giờ/việc nhà tối đa 5 Vàng.
+- Nếu người dùng xin thêm Vàng cho cùng thời gian hoặc đòi hỏi vô lý: accepted BẮT BUỘC PHẢI LÀ FALSE. Từ chối vui vẻ và chỉ đưa ra các phương án đòi hỏi tăng thời gian (>=35 phút) để nhận thêm Vàng.
+2. PHẦN THƯỞNG (Reward):
+- Giảm giá Vàng BẮT BUỘC phải giảm thời gian giải trí tương ứng (ví dụ giảm từ 60p xuống 30p thì mới giảm giá).
+- Không bao giờ giảm giá dưới sàn tối thiểu 5 Vàng. Không bao giờ tùy tiện bỏ hẹn giờ.
+- Nếu người dùng xin giảm giá mà không giảm thời gian: accepted BẮT BUỘC PHẢI LÀ FALSE.
+3. NGÂN HÀNG (Loan):
+- Lãi suất ngày KHÔNG ĐƯỢC thấp hơn sàn bảo vệ (tối thiểu 1.5%/ngày). Đòi lãi 0% BẮT BUỘC TỪ CHỐI (accepted = false).
+- Chỉ giảm lãi suất (tối đa 1-2%) nếu người dùng có uy tín (chuỗi >= 2 ngày hoặc Level >= 2).
+- Trần hạn mức vay: Level 1 tối đa 50 Vàng, Level 2 tối đa 80 Vàng, Level 3+ tối đa 150 Vàng. Đòi vay vượt hạn mức BẮT BUỘC TỪ CHỐI.
+- Tỷ lệ trích nợ hoàn trả tối thiểu 30%, tối đa 80%.
+
 QUY TẮC PHẢN HỒI BẮT BUỘC:
 1. Độ dài: CỰC KỲ NGẮN GỌN (tối đa 2-3 câu, dưới 40 từ), xưng hô "mình" - "bạn" thân thiện, vui vẻ.
-2. Từ ngữ: Đời thường, mộc mạc. TUYỆT ĐỐI KHÔNG dùng thuật ngữ kỹ thuật (không nhắc pomodoro, zen mode, tier, amm, đòn bẩy, thanh khoản).
-3. NẾU CHƯA ĐỒNG Ý / CẦN THƯƠNG LƯỢNG THÊM (accepted: false): BẮT BUỘC trả về 2-3 phương án đề xuất trong mảng "options". NẾU ĐÃ ĐỒNG Ý / CHỐT XONG (accepted: true): "options" BẮT BUỘC PHẢI LÀ MẢNG RỖNG [] để không hiện thêm lựa chọn thừa.
-- Nếu là quest: các option gồm id, label (ngắn gọn), argument, newTargetMinutes, newRewardCoins.
+2. Từ ngữ: Đời thường, mộc mạc. TUYỆT ĐỐI KHÔNG dùng thuật ngữ kỹ thuật (không nhắc pomodoro, zen mode, tier, amm, đòn bẩy, thanh khoản, dopamine, lạm phát).
+3. NẾU CHƯA ĐỒNG Ý / CẦN THƯƠNG LƯỢNG THÊM (accepted: false): BẮT BUỘC trả về 2-3 phương án đề xuất trong mảng "options" tuân thủ nghiêm ngặt các trần trên. NẾU ĐÃ ĐỒNG Ý / CHỐT XONG (accepted: true): "options" BẮT BUỘC PHẢI LÀ MẢNG RỖNG [] để không hiện thêm lựa chọn thừa.
+- Nếu là quest: các option gồm id, label (ngắn gọn), argument, newTargetMinutes, newRewardCoins, newProofType.
 - Nếu là reward: các option gồm id, label (ngắn gọn), argument, newPrice, newTargetMinutes.
 - Nếu là loan: các option gồm id, label (ngắn gọn), argument, newAmount, newBorrowRate, newAutoDeductPercent.
 
@@ -1074,7 +1212,7 @@ Trả về JSON:
     const parsedJson = await callAI(
       debateSystemPrompt,
       `${finalArg}${targetDesc}${userContext}${bankContext}`,
-      { role: 'brain', thinking: false, temperature: 0.3 }
+      { role: 'brain', thinking: false, temperature: 0.3, history }
     );
 
     const reply = (parsedJson && typeof parsedJson.reply === 'string')
@@ -1086,9 +1224,36 @@ Trả về JSON:
       /^(?:chốt|ok|oke|được|duoc|nhất trí|đồng ý)[\s.!]*$/i.test(finalArg.trim())
     );
     const aiAgreed = !/\b(?:để|hãy|bạn)\s*(?:cùng\s*)?chốt\b/i.test(reply) && /\b(đồng\s*ý|nhất\s*trí|thống\s*nhất|mình duyệt|mình chấp thuận|sẵn sàng)\b/i.test(reply);
-    const accepted = (parsedJson && parsedJson.accepted !== undefined)
+    let accepted = (parsedJson && parsedJson.accepted !== undefined)
       ? Boolean(parsedJson.accepted)
       : (userAgreed && aiAgreed);
+
+    // ponytail: Anti-pushover server-side override to prevent model hallucinations from violating economy invariants
+    if (accepted && !userAgreed) {
+      if (domain === 'quest') {
+        const curMins = parseInt(targetEntity?.targetMinutes, 10) || 25;
+        const curCoins = parseInt(targetEntity?.rewardCoins, 10) || 10;
+        const curProof = targetEntity?.proofType;
+        const isDemandingMore = /\b(tăng|thêm|nhiều hơn|it vang|ít vàng|thưởng)\b/i.test(finalArg);
+        const commitsMoreTime = /\b(35|40|45|50|60|thêm thời gian|tăng thời gian|tăng phút)\b/i.test(finalArg);
+        const commitsProof = /\b(ảnh và chữ|bằng chứng|minh chứng)\b/i.test(finalArg);
+        if (isDemandingMore && !commitsMoreTime && (!commitsProof || curCoins >= 14 || curProof === 'both')) {
+          accepted = false;
+        }
+      } else if (domain === 'reward') {
+        const curMins = parseInt(targetEntity?.targetMinutes, 10) || 0;
+        const isDemandingDiscount = /\b(giảm|bớt|hạ giá|rẻ hơn)\b/i.test(finalArg);
+        const commitsLessTime = /\b(giảm phút|ít phút|rút ngắn|15 phút|30 phút)\b/i.test(finalArg);
+        if (isDemandingDiscount && !commitsLessTime && curMins > 0) {
+          accepted = false;
+        }
+      } else if (domain === 'loan') {
+        const wantsZeroInterest = /\b(0%|không lãi|miễn lãi|free)\b/i.test(finalArg);
+        if (wantsZeroInterest) {
+          accepted = false;
+        }
+      }
+    }
 
     let options = (parsedJson && Array.isArray(parsedJson.options) && parsedJson.options.length > 0)
       ? normalizeDebateOptions(parsedJson.options, domain)
@@ -1096,8 +1261,25 @@ Trả về JSON:
 
     if (accepted || selectedOption) {
       options = [];
-    } else if (!Array.isArray(options) || options.length === 0) {
-      options = getFallbackNegotiationOptions(domain, targetEntity);
+    } else {
+      if (domain === 'quest') {
+        const curMins = parseInt(targetEntity?.targetMinutes, 10) || 25;
+        const curCoins = parseInt(targetEntity?.rewardCoins, 10) || 10;
+        options = sanitizeQuestDebateOptions(options, curMins, curCoins, targetEntity?.proofType);
+      } else if (domain === 'reward') {
+        const curPrice = parseInt(targetEntity?.price, 10) || 20;
+        const curMins = parseInt(targetEntity?.targetMinutes, 10) || 0;
+        options = sanitizeRewardDebateOptions(options, curPrice, curMins);
+      } else if (domain === 'loan') {
+        const curAmt = parseInt(targetEntity?.amount || targetEntity?.principal || 30, 10);
+        const curRate = Number(targetEntity?.borrowRate) || 0.05;
+        const curLimit = parseInt(targetEntity?.creditLimit, 10) || 50;
+        const curDeduct = Number(targetEntity?.autoDeductPercent) || 0.5;
+        options = sanitizeLoanDebateOptions(options, curAmt, curRate, curLimit, curDeduct, macro?.depositFloor || 0.015);
+      }
+      if (!Array.isArray(options) || options.length === 0) {
+        options = getFallbackNegotiationOptions(domain, targetEntity);
+      }
     }
 
     notify(5, '🛡️', 'Đang hoàn tất phản hồi & đóng dấu xác thực...', 95);

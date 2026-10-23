@@ -1208,18 +1208,30 @@ async function hydrateFromCloud(isManual = false) {
       }
       if (typeof cloudData.focusNotes === 'string') {
         appState.focusNotes = cloudData.focusNotes;
-        if (typeof syncAllNoteEditors === 'function') {
-          syncAllNoteEditors(cloudData.focusNotes);
-        } else {
-          const editor = document.getElementById('focus-notes-editor');
-          if (editor && document.activeElement !== editor) {
-            editor.innerHTML = cloudData.focusNotes;
-            if (typeof updateNotesStats === 'function') updateNotesStats();
+        const isReactNotesActive = typeof document !== 'undefined' && Boolean(
+          document.querySelector('[data-react-notes-workspace="true"]') ||
+          document.querySelector('[data-react-notes-editor="true"]')
+        );
+        if (!isReactNotesActive) {
+          if (typeof syncAllNoteEditors === 'function') {
+            syncAllNoteEditors(cloudData.focusNotes);
+          } else {
+            const editor = document.getElementById('focus-notes-editor');
+            if (editor && document.activeElement !== editor) {
+              editor.innerHTML = cloudData.focusNotes;
+              if (typeof updateNotesStats === 'function') updateNotesStats();
+            }
           }
         }
       }
       if (typeof loadNotesWorkspace === 'function' && document.getElementById('tab-notes')?.classList.contains('hidden') === false) {
-        loadNotesWorkspace();
+        const isReactNotesActive = typeof document !== 'undefined' && Boolean(
+          document.querySelector('[data-react-notes-workspace="true"]') ||
+          document.querySelector('[data-react-notes-editor="true"]')
+        );
+        if (!isReactNotesActive) {
+          loadNotesWorkspace();
+        }
       }
       saveLocalCache();
       renderAll();

@@ -18,6 +18,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const mdPath = path.join(rootDir, 'components/notes/markdown.ts');
   const providerPath = path.join(rootDir, 'components/providers/LevelUpProvider.tsx');
   const legacyNotesPath = path.join(rootDir, 'src/js/15-modal.js');
+  const storagePath = path.join(rootDir, 'src/js/03-storage.js');
 
   const pageContent = fs.readFileSync(pagePath, 'utf8');
   const workspaceContent = fs.readFileSync(workspacePath, 'utf8');
@@ -28,6 +29,7 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
   const mdContent = fs.readFileSync(mdPath, 'utf8');
   const providerContent = fs.readFileSync(providerPath, 'utf8');
   const legacyNotesContent = fs.readFileSync(legacyNotesPath, 'utf8');
+  const storageContent = fs.readFileSync(storagePath, 'utf8');
 
   it('1. Đảm bảo cấu trúc 4 Component React 19 và module index được tạo đầy đủ', () => {
     assert.ok(fs.existsSync(workspacePath), 'Phải có components/notes/NotesWorkspace.tsx');
@@ -150,6 +152,50 @@ describe('Giai đoạn 3.3 — Sổ Tay Ghi Chú RPG (React 19 Notes Workspace)'
     assert.ok(
       workspaceContent.includes("setSearchQuery('')"),
       'handleCreateNewNote phải xóa bộ lọc tìm kiếm để hiển thị ghi chú mới'
+    );
+  });
+
+  it('9. Đảm bảo NoteEditor được render với React key riêng biệt theo ID ghi chú để chống rò rỉ DOM', () => {
+    assert.ok(
+      workspaceContent.includes("key={currentActiveNote?.id || 'no-active-note'}"),
+      'NotesWorkspace phải gắn key theo ID ghi chú cho NoteEditor'
+    );
+    assert.ok(
+      workspaceContent.includes('data-react-controlled="true"'),
+      'NotesWorkspace container phải có data-react-controlled'
+    );
+    assert.ok(
+      editorContent.includes('data-react-controlled="true"'),
+      'NoteEditor inputs phải có data-react-controlled'
+    );
+  });
+
+  it('10. Đảm bảo script legacy có guard chống DOM Hijacking khi React Notes Workspace đang active', () => {
+    assert.ok(
+      legacyNotesContent.includes('data-react-notes-workspace') && legacyNotesContent.includes('data-react-notes-editor'),
+      '15-modal.js phải kiểm tra data-react-notes-workspace và data-react-notes-editor'
+    );
+    assert.ok(
+      storageContent.includes('data-react-notes-workspace'),
+      '03-storage.js phải kiểm tra data-react-notes-workspace trước khi đồng bộ syncAllNoteEditors'
+    );
+  });
+
+  it('11. Đảm bảo LevelUpProvider hợp nhất ghi chú timestamp-aware và không xóa mất note cục bộ mới tạo', () => {
+    assert.ok(
+      providerContent.includes('mergeNotesById'),
+      'LevelUpProvider phải có hàm mergeNotesById'
+    );
+    assert.ok(
+      providerContent.includes('deletedNoteIdsRef'),
+      'LevelUpProvider phải quản lý deletedNoteIdsRef để chống zombie note'
+    );
+  });
+
+  it('12. Đảm bảo handleReloadNotes không gọi đệ quy win.reloadNotesWorkspace gây RangeError', () => {
+    assert.ok(
+      !workspaceContent.includes('win.reloadNotesWorkspace('),
+      'handleReloadNotes không được gọi win.reloadNotesWorkspace(true) vì gây lặp vô hạn đệ quy'
     );
   });
 });

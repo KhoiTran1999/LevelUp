@@ -261,6 +261,7 @@ Trả về ĐÚNG định dạng JSON:
             selectedOption: selectedOpt,
             userPrompt: argument,
             userArgument: argument,
+            history,
             tools: [TOOL_GET_MY_USER_DATA, TOOL_UPDATE_QUEST_PARAMETERS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
             onEvent
           });
@@ -603,6 +604,7 @@ Trả về ĐÚNG định dạng JSON:
             selectedOption: selectedOpt,
             userPrompt: argument,
             userArgument: argument,
+            history,
             tools: [TOOL_GET_MY_USER_DATA, TOOL_UPDATE_REWARD_PARAMETERS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
             onEvent
           });
@@ -648,7 +650,7 @@ Trả về ĐÚNG định dạng JSON:
             let cleanName = result.newName || reward.name;
             let cleanDesc = result.newDescription !== undefined ? result.newDescription : (reward.description || '');
 
-            cleanPrice = Math.max(1, Math.min(500, isNaN(cleanPrice) ? reward.price : cleanPrice));
+            cleanPrice = Math.max(5, Math.min(500, isNaN(cleanPrice) ? reward.price : cleanPrice));
             cleanMinutes = Math.max(0, Math.min(360, isNaN(cleanMinutes) ? (reward.targetMinutes || 0) : cleanMinutes));
 
             result.newName = cleanName;
@@ -1175,6 +1177,7 @@ Trả về JSON:
             selectedOption: selectedOpt,
             userPrompt: argument,
             userArgument: argument,
+            history,
             tools: [TOOL_GET_MY_USER_DATA, TOOL_UPDATE_LOAN_TERMS, TOOL_SUGGEST_NEGOTIATION_OPTIONS],
             onEvent
           });

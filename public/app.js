@@ -1472,18 +1472,30 @@ async function hydrateFromCloud(isManual = false) {
       }
       if (typeof cloudData.focusNotes === 'string') {
         appState.focusNotes = cloudData.focusNotes;
-        if (typeof syncAllNoteEditors === 'function') {
-          syncAllNoteEditors(cloudData.focusNotes);
-        } else {
-          const editor = document.getElementById('focus-notes-editor');
-          if (editor && document.activeElement !== editor) {
-            editor.innerHTML = cloudData.focusNotes;
-            if (typeof updateNotesStats === 'function') updateNotesStats();
+        const isReactNotesActive = typeof document !== 'undefined' && Boolean(
+          document.querySelector('[data-react-notes-workspace="true"]') ||
+          document.querySelector('[data-react-notes-editor="true"]')
+        );
+        if (!isReactNotesActive) {
+          if (typeof syncAllNoteEditors === 'function') {
+            syncAllNoteEditors(cloudData.focusNotes);
+          } else {
+            const editor = document.getElementById('focus-notes-editor');
+            if (editor && document.activeElement !== editor) {
+              editor.innerHTML = cloudData.focusNotes;
+              if (typeof updateNotesStats === 'function') updateNotesStats();
+            }
           }
         }
       }
       if (typeof loadNotesWorkspace === 'function' && document.getElementById('tab-notes')?.classList.contains('hidden') === false) {
-        loadNotesWorkspace();
+        const isReactNotesActive = typeof document !== 'undefined' && Boolean(
+          document.querySelector('[data-react-notes-workspace="true"]') ||
+          document.querySelector('[data-react-notes-editor="true"]')
+        );
+        if (!isReactNotesActive) {
+          loadNotesWorkspace();
+        }
       }
       saveLocalCache();
       renderAll();
@@ -13155,6 +13167,9 @@ window.getActiveNote = getActiveNote;
 
 // 4. Khởi chạy và tải toàn bộ giao diện Sổ Ghi Chú
 function loadNotesWorkspace() {
+  if (typeof document !== 'undefined' && (document.querySelector('[data-react-notes-workspace="true"]') || document.querySelector('[data-react-notes-editor="true"]'))) {
+    return;
+  }
   renderTopicsBar();
   renderNotesSidebar();
   loadActiveNoteIntoEditor();
@@ -13457,6 +13472,9 @@ function formatNoteDate(timestamp) {
 
 // 8. Nạp ghi chú đang chọn vào Trình Soạn Thảo (Active Editor)
 function loadActiveNoteIntoEditor() {
+  if (typeof document !== 'undefined' && (document.querySelector('[data-react-notes-workspace="true"]') || document.querySelector('[data-react-notes-editor="true"]'))) {
+    return;
+  }
   const note = getActiveNote();
   if (!note) return;
 
@@ -13835,7 +13853,14 @@ function syncAllNoteEditors(htmlContent) {
   const modalEditor = document.getElementById('focus-notes-editor');
 
   [tabEditor, modalEditor].forEach(ed => {
-    if (ed && ed.innerHTML !== content && document.activeElement !== ed) {
+    if (
+      ed &&
+      !ed.dataset?.reactNotesEditor &&
+      !ed.dataset?.reactControlled &&
+      !ed.closest?.('[data-react-controlled="true"]') &&
+      ed.innerHTML !== content &&
+      document.activeElement !== ed
+    ) {
       ed.innerHTML = content;
     }
   });

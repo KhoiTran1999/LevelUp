@@ -10,7 +10,7 @@ import {
 } from './markdown';
 
 export interface NoteEditorHandle {
-  flush: () => void;
+  flush: (overrideId?: string) => void;
   cancelPendingSave: (id?: string) => void;
 }
 
@@ -78,12 +78,12 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   }, []);
 
   // Flush current editor content immediately to avoid data loss
-  const flushCurrentEditor = useCallback(() => {
+  const flushCurrentEditor = useCallback((overrideId?: string) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
-    const targetId = currentEditingNoteIdRef.current;
+    const targetId = overrideId || activeNote?.id || currentEditingNoteIdRef.current;
     if (!targetId || !editorRef.current || deletedNoteIdsRef.current.has(targetId)) return;
 
     const currentHtml = editorRef.current.innerHTML || '';
@@ -122,7 +122,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       content: currentHtml,
       title: currentTitle,
     };
-  }, [onSaveNote]);
+  }, [activeNote?.id, onSaveNote]);
 
   // Expose flush and cancel handle to parent
   useImperativeHandle(ref, () => ({
@@ -754,6 +754,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
             <input
               ref={titleInputRef}
               id={`${idPrefix}active-note-title`}
+              data-react-controlled="true"
+              data-react-notes-editor="true"
               type="text"
               placeholder={activeNote ? 'Tiêu đề ghi chú...' : 'Chọn hoặc tạo ghi chú mới...'}
               defaultValue={activeNote?.title || ''}
@@ -1078,6 +1080,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           ref={editorRef}
           id={idPrefix === 'modal-' ? 'focus-notes-editor' : 'focus-notes-tab-editor'}
           data-react-notes-editor="true"
+          data-react-controlled="true"
           contentEditable={Boolean(activeNote)}
           suppressContentEditableWarning
           spellCheck="false"

@@ -35,6 +35,7 @@ export interface AICallOptions {
   thinking?: boolean;
   abortSignal?: AbortSignal;
   imageBase64?: string | null;
+  history?: Array<{ role: string; content: string }>;
 }
 
 export interface OpenAITool {
@@ -73,6 +74,8 @@ export interface NegotiationAgentParams {
   targetEntity?: any;
   selectedOption?: any;
   userPrompt?: string;
+  userArgument?: string;
+  history?: Array<{ role: string; content: string }>;
   tools?: any[];
   onEvent?: (event: string, data: any) => void;
   maxTurns?: number;
