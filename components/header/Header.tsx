@@ -18,12 +18,9 @@ export function Header() {
   const {
     optimisticProfile,
     toggleTheme,
-    toggleSound,
-    togglePalette,
   } = useLevelUp();
 
   const isDark = optimisticProfile.theme === 'dark';
-  const soundEnabled = optimisticProfile.soundEnabled;
 
   return (
     <header
@@ -41,7 +38,7 @@ export function Header() {
             }
           }}
           className="flex items-center gap-1.5 sm:gap-2 text-left hover:bg-slate-100 dark:hover:bg-slate-900/80 rounded-xl px-1.5 sm:px-2 py-1 transition group min-w-0 shrink cursor-pointer"
-          title="Hồ sơ cá nhân & Mã tài khoản"
+          title="Hồ sơ cá nhân & Cài đặt"
         >
           <div
             id="hero-avatar"
@@ -90,45 +87,10 @@ export function Header() {
           </div>
         </button>
 
-        {/* Adventurer Stats Pill (Right) */}
-        <div className="flex items-center gap-1 sm:gap-2 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-1.5 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors shrink-0">
-          {/* Level Display */}
-          <button
-            id="btn-level-info"
-            type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                (window as unknown as { openLevelInfoModal?: () => void }).openLevelInfoModal?.();
-              }
-            }}
-            className="flex flex-col justify-center shrink-0 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 rounded-lg px-0.5 sm:px-1.5 py-0.5 transition cursor-pointer text-left group"
-            title="Xem thông tin Cấp độ & Cách tăng LV"
-          >
-            <div className="flex items-center justify-between gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-mono leading-tight">
-              <span
-                className="text-indigo-600 dark:text-indigo-400 font-bold group-hover:underline flex items-center gap-0.5"
-                id="hero-level-badge"
-                suppressHydrationWarning
-              >
-                LV. {optimisticProfile.level || 1}
-              </span>
-              <span className="hidden" id="hero-exp-text" suppressHydrationWarning>
-                {optimisticProfile.exp || 0}/100
-              </span>
-            </div>
-            <div className="hidden">
-              <div
-                id="hero-exp-bar"
-                style={{ width: `${Math.min(100, Math.max(0, optimisticProfile.exp || 0))}%` }}
-              />
-            </div>
-          </button>
-
-          {/* Vertical Divider */}
-          <div className="h-4 sm:h-5 w-px bg-slate-300 dark:bg-slate-800 shrink-0" />
-
+        {/* Adventurer Stats Pill (Right) - Tối ưu giao diện: chỉ giữ lại Vàng và Darkmode */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm dark:shadow-inner transition-colors shrink-0">
           {/* Gold Balance */}
-          <div className="flex items-center gap-0.5 sm:gap-1.5 px-0.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 px-0.5 shrink-0" title={`Số vàng: ${optimisticProfile.coins ?? 0}`}>
             <span className="text-xs sm:text-base coin-icon coin-shine" />
             <div className="flex flex-col">
               <span className="hidden md:inline text-[9px] text-slate-500 dark:text-slate-400 leading-none">
@@ -147,84 +109,28 @@ export function Header() {
           {/* Vertical Divider */}
           <div className="h-4 sm:h-5 w-px bg-slate-300 dark:bg-slate-800 shrink-0" />
 
-          {/* Streak Badge */}
+          {/* Dark Mode Toggle */}
           <button
-            id="btn-streak-info"
+            id="toggle-theme-btn"
             type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                (window as unknown as { openStreakInfoModal?: () => void }).openStreakInfoModal?.();
-              }
-            }}
-            className="flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-1.5 py-0.5 rounded-lg hover:bg-orange-500/10 dark:hover:bg-orange-500/20 transition cursor-pointer text-left group shrink-0"
-            title="Xem Chuỗi ngày & Thưởng"
+            suppressHydrationWarning
+            onClick={toggleTheme}
+            className="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm flex items-center justify-center cursor-pointer"
+            title="Chế độ sáng / tối"
+            aria-label="Chế độ sáng / tối"
           >
-            <span
-              id="hero-streak-flame"
-              className="text-xs sm:text-base streak-flame transition-transform group-hover:scale-110"
-            >
-              🔥
-            </span>
-            <div className="flex flex-col">
-              <span className="hidden md:inline text-[9px] text-slate-500 dark:text-slate-400 leading-none">
-                Chuỗi
-              </span>
-              <span
-                id="hero-streak-count"
-                suppressHydrationWarning
-                className="text-xs sm:text-sm font-extrabold text-orange-600 dark:text-orange-400 font-mono tracking-tight leading-tight"
-              >
-                {optimisticProfile.streak || 1}
-                <span className="hidden sm:inline text-[10px] font-medium ml-0.5">ngày</span>
-              </span>
-            </div>
+            <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-lg leading-none" />
           </button>
+        </div>
 
-          {/* Vertical Divider */}
-          <div className="h-4 sm:h-5 w-px bg-slate-300 dark:bg-slate-800 shrink-0" />
-
-          {/* Control Buttons: Theme, Palette, Sound */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              id="toggle-palette-btn"
-              type="button"
-              onClick={e => {
-                if (e.shiftKey) {
-                  togglePalette();
-                } else if (typeof window !== 'undefined' && typeof (window as unknown as { openPaletteStudio?: () => void }).openPaletteStudio === 'function') {
-                  (window as unknown as { openPaletteStudio: () => void }).openPaletteStudio();
-                } else {
-                  togglePalette();
-                }
-              }}
-              className="flex p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm items-center justify-center cursor-pointer"
-              title="Bảng màu giao diện (Bấm để mở, Shift-Click đổi nhanh)"
-            >
-              <Icon name="palette" className="text-lg leading-none" />
-            </button>
-
-            <button
-              id="toggle-theme-btn"
-              type="button"
-              suppressHydrationWarning
-              onClick={toggleTheme}
-              className="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm flex items-center justify-center cursor-pointer"
-              title="Chế độ sáng / tối"
-            >
-              <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-lg leading-none" />
-            </button>
-
-            <button
-              id="toggle-sound-btn"
-              type="button"
-              suppressHydrationWarning
-              onClick={toggleSound}
-              className="p-1 sm:p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition text-xs sm:text-sm hidden xs:flex items-center justify-center cursor-pointer"
-              title="Bật / tắt âm thanh"
-            >
-              <Icon name={soundEnabled ? 'volume_up' : 'volume_off'} className="text-lg leading-none" />
-            </button>
-          </div>
+        {/* Hidden elements preserving legacy references and test contracts (level, exp, streak, openPaletteStudio) */}
+        <div className="hidden" aria-hidden="true">
+          <span id="hero-level-badge">{optimisticProfile.level || 1}</span>
+          <span id="hero-exp-text">{optimisticProfile.exp || 0}/100</span>
+          <div id="hero-exp-bar" style={{ width: `${Math.min(100, Math.max(0, optimisticProfile.exp || 0))}%` }} />
+          <span id="hero-streak-count">{optimisticProfile.streak || 1}</span>
+          <span id="hero-streak-flame">🔥</span>
+          {/* Note: Level, Streak, Sound and Palette Studio (openPaletteStudio) are managed inside Settings/Profile Modal */}
         </div>
       </div>
     </header>

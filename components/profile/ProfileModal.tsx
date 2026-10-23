@@ -44,6 +44,7 @@ export function ProfileModal() {
     isSyncing,
     toggleSound,
     togglePalette,
+    toggleTheme,
   } = useLevelUp();
   const [open, setOpen] = useState(false);
   const [nickname, setNickname] = useState('');
@@ -109,7 +110,7 @@ export function ProfileModal() {
       }
     }
 
-    const currentState = legacyWindow.appState;
+    const currentState = legacyWindow?.appState;
     if (!currentState?.profile) {
       notify('Không thể lưu hồ sơ: trạng thái ứng dụng chưa sẵn sàng.', 'error');
       return;
@@ -142,7 +143,7 @@ export function ProfileModal() {
 
   const pickAvatar = (value: string) => {
     setAvatar(value);
-    legacyWindow.sfx?.playClick?.();
+    legacyWindow?.sfx?.playClick?.();
   };
 
   if (!open) return null;
@@ -152,7 +153,7 @@ export function ProfileModal() {
       <section role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" className="rpg-panel m3-dialog-panel modal-fade flex max-h-[92vh] w-full flex-col overflow-hidden rounded-3xl border border-slate-200 shadow-2xl dark:border-slate-800 sm:max-w-md">
         <div className="m3-drag-handle sm:hidden" />
         <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
-          <h2 id="profile-modal-title" className="font-rpg-title text-sm font-extrabold text-amber-600 dark:text-amber-400 sm:text-base">HỒ SƠ CÁ NHÂN</h2>
+          <h2 id="profile-modal-title" className="font-rpg-title text-sm font-extrabold text-amber-600 dark:text-amber-400 sm:text-base">HỒ SƠ CÁ NHÂN & CÀI ĐẶT</h2>
           <button type="button" aria-label="Đóng" onClick={close} className="modal-close m3-icon-btn flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/60 text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700">✕</button>
         </header>
 
@@ -182,6 +183,7 @@ export function ProfileModal() {
             <button type="button" onClick={() => legacyWindow?.openStreakInfoModal?.()} className="flex items-center gap-1 rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[11px] font-bold text-orange-600 dark:text-orange-400">Chi tiết ℹ️</button>
           </div>
 
+          <div className={modalCard}><span className="text-slate-500">Chế độ giao diện:</span><button type="button" onClick={toggleTheme} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">{profile.theme === 'dark' ? '🌙 Chế độ tối' : '☀️ Chế độ sáng'}</button></div>
           <div className={modalCard}><span className="text-slate-500">Âm thanh:</span><button type="button" onClick={toggleSound} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">{profile.soundEnabled ? '🔊 Đang bật' : '🔇 Đang tắt'}</button></div>
           <div className={modalCard}><span className="text-slate-500">Bảng màu:</span><div className="flex gap-1.5"><button type="button" onClick={() => togglePalette()} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">⚡ Đổi màu</button><button type="button" onClick={() => legacyWindow?.openPaletteStudio?.()} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">Tùy chỉnh 🎨</button></div></div>
 
