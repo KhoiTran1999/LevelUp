@@ -23,10 +23,7 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
     deleteNote,
     togglePinNote,
     refreshNotes,
-    startupStatus,
   } = useLevelUp();
-
-  const isLoading = startupStatus === 'loading';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileActive, setMobileActive] = useState(false);
@@ -396,7 +393,6 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
           <NoteSidebar
             notes={filteredNotes}
             activeNoteId={currentActiveNote?.id || null}
-            isLoading={isLoading}
             idPrefix={idPrefix}
             onSelectNote={handleSelectNote}
             onTogglePin={handleTogglePin}
@@ -413,27 +409,18 @@ export function NotesWorkspace({ modalMode = false, onReady }: NotesWorkspacePro
             modalMode || mobileActive ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          {isLoading && !currentActiveNote ? (
-            <div className="p-4 sm:p-6 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 animate-pulse space-y-4 select-none">
-              <div className="h-7 w-2/3 rounded-lg bg-slate-200 dark:bg-slate-700" />
-              <div className="h-4 w-full rounded bg-slate-100 dark:bg-slate-800" />
-              <div className="h-4 w-5/6 rounded bg-slate-100 dark:bg-slate-800" />
-              <div className="h-4 w-3/4 rounded bg-slate-100 dark:bg-slate-800" />
-            </div>
-          ) : (
-            <NoteEditor
-              key={currentActiveNote?.id || 'no-active-note'}
-              ref={editorHandleRef}
-              activeNote={currentActiveNote}
-              idPrefix={idPrefix}
-              exposeLegacyFunctions={!modalMode}
-              onBackToListMobile={handleBackToListMobile}
-              onSaveNote={handleSaveNote}
-              onTogglePin={() => currentActiveNote && handleTogglePin(currentActiveNote.id)}
-              onDeleteNote={() => currentActiveNote && handleDeleteNote(currentActiveNote.id)}
-              onReloadNotes={handleReloadNotes}
-            />
-          )}
+          <NoteEditor
+            key={currentActiveNote?.id || 'no-active-note'}
+            ref={editorHandleRef}
+            activeNote={currentActiveNote}
+            idPrefix={idPrefix}
+            exposeLegacyFunctions={!modalMode}
+            onBackToListMobile={handleBackToListMobile}
+            onSaveNote={handleSaveNote}
+            onTogglePin={() => currentActiveNote && handleTogglePin(currentActiveNote.id)}
+            onDeleteNote={() => currentActiveNote && handleDeleteNote(currentActiveNote.id)}
+            onReloadNotes={handleReloadNotes}
+          />
         </div>
       </div>
     </>

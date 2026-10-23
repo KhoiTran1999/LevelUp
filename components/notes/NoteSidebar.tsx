@@ -8,7 +8,6 @@ interface NoteSidebarProps {
   notes: NoteItem[];
   activeNoteId: string | null;
   idPrefix?: string;
-  isLoading?: boolean;
   onSelectNote: (noteId: string) => void;
   onTogglePin: (noteId: string) => void;
   onDeleteNote: (noteId: string) => void;
@@ -34,7 +33,6 @@ export function NoteSidebar({
   notes,
   activeNoteId,
   idPrefix = '',
-  isLoading = false,
   onSelectNote,
   onTogglePin,
   onDeleteNote,
@@ -45,7 +43,7 @@ export function NoteSidebar({
       <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-500 dark:text-slate-400 font-mono uppercase tracking-wider">
         <span id={`${idPrefix}notes-list-header-label`}>Danh Sách Ghi Chú</span>
         <span id={`${idPrefix}notes-list-count`} className="text-[11px] font-normal text-slate-400">
-          {isLoading ? '...' : `${notes.length} mục`}
+          {notes.length} mục
         </span>
       </div>
 
@@ -53,20 +51,7 @@ export function NoteSidebar({
         id={`${idPrefix}react-notes-card-list`}
         className="flex flex-col gap-2 max-h-[calc(100vh-270px)] lg:max-h-[620px] overflow-y-auto custom-scrollbar pr-0.5"
       >
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, idx) => (
-            <div
-              key={`note-skel-${idx}`}
-              className="p-3 sm:p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 animate-pulse space-y-2 select-none"
-            >
-              <div className="flex items-center justify-between">
-                <div className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
-                <div className="h-3 w-10 rounded bg-slate-200/60 dark:bg-slate-800" />
-              </div>
-              <div className="h-3 w-4/5 rounded bg-slate-100 dark:bg-slate-800/50" />
-            </div>
-          ))
-        ) : notes.length === 0 ? (
+        {notes.length === 0 ? (
           <div className="text-center py-8 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-slate-400">
             <span className="material-symbols-outlined text-2xl mb-1 text-slate-300 dark:text-slate-600">
               search_off

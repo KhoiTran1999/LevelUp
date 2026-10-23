@@ -23,9 +23,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
     state,
     executeBankDeposit,
     openBankWithdrawModal,
-    startupStatus,
   } = useLevelUp();
-  const isLoading = startupStatus === 'loading';
 
   const [selectedTerm, setSelectedTerm] = useState<number>(0);
   const [depositAmountInput, setDepositAmountInput] = useState<string>('');
@@ -119,7 +117,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
             <span className="text-[11px] text-slate-600 dark:text-slate-400">Đang Gửi:</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span id="bank-user-deposited" className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                {isLoading ? <span className="inline-block h-6 w-12 bg-emerald-200/50 dark:bg-emerald-900/40 rounded animate-pulse align-middle" /> : deposited}
+                {deposited}
               </span>
               <span className="coin-icon"></span>
             </div>
@@ -128,7 +126,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
             <span className="text-[11px] text-slate-600 dark:text-slate-400">Lãi Tích Lũy:</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span id="bank-user-interest" className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
-                {isLoading ? <span className="inline-block h-6 w-12 bg-amber-200/50 dark:bg-amber-900/40 rounded animate-pulse align-middle" /> : `+${depositInterest}`}
+                +{depositInterest}
               </span>
               <span className="coin-icon"></span>
             </div>
@@ -167,19 +165,7 @@ export function SavingsColumn({ rates, currentTime }: SavingsColumnProps) {
             </span>
           </div>
           <div id="bank-deposits-list" className="max-h-60 overflow-y-auto pr-0.5 space-y-2">
-            {isLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map(i => (
-                  <div key={i} className="p-3 rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 animate-pulse flex items-center justify-between select-none">
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-3.5 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
-                      <div className="h-2.5 w-1/4 rounded bg-slate-200/60 dark:bg-slate-800" />
-                    </div>
-                    <div className="h-5 w-12 rounded bg-slate-200 dark:bg-slate-700" />
-                  </div>
-                ))}
-              </div>
-            ) : deposits.length === 0 ? (
+            {deposits.length === 0 ? (
               <div className="p-3 text-center text-[11px] text-slate-400 dark:text-slate-500 italic bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                 Chưa có sổ tiết kiệm nào. Hãy gửi Vàng ở form bên dưới!
               </div>

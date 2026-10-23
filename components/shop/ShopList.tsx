@@ -4,11 +4,9 @@ import React, { useMemo } from 'react';
 import type { ShopItem } from '@/types/levelup';
 import { useLevelUp } from '@/hooks/useLevelUp';
 import { RewardCard } from './RewardCard';
-import { QuestCardSkeleton } from '@/components/quests/QuestCardSkeleton';
 
 export function ShopList() {
-  const { state, startupStatus } = useLevelUp();
-  const isLoading = startupStatus === 'loading';
+  const { state } = useLevelUp();
 
   const tierScores: Record<string, number> = {
     legendary: 4,
@@ -51,17 +49,7 @@ export function ShopList() {
   return (
     <div className="w-full">
       {/* Shop Grid */}
-      {isLoading ? (
-        <div
-          id="shop-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5"
-          aria-label="Đang tải danh sách phần thưởng"
-        >
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <QuestCardSkeleton key={`shop-skel-${idx}`} />
-          ))}
-        </div>
-      ) : sortedItems.length > 0 ? (
+      {sortedItems.length > 0 ? (
         <div
           id="shop-grid"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5"

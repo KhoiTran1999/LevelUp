@@ -16,8 +16,7 @@ interface TransactionsViewProps {
 }
 
 export function TransactionsView({ ledger }: TransactionsViewProps) {
-  const { openProofViewer, startupStatus } = useLevelUp();
-  const isLoading = startupStatus === 'loading';
+  const { openProofViewer } = useLevelUp();
   const [filter, setFilter] = useState<LedgerFilterType>('all');
   const [page, setPage] = useState<number>(1);
   const [expandedDescIds, setExpandedDescIds] = useState<Record<string, boolean>>({});
@@ -113,25 +112,7 @@ export function TransactionsView({ ledger }: TransactionsViewProps) {
       {/* Danh Sách Giao Dịch */}
       <div className="rpg-panel rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800">
         <div id="ledger-list" className="space-y-4">
-          {isLoading ? (
-            <div className="space-y-2.5" aria-label="Đang tải lịch sử giao dịch">
-              {Array.from({ length: 5 }).map((_, idx) => (
-                <div
-                  key={`ledger-skel-${idx}`}
-                  className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 animate-pulse flex items-center justify-between gap-3 select-none"
-                >
-                  <div className="flex items-center gap-2.5 flex-1">
-                    <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-700 shrink-0" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-3.5 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
-                      <div className="h-2.5 w-1/4 rounded bg-slate-100 dark:bg-slate-800" />
-                    </div>
-                  </div>
-                  <div className="h-4 w-14 rounded bg-slate-200 dark:bg-slate-700 shrink-0" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-xs">
               Chưa có giao dịch Vàng. Hãy hoàn thành nhiệm vụ hoặc đổi quà để ghi nhận.
             </div>

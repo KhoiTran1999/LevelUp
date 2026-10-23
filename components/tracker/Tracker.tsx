@@ -213,8 +213,7 @@ export function Heatmap({
 }
 
 export function Tracker() {
-  const { activeTab, state, startupStatus } = useLevelUp();
-  const isLoading = startupStatus === 'loading';
+  const { activeTab, state } = useLevelUp();
   const [period, setPeriod] = useState<TrackerPeriod>('monthly');
   const [category, setCategory] = useState<TrackerCategory>('quests');
 
@@ -312,25 +311,7 @@ export function Tracker() {
         <div className="text-[11px] text-slate-400 font-mono hidden sm:block">💡 Sắp xếp: Nhiều Vàng nhất ➔ Ít Vàng nhất</div>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-4" aria-label="Đang tải dữ liệu thói quen">
-          {Array.from({ length: 3 }).map((_, idx) => (
-            <div key={`tracker-skel-${idx}`} className="rpg-card rpg-panel rounded-2xl p-4 sm:p-5 animate-pulse select-none">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700" />
-                  <div className="space-y-1.5">
-                    <div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-3 w-20 rounded bg-slate-100 dark:bg-slate-800" />
-                  </div>
-                </div>
-                <div className="h-4 w-16 rounded bg-slate-200 dark:bg-slate-700" />
-              </div>
-              <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800/60" />
-            </div>
-          ))}
-        </div>
-      ) : items.length > 0 ? (
+      {items.length > 0 ? (
         <div className="space-y-4">
           {items.map(({ item, isQuest }) => {
             const itemWithHistory = {

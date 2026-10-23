@@ -23,9 +23,7 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
     executeBankBorrow,
     executeBankRepay,
     openCreditLimitModal,
-    startupStatus,
   } = useLevelUp();
-  const isLoading = startupStatus === 'loading';
 
   const [selectedTerm, setSelectedTerm] = useState<number>(7);
   const [borrowAmountInput, setBorrowAmountInput] = useState<string>('');
@@ -214,7 +212,7 @@ export function LoanColumn({ rates, currentTime }: LoanColumnProps) {
               className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/15 hover:bg-indigo-500/25 active:scale-95 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
               title="Bấm để xem công thức tính & cách nâng hạn mức"
             >
-              <span>Hạn mức: {isLoading ? <span className="inline-block h-2.5 w-6 bg-indigo-200/50 dark:bg-indigo-800/40 rounded animate-pulse align-middle" /> : calculatedLimit}</span> <span className="coin-icon"></span>
+              <span>Hạn mức: {calculatedLimit}</span> <span className="coin-icon"></span>
             </button>
           </div>
         </div>

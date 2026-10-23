@@ -39,24 +39,22 @@ export function TabNavigation() {
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-1.5 xl:gap-2">
         <div className="flex items-center gap-1 sm:gap-1.5 xl:gap-2 min-w-0">
           {/* Logo & Brand */}
-          <a
-            href="/quests"
+          <div
             className="hidden lg:flex items-center gap-2 mr-0.5 sm:mr-1 pr-1.5 sm:pr-2.5 border-r border-slate-200 dark:border-slate-800 shrink-0 select-none cursor-pointer"
-            onClick={(e) => { e.preventDefault(); handleTabClick('quests'); }}
+            onClick={() => handleTabClick('quests')}
             title="LevelUp"
           >
             <img src="/logo.svg" alt="LevelUp Logo" className="w-7 h-7 rounded-lg shadow-sm" />
             <span className="font-rpg-title font-black text-sm tracking-wider bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent hidden xl:inline">
               LEVELUP
             </span>
-          </a>
+          </div>
 
           {/* Main Tab 1: Quests */}
-          <a
-            href="/quests"
+          <button
             data-tab="quests"
-            role="tab"
-            onClick={(e) => { e.preventDefault(); handleTabClick('quests'); }}
+            type="button"
+            onClick={() => handleTabClick('quests')}
             className={`nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-bold text-xs transition shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'quests'
                 ? 'active bg-indigo-500/15 dark:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/40 shadow-xs'
@@ -71,14 +69,13 @@ export function TabNavigation() {
             >
               {activeQuestsCount}
             </span>
-          </a>
+          </button>
 
           {/* Main Tab 2: Shop / Rewards */}
-          <a
-            href="/shop"
+          <button
             data-tab="shop"
-            role="tab"
-            onClick={(e) => { e.preventDefault(); handleTabClick('shop'); }}
+            type="button"
+            onClick={() => handleTabClick('shop')}
             className={`nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'shop'
                 ? 'active bg-purple-500/15 dark:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shadow-xs'
@@ -94,14 +91,13 @@ export function TabNavigation() {
             >
               {shopCount}
             </span>
-          </a>
+          </button>
 
           {/* Main Tab 3: Notes / Brain Dump */}
-          <a
-            href="/notes"
+          <button
             data-tab="notes"
-            role="tab"
-            onClick={(e) => { e.preventDefault(); handleTabClick('notes'); }}
+            type="button"
+            onClick={() => handleTabClick('notes')}
             className={`nav-tab flex items-center gap-1 sm:gap-1.5 px-2 md:px-2.5 xl:px-3 py-1.5 rounded-xl font-semibold text-xs transition shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'notes'
                 ? 'active bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs'
@@ -118,7 +114,7 @@ export function TabNavigation() {
             >
               {notesCount}
             </span>
-          </a>
+          </button>
 
           {/* Dropdown Xem Thêm */}
           <div className="relative inline-block text-left" id="nav-more-dropdown-container" ref={moreRef}>
@@ -139,11 +135,10 @@ export function TabNavigation() {
                 isMoreOpen ? 'block' : 'hidden'
               } absolute left-0 mt-1.5 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-50`}
             >
-              <a
-                href="/tracker"
+              <button
                 data-tab="tracker"
-                role="tab"
-                onClick={(e) => { e.preventDefault(); handleTabClick('tracker'); }}
+                type="button"
+                onClick={() => handleTabClick('tracker')}
                 className={`nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left cursor-pointer ${
                   activeTab === 'tracker'
                     ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
@@ -152,13 +147,12 @@ export function TabNavigation() {
               >
                 <Icon name="insights" className="text-[18px] leading-none shrink-0 text-indigo-500" />
                 <span>Tần Suất Thói Quen</span>
-              </a>
+              </button>
 
-              <a
-                href="/leaderboard"
+              <button
                 data-tab="leaderboard"
-                role="tab"
-                onClick={(e) => { e.preventDefault(); handleTabClick('leaderboard'); }}
+                type="button"
+                onClick={() => handleTabClick('leaderboard')}
                 className={`nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left cursor-pointer ${
                   activeTab === 'leaderboard'
                     ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
@@ -167,13 +161,12 @@ export function TabNavigation() {
               >
                 <Icon name="leaderboard" className="text-[18px] leading-none shrink-0 text-amber-500" />
                 <span>Bảng Xếp Hạng</span>
-              </a>
+              </button>
 
-              <a
-                href="/ledger"
+              <button
                 data-tab="ledger"
-                role="tab"
-                onClick={(e) => { e.preventDefault(); handleTabClick('ledger'); }}
+                type="button"
+                onClick={() => handleTabClick('ledger')}
                 className={`nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left cursor-pointer ${
                   activeTab === 'ledger'
                     ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
@@ -182,13 +175,12 @@ export function TabNavigation() {
               >
                 <Icon name="receipt_long" className="text-[18px] leading-none shrink-0 text-emerald-500" />
                 <span>Sổ Giao Dịch</span>
-              </a>
+              </button>
 
-              <a
-                href="/bank"
+              <button
                 data-tab="bank"
-                role="tab"
-                onClick={(e) => { e.preventDefault(); handleTabClick('bank'); }}
+                type="button"
+                onClick={() => handleTabClick('bank')}
                 className={`nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left cursor-pointer ${
                   activeTab === 'bank'
                     ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
@@ -197,15 +189,14 @@ export function TabNavigation() {
               >
                 <Icon name="account_balance" className="text-[18px] leading-none shrink-0 text-sky-500" />
                 <span>Ngân Hàng RPG</span>
-              </a>
+              </button>
 
               {isRoleAdmin && (
-                <a
-                  href="/admin"
+                <button
                   id="nav-tab-admin"
                   data-tab="admin"
-                  role="tab"
-                  onClick={(e) => { e.preventDefault(); handleTabClick('admin'); }}
+                  type="button"
+                  onClick={() => handleTabClick('admin')}
                   className={`nav-tab nav-more-item flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-lg transition text-left cursor-pointer ${
                     activeTab === 'admin'
                       ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
@@ -214,7 +205,7 @@ export function TabNavigation() {
                 >
                   <Icon name="admin_panel_settings" className="text-[18px] leading-none shrink-0" />
                   <span>Quản Trị Viên</span>
-                </a>
+                </button>
               )}
 
               <button

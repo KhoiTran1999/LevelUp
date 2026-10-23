@@ -5,14 +5,12 @@ import type { Quest } from '@/types/levelup';
 import { useLevelUp } from '@/hooks/useLevelUp';
 import { QuestFilterChips, type QuestFilterType } from './QuestFilterChips';
 import { QuestCard } from './QuestCard';
-import { QuestCardSkeleton } from './QuestCardSkeleton';
 import { WeekCalendarStrip } from './WeekCalendarStrip';
 import { Icon } from '@/components/ui/Icon';
 
 export function QuestList() {
-  const { optimisticQuests, state, startupStatus } = useLevelUp();
+  const { optimisticQuests, state } = useLevelUp();
   const [filter, setFilter] = useState<QuestFilterType>('active');
-  const isLoading = startupStatus === 'loading';
 
   const rankScores: Record<string, number> = {
     S: 6,
@@ -113,20 +111,14 @@ export function QuestList() {
               id="quests-daily-progress-text"
               className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400"
             >
-              {isLoading ? (
-                <span className="inline-block h-3.5 w-16 rounded bg-slate-200 dark:bg-slate-700 animate-pulse align-middle" />
-              ) : (
-                `${completedQuests}/${totalQuests} (${percentComplete}%)`
-              )}
+              {completedQuests}/{totalQuests} ({percentComplete}%)
             </span>
           </div>
           <span
             id="quests-daily-progress-status"
             className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0"
           >
-            {isLoading ? (
-              <span className="inline-block h-3 w-16 rounded bg-indigo-500/20 animate-pulse align-middle" />
-            ) : percentComplete === 100
+            {percentComplete === 100
               ? 'Hoàn thành xuất sắc'
               : percentComplete > 0
               ? 'Đang thực hiện'
@@ -144,12 +136,8 @@ export function QuestList() {
         >
           <div
             id="quests-daily-progress-bar"
-            className={`m3-linear-progress-bar h-full rounded-full transition-all duration-300 ${
-              isLoading
-                ? 'w-1/3 bg-indigo-400/50 animate-pulse'
-                : 'bg-gradient-to-r from-indigo-500 to-indigo-600'
-            }`}
-            style={{ width: isLoading ? '30%' : `${percentComplete}%` }}
+            className="m3-linear-progress-bar h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-300 rounded-full"
+            style={{ width: `${percentComplete}%` }}
           />
         </div>
       </div>
@@ -158,17 +146,7 @@ export function QuestList() {
       <WeekCalendarStrip />
 
       {/* Quests Grid */}
-      {isLoading ? (
-        <div
-          id="quests-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5"
-          aria-label="Đang tải danh sách nhiệm vụ"
-        >
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <QuestCardSkeleton key={`quest-skel-${idx}`} />
-          ))}
-        </div>
-      ) : filteredQuests.length > 0 ? (
+      {filteredQuests.length > 0 ? (
         <div
           id="quests-grid"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5"
