@@ -168,6 +168,34 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     setSaveStatus('✓ Đã lưu tự động');
   }, [activeNote?.id, flushCurrentEditor, updateStats]);
 
+  // Keep separately mounted editors (tab and focus-timer modal) in sync for the same note.
+  useEffect(() => {
+    if (!activeNote || currentEditingNoteIdRef.current !== activeNote.id) return;
+
+    const nextContent = activeNote.content || '';
+    const nextTitle = activeNote.title || '';
+    const currentContent = editorRef.current?.innerHTML || '';
+    const currentTitle = titleInputRef.current?.value || '';
+
+    if (currentContent === nextContent && currentTitle === nextTitle) return;
+
+    if (editorRef.current) {
+      editorRef.current.innerHTML = nextContent;
+      editorRef.current.querySelectorAll('.note-checkbox').forEach(checkbox => {
+        checkbox.setAttribute('contenteditable', 'false');
+      });
+      updateStats(editorRef.current.textContent || '');
+    }
+    if (titleInputRef.current) {
+      titleInputRef.current.value = nextTitle;
+    }
+    savedNoteSnapshotRef.current = {
+      id: activeNote.id,
+      title: nextTitle,
+      content: nextContent,
+    };
+  }, [activeNote?.id, activeNote?.content, activeNote?.title, updateStats]);
+
   // Flush on unmount
   useEffect(() => {
     return () => {
