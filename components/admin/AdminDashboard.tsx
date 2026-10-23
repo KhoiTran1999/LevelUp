@@ -466,7 +466,24 @@ export function AdminDashboard() {
 
         {error && <div role="alert" className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400">{error}</div>}
         {loading && users.length === 0
-          ? <div className={`${panelClass} p-8 text-center text-xs text-slate-500`}>Đang tải danh sách người chơi...</div>
+          ? (
+            <div className={`${panelClass} p-4 overflow-hidden`}>
+              <div className="space-y-3 animate-pulse" aria-label="Đang tải danh sách người chơi">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/60 dark:bg-slate-800/50">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="h-9 w-9 rounded-xl bg-slate-200 dark:bg-slate-700" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+                        <div className="h-2.5 w-24 rounded bg-slate-100 dark:bg-slate-800" />
+                      </div>
+                    </div>
+                    <div className="h-4 w-16 rounded bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
           : filteredUsers.length === 0
             ? <div className={`${panelClass} p-8 text-center text-xs text-slate-400`}>Không tìm thấy người chơi nào phù hợp với bộ lọc.</div>
             : <>

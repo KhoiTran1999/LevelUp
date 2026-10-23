@@ -17,11 +17,13 @@ const isAvatarUrl = (avatar?: string) => {
 export function Header() {
   const {
     optimisticProfile,
+    startupStatus,
     toggleTheme,
     toggleSound,
     togglePalette,
   } = useLevelUp();
 
+  const isLoading = startupStatus === 'loading';
   const isDark = optimisticProfile.theme === 'dark';
   const soundEnabled = optimisticProfile.soundEnabled;
 
@@ -48,7 +50,9 @@ export function Header() {
             suppressHydrationWarning
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm sm:text-base group-hover:scale-105 transition shadow-sm shrink-0 overflow-hidden"
           >
-            {isAvatarUrl(optimisticProfile.avatar) ? (
+            {isLoading ? (
+              <span className="w-full h-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+            ) : isAvatarUrl(optimisticProfile.avatar) ? (
               <img
                 referrerPolicy="no-referrer"
                 src={optimisticProfile.avatar}
@@ -72,12 +76,18 @@ export function Header() {
                 suppressHydrationWarning
                 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate"
               >
-                {optimisticProfile.nickname || 'Thành Viên'}
+                {isLoading ? (
+                  <span className="inline-block h-3.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse align-middle" />
+                ) : (
+                  optimisticProfile.nickname || 'Thành Viên'
+                )}
               </span>
               <span
                 id="sync-indicator"
-                className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 shrink-0"
-                title="Đã đồng bộ"
+                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
+                  isLoading ? 'bg-amber-400 animate-ping' : 'bg-emerald-500'
+                }`}
+                title={isLoading ? 'Đang đồng bộ...' : 'Đã đồng bộ'}
               />
             </div>
             <div
@@ -85,7 +95,11 @@ export function Header() {
               id="hero-title"
               suppressHydrationWarning
             >
-              {optimisticProfile.title || 'Tân Binh Cấp 1'}
+              {isLoading ? (
+                <span className="inline-block h-2.5 w-14 bg-indigo-200/50 dark:bg-indigo-900/40 rounded animate-pulse align-middle" />
+              ) : (
+                optimisticProfile.title || 'Tân Binh Cấp 1'
+              )}
             </div>
           </div>
         </button>
@@ -110,7 +124,11 @@ export function Header() {
                 id="hero-level-badge"
                 suppressHydrationWarning
               >
-                LV. {optimisticProfile.level || 1}
+                {isLoading ? (
+                  <span className="inline-block h-3 w-8 bg-indigo-200/50 dark:bg-indigo-900/40 rounded animate-pulse align-middle" />
+                ) : (
+                  `LV. ${optimisticProfile.level || 1}`
+                )}
               </span>
               <span className="hidden" id="hero-exp-text" suppressHydrationWarning>
                 {optimisticProfile.exp || 0}/100
@@ -139,7 +157,11 @@ export function Header() {
                 suppressHydrationWarning
                 className="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight leading-tight"
               >
-                {optimisticProfile.coins ?? 0}
+                {isLoading ? (
+                  <span className="inline-block h-3 w-7 bg-amber-200/60 dark:bg-amber-900/40 rounded animate-pulse align-middle" />
+                ) : (
+                  optimisticProfile.coins ?? 0
+                )}
               </span>
             </div>
           </div>
@@ -174,8 +196,14 @@ export function Header() {
                 suppressHydrationWarning
                 className="text-xs sm:text-sm font-extrabold text-orange-600 dark:text-orange-400 font-mono tracking-tight leading-tight"
               >
-                {optimisticProfile.streak || 1}
-                <span className="hidden sm:inline text-[10px] font-medium ml-0.5">ngày</span>
+                {isLoading ? (
+                  <span className="inline-block h-3 w-7 bg-orange-200/60 dark:bg-orange-900/40 rounded animate-pulse align-middle" />
+                ) : (
+                  <>
+                    {optimisticProfile.streak || 1}
+                    <span className="hidden sm:inline text-[10px] font-medium ml-0.5">ngày</span>
+                  </>
+                )}
               </span>
             </div>
           </button>

@@ -342,7 +342,24 @@ export function Leaderboard() {
 
       {selectedView === 'ranking' ? (
         <div className="space-y-3 sm:space-y-4">
-          {entries.length > 0 && (
+          {(isLoading && entries.length === 0) ? (
+            <div className="grid grid-cols-3 gap-2 sm:gap-3.5 items-end" data-testid="leaderboard-podium">
+              {[
+                { order: 'order-1', h: 'h-24 sm:h-32' },
+                { order: 'order-2', h: 'h-28 sm:h-40' },
+                { order: 'order-3', h: 'h-20 sm:h-28' },
+              ].map((pod, i) => (
+                <div
+                  key={i}
+                  className={`flex flex-col items-center justify-end rounded-2xl rpg-panel p-3 border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 animate-pulse ${pod.order} ${pod.h}`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 mb-2" />
+                  <div className="h-3 w-16 rounded bg-slate-200 dark:bg-slate-700 mb-1" />
+                  <div className="h-2.5 w-10 rounded bg-slate-100 dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          ) : entries.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:gap-3.5 items-end" data-testid="leaderboard-podium">
               {[1, 0, 2].map((index, position) => {
                 const entry = topThree[index];
@@ -413,7 +430,20 @@ export function Leaderboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                   {isLoading && entries.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-slate-500 text-xs">Đang tải bảng xếp hạng...</td></tr>
+                    Array.from({ length: 5 }).map((_, idx) => (
+                      <tr key={`lb-skel-${idx}`} className="animate-pulse">
+                        <td className="py-3 px-2 sm:px-4"><div className="h-4 w-6 rounded bg-slate-200 dark:bg-slate-800 mx-auto sm:mx-0" /></td>
+                        <td className="py-3 px-2 sm:px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                            <div className="h-3.5 w-24 rounded bg-slate-200 dark:bg-slate-800" />
+                          </div>
+                        </td>
+                        <td className="py-3 px-2.5 sm:px-4 hidden sm:table-cell"><div className="h-3 w-16 rounded bg-slate-100 dark:bg-slate-800/60" /></td>
+                        <td className="py-3 px-2.5 sm:px-4 text-center hidden sm:table-cell"><div className="h-3 w-8 rounded bg-slate-100 dark:bg-slate-800/60 mx-auto" /></td>
+                        <td className="py-3 px-2 sm:px-4 text-right"><div className="h-3.5 w-14 rounded bg-slate-200 dark:bg-slate-800 ml-auto" /></td>
+                      </tr>
+                    ))
                   ) : error ? (
                     <tr><td colSpan={5} className="text-center py-8 text-rose-500 text-xs">{error}</td></tr>
                   ) : filteredEntries.length === 0 ? (

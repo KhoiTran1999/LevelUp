@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   },
   // CRITICAL FOR NEXT.JS 16: Externalize native backend drivers from bundling
   serverExternalPackages: ['ioredis', 'postgres', '@aws-sdk/client-s3'],
+  async rewrites() {
+    return [
+      {
+        source: '/:tab(quests|shop|notes|bank|ledger|leaderboard|tracker|admin)',
+        destination: '/',
+      },
+    ];
+  },
   async headers() {
     return [
       {

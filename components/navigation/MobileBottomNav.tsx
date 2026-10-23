@@ -85,9 +85,9 @@ export function MobileBottomNav() {
           </button>
         </div>
 
-        <button
+        <a href="/tracker" role="tab"
           data-tab="tracker"
-          type="button"
+          
           onClick={() => handleTabClick('tracker')}
           className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
         >
@@ -101,11 +101,11 @@ export function MobileBottomNav() {
             </div>
           </div>
           <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-        </button>
+        </a>
 
-        <button
+        <a href="/leaderboard" role="tab"
           data-tab="leaderboard"
-          type="button"
+          
           onClick={() => handleTabClick('leaderboard')}
           className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
         >
@@ -119,11 +119,11 @@ export function MobileBottomNav() {
             </div>
           </div>
           <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-        </button>
+        </a>
 
-        <button
+        <a href="/ledger" role="tab"
           data-tab="ledger"
-          type="button"
+          
           onClick={() => handleTabClick('ledger')}
           className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
         >
@@ -137,11 +137,11 @@ export function MobileBottomNav() {
             </div>
           </div>
           <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-        </button>
+        </a>
 
-        <button
+        <a href="/bank" role="tab"
           data-tab="bank"
-          type="button"
+          
           onClick={() => handleTabClick('bank')}
           className="mobile-nav-btn mobile-more-item group flex items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left cursor-pointer"
         >
@@ -155,12 +155,12 @@ export function MobileBottomNav() {
             </div>
           </div>
           <span className="material-symbols-outlined text-base text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-        </button>
+        </a>
 
-        <button
+        <a href="/admin" role="tab"
           id="mobile-nav-admin"
           data-tab="admin"
-          type="button"
+          
           onClick={() => handleTabClick('admin')}
           className={`mobile-nav-btn mobile-more-item group ${isAdmin ? 'flex' : 'hidden'} items-center justify-between gap-3 w-full px-3 py-2 sm:py-2.5 rounded-2xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-all text-left cursor-pointer`}
         >
@@ -174,7 +174,7 @@ export function MobileBottomNav() {
             </div>
           </div>
           <span className="material-symbols-outlined text-base text-purple-300 dark:text-purple-600 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0">chevron_right</span>
-        </button>
+        </a>
 
         <button
           id="btn-mobile-about"
@@ -198,9 +198,9 @@ export function MobileBottomNav() {
       <nav className="md:hidden m3-navigation-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800/80 backdrop-blur-lg safe-area-bottom shadow-lg transition-colors">
       <div className="flex items-center justify-around h-[68px] max-w-md mx-auto px-2 pt-1 pb-[env(safe-area-inset-bottom,0px)]">
         {/* Tab Nhiệm Vụ */}
-        <button
+        <a href="/quests" role="tab"
           data-tab="quests"
-          type="button"
+          
           onClick={() => handleTabClick('quests')}
           className={`mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all ${
             activeTab === 'quests' ? 'active' : ''
@@ -227,12 +227,12 @@ export function MobileBottomNav() {
           >
             Nhiệm Vụ
           </span>
-        </button>
+        </a>
 
         {/* Tab Phần Thưởng */}
-        <button
+        <a href="/shop" role="tab"
           data-tab="shop"
-          type="button"
+          
           onClick={() => handleTabClick('shop')}
           className={`mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all ${
             activeTab === 'shop' ? 'active' : ''
@@ -259,12 +259,12 @@ export function MobileBottomNav() {
           >
             Phần Thưởng
           </span>
-        </button>
+        </a>
 
         {/* Tab Ghi Chú */}
-        <button
+        <a href="/notes" role="tab"
           data-tab="notes"
-          type="button"
+          
           onClick={() => handleTabClick('notes')}
           className={`mobile-nav-btn flex-1 min-w-0 flex flex-col items-center justify-center py-1 group cursor-pointer focus:outline-none transition-all ${
             activeTab === 'notes' ? 'active' : ''
@@ -291,7 +291,7 @@ export function MobileBottomNav() {
           >
             Ghi Chú
           </span>
-        </button>
+        </a>
 
         {/* Tab Xem Thêm */}
         <button

@@ -105,6 +105,14 @@ function mergeNotesById(localNotes: NoteItem[], cloudNotes: NoteItem[], tombston
 
 const TAB_TYPES: TabType[] = ['quests', 'shop', 'notes', 'bank', 'leaderboard', 'ledger', 'tracker', 'admin'];
 
+function getTabFromUrl(): TabType | null {
+  if (typeof window === 'undefined') return null;
+  const fromHash = getTabFromHash(window.location.hash);
+  if (fromHash) return fromHash;
+  const path = window.location.pathname.replace(/^\/+/, '').split('/')[0];
+  return TAB_TYPES.includes(path as TabType) ? (path as TabType) : null;
+}
+
 function getTabFromHash(hash: string): TabType | null {
   const tab = hash.replace(/^#/, '');
   return TAB_TYPES.includes(tab as TabType) ? (tab as TabType) : null;
@@ -231,6 +239,7 @@ interface LevelUpContextType {
   activeNoteId: string | null;
   activeTab: TabType;
   isSyncing: boolean;
+  startupStatus: 'loading' | 'ready' | 'error';
   setActiveTab: (tab: TabType) => void;
   // Quest Actions
   completeQuest: (questId: string, skipProofCheck?: boolean) => Promise<void>;
@@ -845,7 +854,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const syncTabFromHash = () => {
-      const tab = getTabFromHash(window.location.hash);
+      const tab = getTabFromUrl() || getTabFromHash(window.location.hash);
       if (tab) setActiveTab(tab);
     };
 
@@ -859,8 +868,10 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
 
     syncTabFromHash();
     window.addEventListener('hashchange', syncTabFromHash);
+    window.addEventListener('popstate', syncTabFromHash);
     return () => {
       window.removeEventListener('hashchange', syncTabFromHash);
+      window.removeEventListener('popstate', syncTabFromHash);
       if (typeof window !== 'undefined') {
         delete (window as unknown as { __syncReactActiveTab?: (tab: string) => void }).__syncReactActiveTab;
         delete (window as unknown as { setActiveTab?: (tab: TabType) => void }).setActiveTab;
@@ -2904,6 +2915,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         activeNoteId: state.activeNoteId,
         activeTab,
         isSyncing,
+        startupStatus,
         setActiveTab,
         completeQuest,
         addQuest,
@@ -2976,33 +2988,35 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      {startupStatus !== 'ready' && (
+      {startupStatus === 'loading' && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50/95 px-5 dark:bg-slate-950/95"
+          className="sr-only"
           role="status"
           aria-live="polite"
-          aria-busy={startupStatus === 'loading'}
+          aria-busy="true"
         >
-          {startupStatus === 'loading' ? (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <span className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-500/20 border-t-indigo-600" />
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đang tải dữ liệu tài khoản...</p>
-            </div>
-          ) : (
-            <div className="max-w-sm rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl dark:border-rose-900 dark:bg-slate-900">
-              <p className="font-bold text-slate-900 dark:text-white">Không tải được dữ liệu</p>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Kiểm tra kết nối mạng rồi thử tải lại dữ liệu.
-              </p>
-              <button
-                type="button"
-                onClick={() => setStartupAttempt(attempt => attempt + 1)}
-                className="mt-5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
-              >
-                Thử lại
-              </button>
-            </div>
-          )}
+          <p>Đang tải dữ liệu tài khoản...</p>
+        </div>
+      )}
+      {startupStatus === 'error' && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs px-5"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="max-w-sm rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl dark:border-rose-900 dark:bg-slate-900">
+            <p className="font-bold text-slate-900 dark:text-white">Không tải được dữ liệu</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              Kiểm tra kết nối mạng rồi thử tải lại dữ liệu.
+            </p>
+            <button
+              type="button"
+              onClick={() => setStartupAttempt(attempt => attempt + 1)}
+              className="mt-5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
+            >
+              Thử lại
+            </button>
+          </div>
         </div>
       )}
     </LevelUpContext.Provider>
