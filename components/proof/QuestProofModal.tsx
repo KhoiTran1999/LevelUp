@@ -36,6 +36,7 @@ export function QuestProofModal() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const proofRequestRef = useRef<AbortController | null>(null);
 
   // Initialize modal state when quest changes or modal opens
   useEffect(() => {
@@ -70,8 +71,16 @@ export function QuestProofModal() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      proofRequestRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isProofModalOpen) {
+      proofRequestRef.current?.abort();
+      proofRequestRef.current = null;
+    }
+  }, [isProofModalOpen]);
 
   if (!isProofModalOpen || !activeProofQuest) {
     return null;
@@ -169,6 +178,9 @@ export function QuestProofModal() {
 
     setIsSubmitting(true);
     setEvalResult(null);
+    proofRequestRef.current?.abort();
+    const requestController = new AbortController();
+    proofRequestRef.current = requestController;
 
     // M3 Linear Progress simulation
     const steps = [
@@ -195,7 +207,7 @@ export function QuestProofModal() {
         workContent: mode === 'text' || mode === 'both' ? trimmedText : undefined,
         userNote: mode === 'photo' ? trimmedNote : trimmedText,
         imageBase64: mode === 'photo' || mode === 'both' ? (photoBase64 || undefined) : undefined,
-      });
+      }, requestController.signal);
 
       if (timerRef.current) clearInterval(timerRef.current);
 
@@ -213,6 +225,9 @@ export function QuestProofModal() {
       }
     } catch (err: unknown) {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Lỗi kết nối AI';
       setEvalResult({
         approved: false,
@@ -220,6 +235,9 @@ export function QuestProofModal() {
       });
       triggerToast(`Lỗi thẩm định: ${msg}`, 'error');
     } finally {
+      if (proofRequestRef.current === requestController) {
+        proofRequestRef.current = null;
+      }
       setIsSubmitting(false);
     }
   };

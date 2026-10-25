@@ -36,6 +36,7 @@ export function ProfileModal() {
     state,
     isSyncing,
     toggleSound,
+    toggleWakeLock,
     togglePalette,
     toggleTheme,
     updateProfile,
@@ -161,6 +162,7 @@ export function ProfileModal() {
 
           <div className={modalCard}><span className="text-slate-500">Chế độ giao diện:</span><button type="button" onClick={toggleTheme} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">{profile.theme === 'dark' ? '🌙 Chế độ tối' : '☀️ Chế độ sáng'}</button></div>
           <div className={modalCard}><span className="text-slate-500">Âm thanh:</span><button type="button" onClick={toggleSound} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">{profile.soundEnabled ? '🔊 Đang bật' : '🔇 Đang tắt'}</button></div>
+          <div className={modalCard}><span className="text-slate-500">Giữ sáng màn hình:</span><button type="button" onClick={toggleWakeLock} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">{profile.wakeLockEnabled ? '🔋 Đang bật' : '🔋 Đang tắt'}</button></div>
           <div className={modalCard}><span className="text-slate-500">Bảng màu:</span><div className="flex gap-1.5"><button type="button" onClick={() => togglePalette()} className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold dark:bg-slate-800">⚡ Đổi màu</button><button type="button" onClick={() => legacyWindow?.openPaletteStudio?.()} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">Tùy chỉnh 🎨</button></div></div>
 
           <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-900/60">

@@ -69,6 +69,7 @@ export async function fetchUserState(userSub: string): Promise<LevelUpAppState> 
         lastStreakDate: '',
         streakHistory: [],
         soundEnabled: true,
+        wakeLockEnabled: false,
         theme: 'dark',
         role: 'adventurer',
         googleId: userSub,
@@ -139,4 +140,3 @@ export async function getUserCloudData(redis: any, userSub?: string | null): Pro
     return null;
   }
 }
-

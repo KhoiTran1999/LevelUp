@@ -156,15 +156,23 @@ async function injectCapsuleIntoAllTabs() {
       if (t.id && t.url && (t.url.startsWith('http://') || t.url.startsWith('https://'))) {
         const u = t.url.toLowerCase();
         if (!u.includes('localhost') && !u.includes('127.0.0.1') && !u.includes('vercel.app')) {
-          await chrome.scripting.executeScript({
-            target: { tabId: t.id },
-            files: ['capsule.js']
-          }).catch(() => {});
+          await ensureCapsuleInTab(t.id);
         }
       }
     }
   } catch (err) {
     console.warn('[LevelUp Shield] Error auto-injecting capsule:', err);
+  }
+
+  async function ensureCapsuleInTab(tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: 'SHOW_CAPSULE_NOW' });
+    } catch (_) {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['capsule.js']
+      }).catch(() => {});
+    }
   }
 }
 
@@ -247,16 +255,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 
-  // Ensure capsule is injected into the updated tab
-  if (changeInfo.status === 'complete' && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
-    const u = targetUrl.toLowerCase();
-    if (!u.includes('localhost') && !u.includes('127.0.0.1') && !u.includes('vercel.app')) {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['capsule.js']
-      }).catch(() => {});
-    }
-  }
+  // Manifest content_scripts inject capsule.js after normal page loads.
 });
 
 // Update Extension Action Badge
@@ -552,4 +551,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
-

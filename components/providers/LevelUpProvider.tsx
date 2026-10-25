@@ -160,6 +160,7 @@ const INITIAL_PROFILE: UserProfile = {
   lastStreakDate: '',
   streakHistory: [],
   soundEnabled: true,
+  wakeLockEnabled: false,
   theme: 'light',
   role: 'adventurer',
   googleId: '',
@@ -245,7 +246,7 @@ interface LevelUpContextType {
   isProofViewerModalOpen: boolean;
   openProofModal: (quest: Quest) => void;
   closeProofModal: () => void;
-  submitProof: (payload: ProofSubmissionPayload) => Promise<ProofVerificationResult>;
+  submitProof: (payload: ProofSubmissionPayload, signal?: AbortSignal) => Promise<ProofVerificationResult>;
   claimApprovedProof: () => void;
   closeProofApprovedModal: () => void;
   openProofViewer: (data: ViewerProofData) => void;
@@ -297,6 +298,7 @@ interface LevelUpContextType {
   // Global System Actions
   toggleTheme: () => void;
   toggleSound: () => void;
+  toggleWakeLock: () => void;
   togglePalette: (paletteName?: string) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   startFocusTimer: (quest: Quest) => void;
@@ -454,11 +456,22 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         ledger: st.ledger,
         proofPhotos: st.proofPhotos,
         completedQuestIds: st.completedQuestIds,
-        activeTimer: st.activeTimer
+        activeTimer: st.activeTimer,
+        wakeLockEnabled: st.profile?.wakeLockEnabled
       });
     } catch {
       return '';
     }
+  }, []);
+
+  const toggleWakeLock = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        wakeLockEnabled: !prev.profile.wakeLockEnabled,
+      },
+    }));
   }, []);
 
   // Directly sync state to Cloud (Redis + Supabase Postgres via /api/sync)
@@ -786,16 +799,21 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setActiveTab]);
 
-  // ponytail: Delta-time countdown runner with native WakeLock & MediaSession synchronization. Upgrade path: Service Worker timer offloading.
+  // Delta-time countdown runner; WakeLock is opt-in because it increases battery drain.
   useEffect(() => {
     if (state.activeTimer?.status !== 'running') {
       return;
     }
 
+    let isEffectActive = true;
     let wakeLockSentinel: WakeLockSentinel | null = null;
-    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+    if (state.profile.wakeLockEnabled && typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
       navigator.wakeLock.request('screen').then(wl => {
-        wakeLockSentinel = wl;
+        if (isEffectActive) {
+          wakeLockSentinel = wl;
+        } else {
+          wl.release().catch(() => {});
+        }
       }).catch(() => {});
     }
 
@@ -874,12 +892,13 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
     }, 500);
 
     return () => {
+      isEffectActive = false;
       clearInterval(interval);
       if (wakeLockSentinel) {
         wakeLockSentinel.release().catch(() => {});
       }
     };
-  }, [state.activeTimer?.status]);
+  }, [state.activeTimer?.status, state.profile.wakeLockEnabled]);
 
   // Synchronize timer state with Chrome extension capsule, localStorage, and external listeners
   useEffect(() => {
@@ -1009,7 +1028,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const submitProof = useCallback(
-    async (payload: ProofSubmissionPayload): Promise<ProofVerificationResult> => {
+    async (payload: ProofSubmissionPayload, signal?: AbortSignal): Promise<ProofVerificationResult> => {
       const quest = state.quests.find(q => q.id === payload.questId) || activeProofQuest;
       if (!quest) {
         throw new Error('Không tìm thấy thông tin nhiệm vụ.');
@@ -1021,6 +1040,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal,
         body: JSON.stringify({
           action: 'verify_proof',
           payload,
@@ -2756,6 +2776,7 @@ export function LevelUpProvider({ children }: { children: React.ReactNode }) {
         refreshNotes,
         toggleTheme,
         toggleSound,
+        toggleWakeLock,
         togglePalette,
         updateProfile,
         startFocusTimer,

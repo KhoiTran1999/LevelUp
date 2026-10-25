@@ -191,6 +191,7 @@ export interface UserProfile {
   lastStreakDate: string;
   streakHistory: string[];
   soundEnabled: boolean;
+  wakeLockEnabled: boolean;
   theme: 'light' | 'dark';
   role: 'adventurer' | 'admin';
   token?: string;

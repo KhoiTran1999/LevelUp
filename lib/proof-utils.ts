@@ -120,14 +120,41 @@ export function compressImage(file: File, maxWidth = 800, quality = 0.7): Promis
     if (!file || !file.type.startsWith('image/')) {
       return reject(new Error('Tệp tải lên không phải là hình ảnh hợp lệ.'));
     }
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = () => reject(new Error('Không thể phân tích dữ liệu ảnh.'));
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+    const readBlobAsDataUrl = (blob: Blob) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Không thể đọc ảnh đã nén.'));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(blob);
+    };
+
+    const compress = async () => {
+      let bitmap: ImageBitmap | null = null;
+      try {
+        let width: number;
+        let height: number;
+        let drawSource: CanvasImageSource;
+        if (typeof createImageBitmap === 'function') {
+          bitmap = await createImageBitmap(file);
+          width = bitmap.width;
+          height = bitmap.height;
+          drawSource = bitmap;
+        } else {
+          const sourceUrl = await new Promise<string>((resolveUrl, rejectUrl) => {
+            const reader = new FileReader();
+            reader.onerror = () => rejectUrl(new Error('Không thể đọc tệp hình ảnh.'));
+            reader.onload = () => resolveUrl(String(reader.result));
+            reader.readAsDataURL(file);
+          });
+          const image = await new Promise<HTMLImageElement>((resolveImage, rejectImage) => {
+            const imageElement = new Image();
+            imageElement.onerror = () => rejectImage(new Error('Không thể phân tích dữ liệu ảnh.'));
+            imageElement.onload = () => resolveImage(imageElement);
+            imageElement.src = sourceUrl;
+          });
+          width = image.width;
+          height = image.height;
+          drawSource = image;
+        }
         if (width > maxWidth || height > maxWidth) {
           if (width > height) {
             height = Math.round((height * maxWidth) / width);
@@ -142,15 +169,24 @@ export function compressImage(file: File, maxWidth = 800, quality = 0.7): Promis
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          return reject(new Error('Không thể khởi tạo Canvas 2D context.'));
+          throw new Error('Không thể khởi tạo Canvas 2D context.');
         }
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
-      img.src = e.target?.result as string;
+        ctx.drawImage(drawSource, 0, 0, width, height);
+        const blob = await new Promise<Blob | null>(resolveBlob =>
+          canvas.toBlob(resolveBlob, 'image/jpeg', quality)
+        );
+        if (!blob) {
+          throw new Error('Không thể tạo ảnh JPEG đã nén.');
+        }
+        readBlobAsDataUrl(blob);
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('Không thể nén ảnh.'));
+      } finally {
+        bitmap?.close();
+      }
     };
-    reader.readAsDataURL(file);
+
+    void compress();
   });
 }
 
