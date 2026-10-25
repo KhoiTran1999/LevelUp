@@ -36,6 +36,8 @@
   let mascotEnabled = true;
   let soundEnabled = true;
   let wasDismissedThisSession = false;
+  const FOREGROUND_TICK_MS = 1000;
+  const BACKGROUND_TICK_MS = 10000;
 
   // Dragging state for the corner pill
   let isDragging = false;
@@ -1354,20 +1356,35 @@
       soundEnabled = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : true;
 
       updateCapsuleDisplay();
+      scheduleTimerTick();
     });
+  }
+
+  function stopTimerTick() {
+    if (timerInterval !== null) {
+      clearTimeout(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function scheduleTimerTick() {
+    stopTimerTick();
+    if (!currentFocusState?.isRunning) return;
+
+    const delay = document.hidden ? BACKGROUND_TICK_MS : FOREGROUND_TICK_MS;
+    timerInterval = setTimeout(() => {
+      timerInterval = null;
+      if (currentFocusState?.isRunning) {
+        updateCapsuleDisplay();
+        scheduleTimerTick();
+      }
+    }, delay);
   }
 
   window.__LEVELUP_CAPSULE_REFRESH__ = syncAndTick;
 
   // Initial sync
   syncAndTick();
-
-  // Local second ticker
-  timerInterval = setInterval(() => {
-    if (currentFocusState && currentFocusState.isRunning) {
-      updateCapsuleDisplay();
-    }
-  }, 1000);
 
   // Storage listener for live sync across all tabs
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -1383,6 +1400,7 @@
         } catch (_) {}
       }
       updateCapsuleDisplay();
+      scheduleTimerTick();
     }
 
     if (changes.isShieldActive) {
@@ -1426,6 +1444,7 @@
         } catch (_) {}
       }
       updateCapsuleDisplay();
+      scheduleTimerTick();
     } else if (message.type === 'RESTORE_CAPSULE' || message.type === 'SHOW_CAPSULE_NOW') {
       wasDismissedThisSession = false;
       updateCapsuleDisplay();
@@ -1454,5 +1473,6 @@
     } else {
       if (isFlyingActive) resumeCapsuleFlight(300);
     }
+    syncAndTick();
   });
 })();
