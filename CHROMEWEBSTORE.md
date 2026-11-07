@@ -11,18 +11,16 @@ LevelUp — Khiên Chặn Xao Nhãng (Focus Shield)
 Tự động chặn các website gây xao nhãng khi bật Pomodoro Focus trên LevelUp. Kỷ luật thép bảo vệ chuỗi ngày và vàng!
 
 **Detailed Description** [REQUIRED]
-LevelUp Focus Shield là tiện ích mở rộng bảo vệ sự tập trung tối đa dành cho các mạo hiểm giả của Bang Hội LevelUp.
+LevelUp Focus Shield là tiện ích mở rộng tập trung vào việc chặn các website giải trí trong phiên Pomodoro.
 
-Khi bạn kích hoạt phiên làm việc sâu (Pomodoro Focus) trên ứng dụng LevelUp, tiện ích này sẽ tự động dựng khiên chắn phong tỏa các trang mạng xã hội và video giải trí gây cám dỗ. Thay vì vô tình lướt web hàng giờ và đánh mất chuỗi ngày kiên trì, bạn sẽ được diện kiến Thẩm Phán AI với đồng hồ đếm ngược trực tiếp và nút quay trở lại trận chiến chỉ với 1 cú click. Khi phiên tập trung kết thúc hoặc đến giờ giải lao, toàn bộ các trang web sẽ tự động được mở khóa.
+Khi phiên Focus đang chạy, extension dùng Declarative Net Request để chặn hoặc chuyển hướng các tên miền nằm trong Blacklist. Khi phiên kết thúc hoặc chuyển sang giờ nghỉ, khiên tự động hạ.
 
 Các tính năng nổi bật:
-- Tự động đồng bộ hai chiều với đồng hồ Pomodoro của LevelUp theo thời gian thực
-- Mini Floating Capsule Timer: Viên thuốc đếm ngược Pomodoro nổi siêu nhỏ gọn ở góc màn hình mọi trang web (kéo thả tự do, 0% che khuất nội dung, 1-click quay về LevelUp)
-- Chặn tức thì các mạng xã hội và trang web giải trí khi bước vào giờ làm việc sâu
-- Màn hình cảnh báo nhập vai RPG độc quyền với đồng hồ đếm ngược trực quan
-- Hỗ trợ tùy chỉnh danh sách chặn theo nhóm danh mục hoặc tự thêm tên miền yêu thích
-- Hỗ trợ danh sách ngoại lệ (Whitelist) cho các trang phục vụ công việc và học tập
-- Chế độ Kỷ Luật Thép (Strict Discipline Mode) ngăn chặn việc phá vỡ nguyên tắc
+- Đồng bộ trạng thái Focus với ứng dụng LevelUp
+- Chặn mạng xã hội và website giải trí theo Blacklist
+- Hỗ trợ Whitelist cho website phục vụ công việc và học tập
+- Cho phép chọn chế độ chuyển hướng hoặc chặn yêu cầu chính
+- Chế độ Kỷ Luật Thép (Strict Discipline Mode)
 
 Hướng dẫn sử dụng:
 1. Mở ứng dụng LevelUp và bắt đầu một phiên Pomodoro Focus
@@ -89,4 +87,3 @@ Cần thiết để cơ chế Declarative Net Request và trình theo dõi đi�
 | 1.2.0 | 2026-10-19 | Mini RPG Floating HUD / Guild Mascot (Thú cưng đồng hành) — Linh vật pixel art 8-bit vung kiếm luyện công, Thẩm Phán AI nhắc nhở bong bóng thoại khi mở web xao nhãng, linh vật hóa đá xám xịt và pháo hoa 8-bit nổ chúc mừng kèm âm thanh chiptune khi hoàn thành Pomodoro! |
 | 1.1.0 | 2026-10-18 | Mini Floating Capsule Timer — Bong bóng đếm ngược Pomodoro siêu nhỏ gọn nổi trên mọi tab, kéo thả tự do, không chiếm diện tích màn hình & nút 1-click quay về tab LevelUp. |
 | 1.0.0 | 2026-10-18 | Initial release — Đồng bộ Pomodoro thời gian thực, DNR rule redirection, RPG blocked page, Popup HUD, Options manager. |
-

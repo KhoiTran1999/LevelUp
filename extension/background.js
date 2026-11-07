@@ -99,8 +99,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     'focusState',
     'blockedCountToday',
     'strictMode',
-    'mascotEnabled',
-    'soundEnabled',
     'blockMode'
   ]);
 
@@ -109,9 +107,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     : DEFAULT_BLACKLIST;
 
   const blockMode = data.blockMode || 'in_page_alert';
-  const mascotEnabled = typeof data.mascotEnabled === 'boolean' ? data.mascotEnabled : true;
-  const soundEnabled = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : true;
-
   await chrome.storage.local.set({
     blacklist: initialBlacklist,
     whitelist: Array.isArray(data.whitelist) ? data.whitelist : [],
@@ -119,8 +114,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     focusState: data.focusState || null,
     blockedCountToday: typeof data.blockedCountToday === 'number' ? data.blockedCountToday : 0,
     strictMode: Boolean(data.strictMode),
-    mascotEnabled: mascotEnabled,
-    soundEnabled: soundEnabled,
     blockMode: blockMode
   });
 
@@ -139,42 +132,11 @@ chrome.runtime.onInstalled.addListener(async () => {
     }
   } catch (_) {}
 
-  // Auto-inject capsule.js into all open web tabs
-  await injectCapsuleIntoAllTabs();
-
   // Ensure DNR rules match current shield state
   await applyDnrRules(Boolean(data.isShieldActive), initialBlacklist, data.whitelist || [], blockMode);
   await updateBadge(Boolean(data.isShieldActive), data.focusState);
 });
 
-
-// Auto-inject capsule.js into all open web tabs
-async function injectCapsuleIntoAllTabs() {
-  try {
-    const tabs = await chrome.tabs.query({});
-    for (const t of tabs) {
-      if (t.id && t.url && (t.url.startsWith('http://') || t.url.startsWith('https://'))) {
-        const u = t.url.toLowerCase();
-        if (!u.includes('localhost') && !u.includes('127.0.0.1') && !u.includes('vercel.app')) {
-          await ensureCapsuleInTab(t.id);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[LevelUp Shield] Error auto-injecting capsule:', err);
-  }
-
-  async function ensureCapsuleInTab(tabId) {
-    try {
-      await chrome.tabs.sendMessage(tabId, { type: 'SHOW_CAPSULE_NOW' });
-    } catch (_) {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['capsule.js']
-      }).catch(() => {});
-    }
-  }
-}
 
 // Update Declarative Net Request Dynamic Rules
 async function applyDnrRules(isActive, blacklist = [], whitelist = [], blockMode = 'redirect') {
@@ -255,7 +217,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 
-  // Manifest content_scripts inject capsule.js after normal page loads.
 });
 
 // Update Extension Action Badge
@@ -317,7 +278,6 @@ async function handleTimerSync(state) {
   // If shield just activated, scan and redirect open tabs if in redirect mode
   if (shouldShield) {
     await scanAndRedirectOpenTabs(blacklist, whitelist, blockMode);
-    await injectCapsuleIntoAllTabs();
     chrome.alarms.create('levelup_heartbeat', { periodInMinutes: 0.1 });
   } else {
     await chrome.alarms.clear('levelup_heartbeat');
@@ -388,20 +348,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
-        case 'TRIGGER_TEST_FIREWORKS': {
-          // Testing fireworks trigger
-          await broadcastToAllTabs({
-            type: 'FOCUS_SESSION_COMPLETED',
-            detail: {
-              questTitle: 'Luyện Kiếm Hoàn Tất',
-              rewardCoins: 12,
-              isTest: true
-            }
-          });
-          sendResponse({ success: true });
-          break;
-        }
-
         case 'GET_STATUS': {
           const state = await chrome.storage.local.get([
             'isShieldActive',
@@ -410,8 +356,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             'whitelist',
             'blockedCountToday',
             'strictMode',
-            'mascotEnabled',
-            'soundEnabled',
             'blockMode'
           ]);
           sendResponse({ success: true, data: state });
@@ -420,8 +364,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         case 'UPDATE_SETTINGS': {
           const toUpdate = {};
-          if (typeof message.mascotEnabled === 'boolean') toUpdate.mascotEnabled = message.mascotEnabled;
-          if (typeof message.soundEnabled === 'boolean') toUpdate.soundEnabled = message.soundEnabled;
           if (message.blockMode) toUpdate.blockMode = message.blockMode;
           if (typeof message.strictMode === 'boolean') toUpdate.strictMode = message.strictMode;
           await chrome.storage.local.set(toUpdate);
@@ -514,17 +456,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           sendResponse({ success: true, tabId: targetTabId });
-          break;
-        }
-
-        case 'RESTORE_CAPSULE': {
-          const tabs = await chrome.tabs.query({});
-          for (const tab of tabs) {
-            if (tab.id) {
-              chrome.tabs.sendMessage(tab.id, { type: 'RESTORE_CAPSULE' }).catch(() => {});
-            }
-          }
-          sendResponse({ success: true });
           break;
         }
 

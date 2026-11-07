@@ -23,8 +23,9 @@ requiredPermissions.forEach(perm => {
   assert(manifest.permissions.includes(perm), `Thiếu permission: ${perm}`);
 });
 assert(Array.isArray(manifest.content_scripts), 'Phải có content_scripts');
-assert(manifest.content_scripts.some(cs => cs.js?.includes('capsule.js')), 'Phải khai báo capsule.js trong content_scripts');
-console.log('✓ Test 1: manifest.json hợp lệ chuẩn Manifest V3 với đầy đủ permissions và capsule content script.');
+assert(manifest.content_scripts.some(cs => cs.js?.includes('content.js')), 'Phải khai báo content.js cho đồng bộ timer');
+assert(!manifest.content_scripts.some(cs => cs.js?.includes('capsule.js')), 'Không được inject capsule.js vào các tab');
+console.log('✓ Test 1: manifest.json hợp lệ và không inject UI vào các tab.');
 
 // Test 2: Kiểm tra các file icons tồn tại với định dạng PNG hợp lệ
 assert(manifest.icons, 'Phải khai báo icons trong manifest');
@@ -51,7 +52,6 @@ console.log('✓ Test 2: Bộ icon chuẩn pixel-perfect (16, 48, 128) tồn t�
 const requiredFiles = [
   'background.js',
   'content.js',
-  'capsule.js',
   'blocked/blocked.html',
   'blocked/blocked.css',
   'blocked/blocked.js',
@@ -69,7 +69,7 @@ requiredFiles.forEach(rel => {
   const content = fs.readFileSync(p, 'utf8');
   assert(content.length > 20, `File ${rel} rỗng hoặc nội dung quá ngắn`);
 });
-console.log('✓ Test 3: Đầy đủ 12 file thành phần UI, capsule HUD và background của Chrome Extension.');
+console.log('✓ Test 3: Đầy đủ thành phần chặn và cấu hình Chrome Extension.');
 
 // Test 4: Kiểm tra logic xây dựng quy tắc Declarative Net Request (DNR)
 function generateTestDnrRules(blacklist, whitelist) {
@@ -129,33 +129,7 @@ assert(storeDoc.includes('Privacy & Data Use'), 'Thiếu phần Privacy & Data U
 assert(storeDoc.includes('1.3.0'), 'CHROMEWEBSTORE.md phải ghi nhận phiên bản 1.3.0');
 console.log('✓ Test 6: Tài liệu chuẩn bị xuất bản Chrome Web Store (CHROMEWEBSTORE.md) đầy đủ.');
 
-// Test 7: Kiểm tra tính năng Mini Floating Capsule HUD (Chấm Xanh/Đỏ, Timer, Nút x, Shadow DOM, Pháo hoa 8-bit)
-const capsulePath = path.join(extDir, 'capsule.js');
-const capsuleCode = fs.readFileSync(capsulePath, 'utf8');
-
-assert(capsuleCode.includes('attachShadow'), 'capsule.js phải sử dụng Shadow DOM để cô lập CSS/DOM');
-assert(capsuleCode.includes('dot-green'), 'capsule.js phải có chấm màu xanh khi tập trung bình thường');
-assert(capsuleCode.includes('dot-red'), 'capsule.js phải có chấm màu đỏ khi phân tâm');
-assert(capsuleCode.includes('capsule-timer'), 'capsule.js phải có đồng hồ hiển thị thời gian đếm ngược');
-assert(capsuleCode.includes('capsule-dismiss'), 'capsule.js phải có nút × để tạm ẩn');
-assert(!capsuleCode.includes('arbiter-bubble'), 'capsule.js KHÔNG được chứa bong bóng thoại thẩm phán AI (đã lược bỏ theo yêu cầu)');
-assert(!capsuleCode.includes('mascot-svg'), 'capsule.js KHÔNG được chứa avatar hiệp sĩ (đã lược bỏ theo yêu cầu)');
-assert(capsuleCode.includes('capsuleRumble'), 'capsule.js phải có animation rung rung (capsuleRumble) khi ở trang bị chặn');
-assert(capsuleCode.includes('capsuleBorderWave'), 'capsule.js phải có animation tỏa sóng mượt mà xung quanh viền (capsuleBorderWave)');
-assert(capsuleCode.includes('.capsule-pill.is-distraction .btn-dismiss'), 'capsule.js phải có định kiểu cho nút × trên trang bị chặn');
-assert(capsuleCode.includes('returnToLevelUp(true)'), 'capsule.js phải gọi returnToLevelUp(true) khi bấm nút × ở trang bị chặn để đóng tab');
-assert(capsuleCode.includes('.capsule-pill:hover .btn-dismiss'), 'capsule.js phải hỗ trợ hiện nút × khi hover');
-assert(capsuleCode.includes('fireworks'), 'capsule.js phải có động cơ pháo hoa 8-bit ăn mừng');
-assert(capsuleCode.includes('blocked-overlay'), 'capsule.js phải có lớp phủ cảnh báo lớn ở giữa màn hình (blocked-overlay)');
-assert(capsuleCode.includes('blocked-card-center'), 'capsule.js phải có thẻ cảnh báo trung tâm (blocked-card-center)');
-assert(capsuleCode.includes('gentleBobbing'), 'capsule.js phải có animation nảy lên xuống nhẹ nhàng (gentleBobbing)');
-assert(capsuleCode.includes('btn-overlay-shrink'), 'capsule.js phải có nút kích hoạt thu nhỏ khiên (btn-overlay-shrink)');
-assert(capsuleCode.includes('backdrop-filter'), 'capsule.js phải có hiệu ứng blur kính cho con nhộng thời gian');
-assert(capsuleCode.includes('startCapsuleFlight'), 'capsule.js phải có hàm startCapsuleFlight kích hoạt bay ngẫu nhiên khi bị chặn');
-assert(capsuleCode.includes('getRandomFlightTarget'), 'capsule.js phải có thuật toán tính toán toạ độ bay ngẫu nhiên toàn màn hình');
-assert(capsuleCode.includes('pauseCapsuleFlight') && capsuleCode.includes('resumeCapsuleFlight'), 'capsule.js phải có cơ chế tạm dừng khi hover/drag và tiếp tục bay nhẹ nhàng');
-assert(capsuleCode.includes('is-flying'), 'capsule.js phải có class .is-flying phục vụ hiệu ứng lượn êm ái');
-assert(capsuleCode.includes('.capsule-pill.is-distraction.is-flying') && capsuleCode.includes('animation: none !important;'), 'capsule.js phải tắt rung lắc (animation: none) trong lúc di chuyển');
+// Test 7: Blocked page remains the only UI shown for blocked navigation.
 
 // Kiểm tra trang blocked.html và blocked.css giữ trọn vẹn hiệu ứng Motion yêu thích
 const blockedHtmlPath = path.join(extDir, 'blocked/blocked.html');
@@ -175,7 +149,6 @@ const bgCode = fs.readFileSync(bgPath, 'utf8');
 assert(bgCode.includes('FOCUS_SESSION_COMPLETED'), 'background.js phải hỗ trợ sự kiện FOCUS_SESSION_COMPLETED');
 assert(bgCode.includes('blockMode'), 'background.js phải hỗ trợ tùy chọn blockMode (in_page_alert vs redirect)');
 assert(bgCode.includes('closeCurrentTab'), 'background.js phải hỗ trợ đóng tab trang bị chặn khi quay về LevelUp');
-assert(capsuleCode.includes('closeCurrentTab'), 'capsule.js phải truyền closeCurrentTab khi bấm quay về LevelUp từ cảnh báo');
 
 assert(timerSrc.includes('LEVELUP_FOCUS_COMPLETED'), '06-timer.js phải phát event LEVELUP_FOCUS_COMPLETED');
 assert(appJs.includes('LEVELUP_FOCUS_COMPLETED'), 'test/fixtures/legacy-client/app.js bundle phải chứa LEVELUP_FOCUS_COMPLETED');
@@ -259,4 +232,3 @@ assert(appJs.includes('isLevelUpExtensionOutdated'), 'test/fixtures/legacy-clien
 console.log('✓ Test 11: Cơ chế kiểm tra phiên bản extension và ép buộc nâng cấp (Forced Update) hoạt động chính xác 100%.');
 
 console.log('🎉 Toàn bộ bài kiểm tra Chrome Extension Focus Shield v1.3.0 thành công 100%!');
-

@@ -29,17 +29,15 @@ async function renderPopup() {
     const res = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
     if (!res?.success || !res.data) return;
 
-    const { isShieldActive, focusState, blacklist, blockedCountToday, mascotEnabled } = res.data;
+    const { isShieldActive, focusState, blacklist, blockedCountToday } = res.data;
     currentBlacklist = Array.isArray(blacklist) ? blacklist : [];
 
     // 1. Status Badge & Toggle
     const statusBadge = document.getElementById('status-badge');
     const shieldToggle = document.getElementById('shield-toggle');
-    const mascotToggle = document.getElementById('mascot-toggle');
     const statusCard = document.getElementById('status-card');
 
     if (shieldToggle) shieldToggle.checked = Boolean(isShieldActive);
-    if (mascotToggle) mascotToggle.checked = typeof mascotEnabled === 'boolean' ? mascotEnabled : true;
 
     if (isShieldActive) {
       if (statusBadge) {
@@ -161,32 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Mascot toggle switch
-  const mascotToggle = document.getElementById('mascot-toggle');
-  if (mascotToggle) {
-    mascotToggle.addEventListener('change', async () => {
-      await chrome.runtime.sendMessage({
-        type: 'UPDATE_SETTINGS',
-        mascotEnabled: mascotToggle.checked
-      });
-    });
-  }
-
-  // Test Fireworks Button
-  const testFireworksBtn = document.getElementById('btn-test-fireworks');
-  if (testFireworksBtn) {
-    testFireworksBtn.addEventListener('click', async () => {
-      await chrome.runtime.sendMessage({ type: 'TRIGGER_TEST_FIREWORKS' });
-      const origText = testFireworksBtn.innerHTML;
-      testFireworksBtn.innerHTML = '✨ Đã Bắn Pháo Hoa Trên Web!';
-      testFireworksBtn.style.color = '#34d399';
-      setTimeout(() => {
-        testFireworksBtn.innerHTML = origText;
-        testFireworksBtn.style.color = '#fbbf24';
-      }, 1800);
-    });
-  }
-
   // Quick Add Domain Form
   const formAdd = document.getElementById('form-quick-add');
   const inputAdd = document.getElementById('input-quick-domain');
@@ -204,25 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         inputAdd.value = '';
         renderBlacklistChips();
-      }
-    });
-  }
-
-  // Restore Mini Timer on Tabs Button
-  const restoreCapsuleBtn = document.getElementById('btn-restore-capsule');
-  if (restoreCapsuleBtn) {
-    restoreCapsuleBtn.addEventListener('click', async () => {
-      try {
-        await chrome.runtime.sendMessage({ type: 'RESTORE_CAPSULE' });
-        const originalText = restoreCapsuleBtn.innerHTML;
-        restoreCapsuleBtn.innerHTML = '✅ Đã Bật Lại Mini Timer!';
-        restoreCapsuleBtn.style.color = '#34d399';
-        setTimeout(() => {
-          restoreCapsuleBtn.innerHTML = originalText;
-          restoreCapsuleBtn.style.color = '';
-        }, 1500);
-      } catch (e) {
-        console.error('Failed to restore capsule:', e);
       }
     });
   }

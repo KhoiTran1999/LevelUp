@@ -28,8 +28,6 @@ async function loadOptions() {
     'whitelist',
     'levelupWebUrl',
     'strictMode',
-    'mascotEnabled',
-    'soundEnabled',
     'blockMode'
   ]);
 
@@ -43,8 +41,6 @@ async function loadOptions() {
   const txtWhitelist = document.getElementById('textarea-whitelist');
   const inputUrl = document.getElementById('input-webapp-url');
   const toggleStrict = document.getElementById('toggle-strict-mode');
-  const toggleMascot = document.getElementById('toggle-mascot-enabled');
-  const toggleSound = document.getElementById('toggle-sound-enabled');
   const radioAlert = document.getElementById('radio-mode-alert');
   const radioRedirect = document.getElementById('radio-mode-redirect');
 
@@ -52,8 +48,6 @@ async function loadOptions() {
   if (txtWhitelist) txtWhitelist.value = whitelist.join('\n');
   if (inputUrl) inputUrl.value = webUrl;
   if (toggleStrict) toggleStrict.checked = strictMode;
-  if (toggleMascot) toggleMascot.checked = typeof data.mascotEnabled === 'boolean' ? data.mascotEnabled : true;
-  if (toggleSound) toggleSound.checked = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : true;
 
   const blockMode = data.blockMode || 'in_page_alert';
   if (blockMode === 'redirect') {
@@ -120,16 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const txtWhitelist = document.getElementById('textarea-whitelist');
       const inputUrl = document.getElementById('input-webapp-url');
       const toggleStrict = document.getElementById('toggle-strict-mode');
-      const toggleMascot = document.getElementById('toggle-mascot-enabled');
-      const toggleSound = document.getElementById('toggle-sound-enabled');
       const radioRedirect = document.getElementById('radio-mode-redirect');
 
       const blacklist = parseLines(txtBlacklist?.value || '');
       const whitelist = parseLines(txtWhitelist?.value || '');
       const webUrl = (inputUrl?.value || 'http://localhost:3000').trim();
       const strictMode = Boolean(toggleStrict?.checked);
-      const mascotEnabled = Boolean(toggleMascot?.checked);
-      const soundEnabled = Boolean(toggleSound?.checked);
       const blockMode = radioRedirect?.checked ? 'redirect' : 'in_page_alert';
 
       await chrome.storage.local.set({
@@ -137,16 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
         whitelist,
         levelupWebUrl: webUrl,
         strictMode,
-        mascotEnabled,
-        soundEnabled,
         blockMode
       });
 
       // Notify background service worker of both settings and blacklist updates
       await chrome.runtime.sendMessage({
         type: 'UPDATE_SETTINGS',
-        mascotEnabled,
-        soundEnabled,
         blockMode,
         strictMode
       });

@@ -8,7 +8,6 @@ const htmlPath = path.resolve('public/index.html');
 const cssPath = path.resolve('public/style.css');
 const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const manifestPath = path.resolve('extension/manifest.json');
-const capsuleJsPath = path.resolve('extension/capsule.js');
 const backgroundJsPath = path.resolve('extension/background.js');
 const contentJsPath = path.resolve('extension/content.js');
 const popupHtmlPath = path.resolve('extension/popup/popup.html');
@@ -18,7 +17,6 @@ const html = fs.readFileSync(htmlPath, 'utf8');
 const css = fs.readFileSync(cssPath, 'utf8');
 const js = fs.readFileSync(appJsPath, 'utf8');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-const capsule = fs.readFileSync(capsuleJsPath, 'utf8');
 const bg = fs.readFileSync(backgroundJsPath, 'utf8');
 const content = fs.readFileSync(contentJsPath, 'utf8');
 const popupHtml = fs.readFileSync(popupHtmlPath, 'utf8');
@@ -83,15 +81,8 @@ assert.ok(css.includes('.note-todo-item'), 'style.css phải định dạng chec
 assert.ok(css.includes('.notes-editor'), 'style.css phải định dạng rich typography cho .notes-editor');
 console.log('  -> Công cụ soạn thảo và checklist mượt mà: ĐẠT CHUẨN ✅\n');
 
-// 5. Kiểm tra Capsule HUD Mini: Tối giản hóa và loại bỏ nút ghi chú khỏi con nhộng
-console.log('Test 5: Capsule HUD Mini được tối giản hóa, không còn nút ghi chú gây rối mắt');
-assert.ok(!capsule.includes('id="capsule-notes-btn"'), 'Capsule đã loại bỏ nút #capsule-notes-btn');
-assert.ok(!capsule.includes('class="btn-capsule-notes"'), 'Capsule đã loại bỏ class btn-capsule-notes');
-assert.ok(!capsule.includes('.btn-capsule-notes'), 'Capsule đã loại bỏ CSS .btn-capsule-notes');
-console.log('  -> Capsule HUD Mini tối giản, không còn nút ghi chú dư thừa: ĐẠT CHUẨN ✅\n');
-
-// 6. Kiểm tra Chrome Extension: Đã loại bỏ hoàn toàn tính năng ghi chú trong extension để đơn giản hóa
-console.log('Test 6: Đơn giản hóa Extension — Loại bỏ hoàn toàn ghi chú và contextMenus');
+// 5. Kiểm tra Chrome Extension: chỉ giữ cơ chế chặn và đồng bộ timer
+console.log('Test 5: Extension chỉ giữ cơ chế chặn và đồng bộ timer');
 assert.ok(!manifest.permissions.includes('contextMenus'), 'manifest.json đã loại bỏ quyền contextMenus');
 assert.ok(!bg.includes("id: 'levelup-save-selection'"), 'background.js không còn menu lưu selection');
 assert.ok(!bg.includes("id: 'levelup-open-notes'"), 'background.js không còn menu mở notes');
@@ -102,4 +93,3 @@ assert.ok(!popupHtml.includes('id="keep-note-title"'), 'popup.html không còn f
 console.log('  -> Tối giản hóa Chrome Extension và loại bỏ ghi chú hoàn tất 100%: ĐẠT CHUẨN ✅\n');
 
 console.log('🎉 TẤT CẢ CÁC BÀI KIỂM THỬ SỔ GHI CHÚ ĐÃ VƯỢT QUA 100%!');
-

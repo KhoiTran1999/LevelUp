@@ -11,7 +11,6 @@ describe('Chrome Extension — Focus Shield & Streamlined Extension Architecture
   const popupJs = fs.readFileSync(path.join(rootDir, 'extension/popup/popup.js'), 'utf-8');
   const bgJs = fs.readFileSync(path.join(rootDir, 'extension/background.js'), 'utf-8');
   const contentJs = fs.readFileSync(path.join(rootDir, 'extension/content.js'), 'utf-8');
-  const capsuleJs = fs.readFileSync(path.join(rootDir, 'extension/capsule.js'), 'utf-8');
 
   it('1. Mặc định mở extension hiển thị trực tiếp giao diện Khiên Tập Trung (Focus Shield)', () => {
     // 1. View panel Shield đang active trực tiếp
@@ -21,12 +20,12 @@ describe('Chrome Extension — Focus Shield & Streamlined Extension Architecture
     assert.ok(popupHtml.includes('id="status-card"'), 'popup.html phải có thẻ #status-card');
     assert.ok(popupHtml.includes('id="status-badge"'), 'popup.html phải có #status-badge');
     assert.ok(popupHtml.includes('id="shield-toggle"'), 'popup.html phải có công tắc #shield-toggle');
-    assert.ok(popupHtml.includes('id="mascot-toggle"'), 'popup.html phải có công tắc #mascot-toggle');
+    assert.ok(!popupHtml.includes('id="mascot-toggle"'), 'popup.html không còn công tắc HUD');
     assert.ok(popupHtml.includes('id="quest-hud"'), 'popup.html phải có #quest-hud');
     assert.ok(popupHtml.includes('id="popup-countdown"'), 'popup.html phải có #popup-countdown');
     assert.ok(popupHtml.includes('id="blacklist-chips"'), 'popup.html phải có danh sách chặn #blacklist-chips');
     assert.ok(popupHtml.includes('id="form-quick-add"'), 'popup.html phải có form thêm nhanh web chặn');
-    assert.ok(popupHtml.includes('id="btn-restore-capsule"'), 'popup.html phải có nút phục hồi capsule #btn-restore-capsule');
+    assert.ok(!popupHtml.includes('btn-restore-capsule'), 'popup.html không còn nút phục hồi capsule');
   });
 
   it('2. Đã loại bỏ hoàn toàn các thành phần ghi chú thừa trong popup để đơn giản hóa giao diện', () => {
@@ -63,8 +62,6 @@ describe('Chrome Extension — Focus Shield & Streamlined Extension Architecture
     assert.ok(!contentJs.includes('APPEND_CLIP'), 'content.js không còn lắng nghe APPEND_CLIP');
     assert.ok(!contentJs.includes('syncTopicsToExtension'), 'content.js không còn syncTopicsToExtension');
 
-    // Capsule không còn nút ghi chú 📝
-    assert.ok(!capsuleJs.includes('id="capsule-notes-btn"'), 'capsule.js không còn nút #capsule-notes-btn');
   });
 
   it('5. Popup CSS gọn gàng, kích thước 350px tối ưu cho Focus Shield', () => {
