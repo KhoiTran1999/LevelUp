@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Quest } from '@/types/levelup';
+import { useLevelUp } from '@/hooks/useLevelUp';
 
 interface TimerEditRequest {
   remainingSeconds: number;
@@ -152,7 +153,9 @@ export function TimerAdjustmentModal() {
 }
 
 export function FocusCompleteModal() {
+  const { completeQuest } = useLevelUp();
   const [quest, setQuest] = useState<Quest | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     const handleOpen = (event: Event) => {
@@ -180,8 +183,27 @@ export function FocusCompleteModal() {
       win.showToast?.('Không thể bắt đầu giờ nghỉ.', 'error');
       return;
     }
-    setQuest(null);
-    startBreakTimer(5);
+    if (!quest || isClaiming) return;
+    setIsClaiming(true);
+    if (quest.requiresProof && !quest._proofVerified) {
+      void completeQuest(quest.id).finally(() => {
+        setQuest(null);
+        setIsClaiming(false);
+      });
+      return;
+    }
+    void completeQuest(quest.id).then(() => {
+      setQuest(null);
+      startBreakTimer(5);
+    }).finally(() => setIsClaiming(false));
+  };
+
+  const claimReward = () => {
+    if (!quest || isClaiming) return;
+    setIsClaiming(true);
+    void completeQuest(quest.id).then(() => {
+      setQuest(null);
+    }).finally(() => setIsClaiming(false));
   };
 
   if (!quest) return null;
@@ -212,10 +234,10 @@ export function FocusCompleteModal() {
           <div className="hidden"><span id="focus-complete-exp">+{quest.rewardCoins * 3} EXP</span></div>
         </div>
         <div className="space-y-2 pt-2">
-          <button id="btn-focus-complete-break" type="button" className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-95" onClick={startBreak}>
+          <button id="btn-focus-complete-break" type="button" disabled={isClaiming} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60" onClick={startBreak}>
             <span>☕</span><span>Nghỉ Giải Lao 5 Phút (Nạp Lại Năng Lượng)</span>
           </button>
-          <button id="btn-focus-complete-claim" type="button" className="w-full cursor-pointer rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition hover:bg-amber-400 active:scale-95" onClick={() => close(false)}>
+          <button id="btn-focus-complete-claim" type="button" disabled={isClaiming} className="w-full cursor-pointer rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 transition hover:bg-amber-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60" onClick={claimReward}>
             ⚔️ Nhận Thưởng &amp; Tiếp Tục
           </button>
         </div>
