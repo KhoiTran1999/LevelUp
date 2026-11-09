@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const appJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
-const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
+const indexHtml = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const aiJs = fs.readFileSync(path.join(rootDir, 'api', 'ai.js'), 'utf8');
 const aiSchemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'ai.js'), 'utf8');
 const gameSchemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'game.js'), 'utf8');

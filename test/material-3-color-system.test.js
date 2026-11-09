@@ -12,7 +12,7 @@ assert.doesNotThrow(() => {
 console.log('✓ Test 0: Cú pháp JavaScript của test/fixtures/legacy-client/app.js hợp lệ 100%.');
 
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
-const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const indexHtml = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8');
 const paletteComponent = fs.readFileSync(path.resolve('components/profile/PaletteStudioModal.tsx'), 'utf8');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const tailwindConfig = fs.readFileSync(path.resolve('tailwind.config.js'), 'utf8');

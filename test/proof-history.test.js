@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const appJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
-const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
+const indexHtml = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const renderJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '14-render.js'), 'utf8');
 const schemasJs = fs.readFileSync(path.join(rootDir, 'src', 'schemas', 'game.js'), 'utf8');
 const syncJs = fs.readFileSync(path.join(rootDir, 'api', 'sync.js'), 'utf8');

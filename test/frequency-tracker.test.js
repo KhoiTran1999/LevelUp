@@ -15,7 +15,7 @@ test('Frequency Tracker - Math and Grid Calculation (Matches Image 1: 1d -> 0.27
 });
 
 test('Frequency Tracker - React tab and detail modal are mounted', async () => {
-  const htmlPath = path.join(process.cwd(), 'public', 'index.html');
+  const htmlPath = path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'index.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
   const page = fs.readFileSync(path.join(process.cwd(), 'app', 'page.tsx'), 'utf8');
   const tracker = fs.readFileSync(path.join(process.cwd(), 'components', 'tracker', 'Tracker.tsx'), 'utf8');

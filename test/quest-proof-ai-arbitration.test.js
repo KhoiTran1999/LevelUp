@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 test('1. Default quest repeat frequency is "repeatable"', () => {
-  const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
   const eventsJs = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'modules', '18-events.js'), 'utf8');
 
   // HTML has repeatable radio checked

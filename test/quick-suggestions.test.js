@@ -242,7 +242,7 @@ console.log("✓ Test 5: API /api/ai phản hồi chuẩn xác cho cả suggest_
 // TEST 6: Kiểm tra UI Elements trên index.html
 // ---------------------------------------------------------------------------
 console.log("--- TEST 6: Kiểm tra UI Elements trên index.html ---");
-const htmlContent = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
+const htmlContent = fs.readFileSync(path.join(__dirname, "../test/fixtures/legacy-client/index.html"), "utf8");
 
 assert(htmlContent.includes("id=\"quest-suggestions-container\""), "Thiếu id=quest-suggestions-container");
 assert(htmlContent.includes("id=\"quest-suggestions-list\""), "Thiếu id=quest-suggestions-list");

@@ -9,7 +9,7 @@ console.log('=== BẮT ĐẦU BỘ KIỂM THỬ HỆ THỐNG CHUỖI NGÀY (DAIL
 const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
-const indexHtmlPath = path.resolve('public/index.html');
+const indexHtmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 const indexHtmlContent = fs.readFileSync(indexHtmlPath, 'utf8');
 const levelAndStreak = fs.readFileSync(path.resolve('components/profile/LevelAndStreakInfoModals.tsx'), 'utf8');
 const profile = fs.readFileSync(path.resolve('components/profile/ProfileModal.tsx'), 'utf8');

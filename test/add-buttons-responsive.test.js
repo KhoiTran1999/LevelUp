@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Tinh Chỉnh & Tối Ưu Nút "Thêm Nhiệm Vụ" và "Thêm Quà" (Desktop, iPad, iPhone) ===\n');
 
-const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const html = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8');
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 

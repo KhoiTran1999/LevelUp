@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== KIỂM THỬ TRẢI NGHIỆM LƯỚT CUỘN GỢI Ý NGANG TRÊN MÁY TÍNH (DESKTOP DRAG & WHEEL SCROLL UX) ===\n');
 
-const htmlContent = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const htmlContent = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8');
 const cssContent = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const appJsContent = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 

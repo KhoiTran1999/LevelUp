@@ -12,7 +12,7 @@ assert.doesNotThrow(() => {
 console.log('✓ Test 0: Cú pháp JavaScript hợp lệ 100%.');
 
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
-const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const indexHtml = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 
 // 1. Kiểm tra CSS và HTML của nút filter Nhiệm Vụ (Tất cả, Chưa xong, Đã xong)

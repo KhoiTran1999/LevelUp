@@ -6,7 +6,7 @@ console.log('--- Bắt đầu kiểm thử Web App Logo & PWA Manifest ---');
 
 const publicDir = path.resolve('public');
 const manifestPath = path.join(publicDir, 'manifest.json');
-const htmlPath = path.join(publicDir, 'index.html');
+const htmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 
 // Test 1: manifest.json tồn tại và có cấu trúc hợp lệ
 assert(fs.existsSync(manifestPath), 'manifest.json phải tồn tại');

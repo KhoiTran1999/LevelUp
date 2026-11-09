@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const htmlPath = path.resolve('public/index.html');
+const htmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');

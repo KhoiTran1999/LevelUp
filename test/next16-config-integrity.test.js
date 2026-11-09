@@ -15,6 +15,7 @@ console.log('=== KIỂM THỬ TÍNH TOÀN VẸN CẤU HÌNH NEXT.JS 16 & REACT 1
   assert.ok(!packageJson.dependencies.compression, 'Express compression middleware không còn là dependency');
   assert.ok(!fs.existsSync(path.join(process.cwd(), 'server.js')), 'Express server cũ phải được gỡ bỏ');
   assert.ok(!fs.existsSync(path.join(process.cwd(), 'vite.config.js')), 'Vite config cũ phải được gỡ bỏ');
+  assert.ok(!fs.existsSync(path.join(process.cwd(), 'public', 'index.html')), 'Legacy static entrypoint phải được gỡ khỏi public/');
   console.log('  ✓ Next.js là runtime duy nhất cho web app.\n');
 }
 
@@ -29,6 +30,7 @@ console.log('=== KIỂM THỬ TÍNH TOÀN VẸN CẤU HÌNH NEXT.JS 16 & REACT 1
   assert.ok(content.includes("'ioredis'"), "serverExternalPackages phải bao gồm 'ioredis'");
   assert.ok(content.includes("'postgres'"), "serverExternalPackages phải bao gồm 'postgres'");
   assert.ok(content.includes("'@aws-sdk/client-s3'"), "serverExternalPackages phải bao gồm '@aws-sdk/client-s3'");
+  assert.ok(!content.includes('outputFileTracingIncludes'), 'Next config không được trace legacy static entrypoint');
   console.log('  ✓ Đã xác minh serverExternalPackages cấu hình chuẩn cho Next.js 16.\n');
 }
 

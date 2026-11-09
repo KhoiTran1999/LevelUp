@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Bắt đầu kiểm thử: Sổ Ghi Chú - Mobile UX & Tối Ưu Tốc Độ Gõ Chữ ===\n');
 
-const htmlPath = path.resolve('public/index.html');
+const htmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 const cssPath = path.resolve('public/style.css');
 const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 

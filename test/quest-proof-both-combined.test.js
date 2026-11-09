@@ -137,8 +137,8 @@ test('3. evaluateTextProofHeuristics guards text content in combined proof mode'
   assert.equal(resValid, null, 'Valid report should pass heuristics without being rejected');
 });
 
-test('4. public/index.html includes the "📸+✍️ Kết Hợp" tab in modal-quest-proof', () => {
-  const htmlPath = path.join(rootDir, 'public', 'index.html');
+test('4. test/fixtures/legacy-client/index.html includes the "📸+✍️ Kết Hợp" tab in modal-quest-proof', () => {
+  const htmlPath = path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html');
   const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
   assert.ok(htmlContent.includes('id="proof-tab-both"'), 'index.html must have #proof-tab-both button');

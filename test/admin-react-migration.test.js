@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const root = process.cwd();
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'components', 'admin', 'AdminDashboard.tsx'), 'utf8');
 const profileModal = fs.readFileSync(path.join(root, 'components', 'profile', 'ProfileModal.tsx'), 'utf8');
 const toast = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '04-toast.js'), 'utf8');

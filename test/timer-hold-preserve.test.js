@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Kiểm thử Tính Năng Bảo Lưu Thời Gian Đếm Ngược (Quests & Rewards) ===\n');
 
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
-const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
+const indexHtml = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const syncJs = fs.readFileSync(path.resolve('api/sync.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra sự tồn tại của nút Bảo Lưu trên Focus Station Banner và Fullscreen Zen Overlay

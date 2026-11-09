@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const read = file => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const page = read('app/page.tsx');
-const html = read('public/index.html');
+const html = read('test/fixtures/legacy-client/index.html');
 const detail = read('components/quests/QuestDetailModal.tsx');
 const runtime = read('test/fixtures/legacy-client/modules/14-render.js');
 const bundle = read('test/fixtures/legacy-client/app.js');

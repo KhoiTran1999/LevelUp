@@ -273,7 +273,7 @@ console.log('=== KIỂM THỬ TRỢ LÝ AI RIÊNG CHO USER (MODEL BRAIN & MODEL 
   const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
 
   // 7a. Kiểm tra React UI: Không có nút Nav thừa thãi, có FAB và Modal Phù Thủy AI
-  assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
+  assert.ok(!fs.readFileSync(new URL('./fixtures/legacy-client/index.html', import.meta.url), 'utf8').includes('id="btn-open-assistant-nav"'), 'Desktop Navbar không còn nút Trợ Lý AI thừa thãi (đã có icon Phù Thủy)');
   assert.ok(html.includes('id="btn-floating-assistant"'), 'React phải có Floating Action Button (FAB) Trợ Lý AI');
   assert.ok(html.includes('id="modal-ai-assistant"'), 'React phải có modal #modal-ai-assistant');
   assert.ok(html.includes('id="assistant-chat-logs"'), 'Modal phải có khung log chat #assistant-chat-logs');

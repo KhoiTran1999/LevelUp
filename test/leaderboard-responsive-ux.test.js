@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Bắt đầu kiểm thử Toàn Diện Bảng Xếp Hạng Đa Thiết Bị (Desktop, iPad, Phone) ===\n');
 
-const html = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(process.cwd(), 'public', 'style.css'), 'utf8');
 const appJs = fs.readFileSync(path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
 

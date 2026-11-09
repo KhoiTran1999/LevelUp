@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const read = file => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const page = read('app/page.tsx');
-const html = read('public/index.html');
+const html = read('test/fixtures/legacy-client/index.html');
 const modals = read('components/timer/TimerModals.tsx');
 const timer = read('test/fixtures/legacy-client/modules/06-timer.js');
 const bundle = read('test/fixtures/legacy-client/app.js');

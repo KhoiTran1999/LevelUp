@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const component = fs.readFileSync(path.join(root, 'components', 'profile', 'PaletteStudioModal.tsx'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '03-storage.js'), 'utf8');
 const bundle = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');

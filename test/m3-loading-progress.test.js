@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== KIỂM THỬ HỆ THỐNG MATERIAL DESIGN 3 LOADING & PROGRESS INDICATORS ===\n');
 
-const htmlPath = path.resolve('public/index.html');
+const htmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
 const cssPath = path.resolve('public/style.css');

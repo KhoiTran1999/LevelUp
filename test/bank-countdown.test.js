@@ -171,11 +171,11 @@ console.log('Test 4: Kiểm thử Khoản vay quá hạn (Overdue)');
 }
 
 // -----------------------------------------------------------------------------
-// Test 5: Kiểm tra Sự hiện diện của Elements trong public/index.html & test/fixtures/legacy-client/app.js
+// Test 5: Kiểm tra Sự hiện diện của Elements trong test/fixtures/legacy-client/index.html & test/fixtures/legacy-client/app.js
 // -----------------------------------------------------------------------------
 console.log('Test 5: Kiểm tra các ID countdown trong index.html và app.js');
 {
-  const htmlPath = path.join(process.cwd(), 'public', 'index.html');
+  const htmlPath = path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'index.html');
   const appPath = path.join(process.cwd(), 'test', 'fixtures', 'legacy-client', 'app.js');
 
   const html = fs.readFileSync(htmlPath, 'utf8');

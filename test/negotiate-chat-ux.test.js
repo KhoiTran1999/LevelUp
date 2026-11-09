@@ -5,7 +5,7 @@ import path from 'node:path';
 console.log('=== Kiểm thử Trải Nghiệm Chat Thương Lượng AI (Negotiation Chat UX) ===\n');
 
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
-const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
+const indexHtml = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra cấu trúc HTML của giao diện Chat Thương Lượng (Gợi ý nhanh & Input hiện đại)

@@ -92,7 +92,8 @@ console.log('=== KIỂM THỬ XÁC MINH CÁC TỐI ƯU HÓA ĐÃ TRIỂN KHAI (1
 
   const tailwindConfig = fs.readFileSync(path.join(rootDir, 'tailwind.config.js'), 'utf8');
   assert.ok(!tailwindConfig.includes('./public/**/*.{html,js}'), 'tailwind.config.js không được quét trùng test/fixtures/legacy-client/app.js');
-  assert.ok(tailwindConfig.includes('./public/index.html'), 'tailwind.config.js phải quét public/index.html');
+  assert.ok(tailwindConfig.includes('./app/**/*.{js,ts,jsx,tsx,mdx}'), 'tailwind.config.js phải quét App Router source');
+  assert.ok(!tailwindConfig.includes('test/fixtures/legacy-client'), 'tailwind.config.js không được quét archived legacy fixtures');
 
   console.log('✓ Mục 5: sw.js có ignoreSearch: true và tailwind.config.js tối ưu scanning.');
 }

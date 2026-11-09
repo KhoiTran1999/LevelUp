@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const component = fs.readFileSync(path.join(root, 'components', 'profile', 'LevelAndStreakInfoModals.tsx'), 'utf8');
 const legacyModal = fs.readFileSync(path.join(root, 'test', 'fixtures', 'legacy-client', 'modules', '15-modal.js'), 'utf8');
 

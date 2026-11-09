@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const appJsContent = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'app.js'), 'utf8');
-const indexHtmlContent = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
+const indexHtmlContent = fs.readFileSync(path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html'), 'utf8');
 const aiJsContent = fs.readFileSync(path.join(rootDir, 'api', 'ai.js'), 'utf8');
 
 test('Supabase Storage: isSupabaseConfigured trả về false khi chưa set biến môi trường', () => {
@@ -96,7 +96,7 @@ test('Storage: verify_proof trong api/ai.js tích hợp uploadProofImage', () =>
   );
 });
 
-test('Storage UI: public/index.html có modal modal-proof-viewer', () => {
+test('Storage UI: test/fixtures/legacy-client/index.html có modal modal-proof-viewer', () => {
   assert.match(indexHtmlContent, /id="modal-proof-viewer"/, 'index.html phải có modal-proof-viewer');
   assert.match(indexHtmlContent, /id="proof-viewer-img"/, 'index.html phải có thẻ img cho viewer');
   assert.match(indexHtmlContent, /id="proof-viewer-title"/, 'index.html phải có title viewer');

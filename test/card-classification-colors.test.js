@@ -12,7 +12,7 @@ assert.doesNotThrow(() => {
 console.log('✓ Test 0: Cú pháp JavaScript của test/fixtures/legacy-client/app.js hoàn toàn hợp lệ, không gây crash browser.');
 
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8').replace(/\r\n/g, '\n');
-const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8').replace(/\r\n/g, '\n');
+const indexHtml = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8').replace(/\r\n/g, '\n');
 const styleCss = fs.readFileSync(path.resolve('public/style.css'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Kiểm tra CSS Định dạng màu nền và viền thẻ phân loại theo Rank (Nhiệm vụ) và Tier (Phần thưởng)

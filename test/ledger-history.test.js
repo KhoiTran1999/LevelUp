@@ -145,7 +145,7 @@ async function testZeroLocalStorageAndSkeleton() {
   assert.ok(appJs.includes("document.getElementById('shop-grid')"), 'renderSkeletons phải cập nhật shop-grid');
 
   // Đảm bảo index.html chứa sẵn skeleton cards để chống chớp nháy ngay từ khi parse HTML
-  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const indexHtml = fs.readFileSync(new URL('./fixtures/legacy-client/index.html', import.meta.url), 'utf8');
   assert.ok(indexHtml.includes('id="quests-grid"'), 'index.html phải có quests-grid');
   assert.ok(indexHtml.includes('Initial Skeleton Cards'), 'index.html phải chứa sẵn skeleton cards ban đầu');
 
@@ -185,7 +185,7 @@ async function testLedgerPagination() {
   assert.strictEqual(clampedPage, 1);
 
   // Kiểm tra cấu trúc DOM & hàm trong source code
-  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const indexHtml = fs.readFileSync(new URL('./fixtures/legacy-client/index.html', import.meta.url), 'utf8');
   assert.ok(indexHtml.includes('id="ledger-pagination"'), 'index.html phải có container phân trang ledger');
   assert.ok(indexHtml.includes('id="ledger-prev-btn"'), 'index.html phải có nút trang trước');
   assert.ok(indexHtml.includes('id="ledger-next-btn"'), 'index.html phải có nút trang sau');
@@ -202,11 +202,11 @@ async function testLedgerPagination() {
 // 8. Kiểm tra Tích hợp Lịch Sử Tiết Kiệm & Vay Tiền Ngân Hàng (Bank Ledger Integration)
 async function testBankLedgerIntegration() {
   const fs = await import('node:fs');
-  const indexHtml = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const indexHtml = fs.readFileSync(new URL('./fixtures/legacy-client/index.html', import.meta.url), 'utf8');
   const appJs = fs.readFileSync(new URL('../test/fixtures/legacy-client/app.js', import.meta.url), 'utf8');
   const syncJs = fs.readFileSync(new URL('../api/sync.js', import.meta.url), 'utf8');
 
-  // 1. Kiểm tra DOM trong public/index.html
+  // 1. Kiểm tra DOM trong test/fixtures/legacy-client/index.html
   assert.ok(indexHtml.includes('id="ledger-filter-bank"'), 'index.html phải có nút lọc giao dịch Ngân Hàng');
   assert.ok(indexHtml.includes('id="ledger-stat-bank-deposit"'), 'index.html phải có thẻ mini stat hiển thị tiền gửi');
   assert.ok(indexHtml.includes('id="ledger-stat-bank-debt"'), 'index.html phải có thẻ mini stat hiển thị dư nợ');

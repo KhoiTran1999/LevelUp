@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const read = file => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const page = read('app/page.tsx');
-const html = read('public/index.html');
+const html = read('test/fixtures/legacy-client/index.html');
 const dialog = read('components/shop/RewardDetailModal.tsx');
 const frequency = read('components/tracker/FrequencyDetailModal.tsx');
 const runtime = read('test/fixtures/legacy-client/modules/14-render.js');

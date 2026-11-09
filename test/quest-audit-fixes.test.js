@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 const appJsContent = fs.readFileSync(path.join(__dirname, '../test/fixtures/legacy-client/app.js'), 'utf-8');
 const syncJsContent = fs.readFileSync(path.join(__dirname, '../api/sync.js'), 'utf-8');
 const aiJsContent = fs.readFileSync(path.join(__dirname, '../api/ai.js'), 'utf-8');
-const indexHtmlContent = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf-8');
+const indexHtmlContent = fs.readFileSync(path.join(__dirname, 'fixtures/legacy-client/index.html'), 'utf-8');
 
 test('Lỗi 1: Seed Quest 2 restart bảo tồn canonicalId và vượt qua verifyQuestSignature', () => {
   // Mô phỏng quest được restart từ q_seed_2

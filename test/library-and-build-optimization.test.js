@@ -27,7 +27,7 @@ assert.ok(tailwindCssContent.includes('guild') || tailwindCssContent.includes('#
 console.log(`✓ Test 2: public/tailwind.min.css được biên dịch tĩnh hoàn chỉnh (${(tailwindCssStat.size / 1024).toFixed(1)} KB).`);
 
 // 3. Kiểm tra index.html đã gỡ bỏ hoàn toàn runtime CDN và nhúng file CSS build tĩnh
-const htmlPath = path.join(publicDir, 'index.html');
+const htmlPath = path.join(rootDir, 'test', 'fixtures', 'legacy-client', 'index.html');
 const indexHtml = fs.readFileSync(htmlPath, 'utf8');
 assert.ok(!indexHtml.includes('cdn.tailwindcss.com'), 'index.html KHÔNG được chứa script CDN cdn.tailwindcss.com');
 assert.ok(indexHtml.includes('href="tailwind.min.css"'), 'index.html phải liên kết trực tiếp href="tailwind.min.css"');

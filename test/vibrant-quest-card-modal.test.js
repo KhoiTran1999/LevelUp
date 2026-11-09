@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Kiểm thử Giao Diện Thẻ Tinh Gọn, Giữ Nguyên Màu Sắc RPG, Lịch Tuần & Modal Chi Tiết ===\n');
 
-const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
+const html = fs.readFileSync(path.resolve('test/fixtures/legacy-client/index.html'), 'utf8');
 const css = fs.readFileSync(path.resolve('public/style.css'), 'utf8');
 const appJs = fs.readFileSync(path.resolve('test/fixtures/legacy-client/app.js'), 'utf8');
 const questDetail = fs.readFileSync(path.resolve('components/quests/QuestDetailModal.tsx'), 'utf8');

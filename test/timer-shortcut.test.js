@@ -4,7 +4,7 @@ import path from 'node:path';
 
 console.log('=== Bắt đầu kiểm thử: Phím tắt Space dừng/tiếp tục đếm ngược thời gian ===\n');
 
-const htmlPath = path.resolve('public/index.html');
+const htmlPath = path.resolve('test/fixtures/legacy-client/index.html');
 const appJsPath = path.resolve('test/fixtures/legacy-client/app.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
